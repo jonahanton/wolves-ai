@@ -40,7 +40,7 @@ export function PathSpine({ views }: PathSpineProps) {
               className="absolute top-6 -left-[21.5px] size-2.5 rounded-full border border-background bg-gold"
               aria-hidden
             />
-            <SpineCard stage={stage} tilt={i % 2 === 0 ? "l" : "r"} featured={i === 0} />
+            <SpineCard stage={stage} featured={i === 0} />
           </li>
         ))}
       </ol>

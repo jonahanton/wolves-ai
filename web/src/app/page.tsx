@@ -1,9 +1,13 @@
 import { DailyStory } from "@/components/today/daily-story";
+import { EvidenceFeed } from "@/components/today/evidence-feed";
 import { FinishSummary } from "@/components/today/finish-summary";
+import { MarketsCard } from "@/components/today/markets-card";
 import { NextFixtureCard } from "@/components/today/next-fixture-card";
 import { RunHeader } from "@/components/today/run-header";
 import { WhatMoved } from "@/components/today/what-moved";
+import { englandStory, ledgerEntries } from "@/lib/agent-fields";
 import { summariseSnapshot } from "@/lib/derive";
+import { buildMarketsView } from "@/lib/markets";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { nextEnglandFixture } from "@/lib/schedule";
 import { teamNames } from "@/lib/snapshot";
@@ -22,7 +26,9 @@ export default async function TodayPage() {
       <WhatMoved summary={summariseSnapshot(snapshot)} />
       {fixture && <NextFixtureCard fixture={fixture} names={names} />}
       <FinishSummary england={snapshot.england} />
-      <DailyStory />
+      <MarketsCard view={buildMarketsView(snapshot, names)} />
+      <DailyStory story={englandStory(snapshot)} />
+      <EvidenceFeed entries={ledgerEntries(snapshot)} />
     </main>
   );
 }

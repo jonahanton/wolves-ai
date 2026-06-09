@@ -184,14 +184,6 @@
   pointer-events: none;
 }
 
-.sticker-tilt-l {
-  rotate: -1.1deg;
-}
-
-.sticker-tilt-r {
-  rotate: 0.9deg;
-}
-
 @keyframes foil-sweep {
   0%,
   55% {
@@ -225,7 +217,66 @@
   animation: foil-sweep 7s ease-in-out infinite;
 }
 
-@keyframes ear-twitch {
+/* Wolf mascot: one canonical wolf, action variants scoped by .v-* classes on the svg.
+   Every part animation resolves through --wolf-anim so reduced motion can switch the
+   whole character off in one declaration; the idle layer keeps it alive everywhere else. */
+
+.wolf {
+  overflow: visible;
+}
+
+.wolf .wolf-ear,
+.wolf .wolf-head,
+.wolf .wolf-eyes,
+.wolf .wolf-tail,
+.wolf .wolf-all,
+.wolf .wolf-ball,
+.wolf .wolf-howl-marks path {
+  transform-box: fill-box;
+}
+
+.wolf .wolf-head {
+  transform-origin: 50% 90%;
+  animation: var(--wolf-anim, wolf-idle-head 3.4s ease-in-out infinite);
+}
+.wolf .wolf-eyes {
+  transform-origin: center;
+  animation: var(--wolf-anim, wolf-idle-blink 4.8s ease-in-out infinite);
+}
+.wolf .wolf-ear-l {
+  transform-origin: 60% 95%;
+  animation: var(--wolf-anim, wolf-idle-ear 7s ease-in-out infinite);
+}
+.wolf .wolf-ear-r {
+  transform-origin: 40% 95%;
+  animation: var(--wolf-anim, wolf-idle-ear 9s ease-in-out infinite 3.5s);
+}
+.wolf .wolf-tail {
+  transform-origin: 10% 90%;
+  animation: var(--wolf-anim, wolf-idle-tail 3.2s ease-in-out infinite alternate);
+}
+
+@keyframes wolf-idle-head {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.7px);
+  }
+}
+@keyframes wolf-idle-blink {
+  0%,
+  92%,
+  96%,
+  100% {
+    transform: scaleY(1);
+  }
+  94% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes wolf-idle-ear {
   0%,
   90%,
   100% {
@@ -238,24 +289,146 @@
     transform: rotate(4deg);
   }
 }
-
-.wolf-ear {
-  transform-box: fill-box;
-  transform-origin: 60% 95%;
+@keyframes wolf-idle-tail {
+  from {
+    transform: rotate(-6deg);
+  }
+  to {
+    transform: rotate(10deg);
+  }
 }
 
-.wolf-idle .wolf-ear-left {
-  animation: ear-twitch 7s ease-in-out infinite;
+.v-juggle .wolf-ball {
+  transform-origin: 50% 100%;
+  animation: var(--wolf-anim, wolf-juggle-ball 0.9s cubic-bezier(0.34, 0.18, 0.66, 0.85) infinite);
+}
+.v-juggle .wolf-head {
+  animation: var(--wolf-anim, wolf-juggle-head 0.9s ease-in-out infinite);
+}
+.v-juggle .wolf-all {
+  transform-origin: 50% 100%;
+  animation: var(--wolf-anim, wolf-juggle-bounce 0.9s ease-in-out infinite);
 }
 
-.wolf-idle .wolf-ear-right {
-  animation: ear-twitch 9s ease-in-out infinite;
-  animation-delay: 3.5s;
+@keyframes wolf-juggle-ball {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 0.92);
+  }
+  45% {
+    transform: translateY(-22px) scale(1, 1);
+  }
+}
+@keyframes wolf-juggle-head {
+  0%,
+  100% {
+    transform: rotate(7deg);
+  }
+  45% {
+    transform: rotate(-3deg);
+  }
+}
+@keyframes wolf-juggle-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.985);
+  }
+  45% {
+    transform: scaleY(1);
+  }
+}
+
+.v-howl .wolf-head {
+  animation: var(--wolf-anim, wolf-howl-head 3.6s ease-in-out infinite);
+}
+.v-howl .wolf-tail {
+  animation: var(--wolf-anim, wolf-howl-tail 0.6s ease-in-out infinite alternate);
+}
+.v-howl .wolf-howl-marks path {
+  opacity: 0;
+  color: var(--gold);
+}
+.v-howl .wolf-howl-1 {
+  animation: var(--wolf-anim, wolf-howl-mark 3.6s ease-in-out infinite);
+}
+.v-howl .wolf-howl-2 {
+  animation: var(--wolf-anim, wolf-howl-mark 3.6s ease-in-out infinite 0.25s);
+}
+
+@keyframes wolf-howl-head {
+  0%,
+  20%,
+  80%,
+  100% {
+    transform: rotate(0deg);
+  }
+  35%,
+  65% {
+    transform: rotate(-13deg) translateY(-1.5px);
+  }
+}
+@keyframes wolf-howl-tail {
+  from {
+    transform: rotate(-8deg);
+  }
+  to {
+    transform: rotate(14deg);
+  }
+}
+@keyframes wolf-howl-mark {
+  0%,
+  25%,
+  75%,
+  100% {
+    opacity: 0;
+  }
+  40%,
+  60% {
+    opacity: 1;
+  }
+}
+
+.v-pace .wolf-all {
+  animation: var(--wolf-anim, wolf-pace-shuffle 2.4s ease-in-out infinite);
+}
+.v-pace .wolf-head {
+  animation: var(--wolf-anim, wolf-pace-glance 2.4s ease-in-out infinite);
+}
+.v-pace .wolf-tail {
+  animation: var(--wolf-anim, wolf-pace-tail 0.5s ease-in-out infinite alternate);
+}
+
+@keyframes wolf-pace-shuffle {
+  0%,
+  100% {
+    transform: translateX(-3.5px);
+  }
+  50% {
+    transform: translateX(3.5px);
+  }
+}
+@keyframes wolf-pace-glance {
+  0%,
+  100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+@keyframes wolf-pace-tail {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(6deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wolf-idle .wolf-ear-left,
-  .wolf-idle .wolf-ear-right,
+  .wolf {
+    --wolf-anim: none;
+  }
   .foil::after {
     animation: none;
   }
