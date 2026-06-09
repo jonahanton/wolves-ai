@@ -1,0 +1,107 @@
+[
+ {
+  "id": "wc2026-eng-cro",
+  "sport_key": "soccer_fifa_world_cup",
+  "sport_title": "FIFA World Cup",
+  "commence_time": "2026-06-17T01:00:00Z",
+  "home_team": "England",
+  "away_team": "Croatia",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-06-08T07:00:00Z",
+      "outcomes": [
+       {"name": "England", "price": 1.85},
+       {"name": "Croatia", "price": 4.7},
+       {"name": "Draw", "price": 3.5}
+      ]
+     }
+    ]
+   },
+   {
+    "key": "unibet_eu",
+    "title": "Unibet",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-06-08T06:45:00Z",
+      "outcomes": [
+       {"name": "England", "price": 1.83},
+       {"name": "Croatia", "price": 4.6},
+       {"name": "Draw", "price": 3.55}
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "wc2026-mex-rsa",
+  "sport_key": "soccer_fifa_world_cup",
+  "sport_title": "FIFA World Cup",
+  "commence_time": "2026-06-12T01:00:00Z",
+  "home_team": "Mexico",
+  "away_team": "South Africa",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-06-08T07:00:00Z",
+      "outcomes": [
+       {"name": "Mexico", "price": 1.55},
+       {"name": "South Africa", "price": 7.0},
+       {"name": "Draw", "price": 4.0}
+      ]
+     }
+    ]
+   },
+   {
+    "key": "unibet_eu",
+    "title": "Unibet",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-06-08T06:45:00Z",
+      "outcomes": [
+       {"name": "Mexico", "price": 1.57},
+       {"name": "South Africa", "price": 6.5},
+       {"name": "Draw", "price": 4.1}
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "wc2026-usa-par",
+  "sport_key": "soccer_fifa_world_cup",
+  "sport_title": "FIFA World Cup",
+  "commence_time": "2026-06-13T00:00:00Z",
+  "home_team": "USA",
+  "away_team": "Paraguay",
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "markets": [
+     {
+      "key": "h2h",
+      "last_update": "2026-06-08T07:00:00Z",
+      "outcomes": [
+       {"name": "USA", "price": 1.95},
+       {"name": "Paraguay", "price": 4.4},
+       {"name": "Draw", "price": 3.3}
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

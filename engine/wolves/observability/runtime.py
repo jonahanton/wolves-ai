@@ -177,7 +177,7 @@ class ObservedRuntime:
         self.require_active_observation()
         if self.budget.llm_calls >= self.caps.max_llm_calls:
             raise CapExceeded(f"max_llm_calls ({self.caps.max_llm_calls}) reached")
-        if self.budget.cost_micros >= self.caps.max_cost_micros:
+        if self.caps.max_cost_micros and self.budget.cost_micros >= self.caps.max_cost_micros:
             raise CapExceeded(f"max_cost_micros ({self.caps.max_cost_micros}) reached")
         self.budget.llm_calls += 1
 

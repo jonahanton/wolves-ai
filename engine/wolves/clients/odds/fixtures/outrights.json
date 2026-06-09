@@ -1,0 +1,108 @@
+[
+ {
+  "id": "wc2026-outright",
+  "sport_key": "soccer_fifa_world_cup_winner",
+  "sport_title": "FIFA World Cup Winner",
+  "commence_time": "2026-06-11T19:00:00Z",
+  "home_team": null,
+  "away_team": null,
+  "bookmakers": [
+   {
+    "key": "pinnacle",
+    "title": "Pinnacle",
+    "markets": [
+     {
+      "key": "outrights",
+      "last_update": "2026-06-08T07:00:00Z",
+      "outcomes": [
+       {"name": "Spain", "price": 5.4},
+       {"name": "France", "price": 6.6},
+       {"name": "England", "price": 7.2},
+       {"name": "Brazil", "price": 8.0},
+       {"name": "Argentina", "price": 8.6},
+       {"name": "Germany", "price": 11.0},
+       {"name": "Portugal", "price": 12.0},
+       {"name": "Netherlands", "price": 17.0},
+       {"name": "Italy", "price": 23.0},
+       {"name": "Uruguay", "price": 36.0},
+       {"name": "Belgium", "price": 38.0},
+       {"name": "Colombia", "price": 42.0},
+       {"name": "Croatia", "price": 55.0},
+       {"name": "Morocco", "price": 60.0},
+       {"name": "USA", "price": 70.0},
+       {"name": "Mexico", "price": 80.0},
+       {"name": "Japan", "price": 90.0},
+       {"name": "Switzerland", "price": 110.0},
+       {"name": "Senegal", "price": 130.0},
+       {"name": "Ecuador", "price": 130.0}
+      ]
+     }
+    ]
+   },
+   {
+    "key": "unibet_eu",
+    "title": "Unibet",
+    "markets": [
+     {
+      "key": "outrights",
+      "last_update": "2026-06-08T06:45:00Z",
+      "outcomes": [
+       {"name": "Spain", "price": 5.5},
+       {"name": "France", "price": 6.5},
+       {"name": "England", "price": 7.0},
+       {"name": "Brazil", "price": 8.5},
+       {"name": "Argentina", "price": 8.5},
+       {"name": "Germany", "price": 10.0},
+       {"name": "Portugal", "price": 13.0},
+       {"name": "Netherlands", "price": 16.0},
+       {"name": "Italy", "price": 21.0},
+       {"name": "Uruguay", "price": 34.0},
+       {"name": "Belgium", "price": 40.0},
+       {"name": "Colombia", "price": 40.0},
+       {"name": "Croatia", "price": 50.0},
+       {"name": "Morocco", "price": 65.0},
+       {"name": "USA", "price": 66.0},
+       {"name": "Mexico", "price": 75.0},
+       {"name": "Japan", "price": 100.0},
+       {"name": "Switzerland", "price": 100.0},
+       {"name": "Senegal", "price": 125.0},
+       {"name": "Ecuador", "price": 125.0}
+      ]
+     }
+    ]
+   },
+   {
+    "key": "williamhill",
+    "title": "William Hill",
+    "markets": [
+     {
+      "key": "outrights",
+      "last_update": "2026-06-08T07:10:00Z",
+      "outcomes": [
+       {"name": "Spain", "price": 5.5},
+       {"name": "France", "price": 6.0},
+       {"name": "England", "price": 7.0},
+       {"name": "Brazil", "price": 8.0},
+       {"name": "Argentina", "price": 9.0},
+       {"name": "Germany", "price": 10.0},
+       {"name": "Portugal", "price": 12.0},
+       {"name": "Netherlands", "price": 16.0},
+       {"name": "Italy", "price": 22.0},
+       {"name": "Uruguay", "price": 33.0},
+       {"name": "Belgium", "price": 40.0},
+       {"name": "Colombia", "price": 40.0},
+       {"name": "Croatia", "price": 50.0},
+       {"name": "Morocco", "price": 66.0},
+       {"name": "USA", "price": 66.0},
+       {"name": "Mexico", "price": 80.0},
+       {"name": "Japan", "price": 100.0},
+       {"name": "Switzerland", "price": 100.0},
+       {"name": "Senegal", "price": 125.0},
+       {"name": "Ecuador", "price": 150.0}
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

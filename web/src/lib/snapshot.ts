@@ -51,12 +51,61 @@ export interface TeamInfo {
   elo: number;
 }
 
+export interface NarrativeBlock {
+  england_story: string;
+  slot_rationales: Record<string, string>;
+  travel_memo: string;
+}
+
+export interface LedgerEntryOut {
+  id: string;
+  claim: string;
+  source_url: string;
+  status: string;
+  mechanism: string;
+  proposed_delta: number;
+  expiry: string | null;
+  team_id: string | null;
+  created_at: string;
+}
+
+export interface RatingOverrideOut {
+  team_id: string;
+  delta_elo: number;
+  cause: string;
+  ledger_ids: string[];
+}
+
+export interface DisagreementOut {
+  k: number;
+  per_team_spread: Record<string, number>;
+  max_spread: number;
+  mean_spread: number;
+}
+
+export interface CalibrationSummary {
+  matches_scored: number;
+  brier: Record<string, number>;
+  log_loss: Record<string, number>;
+  adjustment_pnl: number | null;
+  governor_scale: number;
+}
+
+export interface AgentBlock {
+  narrative: NarrativeBlock;
+  ledger_entries: LedgerEntryOut[];
+  rating_overrides: RatingOverrideOut[];
+  disagreement: DisagreementOut | null;
+  calibration: CalibrationSummary | null;
+}
+
 export interface Snapshot {
   schema_version: number;
   run: RunMeta;
   england: EnglandBlock;
   slots: Slot[];
   teams: TeamInfo[];
+  agent?: AgentBlock | null;
 }
 
 export function teamNames(snapshot: Snapshot): Map<string, string> {

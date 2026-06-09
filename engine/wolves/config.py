@@ -41,6 +41,29 @@ class Settings(BaseSettings):
 
     runs_root: Path = REPO_ROOT / "runs"
     tool_timeout_seconds: float = 30.0
+    tool_result_max_chars: int = 8000
+
+    market_blend_lambda: float = 0.3
+
+    agent_max_turns: int = 40
+    agent_tool_budget: int = 60
+    agent_submit_retries: int = 3
+    agent_k_samples: int = 3
+    researcher_tool_budget: int = 8
+    researcher_max_turns: int = 8
+    researcher_timeout_seconds: float = 300.0
+
+    confirmed_delta_cap_elo: float = 50.0
+    soft_delta_cap_elo: float = 10.0
+    justification_threshold: float = 0.05
+    tripwire_threshold: float = 0.10
+    governor_window: int = 20
+
+    lessons_path: Path = REPO_ROOT / "runs" / "LESSONS.md"
+    calibration_path: Path = REPO_ROOT / "runs" / "calibration.jsonl"
+
+    agent_run_ceiling_usd: float = 0.25
+    agent_run_ceiling_max_usd: float = 1.50
 
 
 @lru_cache
