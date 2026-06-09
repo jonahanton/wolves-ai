@@ -1,0 +1,2262 @@
+{
+ "schema_version": 1,
+ "run": {
+  "run_id": "run-20260609-220253",
+  "created_at": "2026-06-09T22:02:53+00:00",
+  "n_sims": 100000,
+  "engine_version": "0.1.0",
+  "kind": "sim_only"
+ },
+ "england": {
+  "team_id": "england",
+  "group": "L",
+  "finish_probs": {
+   "win_group": 0.6819,
+   "runner_up": 0.2679,
+   "third_qualified": 0.0418,
+   "third_eliminated": 0.0053,
+   "fourth": 0.0031
+  },
+  "reach_probs": {
+   "r32": 0.9916,
+   "r16": 0.7832,
+   "qf": 0.5546,
+   "sf": 0.3503,
+   "final": 0.1645,
+   "champion": 0.067
+  },
+  "paths": [
+   {
+    "finish": "win_group",
+    "prob": 0.6819,
+    "r32_match": 80,
+    "city": "Atlanta",
+    "date": "2026-07-01T16:00:00Z",
+    "opponents": [
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.3062
+     },
+     {
+      "team_id": "congo-dr",
+      "prob": 0.1665
+     },
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.1331
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.0646
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.0623
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.0512
+     }
+    ]
+   },
+   {
+    "finish": "runner_up",
+    "prob": 0.2679,
+    "r32_match": 83,
+    "city": "Toronto",
+    "date": "2026-07-02T23:00:00Z",
+    "opponents": [
+     {
+      "team_id": "colombia",
+      "prob": 0.429
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.4171
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.1042
+     },
+     {
+      "team_id": "congo-dr",
+      "prob": 0.0498
+     }
+    ]
+   },
+   {
+    "finish": "third",
+    "prob": 0.0418,
+    "r32_match": 87,
+    "city": "Kansas City",
+    "date": "2026-07-04T01:30:00Z",
+    "opponents": [
+     {
+      "team_id": "portugal",
+      "prob": 0.4981
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.4749
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.0213
+     },
+     {
+      "team_id": "congo-dr",
+      "prob": 0.0057
+     }
+    ]
+   }
+  ]
+ },
+ "slots": [
+  {
+   "match": 73,
+   "stage": "r32",
+   "date": "2026-06-28T19:00:00Z",
+   "city": "Los Angeles",
+   "home": {
+    "label": "2A",
+    "candidates": [
+     {
+      "team_id": "korea-republic",
+      "prob": 0.3748
+     },
+     {
+      "team_id": "czechia",
+      "prob": 0.3347
+     },
+     {
+      "team_id": "mexico",
+      "prob": 0.2549
+     },
+     {
+      "team_id": "south-africa",
+      "prob": 0.0357
+     }
+    ]
+   },
+   "away": {
+    "label": "2B",
+    "candidates": [
+     {
+      "team_id": "canada",
+      "prob": 0.5449
+     },
+     {
+      "team_id": "switzerland",
+      "prob": 0.2764
+     },
+     {
+      "team_id": "bosnia-and-herzegovina",
+      "prob": 0.1568
+     },
+     {
+      "team_id": "qatar",
+      "prob": 0.022
+     }
+    ]
+   }
+  },
+  {
+   "match": 74,
+   "stage": "r32",
+   "date": "2026-06-29T20:30:00Z",
+   "city": "Boston",
+   "home": {
+    "label": "1E",
+    "candidates": [
+     {
+      "team_id": "ecuador",
+      "prob": 0.4934
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.4693
+     },
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.0367
+     },
+     {
+      "team_id": "curacao",
+      "prob": 0.0007
+     }
+    ]
+   },
+   "away": {
+    "label": "3:ABCDF",
+    "candidates": [
+     {
+      "team_id": "czechia",
+      "prob": 0.1826
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.1575
+     },
+     {
+      "team_id": "bosnia-and-herzegovina",
+      "prob": 0.1489
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.0599
+     },
+     {
+      "team_id": "mexico",
+      "prob": 0.0565
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.0524
+     }
+    ]
+   }
+  },
+  {
+   "match": 75,
+   "stage": "r32",
+   "date": "2026-06-30T01:00:00Z",
+   "city": "Monterrey",
+   "home": {
+    "label": "1F",
+    "candidates": [
+     {
+      "team_id": "netherlands",
+      "prob": 0.5599
+     },
+     {
+      "team_id": "japan",
+      "prob": 0.3908
+     },
+     {
+      "team_id": "sweden",
+      "prob": 0.039
+     },
+     {
+      "team_id": "tunisia",
+      "prob": 0.0104
+     }
+    ]
+   },
+   "away": {
+    "label": "2C",
+    "candidates": [
+     {
+      "team_id": "morocco",
+      "prob": 0.4392
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.3262
+     },
+     {
+      "team_id": "brazil",
+      "prob": 0.2064
+     },
+     {
+      "team_id": "haiti",
+      "prob": 0.0281
+     }
+    ]
+   }
+  },
+  {
+   "match": 76,
+   "stage": "r32",
+   "date": "2026-06-29T17:00:00Z",
+   "city": "Houston",
+   "home": {
+    "label": "1C",
+    "candidates": [
+     {
+      "team_id": "brazil",
+      "prob": 0.7272
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.1684
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.1017
+     },
+     {
+      "team_id": "haiti",
+      "prob": 0.0027
+     }
+    ]
+   },
+   "away": {
+    "label": "2F",
+    "candidates": [
+     {
+      "team_id": "japan",
+      "prob": 0.4526
+     },
+     {
+      "team_id": "netherlands",
+      "prob": 0.3431
+     },
+     {
+      "team_id": "sweden",
+      "prob": 0.1477
+     },
+     {
+      "team_id": "tunisia",
+      "prob": 0.0566
+     }
+    ]
+   }
+  },
+  {
+   "match": 77,
+   "stage": "r32",
+   "date": "2026-06-30T21:00:00Z",
+   "city": "New York/New Jersey",
+   "home": {
+    "label": "1I",
+    "candidates": [
+     {
+      "team_id": "france",
+      "prob": 0.7024
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.1862
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.1093
+     },
+     {
+      "team_id": "iraq",
+      "prob": 0.0022
+     }
+    ]
+   },
+   "away": {
+    "label": "3:CDFGH",
+    "candidates": [
+     {
+      "team_id": "scotland",
+      "prob": 0.1774
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.133
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.12
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.095
+     },
+     {
+      "team_id": "usa",
+      "prob": 0.0945
+     },
+     {
+      "team_id": "egypt",
+      "prob": 0.0683
+     }
+    ]
+   }
+  },
+  {
+   "match": 78,
+   "stage": "r32",
+   "date": "2026-06-30T17:00:00Z",
+   "city": "Dallas",
+   "home": {
+    "label": "2E",
+    "candidates": [
+     {
+      "team_id": "germany",
+      "prob": 0.4279
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.4117
+     },
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.1521
+     },
+     {
+      "team_id": "curacao",
+      "prob": 0.0083
+     }
+    ]
+   },
+   "away": {
+    "label": "2I",
+    "candidates": [
+     {
+      "team_id": "norway",
+      "prob": 0.4364
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.3194
+     },
+     {
+      "team_id": "france",
+      "prob": 0.2209
+     },
+     {
+      "team_id": "iraq",
+      "prob": 0.0233
+     }
+    ]
+   }
+  },
+  {
+   "match": 79,
+   "stage": "r32",
+   "date": "2026-07-01T01:00:00Z",
+   "city": "Mexico City",
+   "home": {
+    "label": "1A",
+    "candidates": [
+     {
+      "team_id": "mexico",
+      "prob": 0.6211
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.2061
+     },
+     {
+      "team_id": "czechia",
+      "prob": 0.1666
+     },
+     {
+      "team_id": "south-africa",
+      "prob": 0.0062
+     }
+    ]
+   },
+   "away": {
+    "label": "3:CEFHI",
+    "candidates": [
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.1684
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.1215
+     },
+     {
+      "team_id": "sweden",
+      "prob": 0.0975
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.0906
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.0726
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0703
+     }
+    ]
+   }
+  },
+  {
+   "match": 80,
+   "stage": "r32",
+   "date": "2026-07-01T16:00:00Z",
+   "city": "Atlanta",
+   "home": {
+    "label": "1L",
+    "candidates": [
+     {
+      "team_id": "england",
+      "prob": 0.6819
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.2814
+     },
+     {
+      "team_id": "panama",
+      "prob": 0.0358
+     },
+     {
+      "team_id": "ghana",
+      "prob": 0.0009
+     }
+    ]
+   },
+   "away": {
+    "label": "3:EHIJK",
+    "candidates": [
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.3029
+     },
+     {
+      "team_id": "congo-dr",
+      "prob": 0.1644
+     },
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.134
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.0655
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.0628
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.0517
+     }
+    ]
+   }
+  },
+  {
+   "match": 81,
+   "stage": "r32",
+   "date": "2026-07-02T00:00:00Z",
+   "city": "San Francisco Bay Area",
+   "home": {
+    "label": "1D",
+    "candidates": [
+     {
+      "team_id": "turkiye",
+      "prob": 0.5534
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.2563
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.1287
+     },
+     {
+      "team_id": "usa",
+      "prob": 0.0615
+     }
+    ]
+   },
+   "away": {
+    "label": "3:BEFIJ",
+    "candidates": [
+     {
+      "team_id": "bosnia-and-herzegovina",
+      "prob": 0.2569
+     },
+     {
+      "team_id": "sweden",
+      "prob": 0.0883
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0864
+     },
+     {
+      "team_id": "canada",
+      "prob": 0.0749
+     },
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.0738
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.0617
+     }
+    ]
+   }
+  },
+  {
+   "match": 82,
+   "stage": "r32",
+   "date": "2026-07-01T20:00:00Z",
+   "city": "Seattle",
+   "home": {
+    "label": "1G",
+    "candidates": [
+     {
+      "team_id": "belgium",
+      "prob": 0.6747
+     },
+     {
+      "team_id": "ir-iran",
+      "prob": 0.2233
+     },
+     {
+      "team_id": "egypt",
+      "prob": 0.09
+     },
+     {
+      "team_id": "new-zealand",
+      "prob": 0.012
+     }
+    ]
+   },
+   "away": {
+    "label": "3:AEHIJ",
+    "candidates": [
+     {
+      "team_id": "czechia",
+      "prob": 0.1278
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.1168
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.1138
+     },
+     {
+      "team_id": "austria",
+      "prob": 0.0906
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.089
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.0727
+     }
+    ]
+   }
+  },
+  {
+   "match": 83,
+   "stage": "r32",
+   "date": "2026-07-02T23:00:00Z",
+   "city": "Toronto",
+   "home": {
+    "label": "2K",
+    "candidates": [
+     {
+      "team_id": "colombia",
+      "prob": 0.4288
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.4199
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.1023
+     },
+     {
+      "team_id": "congo-dr",
+      "prob": 0.0491
+     }
+    ]
+   },
+   "away": {
+    "label": "2L",
+    "candidates": [
+     {
+      "team_id": "croatia",
+      "prob": 0.5439
+     },
+     {
+      "team_id": "england",
+      "prob": 0.2679
+     },
+     {
+      "team_id": "panama",
+      "prob": 0.1728
+     },
+     {
+      "team_id": "ghana",
+      "prob": 0.0154
+     }
+    ]
+   }
+  },
+  {
+   "match": 84,
+   "stage": "r32",
+   "date": "2026-07-02T19:00:00Z",
+   "city": "Los Angeles",
+   "home": {
+    "label": "1H",
+    "candidates": [
+     {
+      "team_id": "spain",
+      "prob": 0.8653
+     },
+     {
+      "team_id": "uruguay",
+      "prob": 0.1297
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.0026
+     },
+     {
+      "team_id": "saudi-arabia",
+      "prob": 0.0024
+     }
+    ]
+   },
+   "away": {
+    "label": "2J",
+    "candidates": [
+     {
+      "team_id": "austria",
+      "prob": 0.5032
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.2767
+     },
+     {
+      "team_id": "jordan",
+      "prob": 0.1194
+     },
+     {
+      "team_id": "argentina",
+      "prob": 0.1007
+     }
+    ]
+   }
+  },
+  {
+   "match": 85,
+   "stage": "r32",
+   "date": "2026-07-03T03:00:00Z",
+   "city": "Vancouver",
+   "home": {
+    "label": "1B",
+    "candidates": [
+     {
+      "team_id": "switzerland",
+      "prob": 0.6729
+     },
+     {
+      "team_id": "canada",
+      "prob": 0.2939
+     },
+     {
+      "team_id": "bosnia-and-herzegovina",
+      "prob": 0.0313
+     },
+     {
+      "team_id": "qatar",
+      "prob": 0.0019
+     }
+    ]
+   },
+   "away": {
+    "label": "3:EFGIJ",
+    "candidates": [
+     {
+      "team_id": "egypt",
+      "prob": 0.2471
+     },
+     {
+      "team_id": "ir-iran",
+      "prob": 0.1582
+     },
+     {
+      "team_id": "new-zealand",
+      "prob": 0.0927
+     },
+     {
+      "team_id": "sweden",
+      "prob": 0.0768
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.0584
+     },
+     {
+      "team_id": "belgium",
+      "prob": 0.0514
+     }
+    ]
+   }
+  },
+  {
+   "match": 86,
+   "stage": "r32",
+   "date": "2026-07-03T22:00:00Z",
+   "city": "Miami",
+   "home": {
+    "label": "1J",
+    "candidates": [
+     {
+      "team_id": "argentina",
+      "prob": 0.8811
+     },
+     {
+      "team_id": "austria",
+      "prob": 0.0791
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.031
+     },
+     {
+      "team_id": "jordan",
+      "prob": 0.0087
+     }
+    ]
+   },
+   "away": {
+    "label": "2H",
+    "candidates": [
+     {
+      "team_id": "uruguay",
+      "prob": 0.7541
+     },
+     {
+      "team_id": "spain",
+      "prob": 0.129
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.0611
+     },
+     {
+      "team_id": "saudi-arabia",
+      "prob": 0.0558
+     }
+    ]
+   }
+  },
+  {
+   "match": 87,
+   "stage": "r32",
+   "date": "2026-07-04T01:30:00Z",
+   "city": "Kansas City",
+   "home": {
+    "label": "1K",
+    "candidates": [
+     {
+      "team_id": "portugal",
+      "prob": 0.4932
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.479
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.0204
+     },
+     {
+      "team_id": "congo-dr",
+      "prob": 0.0074
+     }
+    ]
+   },
+   "away": {
+    "label": "3:DEIJL",
+    "candidates": [
+     {
+      "team_id": "panama",
+      "prob": 0.4418
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.1319
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.063
+     },
+     {
+      "team_id": "ghana",
+      "prob": 0.0541
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.0505
+     },
+     {
+      "team_id": "usa",
+      "prob": 0.049
+     }
+    ]
+   }
+  },
+  {
+   "match": 88,
+   "stage": "r32",
+   "date": "2026-07-03T18:00:00Z",
+   "city": "Dallas",
+   "home": {
+    "label": "2D",
+    "candidates": [
+     {
+      "team_id": "paraguay",
+      "prob": 0.3404
+     },
+     {
+      "team_id": "turkiye",
+      "prob": 0.2658
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.2418
+     },
+     {
+      "team_id": "usa",
+      "prob": 0.152
+     }
+    ]
+   },
+   "away": {
+    "label": "2G",
+    "candidates": [
+     {
+      "team_id": "ir-iran",
+      "prob": 0.4376
+     },
+     {
+      "team_id": "egypt",
+      "prob": 0.2613
+     },
+     {
+      "team_id": "belgium",
+      "prob": 0.2366
+     },
+     {
+      "team_id": "new-zealand",
+      "prob": 0.0645
+     }
+    ]
+   }
+  },
+  {
+   "match": 89,
+   "stage": "r16",
+   "date": "2026-07-04T21:00:00Z",
+   "city": "Philadelphia",
+   "home": {
+    "label": "W74",
+    "candidates": [
+     {
+      "team_id": "ecuador",
+      "prob": 0.4026
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.38
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.0327
+     },
+     {
+      "team_id": "czechia",
+      "prob": 0.0322
+     },
+     {
+      "team_id": "mexico",
+      "prob": 0.0226
+     },
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.0162
+     }
+    ]
+   },
+   "away": {
+    "label": "W77",
+    "candidates": [
+     {
+      "team_id": "france",
+      "prob": 0.6321
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.1375
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0728
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.0262
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.0256
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.0183
+     }
+    ]
+   }
+  },
+  {
+   "match": 90,
+   "stage": "r16",
+   "date": "2026-07-04T17:00:00Z",
+   "city": "Houston",
+   "home": {
+    "label": "W73",
+    "candidates": [
+     {
+      "team_id": "canada",
+      "prob": 0.2852
+     },
+     {
+      "team_id": "switzerland",
+      "prob": 0.1989
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.1701
+     },
+     {
+      "team_id": "mexico",
+      "prob": 0.1695
+     },
+     {
+      "team_id": "czechia",
+      "prob": 0.1406
+     },
+     {
+      "team_id": "bosnia-and-herzegovina",
+      "prob": 0.0298
+     }
+    ]
+   },
+   "away": {
+    "label": "W75",
+    "candidates": [
+     {
+      "team_id": "netherlands",
+      "prob": 0.3899
+     },
+     {
+      "team_id": "japan",
+      "prob": 0.2451
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.1385
+     },
+     {
+      "team_id": "brazil",
+      "prob": 0.1327
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.0799
+     },
+     {
+      "team_id": "sweden",
+      "prob": 0.0109
+     }
+    ]
+   }
+  },
+  {
+   "match": 91,
+   "stage": "r16",
+   "date": "2026-07-05T20:00:00Z",
+   "city": "New York/New Jersey",
+   "home": {
+    "label": "W76",
+    "candidates": [
+     {
+      "team_id": "brazil",
+      "prob": 0.5079
+     },
+     {
+      "team_id": "japan",
+      "prob": 0.1931
+     },
+     {
+      "team_id": "netherlands",
+      "prob": 0.1727
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.0673
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.0325
+     },
+     {
+      "team_id": "sweden",
+      "prob": 0.0212
+     }
+    ]
+   },
+   "away": {
+    "label": "W78",
+    "candidates": [
+     {
+      "team_id": "norway",
+      "prob": 0.2284
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.2182
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.2166
+     },
+     {
+      "team_id": "france",
+      "prob": 0.1727
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.1392
+     },
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.022
+     }
+    ]
+   }
+  },
+  {
+   "match": 92,
+   "stage": "r16",
+   "date": "2026-07-06T00:00:00Z",
+   "city": "Mexico City",
+   "home": {
+    "label": "W79",
+    "candidates": [
+     {
+      "team_id": "mexico",
+      "prob": 0.4272
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.1032
+     },
+     {
+      "team_id": "czechia",
+      "prob": 0.0786
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.05
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.0454
+     },
+     {
+      "team_id": "cote-d-ivoire",
+      "prob": 0.0452
+     }
+    ]
+   },
+   "away": {
+    "label": "W80",
+    "candidates": [
+     {
+      "team_id": "england",
+      "prob": 0.5886
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.2108
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.033
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.0324
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.032
+     },
+     {
+      "team_id": "panama",
+      "prob": 0.0172
+     }
+    ]
+   }
+  },
+  {
+   "match": 93,
+   "stage": "r16",
+   "date": "2026-07-06T19:00:00Z",
+   "city": "Dallas",
+   "home": {
+    "label": "W83",
+    "candidates": [
+     {
+      "team_id": "colombia",
+      "prob": 0.2712
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.2686
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.232
+     },
+     {
+      "team_id": "england",
+      "prob": 0.1698
+     },
+     {
+      "team_id": "panama",
+      "prob": 0.0312
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.0196
+     }
+    ]
+   },
+   "away": {
+    "label": "W84",
+    "candidates": [
+     {
+      "team_id": "spain",
+      "prob": 0.7912
+     },
+     {
+      "team_id": "uruguay",
+      "prob": 0.0831
+     },
+     {
+      "team_id": "austria",
+      "prob": 0.0535
+     },
+     {
+      "team_id": "argentina",
+      "prob": 0.0475
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.0188
+     },
+     {
+      "team_id": "jordan",
+      "prob": 0.0052
+     }
+    ]
+   }
+  },
+  {
+   "match": 94,
+   "stage": "r16",
+   "date": "2026-07-07T00:00:00Z",
+   "city": "Seattle",
+   "home": {
+    "label": "W81",
+    "candidates": [
+     {
+      "team_id": "turkiye",
+      "prob": 0.4252
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.1715
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.075
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0437
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.0371
+     },
+     {
+      "team_id": "usa",
+      "prob": 0.0307
+     }
+    ]
+   },
+   "away": {
+    "label": "W82",
+    "candidates": [
+     {
+      "team_id": "belgium",
+      "prob": 0.4868
+     },
+     {
+      "team_id": "ir-iran",
+      "prob": 0.1177
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0486
+     },
+     {
+      "team_id": "austria",
+      "prob": 0.0426
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.0405
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.04
+     }
+    ]
+   }
+  },
+  {
+   "match": 95,
+   "stage": "r16",
+   "date": "2026-07-07T16:00:00Z",
+   "city": "Atlanta",
+   "home": {
+    "label": "W86",
+    "candidates": [
+     {
+      "team_id": "argentina",
+      "prob": 0.724
+     },
+     {
+      "team_id": "uruguay",
+      "prob": 0.1496
+     },
+     {
+      "team_id": "spain",
+      "prob": 0.082
+     },
+     {
+      "team_id": "austria",
+      "prob": 0.0306
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.0087
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.0018
+     }
+    ]
+   },
+   "away": {
+    "label": "W88",
+    "candidates": [
+     {
+      "team_id": "paraguay",
+      "prob": 0.2112
+     },
+     {
+      "team_id": "turkiye",
+      "prob": 0.1979
+     },
+     {
+      "team_id": "ir-iran",
+      "prob": 0.174
+     },
+     {
+      "team_id": "belgium",
+      "prob": 0.1506
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.1248
+     },
+     {
+      "team_id": "egypt",
+      "prob": 0.0702
+     }
+    ]
+   }
+  },
+  {
+   "match": 96,
+   "stage": "r16",
+   "date": "2026-07-07T20:00:00Z",
+   "city": "Vancouver",
+   "home": {
+    "label": "W85",
+    "candidates": [
+     {
+      "team_id": "switzerland",
+      "prob": 0.4992
+     },
+     {
+      "team_id": "canada",
+      "prob": 0.1714
+     },
+     {
+      "team_id": "ir-iran",
+      "prob": 0.0553
+     },
+     {
+      "team_id": "egypt",
+      "prob": 0.0548
+     },
+     {
+      "team_id": "belgium",
+      "prob": 0.0297
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0249
+     }
+    ]
+   },
+   "away": {
+    "label": "W87",
+    "candidates": [
+     {
+      "team_id": "portugal",
+      "prob": 0.4042
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.3902
+     },
+     {
+      "team_id": "panama",
+      "prob": 0.0515
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.0476
+     },
+     {
+      "team_id": "england",
+      "prob": 0.0248
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.0113
+     }
+    ]
+   }
+  },
+  {
+   "match": 97,
+   "stage": "qf",
+   "date": "2026-07-09T20:00:00Z",
+   "city": "Boston",
+   "home": {
+    "label": "W89",
+    "candidates": [
+     {
+      "team_id": "france",
+      "prob": 0.4923
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.1601
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.1471
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.071
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0302
+     },
+     {
+      "team_id": "turkiye",
+      "prob": 0.0128
+     }
+    ]
+   },
+   "away": {
+    "label": "W90",
+    "candidates": [
+     {
+      "team_id": "netherlands",
+      "prob": 0.2942
+     },
+     {
+      "team_id": "japan",
+      "prob": 0.1689
+     },
+     {
+      "team_id": "brazil",
+      "prob": 0.1076
+     },
+     {
+      "team_id": "switzerland",
+      "prob": 0.0911
+     },
+     {
+      "team_id": "canada",
+      "prob": 0.0784
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.0753
+     }
+    ]
+   }
+  },
+  {
+   "match": 98,
+   "stage": "qf",
+   "date": "2026-07-10T19:00:00Z",
+   "city": "Los Angeles",
+   "home": {
+    "label": "W93",
+    "candidates": [
+     {
+      "team_id": "spain",
+      "prob": 0.6566
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.0767
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.0754
+     },
+     {
+      "team_id": "england",
+      "prob": 0.057
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.0453
+     },
+     {
+      "team_id": "argentina",
+      "prob": 0.037
+     }
+    ]
+   },
+   "away": {
+    "label": "W94",
+    "candidates": [
+     {
+      "team_id": "belgium",
+      "prob": 0.273
+     },
+     {
+      "team_id": "turkiye",
+      "prob": 0.2662
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.081
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0508
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.0491
+     },
+     {
+      "team_id": "ir-iran",
+      "prob": 0.0395
+     }
+    ]
+   }
+  },
+  {
+   "match": 99,
+   "stage": "qf",
+   "date": "2026-07-11T21:00:00Z",
+   "city": "Miami",
+   "home": {
+    "label": "W91",
+    "candidates": [
+     {
+      "team_id": "brazil",
+      "prob": 0.308
+     },
+     {
+      "team_id": "france",
+      "prob": 0.1239
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.1059
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.1044
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.1
+     },
+     {
+      "team_id": "netherlands",
+      "prob": 0.0912
+     }
+    ]
+   },
+   "away": {
+    "label": "W92",
+    "candidates": [
+     {
+      "team_id": "england",
+      "prob": 0.4776
+     },
+     {
+      "team_id": "mexico",
+      "prob": 0.1386
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.1349
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.0249
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.0243
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.0202
+     }
+    ]
+   }
+  },
+  {
+   "match": 100,
+   "stage": "qf",
+   "date": "2026-07-12T01:00:00Z",
+   "city": "Kansas City",
+   "home": {
+    "label": "W95",
+    "candidates": [
+     {
+      "team_id": "argentina",
+      "prob": 0.6601
+     },
+     {
+      "team_id": "uruguay",
+      "prob": 0.0956
+     },
+     {
+      "team_id": "spain",
+      "prob": 0.0764
+     },
+     {
+      "team_id": "turkiye",
+      "prob": 0.0449
+     },
+     {
+      "team_id": "belgium",
+      "prob": 0.031
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.031
+     }
+    ]
+   },
+   "away": {
+    "label": "W96",
+    "candidates": [
+     {
+      "team_id": "portugal",
+      "prob": 0.3046
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.292
+     },
+     {
+      "team_id": "switzerland",
+      "prob": 0.1816
+     },
+     {
+      "team_id": "canada",
+      "prob": 0.0354
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.0301
+     },
+     {
+      "team_id": "england",
+      "prob": 0.0201
+     }
+    ]
+   }
+  },
+  {
+   "match": 101,
+   "stage": "sf",
+   "date": "2026-07-14T19:00:00Z",
+   "city": "Dallas",
+   "home": {
+    "label": "W97",
+    "candidates": [
+     {
+      "team_id": "france",
+      "prob": 0.3902
+     },
+     {
+      "team_id": "netherlands",
+      "prob": 0.1258
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.0934
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.0851
+     },
+     {
+      "team_id": "brazil",
+      "prob": 0.0618
+     },
+     {
+      "team_id": "japan",
+      "prob": 0.0613
+     }
+    ]
+   },
+   "away": {
+    "label": "W98",
+    "candidates": [
+     {
+      "team_id": "spain",
+      "prob": 0.5955
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.0543
+     },
+     {
+      "team_id": "turkiye",
+      "prob": 0.0535
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.0534
+     },
+     {
+      "team_id": "belgium",
+      "prob": 0.0489
+     },
+     {
+      "team_id": "england",
+      "prob": 0.0438
+     }
+    ]
+   }
+  },
+  {
+   "match": 102,
+   "stage": "sf",
+   "date": "2026-07-15T19:00:00Z",
+   "city": "Atlanta",
+   "home": {
+    "label": "W99",
+    "candidates": [
+     {
+      "team_id": "england",
+      "prob": 0.2981
+     },
+     {
+      "team_id": "brazil",
+      "prob": 0.1808
+     },
+     {
+      "team_id": "france",
+      "prob": 0.0954
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.056
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.0551
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.0548
+     }
+    ]
+   },
+   "away": {
+    "label": "W100",
+    "candidates": [
+     {
+      "team_id": "argentina",
+      "prob": 0.5297
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.1139
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.1063
+     },
+     {
+      "team_id": "spain",
+      "prob": 0.0652
+     },
+     {
+      "team_id": "switzerland",
+      "prob": 0.0435
+     },
+     {
+      "team_id": "uruguay",
+      "prob": 0.0388
+     }
+    ]
+   }
+  },
+  {
+   "match": 103,
+   "stage": "third_place",
+   "date": "2026-07-18T21:00:00Z",
+   "city": "Miami",
+   "home": {
+    "label": "L101",
+    "candidates": [
+     {
+      "team_id": "france",
+      "prob": 0.2104
+     },
+     {
+      "team_id": "spain",
+      "prob": 0.1164
+     },
+     {
+      "team_id": "netherlands",
+      "prob": 0.091
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.0685
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.064
+     },
+     {
+      "team_id": "japan",
+      "prob": 0.0485
+     }
+    ]
+   },
+   "away": {
+    "label": "L102",
+    "candidates": [
+     {
+      "team_id": "england",
+      "prob": 0.168
+     },
+     {
+      "team_id": "argentina",
+      "prob": 0.1303
+     },
+     {
+      "team_id": "brazil",
+      "prob": 0.1092
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.0627
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.0603
+     },
+     {
+      "team_id": "france",
+      "prob": 0.0474
+     }
+    ]
+   }
+  },
+  {
+   "match": 104,
+   "stage": "final",
+   "date": "2026-07-19T19:00:00Z",
+   "city": "New York/New Jersey",
+   "home": {
+    "label": "W101",
+    "candidates": [
+     {
+      "team_id": "spain",
+      "prob": 0.4793
+     },
+     {
+      "team_id": "france",
+      "prob": 0.1893
+     },
+     {
+      "team_id": "netherlands",
+      "prob": 0.0371
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.028
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.0273
+     },
+     {
+      "team_id": "argentina",
+      "prob": 0.0272
+     }
+    ]
+   },
+   "away": {
+    "label": "W102",
+    "candidates": [
+     {
+      "team_id": "argentina",
+      "prob": 0.3994
+     },
+     {
+      "team_id": "england",
+      "prob": 0.1384
+     },
+     {
+      "team_id": "brazil",
+      "prob": 0.0716
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.0644
+     },
+     {
+      "team_id": "colombia",
+      "prob": 0.0596
+     },
+     {
+      "team_id": "spain",
+      "prob": 0.0538
+     }
+    ]
+   }
+  }
+ ],
+ "teams": [
+  {
+   "team_id": "czechia",
+   "name": "Czechia",
+   "group": "A",
+   "elo": 1740.0
+  },
+  {
+   "team_id": "korea-republic",
+   "name": "Korea Republic",
+   "group": "A",
+   "elo": 1758.0
+  },
+  {
+   "team_id": "mexico",
+   "name": "Mexico",
+   "group": "A",
+   "elo": 1875.0
+  },
+  {
+   "team_id": "south-africa",
+   "name": "South Africa",
+   "group": "A",
+   "elo": 1518.0
+  },
+  {
+   "team_id": "bosnia-and-herzegovina",
+   "name": "Bosnia and Herzegovina",
+   "group": "B",
+   "elo": 1595.0
+  },
+  {
+   "team_id": "canada",
+   "name": "Canada",
+   "group": "B",
+   "elo": 1788.0
+  },
+  {
+   "team_id": "qatar",
+   "name": "Qatar",
+   "group": "B",
+   "elo": 1421.0
+  },
+  {
+   "team_id": "switzerland",
+   "name": "Switzerland",
+   "group": "B",
+   "elo": 1891.0
+  },
+  {
+   "team_id": "brazil",
+   "name": "Brazil",
+   "group": "C",
+   "elo": 1991.0
+  },
+  {
+   "team_id": "haiti",
+   "name": "Haiti",
+   "group": "C",
+   "elo": 1548.0
+  },
+  {
+   "team_id": "morocco",
+   "name": "Morocco",
+   "group": "C",
+   "elo": 1827.0
+  },
+  {
+   "team_id": "scotland",
+   "name": "Scotland",
+   "group": "C",
+   "elo": 1782.0
+  },
+  {
+   "team_id": "australia",
+   "name": "Australia",
+   "group": "D",
+   "elo": 1777.0
+  },
+  {
+   "team_id": "paraguay",
+   "name": "Paraguay",
+   "group": "D",
+   "elo": 1833.0
+  },
+  {
+   "team_id": "turkiye",
+   "name": "Türkiye",
+   "group": "D",
+   "elo": 1910.0
+  },
+  {
+   "team_id": "usa",
+   "name": "USA",
+   "group": "D",
+   "elo": 1726.0
+  },
+  {
+   "team_id": "curacao",
+   "name": "Curaçao",
+   "group": "E",
+   "elo": 1434.0
+  },
+  {
+   "team_id": "cote-d-ivoire",
+   "name": "Côte d'Ivoire",
+   "group": "E",
+   "elo": 1695.0
+  },
+  {
+   "team_id": "ecuador",
+   "name": "Ecuador",
+   "group": "E",
+   "elo": 1938.0
+  },
+  {
+   "team_id": "germany",
+   "name": "Germany",
+   "group": "E",
+   "elo": 1932.0
+  },
+  {
+   "team_id": "japan",
+   "name": "Japan",
+   "group": "F",
+   "elo": 1906.0
+  },
+  {
+   "team_id": "netherlands",
+   "name": "Netherlands",
+   "group": "F",
+   "elo": 1948.0
+  },
+  {
+   "team_id": "sweden",
+   "name": "Sweden",
+   "group": "F",
+   "elo": 1712.0
+  },
+  {
+   "team_id": "tunisia",
+   "name": "Tunisia",
+   "group": "F",
+   "elo": 1628.0
+  },
+  {
+   "team_id": "belgium",
+   "name": "Belgium",
+   "group": "G",
+   "elo": 1893.0
+  },
+  {
+   "team_id": "egypt",
+   "name": "Egypt",
+   "group": "G",
+   "elo": 1696.0
+  },
+  {
+   "team_id": "ir-iran",
+   "name": "IR Iran",
+   "group": "G",
+   "elo": 1772.0
+  },
+  {
+   "team_id": "new-zealand",
+   "name": "New Zealand",
+   "group": "G",
+   "elo": 1562.0
+  },
+  {
+   "team_id": "cabo-verde",
+   "name": "Cabo Verde",
+   "group": "H",
+   "elo": 1578.0
+  },
+  {
+   "team_id": "saudi-arabia",
+   "name": "Saudi Arabia",
+   "group": "H",
+   "elo": 1569.0
+  },
+  {
+   "team_id": "spain",
+   "name": "Spain",
+   "group": "H",
+   "elo": 2157.0
+  },
+  {
+   "team_id": "uruguay",
+   "name": "Uruguay",
+   "group": "H",
+   "elo": 1892.0
+  },
+  {
+   "team_id": "france",
+   "name": "France",
+   "group": "I",
+   "elo": 2063.0
+  },
+  {
+   "team_id": "iraq",
+   "name": "Iraq",
+   "group": "I",
+   "elo": 1618.0
+  },
+  {
+   "team_id": "norway",
+   "name": "Norway",
+   "group": "I",
+   "elo": 1914.0
+  },
+  {
+   "team_id": "senegal",
+   "name": "Senegal",
+   "group": "I",
+   "elo": 1867.0
+  },
+  {
+   "team_id": "algeria",
+   "name": "Algeria",
+   "group": "J",
+   "elo": 1760.0
+  },
+  {
+   "team_id": "argentina",
+   "name": "Argentina",
+   "group": "J",
+   "elo": 2114.0
+  },
+  {
+   "team_id": "austria",
+   "name": "Austria",
+   "group": "J",
+   "elo": 1830.0
+  },
+  {
+   "team_id": "jordan",
+   "name": "Jordan",
+   "group": "J",
+   "elo": 1680.0
+  },
+  {
+   "team_id": "colombia",
+   "name": "Colombia",
+   "group": "K",
+   "elo": 1982.0
+  },
+  {
+   "team_id": "congo-dr",
+   "name": "Congo DR",
+   "group": "K",
+   "elo": 1652.0
+  },
+  {
+   "team_id": "portugal",
+   "name": "Portugal",
+   "group": "K",
+   "elo": 1986.0
+  },
+  {
+   "team_id": "uzbekistan",
+   "name": "Uzbekistan",
+   "group": "K",
+   "elo": 1714.0
+  },
+  {
+   "team_id": "croatia",
+   "name": "Croatia",
+   "group": "L",
+   "elo": 1911.0
+  },
+  {
+   "team_id": "england",
+   "name": "England",
+   "group": "L",
+   "elo": 2021.0
+  },
+  {
+   "team_id": "ghana",
+   "name": "Ghana",
+   "group": "L",
+   "elo": 1510.0
+  },
+  {
+   "team_id": "panama",
+   "name": "Panama",
+   "group": "L",
+   "elo": 1730.0
+  }
+ ]
+}

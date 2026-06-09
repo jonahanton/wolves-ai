@@ -1,0 +1,290 @@
+[
+ {
+  "id": "czechia",
+  "name": "Czechia",
+  "group": "A",
+  "eloCode": "CZ"
+ },
+ {
+  "id": "korea-republic",
+  "name": "Korea Republic",
+  "group": "A",
+  "eloCode": "KR"
+ },
+ {
+  "id": "mexico",
+  "name": "Mexico",
+  "group": "A",
+  "eloCode": "MX"
+ },
+ {
+  "id": "south-africa",
+  "name": "South Africa",
+  "group": "A",
+  "eloCode": "ZA"
+ },
+ {
+  "id": "bosnia-and-herzegovina",
+  "name": "Bosnia and Herzegovina",
+  "group": "B",
+  "eloCode": "BA"
+ },
+ {
+  "id": "canada",
+  "name": "Canada",
+  "group": "B",
+  "eloCode": "CA"
+ },
+ {
+  "id": "qatar",
+  "name": "Qatar",
+  "group": "B",
+  "eloCode": "QA"
+ },
+ {
+  "id": "switzerland",
+  "name": "Switzerland",
+  "group": "B",
+  "eloCode": "CH"
+ },
+ {
+  "id": "brazil",
+  "name": "Brazil",
+  "group": "C",
+  "eloCode": "BR"
+ },
+ {
+  "id": "haiti",
+  "name": "Haiti",
+  "group": "C",
+  "eloCode": "HT"
+ },
+ {
+  "id": "morocco",
+  "name": "Morocco",
+  "group": "C",
+  "eloCode": "MA"
+ },
+ {
+  "id": "scotland",
+  "name": "Scotland",
+  "group": "C",
+  "eloCode": "SQ"
+ },
+ {
+  "id": "australia",
+  "name": "Australia",
+  "group": "D",
+  "eloCode": "AU"
+ },
+ {
+  "id": "paraguay",
+  "name": "Paraguay",
+  "group": "D",
+  "eloCode": "PY"
+ },
+ {
+  "id": "turkiye",
+  "name": "Türkiye",
+  "group": "D",
+  "eloCode": "TR"
+ },
+ {
+  "id": "usa",
+  "name": "USA",
+  "group": "D",
+  "eloCode": "US"
+ },
+ {
+  "id": "curacao",
+  "name": "Curaçao",
+  "group": "E",
+  "eloCode": "CW"
+ },
+ {
+  "id": "cote-d-ivoire",
+  "name": "Côte d'Ivoire",
+  "group": "E",
+  "eloCode": "CI"
+ },
+ {
+  "id": "ecuador",
+  "name": "Ecuador",
+  "group": "E",
+  "eloCode": "EC"
+ },
+ {
+  "id": "germany",
+  "name": "Germany",
+  "group": "E",
+  "eloCode": "DE"
+ },
+ {
+  "id": "japan",
+  "name": "Japan",
+  "group": "F",
+  "eloCode": "JP"
+ },
+ {
+  "id": "netherlands",
+  "name": "Netherlands",
+  "group": "F",
+  "eloCode": "NL"
+ },
+ {
+  "id": "sweden",
+  "name": "Sweden",
+  "group": "F",
+  "eloCode": "SE"
+ },
+ {
+  "id": "tunisia",
+  "name": "Tunisia",
+  "group": "F",
+  "eloCode": "TN"
+ },
+ {
+  "id": "belgium",
+  "name": "Belgium",
+  "group": "G",
+  "eloCode": "BE"
+ },
+ {
+  "id": "egypt",
+  "name": "Egypt",
+  "group": "G",
+  "eloCode": "EG"
+ },
+ {
+  "id": "ir-iran",
+  "name": "IR Iran",
+  "group": "G",
+  "eloCode": "IR"
+ },
+ {
+  "id": "new-zealand",
+  "name": "New Zealand",
+  "group": "G",
+  "eloCode": "NZ"
+ },
+ {
+  "id": "cabo-verde",
+  "name": "Cabo Verde",
+  "group": "H",
+  "eloCode": "CV"
+ },
+ {
+  "id": "saudi-arabia",
+  "name": "Saudi Arabia",
+  "group": "H",
+  "eloCode": "SA"
+ },
+ {
+  "id": "spain",
+  "name": "Spain",
+  "group": "H",
+  "eloCode": "ES"
+ },
+ {
+  "id": "uruguay",
+  "name": "Uruguay",
+  "group": "H",
+  "eloCode": "UY"
+ },
+ {
+  "id": "france",
+  "name": "France",
+  "group": "I",
+  "eloCode": "FR"
+ },
+ {
+  "id": "iraq",
+  "name": "Iraq",
+  "group": "I",
+  "eloCode": "IQ"
+ },
+ {
+  "id": "norway",
+  "name": "Norway",
+  "group": "I",
+  "eloCode": "NO"
+ },
+ {
+  "id": "senegal",
+  "name": "Senegal",
+  "group": "I",
+  "eloCode": "SN"
+ },
+ {
+  "id": "algeria",
+  "name": "Algeria",
+  "group": "J",
+  "eloCode": "DZ"
+ },
+ {
+  "id": "argentina",
+  "name": "Argentina",
+  "group": "J",
+  "eloCode": "AR"
+ },
+ {
+  "id": "austria",
+  "name": "Austria",
+  "group": "J",
+  "eloCode": "AT"
+ },
+ {
+  "id": "jordan",
+  "name": "Jordan",
+  "group": "J",
+  "eloCode": "JO"
+ },
+ {
+  "id": "colombia",
+  "name": "Colombia",
+  "group": "K",
+  "eloCode": "CO"
+ },
+ {
+  "id": "congo-dr",
+  "name": "Congo DR",
+  "group": "K",
+  "eloCode": "CD"
+ },
+ {
+  "id": "portugal",
+  "name": "Portugal",
+  "group": "K",
+  "eloCode": "PT"
+ },
+ {
+  "id": "uzbekistan",
+  "name": "Uzbekistan",
+  "group": "K",
+  "eloCode": "UZ"
+ },
+ {
+  "id": "croatia",
+  "name": "Croatia",
+  "group": "L",
+  "eloCode": "HR"
+ },
+ {
+  "id": "england",
+  "name": "England",
+  "group": "L",
+  "eloCode": "EN"
+ },
+ {
+  "id": "ghana",
+  "name": "Ghana",
+  "group": "L",
+  "eloCode": "GH"
+ },
+ {
+  "id": "panama",
+  "name": "Panama",
+  "group": "L",
+  "eloCode": "PA"
+ }
+]
