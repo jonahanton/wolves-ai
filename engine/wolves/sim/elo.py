@@ -18,9 +18,7 @@ def harmonic_margin(margin: np.ndarray) -> np.ndarray:
     return _HARMONIC[np.clip(np.abs(margin), 1, _MAX_MARGIN) - 1]
 
 
-def rating_delta(
-    diff: np.ndarray, goals_a: np.ndarray, goals_b: np.ndarray, *, stage: str
-) -> np.ndarray:
+def rating_delta(diff: np.ndarray, goals_a: np.ndarray, goals_b: np.ndarray, *, stage: str) -> np.ndarray:
     """Rating change for side A given the effective pre-match diff (HFA included)."""
     result = np.where(goals_a > goals_b, 1.0, np.where(goals_a == goals_b, 0.5, 0.0))
     k = BASE_K * STAGE_K_MULT[stage]

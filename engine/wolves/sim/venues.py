@@ -26,6 +26,4 @@ def team_venue_bonus(team_id: str, venue: Venue) -> float:
 
 def venue_bonus_table(fmt: FormatData) -> dict[str, np.ndarray]:
     """Per-city vector of rating bonuses aligned with fmt.teams."""
-    return {
-        v.city: np.array([team_venue_bonus(t.id, v) for t in fmt.teams], dtype=np.float64) for v in fmt.venues
-    }
+    return {v.city: np.array([team_venue_bonus(t.id, v) for t in fmt.teams], dtype=np.float64) for v in fmt.venues}

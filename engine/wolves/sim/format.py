@@ -104,9 +104,7 @@ def load_results(data_dir: Path) -> dict[int, PlayedResult]:
     """Load the played-results overlay keyed by match number."""
     raw = json.loads((data_dir / "results.json").read_text())
     results = [
-        PlayedResult(
-            match=r["match"], home_goals=r["homeGoals"], away_goals=r["awayGoals"], winner=r.get("winner")
-        )
+        PlayedResult(match=r["match"], home_goals=r["homeGoals"], away_goals=r["awayGoals"], winner=r.get("winner"))
         for r in raw["results"]
     ]
     return {r.match: r for r in results}

@@ -31,8 +31,6 @@ def rank_group(
     return np.lexsort(keys, axis=0)
 
 
-def rank_thirds(
-    rng: np.random.Generator, pts: np.ndarray, gd: np.ndarray, gf: np.ndarray
-) -> np.ndarray:
+def rank_thirds(rng: np.random.Generator, pts: np.ndarray, gd: np.ndarray, gf: np.ndarray) -> np.ndarray:
     """Order third-placed teams (best last): points, GD, goals, drawn lots."""
     return np.lexsort((rng.random(pts.shape), gf, gd, pts), axis=0)
