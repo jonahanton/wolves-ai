@@ -15,7 +15,7 @@ export function MatchList({ preTournament, matchday, names }: MatchListProps) {
     <section aria-label="Matches">
       {preTournament && (
         <div className="sticker flex items-center gap-3 p-4">
-          <WolfMascot mood="happy" size={48} />
+          <WolfMascot mood="happy" variant="juggle" size={48} />
           <div>
             <p className="font-medium">Nothing kicking off yet.</p>
             <p className="text-sm text-muted-foreground">
