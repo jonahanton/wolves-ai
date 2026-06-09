@@ -1,0 +1,59 @@
+{
+ "get": "fixtures",
+ "parameters": {"league": "1", "season": "2026"},
+ "results": 4,
+ "response": [
+  {
+   "fixture": {
+    "id": 1300001,
+    "date": "2026-06-11T19:00:00-06:00",
+    "status": {"long": "Match Finished", "short": "FT"},
+    "venue": {"id": 1, "name": "Estadio Azteca", "city": "Mexico City"}
+   },
+   "teams": {
+    "home": {"id": 16, "name": "Mexico"},
+    "away": {"id": 1531, "name": "South Africa"}
+   },
+   "goals": {"home": 2, "away": 0}
+  },
+  {
+   "fixture": {
+    "id": 1300002,
+    "date": "2026-06-12T18:00:00-04:00",
+    "status": {"long": "Match Finished", "short": "FT"},
+    "venue": {"id": 2, "name": "Gillette Stadium", "city": "Boston"}
+   },
+   "teams": {
+    "home": {"id": 1118, "name": "Haiti"},
+    "away": {"id": 13, "name": "Brazil"}
+   },
+   "goals": {"home": 0, "away": 3}
+  },
+  {
+   "fixture": {
+    "id": 1300015,
+    "date": "2026-06-16T21:00:00-04:00",
+    "status": {"long": "Second Half", "short": "2H"},
+    "venue": {"id": 3, "name": "MetLife Stadium", "city": "New Jersey"}
+   },
+   "teams": {
+    "home": {"id": 9, "name": "Spain"},
+    "away": {"id": 1530, "name": "Cape Verde Islands"}
+   },
+   "goals": {"home": 1, "away": 0}
+  },
+  {
+   "fixture": {
+    "id": 1300021,
+    "date": "2026-06-17T21:00:00-04:00",
+    "status": {"long": "Not Started", "short": "NS"},
+    "venue": {"id": 4, "name": "MetLife Stadium", "city": "New Jersey"}
+   },
+   "teams": {
+    "home": {"id": 10, "name": "England"},
+    "away": {"id": 3, "name": "Croatia"}
+   },
+   "goals": {"home": null, "away": null}
+  }
+ ]
+}
