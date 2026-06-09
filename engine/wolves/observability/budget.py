@@ -18,6 +18,8 @@ class Caps(BaseModel):
     max_quant_rows: int = 200_000
     max_quant_bytes: int = 20_000_000
     max_quant_runtime_seconds: int = 60
+    # 0 means no dollar ceiling.
+    max_cost_micros: int = 0
 
     @classmethod
     def small(cls) -> Caps:

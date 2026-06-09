@@ -1,0 +1,362 @@
+"""Agent-mode runner.
+
+``python -m wolves.run_agent --dev`` runs the full harness offline: scripted
+fake LLM, fixture-backed clients, in-memory tracer, $0 spend. ``--live``
+refuses to run unless ANTHROPIC_API_KEY is set and ``--confirm-spend`` is
+passed with a per-run dollar ceiling, enforced as a hard cap in the runtime.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
+import sys
+from datetime import UTC, datetime, timedelta
+
+import numpy as np
+
+from wolves.agent.calibration import CalibrationLedger
+from wolves.agent.deps import AgentDeps
+from wolves.agent.fakes import ScriptedLLM, tool_call_turn
+from wolves.agent.ledger import EvidenceLedger
+from wolves.agent.loop import MasterRunResult, run_master
+from wolves.agent.memory import RunMemory
+from wolves.agent.sim_runner import M0Simulation
+from wolves.agent.validator import ValidatorLimits
+from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
+from wolves.clients.odds import FakeOddsClient, OddsClient, TheOddsApiClient
+from wolves.config import Settings
+from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
+from wolves.llm.anthropic import build_llm
+from wolves.llm.client import LLMClient, ToolTurn
+from wolves.llm.observed import ObservedLLM
+from wolves.observability import Caps, InMemoryTracer, ObservedRuntime, build_logfire_tracer, build_runtime
+from wolves.quant.observed import ObservedQuant
+from wolves.sim.format import FormatData, load_format
+from wolves.sim.ratings import load_elo_ratings
+from wolves.snapshot import (
+    AgentBlock,
+    CalibrationSummary,
+    DisagreementOut,
+    LedgerEntryOut,
+    NarrativeBlock,
+    RatingOverrideOut,
+    RunMeta,
+    Snapshot,
+    TeamInfo,
+)
+from wolves.tools._budget_gate import BudgetGate
+
+logger = logging.getLogger(__name__)
+
+
+def _dev_script(as_of: str) -> tuple[list[ToolTurn], list[dict]]:
+    """A canned full run: memory, odds anchor, delegation, ledger, sim, submit."""
+    expiry = (datetime.fromisoformat(as_of) + timedelta(days=3)).date().isoformat()
+    submission = {
+        "rating_overrides": [
+            {
+                "team_id": "england",
+                "delta_elo": 15.0,
+                "cause": "First-choice keeper confirmed fit",
+                "ledger_ids": ["led-0001"],
+            }
+        ],
+        "fixture_offsets": [],
+        "england_reach_probs": {"r32": 0.97, "r16": 0.62, "qf": 0.38, "sf": 0.22, "final": 0.13, "champion": 0.07},
+        "narrative": {
+            "england_story": (
+                "England's camp is calm: the keeper trained in full and the market still makes them "
+                "third favourites behind Spain and France."
+            ),
+            "slot_rationales": {str(m): f"Slot {m}: the rating gap favours the group winner." for m in range(73, 89)},
+            "travel_memo": "Win Group L and England stay on the east coast; finishing second buys a longer trip.",
+        },
+        "delta_vs_market": 0.01,
+        "market_justification": "",
+        "delta_vs_yesterday": 0.0,
+        "change_justification": "",
+    }
+    turns = [
+        tool_call_turn(("read_journal", {}), ("get_odds", {"market": "outrights"}), text="Memory and anchor first."),
+        tool_call_turn(
+            (
+                "spawn_researcher",
+                {
+                    "briefs": [
+                        {
+                            "objective": "England keeper fitness",
+                            "brief": "Confirm from primary sources whether the first-choice keeper is fit to start.",
+                            "input_artifact_ids": [],
+                        }
+                    ]
+                },
+            )
+        ),
+        tool_call_turn(("web_search", {"query": "England keeper fitness", "freshness": "pd"})),
+        tool_call_turn(
+            (
+                "report_findings",
+                {
+                    "objective": "England keeper fitness",
+                    "summary": "Keeper trained in full; FA statement confirms availability.",
+                    "evidence": [
+                        {
+                            "claim": "Keeper trained in full",
+                            "source_url": "https://www.reuters.com/world/example-article-2026",
+                            "quote": "trained in full",
+                        }
+                    ],
+                    "signals": [],
+                },
+            )
+        ),
+        tool_call_turn(
+            (
+                "ledger_append",
+                {
+                    "claim": "First-choice keeper confirmed fit by the FA",
+                    "source_url": "https://www.reuters.com/world/example-article-2026",
+                    "status": "confirmed",
+                    "mechanism": "keeper returns to the XI",
+                    "proposed_delta": 15.0,
+                    "expiry": expiry,
+                    "team_id": "england",
+                },
+            )
+        ),
+        tool_call_turn(("run_simulation", {"rating_overrides": {"england": 15.0}, "seed": 1})),
+        tool_call_turn(
+            ("write_journal", {"text": "Keeper confirmed fit; sim and market agree England are third favourites."}),
+            ("submit_forecast", submission),
+        ),
+    ]
+    sample = {
+        "rating_overrides": [
+            {"team_id": "england", "delta_elo": 15.0, "cause": "keeper fit", "ledger_ids": ["led-0001"]}
+        ]
+    }
+    return turns, [sample, sample]
+
+
+def _build_deps(
+    *,
+    settings: Settings,
+    runtime: ObservedRuntime,
+    llm: LLMClient,
+    web: ObservedWeb,
+    odds: OddsClient,
+    fixtures: FixturesClient,
+    fmt: FormatData,
+    ratings: np.ndarray,
+    run_id: str,
+) -> AgentDeps:
+    calibration = CalibrationLedger(settings.calibration_path)
+    return AgentDeps(
+        runtime=runtime,
+        llm=ObservedLLM(llm, runtime),
+        web=web,
+        odds=odds,
+        fixtures=fixtures,
+        sim=M0Simulation(fmt, ratings),
+        ledger=EvidenceLedger(settings.runs_root / run_id / "ledger.jsonl"),
+        memory=RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path),
+        quant=ObservedQuant(runtime),
+        gate=BudgetGate(settings.agent_tool_budget),
+        settings=settings,
+        limits=ValidatorLimits(
+            confirmed_delta_cap_elo=settings.confirmed_delta_cap_elo,
+            soft_delta_cap_elo=settings.soft_delta_cap_elo,
+            justification_threshold=settings.justification_threshold,
+            delta_cap_scale=calibration.scale(window=settings.governor_window),
+        ),
+    )
+
+
+def _calibration_block(settings: Settings) -> CalibrationSummary | None:
+    ledger = CalibrationLedger(settings.calibration_path)
+    scores = ledger.scores()
+    if not scores:
+        return None
+    recent = scores[-settings.governor_window :]
+
+    def means(metric: str) -> dict[str, float]:
+        out: dict[str, list[float]] = {}
+        for score in recent:
+            for name, value in getattr(score, metric).items():
+                out.setdefault(name, []).append(value)
+        return {name: round(sum(v) / len(v), 4) for name, v in out.items()}
+
+    pnls = [s.adjustment_pnl for s in recent if s.adjustment_pnl is not None]
+    return CalibrationSummary(
+        matches_scored=len(recent),
+        brier=means("brier"),
+        log_loss=means("log_loss"),
+        adjustment_pnl=round(sum(pnls), 4) if pnls else None,
+        governor_scale=ledger.scale(window=settings.governor_window),
+    )
+
+
+def _build_snapshot(
+    *,
+    settings: Settings,
+    deps: AgentDeps,
+    result: MasterRunResult,
+    fmt: FormatData,
+    ratings: np.ndarray,
+    run_id: str,
+    n_sims: int,
+    seed: int,
+) -> Snapshot:
+    submission = result.submission
+    assert submission is not None
+    overrides = {o.team_id: o.delta_elo for o in submission.rating_overrides}
+    offsets = {o.match: (o.home_goals, o.away_goals) for o in submission.fixture_offsets}
+    outputs = deps.sim.run_simulation(overrides, offsets, n_sims, seed)
+
+    agent_block = AgentBlock(
+        narrative=NarrativeBlock(**submission.narrative.model_dump()),
+        ledger_entries=[
+            LedgerEntryOut(**{**e.model_dump(mode="json"), "created_at": e.created_at.isoformat()})
+            for e in deps.ledger.all()
+        ],
+        rating_overrides=[RatingOverrideOut(**o.model_dump()) for o in submission.rating_overrides],
+        disagreement=DisagreementOut(**result.disagreement.model_dump()) if result.disagreement else None,
+        calibration=_calibration_block(settings),
+    )
+    return Snapshot(
+        run=RunMeta(
+            run_id=run_id,
+            created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            n_sims=n_sims,
+            engine_version="0.1.0",
+            kind="agent",
+        ),
+        england=outputs.england,
+        slots=outputs.slots,
+        teams=[
+            TeamInfo(
+                team_id=t.id,
+                name=t.name,
+                group=t.group,
+                elo=float(ratings[i] + overrides.get(t.id, 0.0)),
+            )
+            for i, t in enumerate(fmt.teams)
+        ],
+        agent=agent_block,
+    )
+
+
+async def _run(args: argparse.Namespace, settings: Settings) -> int:
+    as_of = args.as_of or datetime.now(UTC).date().isoformat()
+    run_id = datetime.now(UTC).strftime("agent-%Y%m%d-%H%M%S")
+    fmt = load_format(settings.data_dir)
+    tsv = sorted((settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
+    ratings = load_elo_ratings(tsv, fmt)
+
+    if args.live:
+        ceiling = args.ceiling if args.ceiling is not None else settings.agent_run_ceiling_usd
+        caps = Caps(max_cost_micros=int(ceiling * 1_000_000))
+        tracer = build_logfire_tracer(settings) if settings.logfire_token else InMemoryTracer()
+        runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
+        llm: LLMClient = build_llm(settings, model=settings.worker_model)
+        web = build_web(settings, runtime)
+        odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
+        fixtures: FixturesClient = (
+            ApiFootballClient(settings.api_football_key) if settings.api_football_key else FakeFixturesClient()
+        )
+        logger.info("LIVE run %s: model=%s, ceiling=$%.2f", run_id, settings.worker_model, ceiling)
+    else:
+        runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=Caps(), runs_root=settings.runs_root)
+        turns, samples = _dev_script(as_of)
+        llm = ScriptedLLM(turns=turns, structured=samples)
+        web = ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient())
+        odds = FakeOddsClient()
+        fixtures = FakeFixturesClient()
+        logger.info("dev run %s: fake LLM and fixture clients, $0 spend", run_id)
+
+    deps = _build_deps(
+        settings=settings,
+        runtime=runtime,
+        llm=llm,
+        web=web,
+        odds=odds,
+        fixtures=fixtures,
+        fmt=fmt,
+        ratings=ratings,
+        run_id=run_id,
+    )
+    try:
+        result = await run_master(deps, as_of=as_of)
+    finally:
+        await web.aclose()
+        await odds.aclose()
+        await fixtures.aclose()
+        await llm.aclose()
+
+    spent = runtime.budget.cost_micros / 1e6
+    if result.submission is None:
+        runtime.shutdown()
+        logger.error(
+            "run %s produced no valid submission (budget_exhausted=%s, failures=%d); no snapshot written",
+            run_id,
+            result.budget_exhausted,
+            result.validation_failures,
+        )
+        return 1
+
+    snapshot = _build_snapshot(
+        settings=settings,
+        deps=deps,
+        result=result,
+        fmt=fmt,
+        ratings=ratings,
+        run_id=run_id,
+        n_sims=args.sims,
+        seed=args.seed,
+    )
+    runtime.shutdown()
+    payload = snapshot.model_dump_json(indent=1)
+    settings.snapshot_dir.mkdir(parents=True, exist_ok=True)
+    (settings.snapshot_dir / f"{run_id}.json").write_text(payload)
+    (settings.snapshot_dir / "latest.json").write_text(payload)
+    logger.info(
+        "run %s complete in %d turn(s): %d override(s), disagreement max %.1f, cost $%.4f",
+        run_id,
+        result.turns,
+        len(snapshot.agent.rating_overrides) if snapshot.agent else 0,
+        result.disagreement.max_spread if result.disagreement else 0.0,
+        spent,
+    )
+    return 0
+
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    settings = Settings()
+    parser = argparse.ArgumentParser(description="Run the forecast agent")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--dev", action="store_true", help="offline run: fake LLM and fixtures, $0 spend")
+    mode.add_argument("--live", action="store_true", help="metered run against real APIs")
+    parser.add_argument("--confirm-spend", action="store_true", help="required with --live")
+    parser.add_argument("--ceiling", type=float, default=None, help="per-run dollar ceiling for --live")
+    parser.add_argument("--sims", type=int, default=settings.n_sims)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--as-of", type=str, default=None)
+    args = parser.parse_args()
+
+    if args.live:
+        if not settings.anthropic_api_key:
+            parser.error("--live requires ANTHROPIC_API_KEY to be set")
+        if not args.confirm_spend:
+            parser.error("--live requires --confirm-spend with a per-run dollar ceiling")
+        ceiling = args.ceiling if args.ceiling is not None else settings.agent_run_ceiling_usd
+        if ceiling <= 0 or ceiling > settings.agent_run_ceiling_max_usd:
+            parser.error(f"--ceiling must be in (0, {settings.agent_run_ceiling_max_usd:.2f}]")
+
+    sys.exit(asyncio.run(_run(args, settings)))
+
+
+if __name__ == "__main__":
+    main()
