@@ -81,8 +81,9 @@ export function usePanZoom({ contentWidth, contentHeight, maxScale = 2.5 }: PanZ
       const px = clientX - rect.left;
       const py = clientY - rect.top;
       const { x, y, scale } = transform.current;
-      const ratio = Math.min(maxScale, Math.max(minScale(), nextScale)) / scale;
-      setTransform({ x: px - (px - x) * ratio, y: py - (py - y) * ratio, scale: scale * ratio });
+      const target = Math.min(maxScale, Math.max(minScale(), nextScale));
+      const ratio = target / scale;
+      setTransform({ x: px - (px - x) * ratio, y: py - (py - y) * ratio, scale: target });
     },
     [maxScale, minScale, setTransform],
   );

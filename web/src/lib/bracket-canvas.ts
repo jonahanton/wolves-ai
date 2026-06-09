@@ -138,9 +138,9 @@ export function edgePath(layout: CanvasLayout, edge: CanvasEdge): string | null 
   const to = layout.nodes.find((n) => n.slot.match === edge.toMatch);
   if (!from || !to) return null;
 
-  const leftward = to.x > from.x;
-  const fromX = leftward ? from.x + NODE_W : from.x;
-  const toX = leftward ? to.x : to.x + NODE_W;
+  const rightward = to.x > from.x;
+  const fromX = rightward ? from.x + NODE_W : from.x;
+  const toX = rightward ? to.x : to.x + NODE_W;
   const fromY = from.y + NODE_H / 2;
   const toY = to.y + NODE_H / 2;
   const midX = (fromX + toX) / 2;

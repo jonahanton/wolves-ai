@@ -22,8 +22,6 @@ function TieNode({ node, onSelect, wasDrag }: TieNodeProps) {
   return (
     <g
       transform={`translate(${node.x}, ${node.y})`}
-      role="button"
-      tabIndex={-1}
       style={{ cursor: "pointer" }}
       onClick={() => {
         if (!wasDrag()) onSelect(slot);
@@ -109,6 +107,7 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
       <div className="relative">
         <div
           ref={containerRef}
+          role="region"
           className="h-[62dvh] touch-none overflow-hidden rounded-xl border bg-secondary/40 select-none"
           aria-label="Bracket canvas. Drag to pan, pinch or double-tap to zoom."
         >
@@ -119,9 +118,9 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
             viewBox={`0 0 ${layout.width} ${layout.height}`}
             className="origin-top-left will-change-transform"
           >
-            {layout.columnLabels.map(({ label, x }, i) => (
+            {layout.columnLabels.map(({ label, x }) => (
               <text
-                key={i}
+                key={label}
                 x={x + NODE_W / 2}
                 y={16}
                 fontSize={11}
