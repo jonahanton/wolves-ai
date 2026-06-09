@@ -62,7 +62,7 @@ variable "alert_email" {
 }
 
 variable "ses_sender_email" {
-  description = "Sender identity for Auth.js magic links (Phase 5); empty skips creation."
+  description = "Sender identity for magic-link sign-in emails; empty skips creation."
   type        = string
   default     = ""
 }
