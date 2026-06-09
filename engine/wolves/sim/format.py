@@ -35,10 +35,30 @@ class KnockoutMatch(BaseModel):
     away: str
 
 
+class Venue(BaseModel):
+    city: str
+    stadium: str
+    country: str
+    altitude_m: int
+    roofed: bool
+    lat: float
+    lon: float
+
+
+class PlayedResult(BaseModel):
+    """A completed match overlaid on the simulation; winner disambiguates knockout draws."""
+
+    match: int
+    home_goals: int
+    away_goals: int
+    winner: str | None = None
+
+
 class FormatData(BaseModel):
     teams: list[Team]
     group_matches: list[GroupMatch]
     knockout: list[KnockoutMatch]
+    venues: list[Venue]
 
     def team_index(self) -> dict[str, int]:
         return {t.id: i for i, t in enumerate(self.teams)}
@@ -50,14 +70,41 @@ class FormatData(BaseModel):
             members[t.group].append(idx[t.id])
         return members
 
+    def venue_by_city(self) -> dict[str, Venue]:
+        return {v.city: v for v in self.venues}
+
 
 def load_format(data_dir: Path) -> FormatData:
     """Load the static tournament format from data/format."""
     teams_raw = json.loads((data_dir / "format" / "teams.json").read_text())
     schedule = json.loads((data_dir / "format" / "schedule.json").read_text())
+    venues_raw = json.loads((data_dir / "format" / "venues.json").read_text())
     teams = [Team(id=t["id"], name=t["name"], group=t["group"], elo_code=t["eloCode"]) for t in teams_raw]
+    venues = [
+        Venue(
+            city=v["city"],
+            stadium=v["stadium"],
+            country=v["country"],
+            altitude_m=v["altitudeM"],
+            roofed=v["roofed"],
+            lat=v["lat"],
+            lon=v["lon"],
+        )
+        for v in venues_raw
+    ]
     return FormatData(
         teams=teams,
         group_matches=[GroupMatch(**m) for m in schedule["groupMatches"]],
         knockout=[KnockoutMatch(**m) for m in schedule["knockout"]],
+        venues=venues,
     )
+
+
+def load_results(data_dir: Path) -> dict[int, PlayedResult]:
+    """Load the played-results overlay keyed by match number."""
+    raw = json.loads((data_dir / "results.json").read_text())
+    results = [
+        PlayedResult(match=r["match"], home_goals=r["homeGoals"], away_goals=r["awayGoals"], winner=r.get("winner"))
+        for r in raw["results"]
+    ]
+    return {r.match: r for r in results}

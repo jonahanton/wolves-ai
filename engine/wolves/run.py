@@ -6,21 +6,17 @@ import logging
 from datetime import UTC, datetime
 
 from wolves.config import Settings
-from wolves.sim.format import load_format
-from wolves.sim.mc import run_tournament
-from wolves.sim.outputs import build_england, build_slots
-from wolves.sim.ratings import load_elo_ratings
-from wolves.snapshot import RunMeta, Snapshot, TeamInfo
+from wolves.sim.api import run_simulation
+from wolves.snapshot import RunMeta, Snapshot
 
 logger = logging.getLogger(__name__)
+
+ENGINE_VERSION = "0.2.0"
 
 
 def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0) -> Snapshot:
     """Run the simulation and assemble a snapshot."""
-    fmt = load_format(settings.data_dir)
-    tsv = sorted((settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
-    ratings = load_elo_ratings(tsv, fmt)
-    result = run_tournament(fmt, ratings, n_sims=n_sims, seed=seed)
+    outputs = run_simulation({}, {}, n_sims, seed)
 
     now = datetime.now(UTC)
     return Snapshot(
@@ -28,14 +24,12 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0) -> Snap
             run_id=now.strftime("run-%Y%m%d-%H%M%S"),
             created_at=now.isoformat(timespec="seconds"),
             n_sims=n_sims,
-            engine_version="0.1.0",
+            engine_version=ENGINE_VERSION,
             kind="sim_only",
         ),
-        england=build_england(fmt, result),
-        slots=build_slots(fmt, result),
-        teams=[
-            TeamInfo(team_id=t.id, name=t.name, group=t.group, elo=float(ratings[i])) for i, t in enumerate(fmt.teams)
-        ],
+        england=outputs.england,
+        slots=outputs.slots,
+        teams=outputs.teams,
     )
 
 

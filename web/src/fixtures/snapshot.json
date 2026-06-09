@@ -1,111 +1,610 @@
 {
  "schema_version": 1,
  "run": {
-  "run_id": "run-20260609-220253",
-  "created_at": "2026-06-09T22:02:53+00:00",
+  "run_id": "run-20260609-223805",
+  "created_at": "2026-06-09T22:38:05+00:00",
   "n_sims": 100000,
-  "engine_version": "0.1.0",
+  "engine_version": "0.2.0",
   "kind": "sim_only"
  },
  "england": {
   "team_id": "england",
   "group": "L",
   "finish_probs": {
-   "win_group": 0.6819,
-   "runner_up": 0.2679,
-   "third_qualified": 0.0418,
-   "third_eliminated": 0.0053,
-   "fourth": 0.0031
+   "win_group": 0.6245,
+   "runner_up": 0.261,
+   "third_qualified": 0.0736,
+   "third_eliminated": 0.0136,
+   "fourth": 0.0273
   },
   "reach_probs": {
-   "r32": 0.9916,
-   "r16": 0.7832,
-   "qf": 0.5546,
-   "sf": 0.3503,
-   "final": 0.1645,
-   "champion": 0.067
+   "r32": 0.9591,
+   "r16": 0.7315,
+   "qf": 0.4622,
+   "sf": 0.2891,
+   "final": 0.1695,
+   "champion": 0.0923
   },
   "paths": [
    {
     "finish": "win_group",
-    "prob": 0.6819,
+    "prob": 0.6245,
     "r32_match": 80,
     "city": "Atlanta",
     "date": "2026-07-01T16:00:00Z",
     "opponents": [
      {
-      "team_id": "uzbekistan",
-      "prob": 0.3062
-     },
-     {
       "team_id": "congo-dr",
-      "prob": 0.1665
+      "prob": 0.2105
      },
      {
-      "team_id": "cote-d-ivoire",
-      "prob": 0.1331
+      "team_id": "uzbekistan",
+      "prob": 0.192
      },
      {
       "team_id": "colombia",
-      "prob": 0.0646
+      "prob": 0.1338
      },
      {
       "team_id": "portugal",
-      "prob": 0.0623
+      "prob": 0.1
      },
      {
-      "team_id": "cabo-verde",
-      "prob": 0.0512
+      "team_id": "cote-d-ivoire",
+      "prob": 0.0753
+     },
+     {
+      "team_id": "saudi-arabia",
+      "prob": 0.0463
+     }
+    ],
+    "onward": [
+     {
+      "round": "r16",
+      "match": 92,
+      "city": "Mexico City",
+      "date": "2026-07-06T00:00:00Z",
+      "reach_prob": 0.8355,
+      "opponents": [
+       {
+        "team_id": "mexico",
+        "prob": 0.4837
+       },
+       {
+        "team_id": "czechia",
+        "prob": 0.0984
+       },
+       {
+        "team_id": "korea-republic",
+        "prob": 0.0956
+       },
+       {
+        "team_id": "cote-d-ivoire",
+        "prob": 0.0251
+       },
+       {
+        "team_id": "ecuador",
+        "prob": 0.025
+       },
+       {
+        "team_id": "morocco",
+        "prob": 0.0248
+       }
+      ]
+     },
+     {
+      "round": "qf",
+      "match": 99,
+      "city": "Miami",
+      "date": "2026-07-11T21:00:00Z",
+      "reach_prob": 0.5764,
+      "opponents": [
+       {
+        "team_id": "brazil",
+        "prob": 0.2751
+       },
+       {
+        "team_id": "france",
+        "prob": 0.1217
+       },
+       {
+        "team_id": "norway",
+        "prob": 0.0911
+       },
+       {
+        "team_id": "germany",
+        "prob": 0.0797
+       },
+       {
+        "team_id": "morocco",
+        "prob": 0.0783
+       },
+       {
+        "team_id": "netherlands",
+        "prob": 0.0721
+       }
+      ]
      }
     ]
    },
    {
     "finish": "runner_up",
-    "prob": 0.2679,
+    "prob": 0.261,
     "r32_match": 83,
     "city": "Toronto",
     "date": "2026-07-02T23:00:00Z",
     "opponents": [
      {
       "team_id": "colombia",
-      "prob": 0.429
+      "prob": 0.3907
      },
      {
       "team_id": "portugal",
-      "prob": 0.4171
-     },
-     {
-      "team_id": "uzbekistan",
-      "prob": 0.1042
+      "prob": 0.3134
      },
      {
       "team_id": "congo-dr",
-      "prob": 0.0498
+      "prob": 0.1572
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.1387
+     }
+    ],
+    "onward": [
+     {
+      "round": "r16",
+      "match": 93,
+      "city": "Dallas",
+      "date": "2026-07-06T19:00:00Z",
+      "reach_prob": 0.6699,
+      "opponents": [
+       {
+        "team_id": "spain",
+        "prob": 0.5654
+       },
+       {
+        "team_id": "uruguay",
+        "prob": 0.1553
+       },
+       {
+        "team_id": "argentina",
+        "prob": 0.1025
+       },
+       {
+        "team_id": "austria",
+        "prob": 0.0942
+       },
+       {
+        "team_id": "algeria",
+        "prob": 0.0562
+       },
+       {
+        "team_id": "jordan",
+        "prob": 0.0116
+       }
+      ]
+     },
+     {
+      "round": "qf",
+      "match": 98,
+      "city": "Los Angeles",
+      "date": "2026-07-10T19:00:00Z",
+      "reach_prob": 0.3043,
+      "opponents": [
+       {
+        "team_id": "belgium",
+        "prob": 0.2343
+       },
+       {
+        "team_id": "turkiye",
+        "prob": 0.1935
+       },
+       {
+        "team_id": "usa",
+        "prob": 0.1341
+       },
+       {
+        "team_id": "paraguay",
+        "prob": 0.0577
+       },
+       {
+        "team_id": "egypt",
+        "prob": 0.0364
+       },
+       {
+        "team_id": "ir-iran",
+        "prob": 0.0307
+       }
+      ]
      }
     ]
    },
    {
     "finish": "third",
-    "prob": 0.0418,
+    "prob": 0.0736,
     "r32_match": 87,
     "city": "Kansas City",
     "date": "2026-07-04T01:30:00Z",
     "opponents": [
      {
       "team_id": "portugal",
-      "prob": 0.4981
+      "prob": 0.5172
      },
      {
       "team_id": "colombia",
-      "prob": 0.4749
-     },
-     {
-      "team_id": "uzbekistan",
-      "prob": 0.0213
+      "prob": 0.3665
      },
      {
       "team_id": "congo-dr",
-      "prob": 0.0057
+      "prob": 0.0658
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.0506
+     }
+    ],
+    "onward": [
+     {
+      "round": "r16",
+      "match": 96,
+      "city": "Vancouver",
+      "date": "2026-07-07T20:00:00Z",
+      "reach_prob": 0.4748,
+      "opponents": [
+       {
+        "team_id": "canada",
+        "prob": 0.3372
+       },
+       {
+        "team_id": "switzerland",
+        "prob": 0.3121
+       },
+       {
+        "team_id": "bosnia-and-herzegovina",
+        "prob": 0.0424
+       },
+       {
+        "team_id": "belgium",
+        "prob": 0.0335
+       },
+       {
+        "team_id": "egypt",
+        "prob": 0.0332
+       },
+       {
+        "team_id": "ir-iran",
+        "prob": 0.0332
+       }
+      ]
+     },
+     {
+      "round": "qf",
+      "match": 100,
+      "city": "Kansas City",
+      "date": "2026-07-12T01:00:00Z",
+      "reach_prob": 0.3107,
+      "opponents": [
+       {
+        "team_id": "argentina",
+        "prob": 0.3937
+       },
+       {
+        "team_id": "spain",
+        "prob": 0.1194
+       },
+       {
+        "team_id": "uruguay",
+        "prob": 0.0941
+       },
+       {
+        "team_id": "turkiye",
+        "prob": 0.0796
+       },
+       {
+        "team_id": "austria",
+        "prob": 0.0674
+       },
+       {
+        "team_id": "usa",
+        "prob": 0.0608
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "modal_path": [
+   {
+    "round": "r32",
+    "match": 80,
+    "city": "Atlanta",
+    "date": "2026-07-01T16:00:00Z",
+    "opponent_id": "congo-dr",
+    "opponent_prob": 0.2105
+   },
+   {
+    "round": "r16",
+    "match": 92,
+    "city": "Mexico City",
+    "date": "2026-07-06T00:00:00Z",
+    "opponent_id": "mexico",
+    "opponent_prob": 0.4837
+   },
+   {
+    "round": "qf",
+    "match": 99,
+    "city": "Miami",
+    "date": "2026-07-11T21:00:00Z",
+    "opponent_id": "brazil",
+    "opponent_prob": 0.2751
+   },
+   {
+    "round": "sf",
+    "match": 102,
+    "city": "Atlanta",
+    "date": "2026-07-15T19:00:00Z",
+    "opponent_id": "argentina",
+    "opponent_prob": 0.284
+   },
+   {
+    "round": "final",
+    "match": 104,
+    "city": "New York/New Jersey",
+    "date": "2026-07-19T19:00:00Z",
+    "opponent_id": "spain",
+    "opponent_prob": 0.2409
+   }
+  ],
+  "city_probs": {
+   "r32": [
+    {
+     "city": "Atlanta",
+     "prob": 0.6245
+    },
+    {
+     "city": "Toronto",
+     "prob": 0.261
+    },
+    {
+     "city": "Kansas City",
+     "prob": 0.0736
+    }
+   ],
+   "r16": [
+    {
+     "city": "Mexico City",
+     "prob": 0.5217
+    },
+    {
+     "city": "Dallas",
+     "prob": 0.1749
+    },
+    {
+     "city": "Vancouver",
+     "prob": 0.0349
+    }
+   ],
+   "qf": [
+    {
+     "city": "Miami",
+     "prob": 0.3599
+    },
+    {
+     "city": "Los Angeles",
+     "prob": 0.0794
+    },
+    {
+     "city": "Kansas City",
+     "prob": 0.0229
+    }
+   ],
+   "sf": [
+    {
+     "city": "Atlanta",
+     "prob": 0.2356
+    },
+    {
+     "city": "Dallas",
+     "prob": 0.0535
+    }
+   ],
+   "final": [
+    {
+     "city": "New York/New Jersey",
+     "prob": 0.1695
+    }
+   ]
+  },
+  "lock_dates": [
+   {
+    "date": "2026-06-17T23:00:00Z",
+    "prob_locked": 0.0,
+    "locked_city_probs": {}
+   },
+   {
+    "date": "2026-06-23T23:00:00Z",
+    "prob_locked": 0.0247,
+    "locked_city_probs": {
+     "Atlanta": 0.0247
+    }
+   },
+   {
+    "date": "2026-06-28T02:00:00Z",
+    "prob_locked": 1.0,
+    "locked_city_probs": {
+     "Atlanta": 0.6245,
+     "Toronto": 0.261,
+     "Kansas City": 0.0736
+    }
+   }
+  ],
+  "what_if": [
+   {
+    "match": 22,
+    "date": "2026-06-17T20:00:00Z",
+    "city": "Dallas",
+    "opponent_id": "croatia",
+    "outcomes": [
+     {
+      "outcome": "win",
+      "prob": 0.5445,
+      "finish_probs": {
+       "win_group": 0.8883,
+       "runner_up": 0.0893,
+       "third_qualified": 0.0175,
+       "third_eliminated": 0.0006,
+       "fourth": 0.0044
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.8883,
+       "Toronto": 0.0893,
+       "Kansas City": 0.0175
+      }
+     },
+     {
+      "outcome": "draw",
+      "prob": 0.2334,
+      "finish_probs": {
+       "win_group": 0.5262,
+       "runner_up": 0.3217,
+       "third_qualified": 0.1067,
+       "third_eliminated": 0.0168,
+       "fourth": 0.0286
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.5262,
+       "Toronto": 0.3217,
+       "Kansas City": 0.1067
+      }
+     },
+     {
+      "outcome": "lose",
+      "prob": 0.2221,
+      "finish_probs": {
+       "win_group": 0.0811,
+       "runner_up": 0.6183,
+       "third_qualified": 0.1763,
+       "third_eliminated": 0.0424,
+       "fourth": 0.0819
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.0811,
+       "Toronto": 0.6183,
+       "Kansas City": 0.1763
+      }
+     }
+    ]
+   },
+   {
+    "match": 45,
+    "date": "2026-06-23T20:00:00Z",
+    "city": "Boston",
+    "opponent_id": "ghana",
+    "outcomes": [
+     {
+      "outcome": "win",
+      "prob": 0.7577,
+      "finish_probs": {
+       "win_group": 0.7051,
+       "runner_up": 0.2444,
+       "third_qualified": 0.0445,
+       "third_eliminated": 0.0024,
+       "fourth": 0.0036
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.7051,
+       "Toronto": 0.2444,
+       "Kansas City": 0.0445
+      }
+     },
+     {
+      "outcome": "draw",
+      "prob": 0.1578,
+      "finish_probs": {
+       "win_group": 0.4653,
+       "runner_up": 0.3272,
+       "third_qualified": 0.1066,
+       "third_eliminated": 0.0487,
+       "fourth": 0.0522
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.4653,
+       "Toronto": 0.3272,
+       "Kansas City": 0.1066
+      }
+     },
+     {
+      "outcome": "lose",
+      "prob": 0.0846,
+      "finish_probs": {
+       "win_group": 0.1985,
+       "runner_up": 0.2868,
+       "third_qualified": 0.2727,
+       "third_eliminated": 0.0486,
+       "fourth": 0.1934
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.1985,
+       "Toronto": 0.2868,
+       "Kansas City": 0.2727
+      }
+     }
+    ]
+   },
+   {
+    "match": 67,
+    "date": "2026-06-27T21:00:00Z",
+    "city": "New York/New Jersey",
+    "opponent_id": "panama",
+    "outcomes": [
+     {
+      "outcome": "win",
+      "prob": 0.7374,
+      "finish_probs": {
+       "win_group": 0.716,
+       "runner_up": 0.2409,
+       "third_qualified": 0.0377,
+       "third_eliminated": 0.0019,
+       "fourth": 0.0035
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.716,
+       "Toronto": 0.2409,
+       "Kansas City": 0.0377
+      }
+     },
+     {
+      "outcome": "draw",
+      "prob": 0.1661,
+      "finish_probs": {
+       "win_group": 0.4711,
+       "runner_up": 0.3289,
+       "third_qualified": 0.1091,
+       "third_eliminated": 0.0424,
+       "fourth": 0.0485
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.4711,
+       "Toronto": 0.3289,
+       "Kansas City": 0.1091
+      }
+     },
+     {
+      "outcome": "lose",
+      "prob": 0.0966,
+      "finish_probs": {
+       "win_group": 0.1896,
+       "runner_up": 0.2981,
+       "third_qualified": 0.2862,
+       "third_eliminated": 0.0536,
+       "fourth": 0.1724
+      },
+      "r32_city_probs": {
+       "Atlanta": 0.1896,
+       "Toronto": 0.2981,
+       "Kansas City": 0.2862
+      }
      }
     ]
    }
@@ -121,20 +620,20 @@
     "label": "2A",
     "candidates": [
      {
-      "team_id": "korea-republic",
-      "prob": 0.3748
+      "team_id": "czechia",
+      "prob": 0.3301
      },
      {
-      "team_id": "czechia",
-      "prob": 0.3347
+      "team_id": "korea-republic",
+      "prob": 0.3175
      },
      {
       "team_id": "mexico",
-      "prob": 0.2549
+      "prob": 0.2396
      },
      {
       "team_id": "south-africa",
-      "prob": 0.0357
+      "prob": 0.1129
      }
     ]
    },
@@ -142,20 +641,20 @@
     "label": "2B",
     "candidates": [
      {
-      "team_id": "canada",
-      "prob": 0.5449
+      "team_id": "switzerland",
+      "prob": 0.3611
      },
      {
-      "team_id": "switzerland",
-      "prob": 0.2764
+      "team_id": "canada",
+      "prob": 0.352
      },
      {
       "team_id": "bosnia-and-herzegovina",
-      "prob": 0.1568
+      "prob": 0.2129
      },
      {
       "team_id": "qatar",
-      "prob": 0.022
+      "prob": 0.074
      }
     ]
    }
@@ -169,20 +668,20 @@
     "label": "1E",
     "candidates": [
      {
-      "team_id": "ecuador",
-      "prob": 0.4934
+      "team_id": "germany",
+      "prob": 0.5026
      },
      {
-      "team_id": "germany",
-      "prob": 0.4693
+      "team_id": "ecuador",
+      "prob": 0.3466
      },
      {
       "team_id": "cote-d-ivoire",
-      "prob": 0.0367
+      "prob": 0.1367
      },
      {
       "team_id": "curacao",
-      "prob": 0.0007
+      "prob": 0.0141
      }
     ]
    },
@@ -191,27 +690,27 @@
     "candidates": [
      {
       "team_id": "czechia",
-      "prob": 0.1826
+      "prob": 0.1394
      },
      {
       "team_id": "korea-republic",
-      "prob": 0.1575
+      "prob": 0.139
      },
      {
       "team_id": "bosnia-and-herzegovina",
-      "prob": 0.1489
+      "prob": 0.1226
      },
      {
-      "team_id": "australia",
-      "prob": 0.0599
+      "team_id": "south-africa",
+      "prob": 0.0865
      },
      {
-      "team_id": "mexico",
-      "prob": 0.0565
+      "team_id": "switzerland",
+      "prob": 0.0557
      },
      {
-      "team_id": "scotland",
-      "prob": 0.0524
+      "team_id": "canada",
+      "prob": 0.0529
      }
     ]
    }
@@ -226,19 +725,19 @@
     "candidates": [
      {
       "team_id": "netherlands",
-      "prob": 0.5599
+      "prob": 0.4885
      },
      {
       "team_id": "japan",
-      "prob": 0.3908
+      "prob": 0.3051
      },
      {
       "team_id": "sweden",
-      "prob": 0.039
+      "prob": 0.158
      },
      {
       "team_id": "tunisia",
-      "prob": 0.0104
+      "prob": 0.0483
      }
     ]
    },
@@ -247,19 +746,19 @@
     "candidates": [
      {
       "team_id": "morocco",
-      "prob": 0.4392
+      "prob": 0.3505
      },
      {
       "team_id": "scotland",
-      "prob": 0.3262
+      "prob": 0.3003
      },
      {
       "team_id": "brazil",
-      "prob": 0.2064
+      "prob": 0.2766
      },
      {
       "team_id": "haiti",
-      "prob": 0.0281
+      "prob": 0.0727
      }
     ]
    }
@@ -274,19 +773,19 @@
     "candidates": [
      {
       "team_id": "brazil",
-      "prob": 0.7272
+      "prob": 0.556
      },
      {
       "team_id": "morocco",
-      "prob": 0.1684
+      "prob": 0.2531
      },
      {
       "team_id": "scotland",
-      "prob": 0.1017
+      "prob": 0.1707
      },
      {
       "team_id": "haiti",
-      "prob": 0.0027
+      "prob": 0.0203
      }
     ]
    },
@@ -295,19 +794,19 @@
     "candidates": [
      {
       "team_id": "japan",
-      "prob": 0.4526
+      "prob": 0.3319
      },
      {
       "team_id": "netherlands",
-      "prob": 0.3431
+      "prob": 0.2887
      },
      {
       "team_id": "sweden",
-      "prob": 0.1477
+      "prob": 0.2577
      },
      {
       "team_id": "tunisia",
-      "prob": 0.0566
+      "prob": 0.1217
      }
     ]
    }
@@ -322,19 +821,19 @@
     "candidates": [
      {
       "team_id": "france",
-      "prob": 0.7024
+      "prob": 0.5577
      },
      {
       "team_id": "norway",
-      "prob": 0.1862
+      "prob": 0.245
      },
      {
       "team_id": "senegal",
-      "prob": 0.1093
+      "prob": 0.1812
      },
      {
       "team_id": "iraq",
-      "prob": 0.0022
+      "prob": 0.0161
      }
     ]
    },
@@ -343,27 +842,27 @@
     "candidates": [
      {
       "team_id": "scotland",
-      "prob": 0.1774
+      "prob": 0.1367
      },
      {
       "team_id": "morocco",
-      "prob": 0.133
-     },
-     {
-      "team_id": "australia",
-      "prob": 0.12
+      "prob": 0.1134
      },
      {
       "team_id": "paraguay",
-      "prob": 0.095
+      "prob": 0.1
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.0896
      },
      {
       "team_id": "usa",
-      "prob": 0.0945
+      "prob": 0.0833
      },
      {
-      "team_id": "egypt",
-      "prob": 0.0683
+      "team_id": "turkiye",
+      "prob": 0.0759
      }
     ]
    }
@@ -377,20 +876,20 @@
     "label": "2E",
     "candidates": [
      {
-      "team_id": "germany",
-      "prob": 0.4279
+      "team_id": "ecuador",
+      "prob": 0.3722
      },
      {
-      "team_id": "ecuador",
-      "prob": 0.4117
+      "team_id": "germany",
+      "prob": 0.3132
      },
      {
       "team_id": "cote-d-ivoire",
-      "prob": 0.1521
+      "prob": 0.2592
      },
      {
       "team_id": "curacao",
-      "prob": 0.0083
+      "prob": 0.0554
      }
     ]
    },
@@ -399,19 +898,19 @@
     "candidates": [
      {
       "team_id": "norway",
-      "prob": 0.4364
+      "prob": 0.3546
      },
      {
       "team_id": "senegal",
-      "prob": 0.3194
+      "prob": 0.307
      },
      {
       "team_id": "france",
-      "prob": 0.2209
+      "prob": 0.2761
      },
      {
       "team_id": "iraq",
-      "prob": 0.0233
+      "prob": 0.0624
      }
     ]
    }
@@ -426,19 +925,19 @@
     "candidates": [
      {
       "team_id": "mexico",
-      "prob": 0.6211
-     },
-     {
-      "team_id": "korea-republic",
-      "prob": 0.2061
+      "prob": 0.6283
      },
      {
       "team_id": "czechia",
-      "prob": 0.1666
+      "prob": 0.1689
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.1677
      },
      {
       "team_id": "south-africa",
-      "prob": 0.0062
+      "prob": 0.0351
      }
     ]
    },
@@ -447,27 +946,27 @@
     "candidates": [
      {
       "team_id": "cote-d-ivoire",
-      "prob": 0.1684
+      "prob": 0.1058
      },
      {
       "team_id": "scotland",
-      "prob": 0.1215
+      "prob": 0.084
+     },
+     {
+      "team_id": "saudi-arabia",
+      "prob": 0.074
      },
      {
       "team_id": "sweden",
-      "prob": 0.0975
+      "prob": 0.0703
      },
      {
       "team_id": "morocco",
-      "prob": 0.0906
+      "prob": 0.0692
      },
      {
-      "team_id": "cabo-verde",
-      "prob": 0.0726
-     },
-     {
-      "team_id": "senegal",
-      "prob": 0.0703
+      "team_id": "ecuador",
+      "prob": 0.0609
      }
     ]
    }
@@ -482,19 +981,19 @@
     "candidates": [
      {
       "team_id": "england",
-      "prob": 0.6819
+      "prob": 0.6245
      },
      {
       "team_id": "croatia",
-      "prob": 0.2814
+      "prob": 0.2722
      },
      {
       "team_id": "panama",
-      "prob": 0.0358
+      "prob": 0.0583
      },
      {
       "team_id": "ghana",
-      "prob": 0.0009
+      "prob": 0.045
      }
     ]
    },
@@ -502,28 +1001,28 @@
     "label": "3:EHIJK",
     "candidates": [
      {
-      "team_id": "uzbekistan",
-      "prob": 0.3029
-     },
-     {
       "team_id": "congo-dr",
-      "prob": 0.1644
+      "prob": 0.2087
      },
      {
-      "team_id": "cote-d-ivoire",
-      "prob": 0.134
+      "team_id": "uzbekistan",
+      "prob": 0.1907
      },
      {
       "team_id": "colombia",
-      "prob": 0.0655
+      "prob": 0.133
      },
      {
       "team_id": "portugal",
-      "prob": 0.0628
+      "prob": 0.1002
      },
      {
-      "team_id": "cabo-verde",
-      "prob": 0.0517
+      "team_id": "cote-d-ivoire",
+      "prob": 0.0746
+     },
+     {
+      "team_id": "saudi-arabia",
+      "prob": 0.0469
      }
     ]
    }
@@ -538,19 +1037,19 @@
     "candidates": [
      {
       "team_id": "turkiye",
-      "prob": 0.5534
-     },
-     {
-      "team_id": "paraguay",
-      "prob": 0.2563
-     },
-     {
-      "team_id": "australia",
-      "prob": 0.1287
+      "prob": 0.3884
      },
      {
       "team_id": "usa",
-      "prob": 0.0615
+      "prob": 0.3244
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.1719
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.1153
      }
     ]
    },
@@ -559,27 +1058,27 @@
     "candidates": [
      {
       "team_id": "bosnia-and-herzegovina",
-      "prob": 0.2569
+      "prob": 0.1639
      },
      {
-      "team_id": "sweden",
-      "prob": 0.0883
-     },
-     {
-      "team_id": "senegal",
-      "prob": 0.0864
+      "team_id": "switzerland",
+      "prob": 0.0733
      },
      {
       "team_id": "canada",
-      "prob": 0.0749
+      "prob": 0.0711
      },
      {
-      "team_id": "cote-d-ivoire",
-      "prob": 0.0738
+      "team_id": "qatar",
+      "prob": 0.0702
      },
      {
-      "team_id": "norway",
-      "prob": 0.0617
+      "team_id": "senegal",
+      "prob": 0.0654
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.0622
      }
     ]
    }
@@ -594,19 +1093,19 @@
     "candidates": [
      {
       "team_id": "belgium",
-      "prob": 0.6747
-     },
-     {
-      "team_id": "ir-iran",
-      "prob": 0.2233
+      "prob": 0.5788
      },
      {
       "team_id": "egypt",
-      "prob": 0.09
+      "prob": 0.1889
+     },
+     {
+      "team_id": "ir-iran",
+      "prob": 0.1765
      },
      {
       "team_id": "new-zealand",
-      "prob": 0.012
+      "prob": 0.0558
      }
     ]
    },
@@ -614,28 +1113,28 @@
     "label": "3:AEHIJ",
     "candidates": [
      {
-      "team_id": "czechia",
-      "prob": 0.1278
-     },
-     {
       "team_id": "algeria",
-      "prob": 0.1168
-     },
-     {
-      "team_id": "korea-republic",
-      "prob": 0.1138
+      "prob": 0.1058
      },
      {
       "team_id": "austria",
-      "prob": 0.0906
+      "prob": 0.0877
+     },
+     {
+      "team_id": "saudi-arabia",
+      "prob": 0.0845
+     },
+     {
+      "team_id": "czechia",
+      "prob": 0.084
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.0832
      },
      {
       "team_id": "senegal",
-      "prob": 0.089
-     },
-     {
-      "team_id": "cabo-verde",
-      "prob": 0.0727
+      "prob": 0.0666
      }
     ]
    }
@@ -650,19 +1149,19 @@
     "candidates": [
      {
       "team_id": "colombia",
-      "prob": 0.4288
+      "prob": 0.3905
      },
      {
       "team_id": "portugal",
-      "prob": 0.4199
-     },
-     {
-      "team_id": "uzbekistan",
-      "prob": 0.1023
+      "prob": 0.315
      },
      {
       "team_id": "congo-dr",
-      "prob": 0.0491
+      "prob": 0.1576
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.1369
      }
     ]
    },
@@ -671,19 +1170,19 @@
     "candidates": [
      {
       "team_id": "croatia",
-      "prob": 0.5439
+      "prob": 0.4168
      },
      {
       "team_id": "england",
-      "prob": 0.2679
+      "prob": 0.261
      },
      {
       "team_id": "panama",
-      "prob": 0.1728
+      "prob": 0.1772
      },
      {
       "team_id": "ghana",
-      "prob": 0.0154
+      "prob": 0.145
      }
     ]
    }
@@ -698,19 +1197,19 @@
     "candidates": [
      {
       "team_id": "spain",
-      "prob": 0.8653
+      "prob": 0.6977
      },
      {
       "team_id": "uruguay",
-      "prob": 0.1297
-     },
-     {
-      "team_id": "cabo-verde",
-      "prob": 0.0026
+      "prob": 0.2466
      },
      {
       "team_id": "saudi-arabia",
-      "prob": 0.0024
+      "prob": 0.0335
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.0222
      }
     ]
    },
@@ -719,19 +1218,19 @@
     "candidates": [
      {
       "team_id": "austria",
-      "prob": 0.5032
+      "prob": 0.3799
      },
      {
       "team_id": "algeria",
-      "prob": 0.2767
-     },
-     {
-      "team_id": "jordan",
-      "prob": 0.1194
+      "prob": 0.2832
      },
      {
       "team_id": "argentina",
-      "prob": 0.1007
+      "prob": 0.2302
+     },
+     {
+      "team_id": "jordan",
+      "prob": 0.1067
      }
     ]
    }
@@ -745,20 +1244,20 @@
     "label": "1B",
     "candidates": [
      {
-      "team_id": "switzerland",
-      "prob": 0.6729
+      "team_id": "canada",
+      "prob": 0.4534
      },
      {
-      "team_id": "canada",
-      "prob": 0.2939
+      "team_id": "switzerland",
+      "prob": 0.4333
      },
      {
       "team_id": "bosnia-and-herzegovina",
-      "prob": 0.0313
+      "prob": 0.0935
      },
      {
       "team_id": "qatar",
-      "prob": 0.0019
+      "prob": 0.0199
      }
     ]
    },
@@ -766,28 +1265,28 @@
     "label": "3:EFGIJ",
     "candidates": [
      {
-      "team_id": "egypt",
-      "prob": 0.2471
+      "team_id": "ir-iran",
+      "prob": 0.1647
      },
      {
-      "team_id": "ir-iran",
-      "prob": 0.1582
+      "team_id": "egypt",
+      "prob": 0.1622
      },
      {
       "team_id": "new-zealand",
-      "prob": 0.0927
-     },
-     {
-      "team_id": "sweden",
-      "prob": 0.0768
-     },
-     {
-      "team_id": "algeria",
-      "prob": 0.0584
+      "prob": 0.1207
      },
      {
       "team_id": "belgium",
-      "prob": 0.0514
+      "prob": 0.0766
+     },
+     {
+      "team_id": "sweden",
+      "prob": 0.0583
+     },
+     {
+      "team_id": "algeria",
+      "prob": 0.057
      }
     ]
    }
@@ -802,19 +1301,19 @@
     "candidates": [
      {
       "team_id": "argentina",
-      "prob": 0.8811
+      "prob": 0.6624
      },
      {
       "team_id": "austria",
-      "prob": 0.0791
+      "prob": 0.1916
      },
      {
       "team_id": "algeria",
-      "prob": 0.031
+      "prob": 0.1175
      },
      {
       "team_id": "jordan",
-      "prob": 0.0087
+      "prob": 0.0284
      }
     ]
    },
@@ -823,19 +1322,19 @@
     "candidates": [
      {
       "team_id": "uruguay",
-      "prob": 0.7541
+      "prob": 0.5089
      },
      {
       "team_id": "spain",
-      "prob": 0.129
-     },
-     {
-      "team_id": "cabo-verde",
-      "prob": 0.0611
+      "prob": 0.2367
      },
      {
       "team_id": "saudi-arabia",
-      "prob": 0.0558
+      "prob": 0.147
+     },
+     {
+      "team_id": "cabo-verde",
+      "prob": 0.1074
      }
     ]
    }
@@ -850,19 +1349,19 @@
     "candidates": [
      {
       "team_id": "portugal",
-      "prob": 0.4932
+      "prob": 0.519
      },
      {
       "team_id": "colombia",
-      "prob": 0.479
-     },
-     {
-      "team_id": "uzbekistan",
-      "prob": 0.0204
+      "prob": 0.3701
      },
      {
       "team_id": "congo-dr",
-      "prob": 0.0074
+      "prob": 0.0612
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.0496
      }
     ]
    },
@@ -871,27 +1370,27 @@
     "candidates": [
      {
       "team_id": "panama",
-      "prob": 0.4418
-     },
-     {
-      "team_id": "croatia",
-      "prob": 0.1319
-     },
-     {
-      "team_id": "australia",
-      "prob": 0.063
+      "prob": 0.2128
      },
      {
       "team_id": "ghana",
-      "prob": 0.0541
+      "prob": 0.1835
+     },
+     {
+      "team_id": "croatia",
+      "prob": 0.1579
+     },
+     {
+      "team_id": "england",
+      "prob": 0.0736
      },
      {
       "team_id": "paraguay",
-      "prob": 0.0505
+      "prob": 0.0583
      },
      {
-      "team_id": "usa",
-      "prob": 0.049
+      "team_id": "australia",
+      "prob": 0.0532
      }
     ]
    }
@@ -905,20 +1404,20 @@
     "label": "2D",
     "candidates": [
      {
-      "team_id": "paraguay",
-      "prob": 0.3404
+      "team_id": "usa",
+      "prob": 0.2933
      },
      {
       "team_id": "turkiye",
-      "prob": 0.2658
+      "prob": 0.2855
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.2359
      },
      {
       "team_id": "australia",
-      "prob": 0.2418
-     },
-     {
-      "team_id": "usa",
-      "prob": 0.152
+      "prob": 0.1853
      }
     ]
    },
@@ -926,20 +1425,20 @@
     "label": "2G",
     "candidates": [
      {
-      "team_id": "ir-iran",
-      "prob": 0.4376
+      "team_id": "egypt",
+      "prob": 0.3046
      },
      {
-      "team_id": "egypt",
-      "prob": 0.2613
+      "team_id": "ir-iran",
+      "prob": 0.2995
      },
      {
       "team_id": "belgium",
-      "prob": 0.2366
+      "prob": 0.2525
      },
      {
       "team_id": "new-zealand",
-      "prob": 0.0645
+      "prob": 0.1435
      }
     ]
    }
@@ -953,28 +1452,28 @@
     "label": "W74",
     "candidates": [
      {
-      "team_id": "ecuador",
-      "prob": 0.4026
-     },
-     {
       "team_id": "germany",
-      "prob": 0.38
+      "prob": 0.4137
      },
      {
-      "team_id": "korea-republic",
-      "prob": 0.0327
-     },
-     {
-      "team_id": "czechia",
-      "prob": 0.0322
-     },
-     {
-      "team_id": "mexico",
-      "prob": 0.0226
+      "team_id": "ecuador",
+      "prob": 0.2675
      },
      {
       "team_id": "cote-d-ivoire",
-      "prob": 0.0162
+      "prob": 0.0876
+     },
+     {
+      "team_id": "czechia",
+      "prob": 0.0331
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.0318
+     },
+     {
+      "team_id": "bosnia-and-herzegovina",
+      "prob": 0.0182
      }
     ]
    },
@@ -983,27 +1482,27 @@
     "candidates": [
      {
       "team_id": "france",
-      "prob": 0.6321
+      "prob": 0.4754
      },
      {
       "team_id": "norway",
-      "prob": 0.1375
+      "prob": 0.1847
      },
      {
       "team_id": "senegal",
-      "prob": 0.0728
-     },
-     {
-      "team_id": "scotland",
-      "prob": 0.0262
+      "prob": 0.1284
      },
      {
       "team_id": "morocco",
-      "prob": 0.0256
+      "prob": 0.0284
      },
      {
-      "team_id": "paraguay",
-      "prob": 0.0183
+      "team_id": "scotland",
+      "prob": 0.0281
+     },
+     {
+      "team_id": "turkiye",
+      "prob": 0.0216
      }
     ]
    }
@@ -1017,28 +1516,28 @@
     "label": "W73",
     "candidates": [
      {
-      "team_id": "canada",
-      "prob": 0.2852
-     },
-     {
       "team_id": "switzerland",
-      "prob": 0.1989
-     },
-     {
-      "team_id": "korea-republic",
-      "prob": 0.1701
-     },
-     {
-      "team_id": "mexico",
-      "prob": 0.1695
+      "prob": 0.2271
      },
      {
       "team_id": "czechia",
-      "prob": 0.1406
+      "prob": 0.1767
+     },
+     {
+      "team_id": "canada",
+      "prob": 0.1693
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.166
+     },
+     {
+      "team_id": "mexico",
+      "prob": 0.137
      },
      {
       "team_id": "bosnia-and-herzegovina",
-      "prob": 0.0298
+      "prob": 0.0746
      }
     ]
    },
@@ -1047,27 +1546,27 @@
     "candidates": [
      {
       "team_id": "netherlands",
-      "prob": 0.3899
+      "prob": 0.3286
      },
      {
       "team_id": "japan",
-      "prob": 0.2451
-     },
-     {
-      "team_id": "morocco",
-      "prob": 0.1385
+      "prob": 0.1787
      },
      {
       "team_id": "brazil",
-      "prob": 0.1327
+      "prob": 0.1543
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.1401
      },
      {
       "team_id": "scotland",
-      "prob": 0.0799
+      "prob": 0.099
      },
      {
       "team_id": "sweden",
-      "prob": 0.0109
+      "prob": 0.0752
      }
     ]
    }
@@ -1082,27 +1581,27 @@
     "candidates": [
      {
       "team_id": "brazil",
-      "prob": 0.5079
-     },
-     {
-      "team_id": "japan",
-      "prob": 0.1931
-     },
-     {
-      "team_id": "netherlands",
-      "prob": 0.1727
+      "prob": 0.4138
      },
      {
       "team_id": "morocco",
-      "prob": 0.0673
+      "prob": 0.1524
+     },
+     {
+      "team_id": "netherlands",
+      "prob": 0.1316
+     },
+     {
+      "team_id": "japan",
+      "prob": 0.1199
      },
      {
       "team_id": "scotland",
-      "prob": 0.0325
+      "prob": 0.0898
      },
      {
       "team_id": "sweden",
-      "prob": 0.0212
+      "prob": 0.0677
      }
     ]
    },
@@ -1111,27 +1610,27 @@
     "candidates": [
      {
       "team_id": "norway",
-      "prob": 0.2284
-     },
-     {
-      "team_id": "germany",
-      "prob": 0.2182
-     },
-     {
-      "team_id": "ecuador",
-      "prob": 0.2166
+      "prob": 0.2064
      },
      {
       "team_id": "france",
-      "prob": 0.1727
+      "prob": 0.2031
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.1652
      },
      {
       "team_id": "senegal",
-      "prob": 0.1392
+      "prob": 0.1646
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.1643
      },
      {
       "team_id": "cote-d-ivoire",
-      "prob": 0.022
+      "prob": 0.0768
      }
     ]
    }
@@ -1146,27 +1645,27 @@
     "candidates": [
      {
       "team_id": "mexico",
-      "prob": 0.4272
-     },
-     {
-      "team_id": "korea-republic",
-      "prob": 0.1032
+      "prob": 0.4846
      },
      {
       "team_id": "czechia",
-      "prob": 0.0786
+      "prob": 0.0979
      },
      {
-      "team_id": "scotland",
-      "prob": 0.05
-     },
-     {
-      "team_id": "morocco",
-      "prob": 0.0454
+      "team_id": "korea-republic",
+      "prob": 0.095
      },
      {
       "team_id": "cote-d-ivoire",
-      "prob": 0.0452
+      "prob": 0.0263
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.0258
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.025
      }
     ]
    },
@@ -1175,27 +1674,27 @@
     "candidates": [
      {
       "team_id": "england",
-      "prob": 0.5886
+      "prob": 0.5217
      },
      {
       "team_id": "croatia",
-      "prob": 0.2108
+      "prob": 0.1956
      },
      {
       "team_id": "colombia",
-      "prob": 0.033
-     },
-     {
-      "team_id": "uzbekistan",
-      "prob": 0.0324
+      "prob": 0.0428
      },
      {
       "team_id": "portugal",
-      "prob": 0.032
+      "prob": 0.0415
      },
      {
-      "team_id": "panama",
-      "prob": 0.0172
+      "team_id": "congo-dr",
+      "prob": 0.0335
+     },
+     {
+      "team_id": "uzbekistan",
+      "prob": 0.0298
      }
     ]
    }
@@ -1210,27 +1709,27 @@
     "candidates": [
      {
       "team_id": "colombia",
-      "prob": 0.2712
-     },
-     {
-      "team_id": "portugal",
-      "prob": 0.2686
+      "prob": 0.2263
      },
      {
       "team_id": "croatia",
-      "prob": 0.232
+      "prob": 0.2102
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.2083
      },
      {
       "team_id": "england",
-      "prob": 0.1698
+      "prob": 0.1749
+     },
+     {
+      "team_id": "congo-dr",
+      "prob": 0.0521
      },
      {
       "team_id": "panama",
-      "prob": 0.0312
-     },
-     {
-      "team_id": "uzbekistan",
-      "prob": 0.0196
+      "prob": 0.0493
      }
     ]
    },
@@ -1239,27 +1738,27 @@
     "candidates": [
      {
       "team_id": "spain",
-      "prob": 0.7912
+      "prob": 0.5675
      },
      {
       "team_id": "uruguay",
-      "prob": 0.0831
-     },
-     {
-      "team_id": "austria",
-      "prob": 0.0535
+      "prob": 0.1554
      },
      {
       "team_id": "argentina",
-      "prob": 0.0475
+      "prob": 0.104
+     },
+     {
+      "team_id": "austria",
+      "prob": 0.0911
      },
      {
       "team_id": "algeria",
-      "prob": 0.0188
+      "prob": 0.0548
      },
      {
       "team_id": "jordan",
-      "prob": 0.0052
+      "prob": 0.0115
      }
     ]
    }
@@ -1274,27 +1773,27 @@
     "candidates": [
      {
       "team_id": "turkiye",
-      "prob": 0.4252
-     },
-     {
-      "team_id": "paraguay",
-      "prob": 0.1715
-     },
-     {
-      "team_id": "australia",
-      "prob": 0.075
-     },
-     {
-      "team_id": "senegal",
-      "prob": 0.0437
-     },
-     {
-      "team_id": "norway",
-      "prob": 0.0371
+      "prob": 0.2952
      },
      {
       "team_id": "usa",
-      "prob": 0.0307
+      "prob": 0.2319
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.1126
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.0684
+     },
+     {
+      "team_id": "bosnia-and-herzegovina",
+      "prob": 0.027
+     },
+     {
+      "team_id": "switzerland",
+      "prob": 0.0266
      }
     ]
    },
@@ -1303,27 +1802,27 @@
     "candidates": [
      {
       "team_id": "belgium",
-      "prob": 0.4868
+      "prob": 0.4224
+     },
+     {
+      "team_id": "egypt",
+      "prob": 0.1011
      },
      {
       "team_id": "ir-iran",
-      "prob": 0.1177
-     },
-     {
-      "team_id": "senegal",
-      "prob": 0.0486
+      "prob": 0.0923
      },
      {
       "team_id": "austria",
-      "prob": 0.0426
-     },
-     {
-      "team_id": "norway",
-      "prob": 0.0405
+      "prob": 0.0384
      },
      {
       "team_id": "algeria",
-      "prob": 0.04
+      "prob": 0.038
+     },
+     {
+      "team_id": "senegal",
+      "prob": 0.0315
      }
     ]
    }
@@ -1338,27 +1837,27 @@
     "candidates": [
      {
       "team_id": "argentina",
-      "prob": 0.724
+      "prob": 0.495
      },
      {
       "team_id": "uruguay",
-      "prob": 0.1496
+      "prob": 0.1729
      },
      {
       "team_id": "spain",
-      "prob": 0.082
+      "prob": 0.1352
      },
      {
       "team_id": "austria",
-      "prob": 0.0306
+      "prob": 0.1028
      },
      {
       "team_id": "algeria",
-      "prob": 0.0087
+      "prob": 0.054
      },
      {
-      "team_id": "cabo-verde",
-      "prob": 0.0018
+      "team_id": "saudi-arabia",
+      "prob": 0.0198
      }
     ]
    },
@@ -1366,28 +1865,28 @@
     "label": "W88",
     "candidates": [
      {
-      "team_id": "paraguay",
-      "prob": 0.2112
-     },
-     {
       "team_id": "turkiye",
-      "prob": 0.1979
+      "prob": 0.2042
      },
      {
-      "team_id": "ir-iran",
-      "prob": 0.174
+      "team_id": "usa",
+      "prob": 0.1933
+     },
+     {
+      "team_id": "paraguay",
+      "prob": 0.141
      },
      {
       "team_id": "belgium",
-      "prob": 0.1506
-     },
-     {
-      "team_id": "australia",
-      "prob": 0.1248
+      "prob": 0.1402
      },
      {
       "team_id": "egypt",
-      "prob": 0.0702
+      "prob": 0.0993
+     },
+     {
+      "team_id": "australia",
+      "prob": 0.098
      }
     ]
    }
@@ -1401,28 +1900,28 @@
     "label": "W85",
     "candidates": [
      {
-      "team_id": "switzerland",
-      "prob": 0.4992
-     },
-     {
       "team_id": "canada",
-      "prob": 0.1714
+      "prob": 0.3281
      },
      {
-      "team_id": "ir-iran",
-      "prob": 0.0553
+      "team_id": "switzerland",
+      "prob": 0.3172
+     },
+     {
+      "team_id": "bosnia-and-herzegovina",
+      "prob": 0.0446
      },
      {
       "team_id": "egypt",
-      "prob": 0.0548
+      "prob": 0.04
+     },
+     {
+      "team_id": "ir-iran",
+      "prob": 0.0377
      },
      {
       "team_id": "belgium",
-      "prob": 0.0297
-     },
-     {
-      "team_id": "senegal",
-      "prob": 0.0249
+      "prob": 0.0324
      }
     ]
    },
@@ -1431,15 +1930,11 @@
     "candidates": [
      {
       "team_id": "portugal",
-      "prob": 0.4042
+      "prob": 0.424
      },
      {
       "team_id": "colombia",
-      "prob": 0.3902
-     },
-     {
-      "team_id": "panama",
-      "prob": 0.0515
+      "prob": 0.2815
      },
      {
       "team_id": "croatia",
@@ -1447,11 +1942,15 @@
      },
      {
       "team_id": "england",
-      "prob": 0.0248
+      "prob": 0.0349
      },
      {
-      "team_id": "paraguay",
-      "prob": 0.0113
+      "team_id": "panama",
+      "prob": 0.0318
+     },
+     {
+      "team_id": "congo-dr",
+      "prob": 0.0309
      }
     ]
    }
@@ -1466,27 +1965,27 @@
     "candidates": [
      {
       "team_id": "france",
-      "prob": 0.4923
-     },
-     {
-      "team_id": "ecuador",
-      "prob": 0.1601
+      "prob": 0.3421
      },
      {
       "team_id": "germany",
-      "prob": 0.1471
+      "prob": 0.2068
+     },
+     {
+      "team_id": "ecuador",
+      "prob": 0.1125
      },
      {
       "team_id": "norway",
-      "prob": 0.071
+      "prob": 0.1051
      },
      {
       "team_id": "senegal",
-      "prob": 0.0302
+      "prob": 0.0665
      },
      {
-      "team_id": "turkiye",
-      "prob": 0.0128
+      "team_id": "cote-d-ivoire",
+      "prob": 0.0252
      }
     ]
    },
@@ -1495,27 +1994,27 @@
     "candidates": [
      {
       "team_id": "netherlands",
-      "prob": 0.2942
+      "prob": 0.2553
      },
      {
       "team_id": "japan",
-      "prob": 0.1689
+      "prob": 0.1276
      },
      {
       "team_id": "brazil",
-      "prob": 0.1076
-     },
-     {
-      "team_id": "switzerland",
-      "prob": 0.0911
-     },
-     {
-      "team_id": "canada",
-      "prob": 0.0784
+      "prob": 0.1183
      },
      {
       "team_id": "morocco",
-      "prob": 0.0753
+      "prob": 0.0915
+     },
+     {
+      "team_id": "switzerland",
+      "prob": 0.0868
+     },
+     {
+      "team_id": "scotland",
+      "prob": 0.058
      }
     ]
    }
@@ -1530,27 +2029,27 @@
     "candidates": [
      {
       "team_id": "spain",
-      "prob": 0.6566
+      "prob": 0.4336
      },
      {
       "team_id": "portugal",
-      "prob": 0.0767
+      "prob": 0.0874
      },
      {
-      "team_id": "colombia",
-      "prob": 0.0754
+      "team_id": "uruguay",
+      "prob": 0.0861
      },
      {
       "team_id": "england",
-      "prob": 0.057
+      "prob": 0.0794
      },
      {
-      "team_id": "croatia",
-      "prob": 0.0453
+      "team_id": "colombia",
+      "prob": 0.0794
      },
      {
       "team_id": "argentina",
-      "prob": 0.037
+      "prob": 0.0712
      }
     ]
    },
@@ -1559,27 +2058,27 @@
     "candidates": [
      {
       "team_id": "belgium",
-      "prob": 0.273
+      "prob": 0.2346
      },
      {
       "team_id": "turkiye",
-      "prob": 0.2662
+      "prob": 0.1874
+     },
+     {
+      "team_id": "usa",
+      "prob": 0.1349
      },
      {
       "team_id": "paraguay",
-      "prob": 0.081
+      "prob": 0.0571
      },
      {
-      "team_id": "senegal",
-      "prob": 0.0508
-     },
-     {
-      "team_id": "norway",
-      "prob": 0.0491
+      "team_id": "egypt",
+      "prob": 0.036
      },
      {
       "team_id": "ir-iran",
-      "prob": 0.0395
+      "prob": 0.0315
      }
     ]
    }
@@ -1594,27 +2093,27 @@
     "candidates": [
      {
       "team_id": "brazil",
-      "prob": 0.308
+      "prob": 0.274
      },
      {
       "team_id": "france",
-      "prob": 0.1239
-     },
-     {
-      "team_id": "ecuador",
-      "prob": 0.1059
-     },
-     {
-      "team_id": "germany",
-      "prob": 0.1044
+      "prob": 0.1217
      },
      {
       "team_id": "norway",
-      "prob": 0.1
+      "prob": 0.0911
+     },
+     {
+      "team_id": "germany",
+      "prob": 0.0798
+     },
+     {
+      "team_id": "morocco",
+      "prob": 0.0791
      },
      {
       "team_id": "netherlands",
-      "prob": 0.0912
+      "prob": 0.0731
      }
     ]
    },
@@ -1623,27 +2122,27 @@
     "candidates": [
      {
       "team_id": "england",
-      "prob": 0.4776
+      "prob": 0.3599
      },
      {
       "team_id": "mexico",
-      "prob": 0.1386
+      "prob": 0.254
      },
      {
       "team_id": "croatia",
-      "prob": 0.1349
+      "prob": 0.1029
+     },
+     {
+      "team_id": "czechia",
+      "prob": 0.0322
+     },
+     {
+      "team_id": "korea-republic",
+      "prob": 0.03
      },
      {
       "team_id": "colombia",
-      "prob": 0.0249
-     },
-     {
-      "team_id": "portugal",
-      "prob": 0.0243
-     },
-     {
-      "team_id": "norway",
-      "prob": 0.0202
+      "prob": 0.0235
      }
     ]
    }
@@ -1658,27 +2157,27 @@
     "candidates": [
      {
       "team_id": "argentina",
-      "prob": 0.6601
-     },
-     {
-      "team_id": "uruguay",
-      "prob": 0.0956
+      "prob": 0.4034
      },
      {
       "team_id": "spain",
-      "prob": 0.0764
+      "prob": 0.1092
+     },
+     {
+      "team_id": "uruguay",
+      "prob": 0.1073
      },
      {
       "team_id": "turkiye",
-      "prob": 0.0449
+      "prob": 0.0719
      },
      {
-      "team_id": "belgium",
-      "prob": 0.031
+      "team_id": "austria",
+      "prob": 0.0631
      },
      {
-      "team_id": "paraguay",
-      "prob": 0.031
+      "team_id": "usa",
+      "prob": 0.0598
      }
     ]
    },
@@ -1687,27 +2186,27 @@
     "candidates": [
      {
       "team_id": "portugal",
-      "prob": 0.3046
+      "prob": 0.3064
      },
      {
       "team_id": "colombia",
-      "prob": 0.292
-     },
-     {
-      "team_id": "switzerland",
-      "prob": 0.1816
+      "prob": 0.1823
      },
      {
       "team_id": "canada",
-      "prob": 0.0354
+      "prob": 0.1388
+     },
+     {
+      "team_id": "switzerland",
+      "prob": 0.1387
      },
      {
       "team_id": "croatia",
-      "prob": 0.0301
+      "prob": 0.0238
      },
      {
       "team_id": "england",
-      "prob": 0.0201
+      "prob": 0.0229
      }
     ]
    }
@@ -1722,27 +2221,27 @@
     "candidates": [
      {
       "team_id": "france",
-      "prob": 0.3902
+      "prob": 0.2453
      },
      {
       "team_id": "netherlands",
-      "prob": 0.1258
-     },
-     {
-      "team_id": "ecuador",
-      "prob": 0.0934
+      "prob": 0.1345
      },
      {
       "team_id": "germany",
-      "prob": 0.0851
+      "prob": 0.128
      },
      {
       "team_id": "brazil",
-      "prob": 0.0618
+      "prob": 0.069
      },
      {
-      "team_id": "japan",
-      "prob": 0.0613
+      "team_id": "ecuador",
+      "prob": 0.0619
+     },
+     {
+      "team_id": "norway",
+      "prob": 0.0617
      }
     ]
    },
@@ -1751,27 +2250,27 @@
     "candidates": [
      {
       "team_id": "spain",
-      "prob": 0.5955
-     },
-     {
-      "team_id": "portugal",
-      "prob": 0.0543
-     },
-     {
-      "team_id": "turkiye",
-      "prob": 0.0535
-     },
-     {
-      "team_id": "colombia",
-      "prob": 0.0534
+      "prob": 0.3415
      },
      {
       "team_id": "belgium",
-      "prob": 0.0489
+      "prob": 0.088
      },
      {
-      "team_id": "england",
-      "prob": 0.0438
+      "team_id": "turkiye",
+      "prob": 0.0739
+     },
+     {
+      "team_id": "argentina",
+      "prob": 0.0601
+     },
+     {
+      "team_id": "portugal",
+      "prob": 0.056
+     },
+     {
+      "team_id": "uruguay",
+      "prob": 0.054
      }
     ]
    }
@@ -1786,27 +2285,27 @@
     "candidates": [
      {
       "team_id": "england",
-      "prob": 0.2981
+      "prob": 0.224
      },
      {
       "team_id": "brazil",
-      "prob": 0.1808
+      "prob": 0.1765
+     },
+     {
+      "team_id": "mexico",
+      "prob": 0.091
      },
      {
       "team_id": "france",
-      "prob": 0.0954
+      "prob": 0.0823
      },
      {
-      "team_id": "ecuador",
-      "prob": 0.056
-     },
-     {
-      "team_id": "croatia",
-      "prob": 0.0551
+      "team_id": "norway",
+      "prob": 0.0485
      },
      {
       "team_id": "germany",
-      "prob": 0.0548
+      "prob": 0.0477
      }
     ]
    },
@@ -1815,27 +2314,27 @@
     "candidates": [
      {
       "team_id": "argentina",
-      "prob": 0.5297
+      "prob": 0.2836
      },
      {
       "team_id": "portugal",
-      "prob": 0.1139
+      "prob": 0.1723
      },
      {
       "team_id": "colombia",
-      "prob": 0.1063
+      "prob": 0.0884
      },
      {
       "team_id": "spain",
-      "prob": 0.0652
+      "prob": 0.0742
      },
      {
       "team_id": "switzerland",
-      "prob": 0.0435
+      "prob": 0.058
      },
      {
       "team_id": "uruguay",
-      "prob": 0.0388
+      "prob": 0.0505
      }
     ]
    }
@@ -1849,28 +2348,28 @@
     "label": "L101",
     "candidates": [
      {
-      "team_id": "france",
-      "prob": 0.2104
+      "team_id": "spain",
+      "prob": 0.1138
      },
      {
-      "team_id": "spain",
-      "prob": 0.1164
+      "team_id": "france",
+      "prob": 0.1022
      },
      {
       "team_id": "netherlands",
-      "prob": 0.091
-     },
-     {
-      "team_id": "ecuador",
-      "prob": 0.0685
+      "prob": 0.0696
      },
      {
       "team_id": "germany",
-      "prob": 0.064
+      "prob": 0.0659
      },
      {
-      "team_id": "japan",
-      "prob": 0.0485
+      "team_id": "belgium",
+      "prob": 0.0482
+     },
+     {
+      "team_id": "turkiye",
+      "prob": 0.0425
      }
     ]
    },
@@ -1878,28 +2377,28 @@
     "label": "L102",
     "candidates": [
      {
-      "team_id": "england",
-      "prob": 0.168
-     },
-     {
       "team_id": "argentina",
-      "prob": 0.1303
+      "prob": 0.1072
      },
      {
-      "team_id": "brazil",
-      "prob": 0.1092
+      "team_id": "england",
+      "prob": 0.0951
      },
      {
       "team_id": "portugal",
-      "prob": 0.0627
+      "prob": 0.0797
+     },
+     {
+      "team_id": "brazil",
+      "prob": 0.0752
+     },
+     {
+      "team_id": "mexico",
+      "prob": 0.0594
      },
      {
       "team_id": "colombia",
-      "prob": 0.0603
-     },
-     {
-      "team_id": "france",
-      "prob": 0.0474
+      "prob": 0.05
      }
     ]
    }
@@ -1914,27 +2413,27 @@
     "candidates": [
      {
       "team_id": "spain",
-      "prob": 0.4793
+      "prob": 0.2283
      },
      {
       "team_id": "france",
-      "prob": 0.1893
+      "prob": 0.1536
      },
      {
       "team_id": "netherlands",
-      "prob": 0.0371
+      "prob": 0.0684
      },
      {
-      "team_id": "portugal",
-      "prob": 0.028
+      "team_id": "germany",
+      "prob": 0.0652
      },
      {
-      "team_id": "colombia",
-      "prob": 0.0273
+      "team_id": "belgium",
+      "prob": 0.0408
      },
      {
-      "team_id": "argentina",
-      "prob": 0.0272
+      "team_id": "turkiye",
+      "prob": 0.0381
      }
     ]
    },
@@ -1943,27 +2442,27 @@
     "candidates": [
      {
       "team_id": "argentina",
-      "prob": 0.3994
+      "prob": 0.1765
      },
      {
       "team_id": "england",
-      "prob": 0.1384
-     },
-     {
-      "team_id": "brazil",
-      "prob": 0.0716
+      "prob": 0.1406
      },
      {
       "team_id": "portugal",
-      "prob": 0.0644
+      "prob": 0.104
      },
      {
-      "team_id": "colombia",
-      "prob": 0.0596
+      "team_id": "brazil",
+      "prob": 0.1012
+     },
+     {
+      "team_id": "france",
+      "prob": 0.0492
      },
      {
       "team_id": "spain",
-      "prob": 0.0538
+      "prob": 0.0488
      }
     ]
    }
@@ -1974,289 +2473,433 @@
    "team_id": "czechia",
    "name": "Czechia",
    "group": "A",
-   "elo": 1740.0
+   "elo": 1740.0,
+   "rating": 1769.6,
+   "value_eur_m": 240.0,
+   "champion_prob": 0.0026
   },
   {
    "team_id": "korea-republic",
    "name": "Korea Republic",
    "group": "A",
-   "elo": 1758.0
+   "elo": 1758.0,
+   "rating": 1760.5,
+   "value_eur_m": 170.0,
+   "champion_prob": 0.0024
   },
   {
    "team_id": "mexico",
    "name": "Mexico",
    "group": "A",
-   "elo": 1875.0
+   "elo": 1875.0,
+   "rating": 1841.5,
+   "value_eur_m": 230.0,
+   "champion_prob": 0.0119
   },
   {
    "team_id": "south-africa",
    "name": "South Africa",
    "group": "A",
-   "elo": 1518.0
+   "elo": 1518.0,
+   "rating": 1575.5,
+   "value_eur_m": 65.0,
+   "champion_prob": 0.0001
   },
   {
    "team_id": "bosnia-and-herzegovina",
    "name": "Bosnia and Herzegovina",
    "group": "B",
-   "elo": 1595.0
+   "elo": 1595.0,
+   "rating": 1646.9,
+   "value_eur_m": 110.0,
+   "champion_prob": 0.0003
   },
   {
    "team_id": "canada",
    "name": "Canada",
    "group": "B",
-   "elo": 1788.0
+   "elo": 1788.0,
+   "rating": 1780.1,
+   "value_eur_m": 180.0,
+   "champion_prob": 0.0043
   },
   {
    "team_id": "qatar",
    "name": "Qatar",
    "group": "B",
-   "elo": 1421.0
+   "elo": 1421.0,
+   "rating": 1469.5,
+   "value_eur_m": 25.0,
+   "champion_prob": 0.0
   },
   {
    "team_id": "switzerland",
    "name": "Switzerland",
    "group": "B",
-   "elo": 1891.0
+   "elo": 1891.0,
+   "rating": 1870.2,
+   "value_eur_m": 330.0,
+   "champion_prob": 0.015
   },
   {
    "team_id": "brazil",
    "name": "Brazil",
    "group": "C",
-   "elo": 1991.0
+   "elo": 1991.0,
+   "rating": 1996.3,
+   "value_eur_m": 1200.0,
+   "champion_prob": 0.0714
   },
   {
    "team_id": "haiti",
    "name": "Haiti",
    "group": "C",
-   "elo": 1548.0
+   "elo": 1548.0,
+   "rating": 1557.9,
+   "value_eur_m": 35.0,
+   "champion_prob": 0.0
   },
   {
    "team_id": "morocco",
    "name": "Morocco",
    "group": "C",
-   "elo": 1827.0
+   "elo": 1827.0,
+   "rating": 1866.0,
+   "value_eur_m": 580.0,
+   "champion_prob": 0.013
   },
   {
    "team_id": "scotland",
    "name": "Scotland",
    "group": "C",
-   "elo": 1782.0
+   "elo": 1782.0,
+   "rating": 1808.5,
+   "value_eur_m": 320.0,
+   "champion_prob": 0.005
   },
   {
    "team_id": "australia",
    "name": "Australia",
    "group": "D",
-   "elo": 1777.0
+   "elo": 1777.0,
+   "rating": 1732.8,
+   "value_eur_m": 85.0,
+   "champion_prob": 0.0015
   },
   {
    "team_id": "paraguay",
    "name": "Paraguay",
    "group": "D",
-   "elo": 1833.0
+   "elo": 1833.0,
+   "rating": 1787.0,
+   "value_eur_m": 130.0,
+   "champion_prob": 0.0037
   },
   {
    "team_id": "turkiye",
    "name": "Türkiye",
    "group": "D",
-   "elo": 1910.0
+   "elo": 1910.0,
+   "rating": 1900.1,
+   "value_eur_m": 470.0,
+   "champion_prob": 0.0228
   },
   {
    "team_id": "usa",
    "name": "USA",
    "group": "D",
-   "elo": 1726.0
+   "elo": 1726.0,
+   "rating": 1772.3,
+   "value_eur_m": 290.0,
+   "champion_prob": 0.0124
   },
   {
    "team_id": "curacao",
    "name": "Curaçao",
    "group": "E",
-   "elo": 1434.0
+   "elo": 1434.0,
+   "rating": 1486.7,
+   "value_eur_m": 30.0,
+   "champion_prob": 0.0
   },
   {
    "team_id": "cote-d-ivoire",
    "name": "Côte d'Ivoire",
    "group": "E",
-   "elo": 1695.0
+   "elo": 1695.0,
+   "rating": 1751.3,
+   "value_eur_m": 270.0,
+   "champion_prob": 0.0021
   },
   {
    "team_id": "ecuador",
    "name": "Ecuador",
    "group": "E",
-   "elo": 1938.0
+   "elo": 1938.0,
+   "rating": 1887.0,
+   "value_eur_m": 280.0,
+   "champion_prob": 0.0181
   },
   {
    "team_id": "germany",
    "name": "Germany",
    "group": "E",
-   "elo": 1932.0
+   "elo": 1932.0,
+   "rating": 1951.0,
+   "value_eur_m": 950.0,
+   "champion_prob": 0.0415
   },
   {
    "team_id": "japan",
    "name": "Japan",
    "group": "F",
-   "elo": 1906.0
+   "elo": 1906.0,
+   "rating": 1876.7,
+   "value_eur_m": 320.0,
+   "champion_prob": 0.0152
   },
   {
    "team_id": "netherlands",
    "name": "Netherlands",
    "group": "F",
-   "elo": 1948.0
+   "elo": 1948.0,
+   "rating": 1950.3,
+   "value_eur_m": 800.0,
+   "champion_prob": 0.0428
   },
   {
    "team_id": "sweden",
    "name": "Sweden",
    "group": "F",
-   "elo": 1712.0
+   "elo": 1712.0,
+   "rating": 1779.5,
+   "value_eur_m": 380.0,
+   "champion_prob": 0.003
   },
   {
    "team_id": "tunisia",
    "name": "Tunisia",
    "group": "F",
-   "elo": 1628.0
+   "elo": 1628.0,
+   "rating": 1640.1,
+   "value_eur_m": 70.0,
+   "champion_prob": 0.0002
   },
   {
    "team_id": "belgium",
    "name": "Belgium",
    "group": "G",
-   "elo": 1893.0
+   "elo": 1893.0,
+   "rating": 1894.2,
+   "value_eur_m": 500.0,
+   "champion_prob": 0.0214
   },
   {
    "team_id": "egypt",
    "name": "Egypt",
    "group": "G",
-   "elo": 1696.0
+   "elo": 1696.0,
+   "rating": 1715.7,
+   "value_eur_m": 140.0,
+   "champion_prob": 0.0013
   },
   {
    "team_id": "ir-iran",
    "name": "IR Iran",
    "group": "G",
-   "elo": 1772.0
+   "elo": 1772.0,
+   "rating": 1706.0,
+   "value_eur_m": 55.0,
+   "champion_prob": 0.0009
   },
   {
    "team_id": "new-zealand",
    "name": "New Zealand",
    "group": "G",
-   "elo": 1562.0
+   "elo": 1562.0,
+   "rating": 1565.6,
+   "value_eur_m": 35.0,
+   "champion_prob": 0.0
   },
   {
    "team_id": "cabo-verde",
    "name": "Cabo Verde",
    "group": "H",
-   "elo": 1578.0
+   "elo": 1578.0,
+   "rating": 1574.4,
+   "value_eur_m": 35.0,
+   "champion_prob": 0.0001
   },
   {
    "team_id": "saudi-arabia",
    "name": "Saudi Arabia",
    "group": "H",
-   "elo": 1569.0
+   "elo": 1569.0,
+   "rating": 1621.5,
+   "value_eur_m": 90.0,
+   "champion_prob": 0.0001
   },
   {
    "team_id": "spain",
    "name": "Spain",
    "group": "H",
-   "elo": 2157.0
+   "elo": 2157.0,
+   "rating": 2089.8,
+   "value_eur_m": 1250.0,
+   "champion_prob": 0.1749
   },
   {
    "team_id": "uruguay",
    "name": "Uruguay",
    "group": "H",
-   "elo": 1892.0
+   "elo": 1892.0,
+   "rating": 1891.4,
+   "value_eur_m": 480.0,
+   "champion_prob": 0.0193
   },
   {
    "team_id": "france",
    "name": "France",
    "group": "I",
-   "elo": 2063.0
+   "elo": 2063.0,
+   "rating": 2040.3,
+   "value_eur_m": 1300.0,
+   "champion_prob": 0.1178
   },
   {
    "team_id": "iraq",
    "name": "Iraq",
    "group": "I",
-   "elo": 1618.0
+   "elo": 1618.0,
+   "rating": 1577.9,
+   "value_eur_m": 25.0,
+   "champion_prob": 0.0
   },
   {
    "team_id": "norway",
    "name": "Norway",
    "group": "I",
-   "elo": 1914.0
+   "elo": 1914.0,
+   "rating": 1903.5,
+   "value_eur_m": 480.0,
+   "champion_prob": 0.0234
   },
   {
    "team_id": "senegal",
    "name": "Senegal",
    "group": "I",
-   "elo": 1867.0
+   "elo": 1867.0,
+   "rating": 1860.2,
+   "value_eur_m": 350.0,
+   "champion_prob": 0.0119
   },
   {
    "team_id": "algeria",
    "name": "Algeria",
    "group": "J",
-   "elo": 1760.0
+   "elo": 1760.0,
+   "rating": 1767.7,
+   "value_eur_m": 190.0,
+   "champion_prob": 0.0026
   },
   {
    "team_id": "argentina",
    "name": "Argentina",
    "group": "J",
-   "elo": 2114.0
+   "elo": 2114.0,
+   "rating": 2048.1,
+   "value_eur_m": 900.0,
+   "champion_prob": 0.1225
   },
   {
    "team_id": "austria",
    "name": "Austria",
    "group": "J",
-   "elo": 1830.0
+   "elo": 1830.0,
+   "rating": 1836.6,
+   "value_eur_m": 330.0,
+   "champion_prob": 0.008
   },
   {
    "team_id": "jordan",
    "name": "Jordan",
    "group": "J",
-   "elo": 1680.0
+   "elo": 1680.0,
+   "rating": 1599.7,
+   "value_eur_m": 20.0,
+   "champion_prob": 0.0001
   },
   {
    "team_id": "colombia",
    "name": "Colombia",
    "group": "K",
-   "elo": 1982.0
+   "elo": 1982.0,
+   "rating": 1920.2,
+   "value_eur_m": 330.0,
+   "champion_prob": 0.0289
   },
   {
    "team_id": "congo-dr",
    "name": "Congo DR",
    "group": "K",
-   "elo": 1652.0
+   "elo": 1652.0,
+   "rating": 1691.5,
+   "value_eur_m": 140.0,
+   "champion_prob": 0.0004
   },
   {
    "team_id": "portugal",
    "name": "Portugal",
    "group": "K",
-   "elo": 1986.0
+   "elo": 1986.0,
+   "rating": 1991.2,
+   "value_eur_m": 1150.0,
+   "champion_prob": 0.0686
   },
   {
    "team_id": "uzbekistan",
    "name": "Uzbekistan",
    "group": "K",
-   "elo": 1714.0
+   "elo": 1714.0,
+   "rating": 1674.1,
+   "value_eur_m": 55.0,
+   "champion_prob": 0.0004
   },
   {
    "team_id": "croatia",
    "name": "Croatia",
    "group": "L",
-   "elo": 1911.0
+   "elo": 1911.0,
+   "rating": 1879.5,
+   "value_eur_m": 320.0,
+   "champion_prob": 0.0152
   },
   {
    "team_id": "england",
    "name": "England",
    "group": "L",
-   "elo": 2021.0
+   "elo": 2021.0,
+   "rating": 2025.1,
+   "value_eur_m": 1500.0,
+   "champion_prob": 0.0923
   },
   {
    "team_id": "ghana",
    "name": "Ghana",
    "group": "L",
-   "elo": 1510.0
+   "elo": 1510.0,
+   "rating": 1640.7,
+   "value_eur_m": 230.0,
+   "champion_prob": 0.0002
   },
   {
    "team_id": "panama",
    "name": "Panama",
    "group": "L",
-   "elo": 1730.0
+   "elo": 1730.0,
+   "rating": 1671.9,
+   "value_eur_m": 45.0,
+   "champion_prob": 0.0003
   }
  ]
 }
