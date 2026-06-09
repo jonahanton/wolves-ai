@@ -15,17 +15,15 @@ from wolves.agent.fakes import ScriptedLLM, tool_call_turn
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.loop import run_master
 from wolves.agent.memory import RunMemory
-from wolves.agent.sim_runner import M0Simulation
+from wolves.agent.sim_runner import EngineSimulation
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FakeFixturesClient
 from wolves.clients.odds import FakeOddsClient
-from wolves.config import REPO_ROOT, Settings
+from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb
 from wolves.llm.observed import ObservedLLM
 from wolves.observability import Caps, EventLog, InMemoryTracer, build_runtime
 from wolves.quant.observed import ObservedQuant
-from wolves.sim.format import load_format
-from wolves.sim.ratings import load_elo_ratings
 from wolves.tools._budget_gate import BudgetGate
 
 INVALID = build_submission(
@@ -83,15 +81,13 @@ async def test_full_run(tmp_path: Path):
         runs_root=tmp_path,
     )
     fake_llm = ScriptedLLM(turns=list(SCRIPT), structured=list(K_SAMPLES))
-    fmt = load_format(settings.data_dir)
-    ratings = load_elo_ratings(sorted((REPO_ROOT / "data" / "ratings").glob("elo-2*.tsv"))[-1], fmt)
     deps = AgentDeps(
         runtime=runtime,
         llm=ObservedLLM(fake_llm, runtime),
         web=ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient()),
         odds=FakeOddsClient(),
         fixtures=FakeFixturesClient(),
-        sim=M0Simulation(fmt, ratings),
+        sim=EngineSimulation(),
         ledger=EvidenceLedger(tmp_path / "e2e-run" / "ledger.jsonl"),
         memory=RunMemory(runs_root=tmp_path, run_id="e2e-run", lessons_path=settings.lessons_path),
         quant=ObservedQuant(runtime),

@@ -13,7 +13,7 @@ TOTAL_LIFT = 1.5
 MIN_GOAL_MEAN = 0.08
 
 # Shared tempo shock correlates the two scorelines (inflating draws); the
-# per-side shock gives negative binomial marginals (fatter tails than Poisson).
+# per-side shock over-disperses each marginal beyond Poisson.
 SHARED_SHAPE = 12.0
 SIDE_SHAPE = 10.0
 
@@ -35,7 +35,7 @@ def goal_means(diff: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 def simulate_goals(
     rng: np.random.Generator, lam_home: np.ndarray, lam_away: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Draw correlated negative binomial scorelines from per-side goal means."""
+    """Draw correlated over-dispersed scorelines from per-side goal means."""
     n = lam_home.shape[0]
     shared = rng.gamma(SHARED_SHAPE, 1.0 / SHARED_SHAPE, n)
     home = rng.poisson(lam_home * shared * rng.gamma(SIDE_SHAPE, 1.0 / SIDE_SHAPE, n))

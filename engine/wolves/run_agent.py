@@ -22,7 +22,7 @@ from wolves.agent.fakes import ScriptedLLM, tool_call_turn
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.loop import MasterRunResult, run_master
 from wolves.agent.memory import RunMemory
-from wolves.agent.sim_runner import M0Simulation
+from wolves.agent.sim_runner import EngineSimulation
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
 from wolves.clients.odds import FakeOddsClient, OddsClient, TheOddsApiClient
@@ -159,7 +159,7 @@ def _build_deps(
         web=web,
         odds=odds,
         fixtures=fixtures,
-        sim=M0Simulation(fmt, ratings),
+        sim=EngineSimulation(),
         ledger=EvidenceLedger(settings.runs_root / run_id / "ledger.jsonl"),
         memory=RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path),
         quant=ObservedQuant(runtime),

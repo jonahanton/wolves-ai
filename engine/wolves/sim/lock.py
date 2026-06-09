@@ -56,8 +56,9 @@ def build_lock_dates(
         )
 
     end_date = max(m.date for m in fmt.group_matches)
-    city_probs = {
-        finish_cities[f]: round(float(finish_masks[f].mean()), 4) for f in ("win_group", "runner_up", "third_qualified")
-    }
+    city_probs: dict[str, float] = {}
+    for f in ("win_group", "runner_up", "third_qualified"):
+        city = finish_cities[f]
+        city_probs[city] = round(city_probs.get(city, 0.0) + float(finish_masks[f].mean()), 4)
     locks.append(LockDate(date=end_date, prob_locked=1.0, locked_city_probs=city_probs))
     return locks

@@ -201,7 +201,7 @@ def run_tournament(
             hg_raw, ag_raw = simulate_goals(rng, lam_h, lam_a)
             hg, ag = hg_raw.astype(np.int16), ag_raw.astype(np.int16)
             home_wins = knockout_home_wins(rng, diff, hg, ag)
-        # A tie decided after a level 90 minutes updates ratings as a one-goal win.
+        # eloratings.net scores shootout wins as one-goal wins, so the hot update mirrors that.
         elo_hg = np.where(hg == ag, hg + home_wins, hg)
         elo_ag = np.where(hg == ag, ag + ~home_wins, ag)
         delta = rating_delta(diff, elo_hg, elo_ag, stage="knockout")

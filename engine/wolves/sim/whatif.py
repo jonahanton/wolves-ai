@@ -32,10 +32,11 @@ def build_what_if(
             if count == 0:
                 continue
             finish_probs = {f: round(float((mask & fm).sum() / count), 4) for f, fm in finish_masks.items()}
-            city_probs = {
-                finish_cities[f]: round(float((mask & finish_masks[f]).sum() / count), 4)
-                for f in ("win_group", "runner_up", "third_qualified")
-            }
+            city_probs: dict[str, float] = {}
+            for f in ("win_group", "runner_up", "third_qualified"):
+                city = finish_cities[f]
+                city_probs[city] = city_probs.get(city, 0.0) + float((mask & finish_masks[f]).sum() / count)
+            city_probs = {c: round(p, 4) for c, p in city_probs.items()}
             outcomes.append(
                 WhatIfOutcome(
                     outcome=name,

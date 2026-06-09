@@ -8,7 +8,6 @@ from wolves.agent.fakes import ScriptedLLM, tool_call_turn
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
 from wolves.agent.researcher import run_researcher
-from wolves.agent.sim_runner import SimOutputs
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FakeFixturesClient
 from wolves.clients.odds import FakeOddsClient
@@ -17,6 +16,7 @@ from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb
 from wolves.llm.observed import ObservedLLM
 from wolves.observability import Caps, InMemoryTracer, build_runtime
 from wolves.quant.observed import ObservedQuant
+from wolves.sim.api import SimOutputs
 from wolves.tools._budget_gate import BudgetGate
 
 REPORT = {
