@@ -120,7 +120,7 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
           >
             {layout.columnLabels.map(({ label, x }) => (
               <text
-                key={label}
+                key={`${label}-${x}`}
                 x={x + NODE_W / 2}
                 y={16}
                 fontSize={11}
