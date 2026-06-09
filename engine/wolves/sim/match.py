@@ -7,7 +7,7 @@ from wolves.sim.elo import expected_score
 STAGE_GAP_MULT = {"group": 0.9, "knockout": 1.1}
 
 BASE_GOALS = 1.30
-MARGIN_SCALE = 4.2
+MARGIN_SCALE = 4.0
 MARGIN_CURVE = 620.0
 TOTAL_LIFT = 1.5
 MIN_GOAL_MEAN = 0.08

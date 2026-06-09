@@ -7,7 +7,7 @@ import numpy as np
 
 from wolves.sim.format import FormatData
 
-VALUE_PRIOR_WEIGHT = 0.40
+VALUE_PRIOR_WEIGHT = 0.45
 
 
 class RatingNotFoundError(Exception):
