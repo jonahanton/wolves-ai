@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 class Event(BaseModel):
-    """One observed action, mirrored to local JSONL alongside its Langfuse ids."""
+    """One observed action, mirrored to local JSONL alongside its tracer ids."""
 
     run_id: str
     seq: int
