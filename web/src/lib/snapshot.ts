@@ -49,6 +49,34 @@ export interface TeamInfo {
   name: string;
   group: string;
   elo: number;
+  champion_prob?: number;
+  reach_probs?: Record<string, number>;
+}
+
+export interface GroupTeamStanding {
+  team_id: string;
+  finish_probs: Record<string, number>;
+  expected_points: number;
+}
+
+export interface GroupBlock {
+  group: string;
+  teams: GroupTeamStanding[];
+}
+
+export interface MatchProbs {
+  match: number;
+  stage: string;
+  date: string;
+  city: string;
+  home_id: string;
+  away_id: string;
+  p_home: number;
+  p_away: number;
+  p_draw?: number | null;
+  p_decided_90?: number | null;
+  p_pairing?: number | null;
+  modal_score?: string | null;
 }
 
 export interface NarrativeBlock {
@@ -105,6 +133,8 @@ export interface Snapshot {
   england: EnglandBlock;
   slots: Slot[];
   teams: TeamInfo[];
+  groups?: GroupBlock[];
+  matches?: MatchProbs[];
   agent?: AgentBlock | null;
 }
 

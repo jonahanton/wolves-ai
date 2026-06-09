@@ -11,6 +11,9 @@ from wolves.snapshot import (
     CityProb,
     EnglandBlock,
     EnglandPath,
+    GroupBlock,
+    GroupTeamStanding,
+    MatchProbs,
     ModalStep,
     RoundOpponents,
     Slot,
@@ -48,11 +51,101 @@ def build_slots(fmt: FormatData, result: SimResult) -> list[Slot]:
     ]
 
 
-def champion_probs(fmt: FormatData, result: SimResult) -> dict[str, float]:
-    """Per-team probability of winning the final."""
-    final = max(m.match for m in fmt.knockout)
-    counts = np.bincount(result.ko_winner[final], minlength=len(fmt.teams)) / result.n_sims
-    return {t.id: round(float(counts[i]), 4) for i, t in enumerate(fmt.teams)}
+def build_team_reach(fmt: FormatData, result: SimResult) -> dict[str, dict[str, float]]:
+    """Per-team probability of reaching each knockout round, ending in champion."""
+    n_teams = len(fmt.teams)
+    final = max(m.match for m in fmt.knockout if m.stage == "final")
+    reached = {"r32": np.zeros(n_teams), "champion": np.bincount(result.ko_winner[final], minlength=n_teams)}
+    next_round = {"r32": "r16", "r16": "qf", "qf": "sf", "sf": "final"}
+    for m in fmt.knockout:
+        if m.stage == "r32":
+            reached["r32"] += np.bincount(result.ko_home[m.match], minlength=n_teams)
+            reached["r32"] += np.bincount(result.ko_away[m.match], minlength=n_teams)
+        if m.stage in next_round:
+            target = next_round[m.stage]
+            reached.setdefault(target, np.zeros(n_teams))
+            reached[target] = reached[target] + np.bincount(result.ko_winner[m.match], minlength=n_teams)
+    return {
+        t.id: {rnd: round(float(reached[rnd][i] / result.n_sims), 4) for rnd in (*KO_ROUNDS, "champion")}
+        for i, t in enumerate(fmt.teams)
+    }
+
+
+GROUP_FINISH_KEYS = ("win_group", "runner_up", "third_qualified", "third_eliminated", "fourth")
+
+
+def build_groups(fmt: FormatData, result: SimResult) -> list[GroupBlock]:
+    """Per-team group finish distributions and expected points, by group."""
+    members = fmt.group_members()
+    expected = result.group_points.mean(axis=1)
+    blocks = []
+    for g_i, g in enumerate(GROUPS):
+        standings = []
+        for i in members[g]:
+            rank = result.rank_in_group[i]
+            third = rank == 2
+            finish = {
+                "win_group": (rank == 0).mean(),
+                "runner_up": (rank == 1).mean(),
+                "third_qualified": (third & result.third_qualified[g_i]).mean(),
+                "third_eliminated": (third & ~result.third_qualified[g_i]).mean(),
+                "fourth": (rank == 3).mean(),
+            }
+            standings.append(
+                GroupTeamStanding(
+                    team_id=fmt.teams[i].id,
+                    finish_probs={k: round(float(v), 4) for k, v in finish.items()},
+                    expected_points=round(float(expected[i]), 2),
+                )
+            )
+        blocks.append(GroupBlock(group=g, teams=standings))
+    return blocks
+
+
+def build_matches(fmt: FormatData, result: SimResult, *, played: set[int]) -> list[MatchProbs]:
+    """Forecast entries for every match without a played result."""
+    out = []
+    for m in sorted(fmt.group_matches, key=lambda m: m.match):
+        if m.match in played:
+            continue
+        hg, ag = result.group_goals[m.match]
+        scores = hg.astype(np.int64) * 1_000 + ag
+        values, counts = np.unique(scores, return_counts=True)
+        modal = int(values[np.argmax(counts)])
+        out.append(
+            MatchProbs(
+                match=m.match,
+                stage="group",
+                date=m.date,
+                city=m.city,
+                home_id=m.home,
+                away_id=m.away,
+                p_home=round(float((hg > ag).mean()), 4),
+                p_away=round(float((hg < ag).mean()), 4),
+                p_draw=round(float((hg == ag).mean()), 4),
+                modal_score=f"{modal // 1_000}-{modal % 1_000}",
+            )
+        )
+    for m in sorted(fmt.knockout, key=lambda m: m.match):
+        if m.match in played or m.match not in result.ko_stats:
+            continue
+        stats = result.ko_stats[m.match]
+        out.append(
+            MatchProbs(
+                match=m.match,
+                stage=m.stage,
+                date=m.date,
+                city=m.city,
+                home_id=fmt.teams[stats.home].id,
+                away_id=fmt.teams[stats.away].id,
+                p_home=round(stats.p_home_win, 4),
+                p_away=round(1.0 - stats.p_home_win, 4),
+                p_decided_90=round(stats.p_decided_90, 4),
+                p_pairing=round(stats.p_pairing, 4),
+                modal_score=f"{stats.modal_score[0]}-{stats.modal_score[1]}",
+            )
+        )
+    return out
 
 
 def _england_r32_match(fmt: FormatData, finish: str) -> tuple[int, bool]:

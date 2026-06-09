@@ -30,6 +30,8 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
         england=outputs.england,
         slots=outputs.slots,
         teams=outputs.teams,
+        groups=outputs.groups,
+        matches=outputs.matches,
     )
 
 
