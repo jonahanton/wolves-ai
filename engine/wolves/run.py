@@ -54,7 +54,7 @@ def main() -> None:
     (settings.snapshot_dir / f"{snapshot.run.run_id}.json").write_text(payload)
     (settings.snapshot_dir / "latest.json").write_text(payload)
 
-    win_path = snapshot.england.paths[0]
+    win_path = next(p for p in snapshot.england.paths if p.finish == "win_group")
     top = win_path.opponents[0] if win_path.opponents else None
     logger.info("snapshot %s written to %s", snapshot.run.run_id, settings.snapshot_dir)
     logger.info(
@@ -64,7 +64,7 @@ def main() -> None:
         (top.prob if top else 0) * 100,
         win_path.city,
     )
-    print(json.dumps({"run_id": snapshot.run.run_id, "reach": snapshot.england.reach_probs}))
+    logger.info("reach probabilities: %s", json.dumps(snapshot.england.reach_probs))
 
 
 if __name__ == "__main__":

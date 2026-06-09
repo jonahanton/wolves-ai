@@ -12,14 +12,12 @@ TOP_CANDIDATES = 6
 FINISH_SLOTS = {"win_group": "1L", "runner_up": "2L", "third": "3"}
 
 
-def _candidates(fmt: FormatData, teams: np.ndarray, weight: float = 1.0) -> list[Candidate]:
+def _candidates(fmt: FormatData, teams: np.ndarray) -> list[Candidate]:
     if teams.size == 0:
         return []
     counts = np.bincount(teams, minlength=len(fmt.teams)) / teams.size
     top = np.argsort(counts)[::-1][:TOP_CANDIDATES]
-    return [
-        Candidate(team_id=fmt.teams[int(i)].id, prob=round(float(counts[i]) * weight, 4)) for i in top if counts[i] > 0
-    ]
+    return [Candidate(team_id=fmt.teams[int(i)].id, prob=round(float(counts[i]), 4)) for i in top if counts[i] > 0]
 
 
 def build_slots(fmt: FormatData, result: SimResult) -> list[Slot]:

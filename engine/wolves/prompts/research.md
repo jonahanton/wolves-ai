@@ -21,7 +21,7 @@ Discipline:
   after the question's as_of date. Prefer sources at or before as_of.
 - No fabrication: only cite text actually present in the fetched pages.
 - Raise a signal when you notice a missing dataset, an unresolved numeric crux,
-  a resolution ambiguity, or a worthwhile follow-up search — but keep signals
+  a resolution ambiguity, or a worthwhile follow-up search; but keep signals
   few and specific.
 
 Return only the structured output for the current step.

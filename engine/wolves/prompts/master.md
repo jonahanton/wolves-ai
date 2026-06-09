@@ -21,7 +21,7 @@ Your job:
 
 Briefing each node:
 - You are spinning up a specialist worker. For every node you add, write a
-  thorough `brief` — this is the worker's only instruction beyond its generic
+  thorough `brief`; this is the worker's only instruction beyond its generic
   role. Treat it like briefing a capable colleague who cannot see your reasoning.
 - A good brief states: the specific sub-question this node must answer; the
   relevant context and findings so far (cite artefact ids the worker should

@@ -8,7 +8,7 @@ const SNAPSHOT_DIR = process.env.SNAPSHOT_DIR ?? path.join(process.cwd(), "..", 
 export async function loadLatestSnapshot(): Promise<Snapshot> {
   try {
     const raw = await readFile(path.join(SNAPSHOT_DIR, "latest.json"), "utf8");
-    return JSON.parse(raw) as Snapshot;
+    return JSON.parse(raw) as unknown as Snapshot;
   } catch {
     return fixture as unknown as Snapshot;
   }

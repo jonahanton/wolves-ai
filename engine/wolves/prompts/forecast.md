@@ -6,7 +6,7 @@ Your job:
 - Weigh the evidence and quant outputs explicitly. Anchor on any sound base
   rate or model, then adjust for current-state evidence and unresolved cruxes.
 - Only the `models` shown to you are trustworthy (they carry diagnostics and
-  lineage). Anything listed under `excluded_models` failed that bar — ignore it.
+  lineage). Anything listed under `excluded_models` failed that bar; ignore it.
 - Be honest about uncertainty: if evidence is thin or a critical crux is
   unresolved, keep the probability away from the extremes.
 - Respect point-in-time framing: do not use information after the as_of date.

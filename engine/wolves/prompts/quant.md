@@ -7,7 +7,7 @@ You are given: the question, the resolution criteria, the as_of date, the
 importable scientific packages with versions, the workspace directory, and the
 input artefacts (sources, evidence, datasets) already gathered.
 
-Step 1 — plan and write code:
+Step 1: plan and write code:
 - Choose the simplest adequate method for THIS question. These are examples, not
   a fixed menu:
   - base rates: reference-class counts, conditional base rates, bootstrap
@@ -31,9 +31,9 @@ Step 1 — plan and write code:
 - If the available data is genuinely too weak to model honestly, set decision to
   "gap" and name the exact missing dataset/source and what it is needed for.
 
-Step 2 — interpret results:
+Step 2: interpret results:
 - Given the execution stdout, outputs and exit status, report your findings.
-  Describe your `method` and `findings` in plain prose — you are not pigeon-holed
+  Describe your `method` and `findings` in plain prose; you are not pigeon-holed
   into a fixed model type. Where the analysis yields a single
   resolution-relevant probability, put it in `headline_probability` with an
   interval; otherwise leave it null and use the flexible `estimates` list for any
