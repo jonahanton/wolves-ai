@@ -19,6 +19,15 @@ export interface Slot {
 
 export type Finish = "win_group" | "runner_up" | "third";
 
+export interface RoundOpponents {
+  round: string;
+  match: number;
+  city: string;
+  date: string;
+  reach_prob: number;
+  opponents: Candidate[];
+}
+
 export interface EnglandPath {
   finish: Finish;
   prob: number;
@@ -26,6 +35,42 @@ export interface EnglandPath {
   city: string;
   date: string;
   opponents: Candidate[];
+  onward?: RoundOpponents[];
+}
+
+export interface ModalStep {
+  round: string;
+  match: number;
+  city: string;
+  date: string;
+  opponent_id: string;
+  opponent_prob: number;
+}
+
+export interface CityProb {
+  city: string;
+  prob: number;
+}
+
+export interface LockDate {
+  date: string;
+  prob_locked: number;
+  locked_city_probs: Record<string, number>;
+}
+
+export interface WhatIfOutcome {
+  outcome: string;
+  prob: number;
+  finish_probs: Record<string, number>;
+  r32_city_probs: Record<string, number>;
+}
+
+export interface WhatIfFixture {
+  match: number;
+  date: string;
+  city: string;
+  opponent_id: string;
+  outcomes: WhatIfOutcome[];
 }
 
 export interface EnglandBlock {
@@ -34,6 +79,10 @@ export interface EnglandBlock {
   finish_probs: Record<string, number>;
   reach_probs: Record<string, number>;
   paths: EnglandPath[];
+  modal_path?: ModalStep[];
+  city_probs?: Record<string, CityProb[]>;
+  lock_dates?: LockDate[];
+  what_if?: WhatIfFixture[];
 }
 
 export interface RunMeta {
@@ -49,6 +98,8 @@ export interface TeamInfo {
   name: string;
   group: string;
   elo: number;
+  rating?: number;
+  value_eur_m?: number | null;
   champion_prob?: number;
   reach_probs?: Record<string, number>;
 }

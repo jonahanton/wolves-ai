@@ -47,7 +47,12 @@ def markets_from_events(payload: list[dict[str, Any]]) -> list[PolymarketMarket]
 
 
 def winner_probabilities(markets: list[PolymarketMarket], teams: list[NamedTeam]) -> dict[str, float]:
-    """Map market questions to team ids and normalise Yes prices to sum to 1."""
+    """Map market questions to team ids and normalise Yes prices to sum to 1.
+
+    Markets for non-qualified teams are expected and dropped silently; a
+    qualified team without a market is a name-mapping failure that silently
+    inflates every rival, so it is warned about loudly.
+    """
     raw: dict[str, float] = {}
     for market in markets:
         team_id = team_id_in_text(market.question, teams)
@@ -55,6 +60,9 @@ def winner_probabilities(markets: list[PolymarketMarket], teams: list[NamedTeam]
             logger.debug("unmapped polymarket market dropped: %s", market.question)
             continue
         raw[team_id] = raw.get(team_id, 0.0) + market.yes_price
+    missing = sorted({team.id for team in teams} - raw.keys())
+    if missing:
+        logger.warning("no polymarket market mapped for qualified team(s) %s; rivals inflate", missing)
     total = sum(raw.values())
     if total <= 0.0:
         return {}

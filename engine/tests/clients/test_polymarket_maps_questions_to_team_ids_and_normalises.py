@@ -50,6 +50,12 @@ async def test_probabilities_normalise_to_one_over_mapped_teams_only(teams):
     assert probs["france"] > probs["spain"] > probs["england"] > probs["portugal"]
 
 
+async def test_every_qualified_team_maps_from_the_recorded_fixture(teams):
+    markets = await FakePolymarketClient().winner_markets()
+    probs = winner_probabilities(markets, teams)
+    assert {t.id for t in teams} == set(probs)
+
+
 @pytest.mark.smoke
 async def test_live_winner_markets_smoke():
     client = GammaPolymarketClient()
