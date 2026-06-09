@@ -2,24 +2,21 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import ipaddress
 import re
-import socket
 from datetime import UTC, datetime
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin
 
 import httpx
+
+from wolves.clients.fetch._ssrf import check_host, check_url
 
 from ._dates import parse_date
 from ._http import _raise_for_status, async_retrying
 from .contracts import FetchClient, FetchedPage
 
-_USER_AGENT = "dynamic-graph/0.1"
+_USER_AGENT = "wolves/0.1"
 _SKIP_TAGS = {"script", "style", "noscript", "svg", "head"}
-_BLOCKED_HOSTS = {"localhost"}
-_METADATA_IP = ipaddress.ip_address("169.254.169.254")
-_CGNAT = ipaddress.ip_network("100.64.0.0/10")
 _MAX_REDIRECTS = 5
 _DATE_META = {"article:published_time", "og:article:published_time"}
 _WS = re.compile(r"\s+")
@@ -169,56 +166,10 @@ class HttpFetchClient(FetchClient):
 
 
 async def _guard_url(url: str) -> None:
-    parts = urlsplit(url)
-    if parts.scheme not in ("http", "https"):
-        raise ValueError(f"unsupported scheme: {parts.scheme!r}")
-    host = (parts.hostname or "").lower()
-    if not host:
-        raise ValueError("missing host")
-    if host in _BLOCKED_HOSTS:
-        raise ValueError(f"blocked host: {host!r}")
-
-    # Reject obvious IP literals up front (covers the no-resolution path).
-    try:
-        literal = ipaddress.ip_address(host)
-    except ValueError:
-        literal = None  # not a literal: resolve via DNS below
-    if literal is not None:
-        if _is_blocked_ip(literal):
-            raise ValueError(f"blocked address: {host!r}")
-        return  # valid public literal, no DNS needed
-
-    addresses = await _resolve(host, parts.port)
-    if not addresses:
-        raise ValueError(f"could not resolve host: {host!r}")
-    for addr in addresses:
-        if _is_blocked_ip(ipaddress.ip_address(addr)):
-            raise ValueError(f"host {host!r} resolves to blocked address {addr!r}")
-
-
-async def _resolve(host: str, port: int | None) -> list[str]:
+    """Shared SSRF policy; DNS resolution off the event loop."""
+    host = check_url(url)
     loop = asyncio.get_running_loop()
-    infos = await loop.run_in_executor(
-        None,
-        lambda: socket.getaddrinfo(host, port or 0, proto=socket.IPPROTO_TCP),
-    )
-    return [info[4][0] for info in infos]
-
-
-def _is_blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    mapped = ip.ipv4_mapped if isinstance(ip, ipaddress.IPv6Address) else None
-    if mapped is not None:
-        ip = mapped
-    return (
-        ip.is_loopback
-        or ip.is_private
-        or ip.is_link_local
-        or ip.is_reserved
-        or ip.is_unspecified
-        or ip.is_multicast
-        or ip == _METADATA_IP
-        or (isinstance(ip, ipaddress.IPv4Address) and ip in _CGNAT)
-    )
+    await loop.run_in_executor(None, check_host, host)
 
 
 def _decode(raw: bytes, content_type: str) -> str:

@@ -39,4 +39,8 @@ Small focused files. Logic lives in pure modules, not in entrypoints or componen
 
 ### Tests
 
-A test exists only to pin a contract, invariant, race, or regression, and its filename states the behaviour (`test_thirds_table_matches_fifa_annexe.py`). Nothing a type checker already proves. No frontend test files: TS strict + eslint + browser verification instead; cross-language contracts pinned by Python parity tests that parse the TS source. Live-API tests behind the `smoke` pytest marker, opt-in only.
+A test exists only to pin a contract, invariant, race, or regression, and its filename states the behaviour (`test_thirds_table_matches_fifa_annexe.py`). Nothing a type checker already proves. If no plausible regression would make it fail, delete it.
+
+`engine/tests/` mirrors the package layout (`tests/sim/`, `tests/observability/`, ...), one behaviour per file. Near-identical cases become one parametrised table, never enumerated copies. Each file stays small; setup shared via local fixtures, not conftest sprawl.
+
+No frontend test files: TS strict + eslint + browser verification instead; cross-language contracts pinned by Python parity tests that parse the TS source. Live-API tests behind the `smoke` pytest marker, opt-in only.

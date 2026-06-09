@@ -7,9 +7,7 @@ class Caps(BaseModel):
     """Hard limits that keep a run from looping or exploding cost."""
 
     max_iterations: int = 6
-    max_graph_nodes: int = 24
-    max_graph_edges: int = 48
-    max_wave_workers: int = 6
+    max_workers: int = 6
     max_llm_calls: int = 40
     max_search_calls: int = 20
     max_fetch_calls: int = 24
@@ -18,21 +16,21 @@ class Caps(BaseModel):
     max_quant_rows: int = 200_000
     max_quant_bytes: int = 20_000_000
     max_quant_runtime_seconds: int = 60
+    max_cost_micros: int = 1_500_000
 
     @classmethod
     def small(cls) -> Caps:
         """Tight caps for a tiny acceptance smoke run."""
         return cls(
             max_iterations=3,
-            max_graph_nodes=12,
-            max_graph_edges=24,
-            max_wave_workers=4,
+            max_workers=4,
             max_llm_calls=16,
             max_search_calls=6,
             max_fetch_calls=6,
             max_data_fetches=6,
             max_quant_executions=2,
             max_quant_runtime_seconds=45,
+            max_cost_micros=250_000,
         )
 
 
