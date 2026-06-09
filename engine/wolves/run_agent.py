@@ -22,10 +22,18 @@ from wolves.agent.fakes import ScriptedLLM, tool_call_turn
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.loop import MasterRunResult, run_master
 from wolves.agent.memory import RunMemory
+from wolves.agent.scoring import score_yesterday
 from wolves.agent.sim_runner import EngineSimulation
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
-from wolves.clients.odds import FakeOddsClient, OddsClient, TheOddsApiClient
+from wolves.clients.odds import (
+    FakeOddsClient,
+    FakePolymarketClient,
+    GammaPolymarketClient,
+    OddsClient,
+    PolymarketClient,
+    TheOddsApiClient,
+)
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
 from wolves.llm.anthropic import build_llm
@@ -147,6 +155,7 @@ def _build_deps(
     llm: LLMClient,
     web: ObservedWeb,
     odds: OddsClient,
+    polymarket: PolymarketClient,
     fixtures: FixturesClient,
     fmt: FormatData,
     ratings: np.ndarray,
@@ -158,6 +167,7 @@ def _build_deps(
         llm=ObservedLLM(llm, runtime),
         web=web,
         odds=odds,
+        polymarket=polymarket,
         fixtures=fixtures,
         sim=EngineSimulation(),
         ledger=EvidenceLedger(settings.runs_root / run_id / "ledger.jsonl"),
@@ -241,9 +251,13 @@ def _build_snapshot(
                 name=t.name,
                 group=t.group,
                 elo=float(ratings[i] + overrides.get(t.id, 0.0)),
+                champion_prob=outputs.teams[i].champion_prob,
+                reach_probs=outputs.teams[i].reach_probs,
             )
             for i, t in enumerate(fmt.teams)
         ],
+        groups=outputs.groups,
+        matches=outputs.matches,
         agent=agent_block,
     )
 
@@ -254,6 +268,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     fmt = load_format(settings.data_dir)
     tsv = sorted((settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
     ratings = load_elo_ratings(tsv, fmt)
+    score_yesterday(settings, as_of=as_of, run_id=run_id)
 
     if args.live:
         ceiling = args.ceiling if args.ceiling is not None else settings.agent_run_ceiling_usd
@@ -263,6 +278,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         llm: LLMClient = build_llm(settings, model=settings.worker_model)
         web = build_web(settings, runtime)
         odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
+        polymarket: PolymarketClient = GammaPolymarketClient()
         fixtures: FixturesClient = (
             ApiFootballClient(settings.api_football_key) if settings.api_football_key else FakeFixturesClient()
         )
@@ -273,6 +289,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         llm = ScriptedLLM(turns=turns, structured=samples)
         web = ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient())
         odds = FakeOddsClient()
+        polymarket = FakePolymarketClient()
         fixtures = FakeFixturesClient()
         logger.info("dev run %s: fake LLM and fixture clients, $0 spend", run_id)
 
@@ -282,6 +299,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         llm=llm,
         web=web,
         odds=odds,
+        polymarket=polymarket,
         fixtures=fixtures,
         fmt=fmt,
         ratings=ratings,
@@ -292,6 +310,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     finally:
         await web.aclose()
         await odds.aclose()
+        await polymarket.aclose()
         await fixtures.aclose()
         await llm.aclose()
 

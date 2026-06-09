@@ -1,0 +1,249 @@
+[
+ {
+  "id": "903622",
+  "slug": "world-cup-winner",
+  "title": "2026 FIFA World Cup Winner",
+  "markets": [
+   {
+    "question": "Will France win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.162\", \"0.838\"]"
+   },
+   {
+    "question": "Will Spain win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.160\", \"0.840\"]"
+   },
+   {
+    "question": "Will England win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.108\", \"0.892\"]"
+   },
+   {
+    "question": "Will Portugal win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.101\", \"0.899\"]"
+   },
+   {
+    "question": "Will Argentina win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.088\", \"0.912\"]"
+   },
+   {
+    "question": "Will Brazil win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.085\", \"0.915\"]"
+   },
+   {
+    "question": "Will Germany win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.052\", \"0.948\"]"
+   },
+   {
+    "question": "Will Netherlands win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.040\", \"0.960\"]"
+   },
+   {
+    "question": "Will Belgium win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.027\", \"0.973\"]"
+   },
+   {
+    "question": "Will Croatia win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.024\", \"0.976\"]"
+   },
+   {
+    "question": "Will USA win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.024\", \"0.976\"]"
+   },
+   {
+    "question": "Will Norway win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.021\", \"0.979\"]"
+   },
+   {
+    "question": "Will Colombia win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.019\", \"0.981\"]"
+   },
+   {
+    "question": "Will Uruguay win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.017\", \"0.983\"]"
+   },
+   {
+    "question": "Will Italy win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.012\", \"0.988\"]"
+   },
+   {
+    "question": "Will Morocco win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.012\", \"0.988\"]"
+   },
+   {
+    "question": "Will Japan win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.011\", \"0.989\"]"
+   },
+   {
+    "question": "Will Mexico win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.009\", \"0.991\"]"
+   },
+   {
+    "question": "Will Switzerland win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.007\", \"0.993\"]"
+   },
+   {
+    "question": "Will Senegal win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.006\", \"0.994\"]"
+   },
+   {
+    "question": "Will Ecuador win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.006\", \"0.994\"]"
+   },
+   {
+    "question": "Will Austria win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.005\", \"0.995\"]"
+   },
+   {
+    "question": "Will Turkey win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.005\", \"0.995\"]"
+   },
+   {
+    "question": "Will Denmark win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.004\", \"0.996\"]"
+   },
+   {
+    "question": "Will South Korea win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.004\", \"0.996\"]"
+   },
+   {
+    "question": "Will Scotland win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.004\", \"0.996\"]"
+   },
+   {
+    "question": "Will Canada win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.004\", \"0.996\"]"
+   },
+   {
+    "question": "Will Australia win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.003\", \"0.997\"]"
+   },
+   {
+    "question": "Will Egypt win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.003\", \"0.997\"]"
+   },
+   {
+    "question": "Will Czech Republic win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.003\", \"0.997\"]"
+   },
+   {
+    "question": "Will Ivory Coast win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.003\", \"0.997\"]"
+   },
+   {
+    "question": "Will Ghana win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.003\", \"0.997\"]"
+   },
+   {
+    "question": "Will Algeria win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.003\", \"0.997\"]"
+   },
+   {
+    "question": "Will Sweden win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.002\", \"0.998\"]"
+   },
+   {
+    "question": "Will Paraguay win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.002\", \"0.998\"]"
+   },
+   {
+    "question": "Will Iran win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.002\", \"0.998\"]"
+   },
+   {
+    "question": "Will Saudi Arabia win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.002\", \"0.998\"]"
+   },
+   {
+    "question": "Will Ukraine win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.002\", \"0.998\"]"
+   },
+   {
+    "question": "Will Uzbekistan win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.002\", \"0.998\"]"
+   },
+   {
+    "question": "Will Tunisia win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.002\", \"0.998\"]"
+   },
+   {
+    "question": "Will Panama win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Qatar win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Jordan win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Iraq win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will South Africa win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will New Zealand win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Cape Verde win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will DR Congo win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Haiti win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Curacao win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Bosnia win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Cameroon win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Nigeria win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Poland win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Greece win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Wales win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Honduras win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Bolivia win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Venezuela win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   },
+   {
+    "question": "Will Peru win the 2026 FIFA World Cup?",
+    "outcomePrices": "[\"0.001\", \"0.999\"]"
+   }
+  ]
+ }
+]

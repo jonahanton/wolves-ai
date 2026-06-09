@@ -21,15 +21,30 @@ class ThirdsAllocationError(Exception):
 
 
 @dataclass
+class KnockoutTieStats:
+    """Per-slot aggregates for the modal pairing; win/decided/modal-score
+    figures are conditional on that pairing occurring."""
+
+    home: int
+    away: int
+    p_pairing: float
+    p_home_win: float
+    p_decided_90: float
+    modal_score: tuple[int, int]
+
+
+@dataclass
 class SimResult:
     n_sims: int
     rank_in_group: np.ndarray
     third_qualified: np.ndarray
+    group_points: np.ndarray
     group_goals: dict[int, tuple[np.ndarray, np.ndarray]]
     ko_home: dict[int, np.ndarray]
     ko_away: dict[int, np.ndarray]
     ko_winner: dict[int, np.ndarray]
     ko_loser: dict[int, np.ndarray]
+    ko_stats: dict[int, KnockoutTieStats]
 
 
 def allocate_thirds(qualified: frozenset[int], slot_elig: list[tuple[int, list[int]]]) -> dict[int, int] | None:
@@ -177,6 +192,26 @@ def run_tournament(
     ko_away: dict[int, np.ndarray] = {}
     ko_winner: dict[int, np.ndarray] = {}
     ko_loser: dict[int, np.ndarray] = {}
+    ko_stats: dict[int, KnockoutTieStats] = {}
+
+    def tie_stats(
+        h: np.ndarray, a: np.ndarray, hg: np.ndarray, ag: np.ndarray, home_wins: np.ndarray
+    ) -> KnockoutTieStats:
+        pairs = h.astype(np.int64) * n_teams + a
+        values, counts = np.unique(pairs, return_counts=True)
+        modal_pair = int(values[np.argmax(counts)])
+        mask = pairs == modal_pair
+        scores = hg[mask].astype(np.int64) * 1_000 + ag[mask]
+        score_values, score_counts = np.unique(scores, return_counts=True)
+        modal_score = int(score_values[np.argmax(score_counts)])
+        return KnockoutTieStats(
+            home=modal_pair // n_teams,
+            away=modal_pair % n_teams,
+            p_pairing=float(counts.max() / n_sims),
+            p_home_win=float(home_wins[mask].mean()),
+            p_decided_90=float((hg[mask] != ag[mask]).mean()),
+            modal_score=(modal_score // 1_000, modal_score % 1_000),
+        )
 
     def resolve(spec: str, match: int) -> np.ndarray:
         if spec.startswith("3:"):
@@ -201,6 +236,7 @@ def run_tournament(
             hg_raw, ag_raw = simulate_goals(rng, lam_h, lam_a)
             hg, ag = hg_raw.astype(np.int16), ag_raw.astype(np.int16)
             home_wins = knockout_home_wins(rng, diff, hg, ag)
+            ko_stats[m.match] = tie_stats(h, a, hg, ag, home_wins)
         # eloratings.net scores shootout wins as one-goal wins, so the hot update mirrors that.
         elo_hg = np.where(hg == ag, hg + home_wins, hg)
         elo_ag = np.where(hg == ag, ag + ~home_wins, ag)
@@ -216,9 +252,11 @@ def run_tournament(
         n_sims=n_sims,
         rank_in_group=rank_in_group,
         third_qualified=third_qualified,
+        group_points=pts,
         group_goals=group_goals,
         ko_home=ko_home,
         ko_away=ko_away,
         ko_winner=ko_winner,
         ko_loser=ko_loser,
+        ko_stats=ko_stats,
     )
