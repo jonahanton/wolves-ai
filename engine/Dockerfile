@@ -30,4 +30,4 @@ COPY --from=development /app/engine/ /app/engine/
 
 ENV PATH="/app/engine/.venv/bin:$PATH"
 
-ENTRYPOINT ["python", "-m", "wolves.run"]
+ENTRYPOINT ["python", "-m", "wolves.daily"]

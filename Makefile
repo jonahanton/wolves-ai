@@ -2,7 +2,7 @@
 -include .env.worktree
 export
 
-.PHONY: setup venv lint format test \
+.PHONY: setup venv lint format test db/init release \
         app/up app/down app/restart app/logs \
         frontend/install frontend/dev frontend/build frontend/lint
 
@@ -21,6 +21,15 @@ format:
 
 test:
 	cd engine && .venv/bin/pytest tests/ -q
+
+release:
+	@scripts/release.sh $(env)
+
+db/init:
+	cd engine && \
+	AWS_ACCESS_KEY_ID=$${AWS_ACCESS_KEY_ID:-local} AWS_SECRET_ACCESS_KEY=$${AWS_SECRET_ACCESS_KEY:-local} \
+	DYNAMO_ENDPOINT=$${DYNAMO_ENDPOINT:-http://localhost:$${DB_PORT:-8000}} \
+	.venv/bin/python -m wolves.store.init
 
 app/up:
 	@[ -f .worktree/allocate-ports.sh ] && .worktree/allocate-ports.sh || true
