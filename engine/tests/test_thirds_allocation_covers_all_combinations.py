@@ -10,9 +10,7 @@ from wolves.sim.mc import allocate_thirds
 def _slot_elig():
     fmt = load_format(Settings().data_dir)
     return [
-        (m.match, [GROUPS.index(g) for g in m.away.removeprefix("3:")])
-        for m in fmt.knockout
-        if m.away.startswith("3:")
+        (m.match, [GROUPS.index(g) for g in m.away.removeprefix("3:")]) for m in fmt.knockout if m.away.startswith("3:")
     ]
 
 
