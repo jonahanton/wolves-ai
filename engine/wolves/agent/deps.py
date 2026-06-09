@@ -8,7 +8,7 @@ from wolves.agent.memory import RunMemory
 from wolves.agent.sim_runner import SimulationApi
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FixturesClient
-from wolves.clients.odds import OddsClient
+from wolves.clients.odds import OddsClient, PolymarketClient
 from wolves.config import Settings
 from wolves.connectors.observed import ObservedWeb
 from wolves.llm.observed import ObservedLLM
@@ -26,6 +26,7 @@ class AgentDeps:
     llm: ObservedLLM
     web: ObservedWeb
     odds: OddsClient
+    polymarket: PolymarketClient
     fixtures: FixturesClient
     sim: SimulationApi
     ledger: EvidenceLedger

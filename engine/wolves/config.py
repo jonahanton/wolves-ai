@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     tool_result_max_chars: int = 8000
 
     market_blend_lambda: float = 0.3
+    bookmaker_leg_weight: float = 1.0
+    polymarket_leg_weight: float = 1.0
 
     agent_max_turns: int = 40
     agent_tool_budget: int = 60
