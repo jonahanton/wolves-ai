@@ -167,6 +167,100 @@
   animation: shimmer 3s ease-in-out infinite;
 }
 
+.sticker {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: var(--card);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 10%);
+}
+
+.sticker::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed color-mix(in oklch, var(--border-strong) 70%, transparent);
+  border-radius: calc(var(--radius-lg) - 4px);
+  pointer-events: none;
+}
+
+.sticker-tilt-l {
+  rotate: -1.1deg;
+}
+
+.sticker-tilt-r {
+  rotate: 0.9deg;
+}
+
+@keyframes foil-sweep {
+  0%,
+  55% {
+    background-position: 160% 0;
+  }
+  100% {
+    background-position: -60% 0;
+  }
+}
+
+.foil {
+  position: relative;
+  overflow: hidden;
+}
+
+.foil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    115deg,
+    transparent 42%,
+    color-mix(in oklch, var(--gold) 7%, transparent) 47%,
+    color-mix(in oklch, var(--gold) 13%, transparent) 50%,
+    color-mix(in oklch, var(--gold) 7%, transparent) 53%,
+    transparent 58%
+  );
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  animation: foil-sweep 7s ease-in-out infinite;
+}
+
+@keyframes ear-twitch {
+  0%,
+  90%,
+  100% {
+    transform: rotate(0deg);
+  }
+  93% {
+    transform: rotate(-9deg);
+  }
+  96% {
+    transform: rotate(4deg);
+  }
+}
+
+.wolf-ear {
+  transform-box: fill-box;
+  transform-origin: 60% 95%;
+}
+
+.wolf-idle .wolf-ear-left {
+  animation: ear-twitch 7s ease-in-out infinite;
+}
+
+.wolf-idle .wolf-ear-right {
+  animation: ear-twitch 9s ease-in-out infinite;
+  animation-delay: 3.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wolf-idle .wolf-ear-left,
+  .wolf-idle .wolf-ear-right,
+  .foil::after {
+    animation: none;
+  }
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;

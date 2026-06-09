@@ -1,3 +1,5 @@
+import { formatPct } from "@/lib/format";
+
 interface ProbBarProps {
   label: string;
   prob: number;
@@ -11,11 +13,13 @@ export function ProbBar({ label, prob, highlight = false }: ProbBarProps) {
       <span className="w-28 shrink-0 truncate">{label}</span>
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
         <div
-          className={`h-full rounded-full ${highlight ? "bg-gold" : "bg-foreground/40"}`}
+          className={`h-full rounded-full transition-[width] duration-300 ease-[var(--ease-out)] ${
+            highlight ? "bg-gold" : "bg-foreground/40"
+          }`}
           style={{ width: `${Math.max(pct, 2)}%` }}
         />
       </div>
-      <span className="w-9 shrink-0 text-right tabular-nums text-muted-foreground">{pct}%</span>
+      <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">{formatPct(prob)}</span>
     </div>
   );
 }
