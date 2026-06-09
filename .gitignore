@@ -8,6 +8,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+uv.lock
 
 # Node
 node_modules/

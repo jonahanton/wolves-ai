@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from .contracts import CreditUsage, OddsClient, OddsEvent, OddsResponse
+from .polymarket import PolymarketClient, PolymarketMarket, markets_from_events
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -39,3 +40,19 @@ class FakeOddsClient(OddsClient):
             events=self._h2h,
             credits=CreditUsage(used=len(self.calls), remaining=500 - len(self.calls), last_cost=1),
         )
+
+
+class FakePolymarketClient(PolymarketClient):
+    """Deterministic Polymarket client backed by the recorded Gamma fixture. No network."""
+
+    def __init__(self, *, markets: list[PolymarketMarket] | None = None) -> None:
+        if markets is not None:
+            self._markets = markets
+        else:
+            payload = json.loads((_FIXTURES / "polymarket-winner.json").read_text(encoding="utf-8"))
+            self._markets = markets_from_events(payload)
+        self.calls = 0
+
+    async def winner_markets(self) -> list[PolymarketMarket]:
+        self.calls += 1
+        return list(self._markets)

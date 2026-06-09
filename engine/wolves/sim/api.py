@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 from wolves.config import get_settings
 from wolves.sim.format import load_format, load_results
 from wolves.sim.mc import run_tournament
-from wolves.sim.outputs import build_england, build_slots, champion_probs
+from wolves.sim.outputs import build_england, build_groups, build_matches, build_slots, build_team_reach
 from wolves.sim.ratings import blend_value_prior, load_elo_ratings, load_squad_values
-from wolves.snapshot import EnglandBlock, Slot, TeamInfo
+from wolves.snapshot import EnglandBlock, GroupBlock, MatchProbs, Slot, TeamInfo
 
 
 class UnknownTeamError(Exception):
@@ -32,6 +32,8 @@ class SimOutputs(BaseModel):
     england: EnglandBlock
     slots: list[Slot]
     teams: list[TeamInfo]
+    groups: list[GroupBlock]
+    matches: list[MatchProbs]
 
 
 def run_simulation(
@@ -72,7 +74,7 @@ def run_simulation(
         fixture_goal_offsets=inputs.fixture_goal_offsets,
     )
 
-    champions = champion_probs(fmt, result)
+    reach = build_team_reach(fmt, result)
     teams = [
         TeamInfo(
             team_id=t.id,
@@ -81,7 +83,8 @@ def run_simulation(
             elo=round(float(elo[i]), 1),
             rating=round(float(base[i]), 1),
             value_eur_m=float(values[i]),
-            champion_prob=champions[t.id],
+            champion_prob=reach[t.id]["champion"],
+            reach_probs=reach[t.id],
         )
         for i, t in enumerate(fmt.teams)
     ]
@@ -91,4 +94,6 @@ def run_simulation(
         england=build_england(fmt, result),
         slots=build_slots(fmt, result),
         teams=teams,
+        groups=build_groups(fmt, result),
+        matches=build_matches(fmt, result, played=set(results)),
     )

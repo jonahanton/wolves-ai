@@ -18,7 +18,7 @@ from wolves.agent.memory import RunMemory
 from wolves.agent.sim_runner import EngineSimulation
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FakeFixturesClient
-from wolves.clients.odds import FakeOddsClient
+from wolves.clients.odds import FakeOddsClient, FakePolymarketClient
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb
 from wolves.llm.observed import ObservedLLM
@@ -86,6 +86,7 @@ async def test_full_run(tmp_path: Path):
         llm=ObservedLLM(fake_llm, runtime),
         web=ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient()),
         odds=FakeOddsClient(),
+        polymarket=FakePolymarketClient(),
         fixtures=FakeFixturesClient(),
         sim=EngineSimulation(),
         ledger=EvidenceLedger(tmp_path / "e2e-run" / "ledger.jsonl"),

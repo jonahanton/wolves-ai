@@ -10,7 +10,7 @@ from wolves.agent.memory import RunMemory
 from wolves.agent.researcher import run_researcher
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FakeFixturesClient
-from wolves.clients.odds import FakeOddsClient
+from wolves.clients.odds import FakeOddsClient, FakePolymarketClient
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb
 from wolves.llm.observed import ObservedLLM
@@ -47,6 +47,7 @@ def _deps(tmp_path: Path, llm: ScriptedLLM, *, researcher_budget: int) -> AgentD
         llm=ObservedLLM(llm, runtime),
         web=ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient()),
         odds=FakeOddsClient(),
+        polymarket=FakePolymarketClient(),
         fixtures=FakeFixturesClient(),
         sim=_StubSim(),
         ledger=EvidenceLedger(tmp_path / "ledger.jsonl"),

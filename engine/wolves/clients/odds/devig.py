@@ -72,3 +72,25 @@ def consensus_probabilities(per_book: list[dict[str, float]]) -> dict[str, float
     averaged = {name: _sigmoid(sum(values) / len(values)) for name, values in logits.items()}
     total = sum(averaged.values())
     return {name: p / total for name, p in averaged.items()}
+
+
+def weighted_consensus(legs: list[tuple[dict[str, float], float]]) -> dict[str, float]:
+    """Blend probability legs (e.g. bookmaker consensus and a prediction
+    market) by weighted log-odds average, renormalised to sum to 1.
+
+    Outcomes missing from a leg are skipped for that leg; legs with
+    non-positive weight are ignored entirely.
+    """
+    sums: dict[str, float] = defaultdict(float)
+    weights: dict[str, float] = defaultdict(float)
+    for probs, weight in legs:
+        if weight <= 0.0:
+            continue
+        for name, prob in probs.items():
+            sums[name] += weight * _logit(prob)
+            weights[name] += weight
+    if not sums:
+        return {}
+    averaged = {name: _sigmoid(sums[name] / weights[name]) for name in sums}
+    total = sum(averaged.values())
+    return {name: p / total for name, p in averaged.items()}

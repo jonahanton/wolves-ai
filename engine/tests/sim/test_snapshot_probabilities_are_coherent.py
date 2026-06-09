@@ -2,14 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from wolves.config import Settings
-from wolves.run import generate_snapshot
-
-
-@pytest.fixture(scope="module")
-def snapshot():
-    return generate_snapshot(Settings(), n_sims=2000, seed=42)
-
 
 def test_finish_probabilities_sum_to_one(snapshot):
     assert sum(snapshot.england.finish_probs.values()) == pytest.approx(1.0, abs=0.01)

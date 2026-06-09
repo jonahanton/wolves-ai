@@ -19,6 +19,15 @@ export interface Slot {
 
 export type Finish = "win_group" | "runner_up" | "third";
 
+export interface RoundOpponents {
+  round: string;
+  match: number;
+  city: string;
+  date: string;
+  reach_prob: number;
+  opponents: Candidate[];
+}
+
 export interface EnglandPath {
   finish: Finish;
   prob: number;
@@ -26,6 +35,42 @@ export interface EnglandPath {
   city: string;
   date: string;
   opponents: Candidate[];
+  onward?: RoundOpponents[];
+}
+
+export interface ModalStep {
+  round: string;
+  match: number;
+  city: string;
+  date: string;
+  opponent_id: string;
+  opponent_prob: number;
+}
+
+export interface CityProb {
+  city: string;
+  prob: number;
+}
+
+export interface LockDate {
+  date: string;
+  prob_locked: number;
+  locked_city_probs: Record<string, number>;
+}
+
+export interface WhatIfOutcome {
+  outcome: string;
+  prob: number;
+  finish_probs: Record<string, number>;
+  r32_city_probs: Record<string, number>;
+}
+
+export interface WhatIfFixture {
+  match: number;
+  date: string;
+  city: string;
+  opponent_id: string;
+  outcomes: WhatIfOutcome[];
 }
 
 export interface EnglandBlock {
@@ -34,6 +79,10 @@ export interface EnglandBlock {
   finish_probs: Record<string, number>;
   reach_probs: Record<string, number>;
   paths: EnglandPath[];
+  modal_path?: ModalStep[];
+  city_probs?: Record<string, CityProb[]>;
+  lock_dates?: LockDate[];
+  what_if?: WhatIfFixture[];
 }
 
 export interface RunMeta {
@@ -49,6 +98,36 @@ export interface TeamInfo {
   name: string;
   group: string;
   elo: number;
+  rating?: number;
+  value_eur_m?: number | null;
+  champion_prob?: number;
+  reach_probs?: Record<string, number>;
+}
+
+export interface GroupTeamStanding {
+  team_id: string;
+  finish_probs: Record<string, number>;
+  expected_points: number;
+}
+
+export interface GroupBlock {
+  group: string;
+  teams: GroupTeamStanding[];
+}
+
+export interface MatchProbs {
+  match: number;
+  stage: string;
+  date: string;
+  city: string;
+  home_id: string;
+  away_id: string;
+  p_home: number;
+  p_away: number;
+  p_draw?: number | null;
+  p_decided_90?: number | null;
+  p_pairing?: number | null;
+  modal_score?: string | null;
 }
 
 export interface NarrativeBlock {
@@ -105,6 +184,8 @@ export interface Snapshot {
   england: EnglandBlock;
   slots: Slot[];
   teams: TeamInfo[];
+  groups?: GroupBlock[];
+  matches?: MatchProbs[];
   agent?: AgentBlock | null;
 }
 

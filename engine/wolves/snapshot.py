@@ -94,6 +94,35 @@ class EnglandBlock(BaseModel):
     what_if: list[WhatIfFixture] = Field(default_factory=list)
 
 
+class GroupTeamStanding(BaseModel):
+    team_id: str
+    finish_probs: dict[str, float]
+    expected_points: float
+
+
+class GroupBlock(BaseModel):
+    group: str
+    teams: list[GroupTeamStanding]
+
+
+class MatchProbs(BaseModel):
+    """Forecast for one unplayed fixture. Group probabilities are within 90
+    minutes; knockout figures are conditional on the modal pairing occurring."""
+
+    match: int
+    stage: str
+    date: str
+    city: str
+    home_id: str
+    away_id: str
+    p_home: float
+    p_away: float
+    p_draw: float | None = None
+    p_decided_90: float | None = None
+    p_pairing: float | None = None
+    modal_score: str | None = None
+
+
 class RunMeta(BaseModel):
     run_id: str
     created_at: str
@@ -160,6 +189,7 @@ class TeamInfo(BaseModel):
     rating: float = 0.0
     value_eur_m: float | None = None
     champion_prob: float = 0.0
+    reach_probs: dict[str, float] = Field(default_factory=dict)
 
 
 class Snapshot(BaseModel):
@@ -170,4 +200,6 @@ class Snapshot(BaseModel):
     england: EnglandBlock
     slots: list[Slot]
     teams: list[TeamInfo]
+    groups: list[GroupBlock] = Field(default_factory=list)
+    matches: list[MatchProbs] = Field(default_factory=list)
     agent: AgentBlock | None = None
