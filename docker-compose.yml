@@ -1,0 +1,50 @@
+x-common-config: &common-config
+  env_file:
+    - path: .env
+      required: false
+
+services:
+  engine:
+    extends:
+      file: ./engine/docker-compose-engine.yml
+      service: engine
+    <<: *common-config
+    depends_on:
+      db:
+        condition: service_started
+
+  web:
+    extends:
+      file: ./web/docker-compose-web.yml
+      service: web
+    <<: *common-config
+
+  db:
+    extends:
+      file: ./db/docker-compose-db.yml
+      service: db
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: "dozzle-${WORKSPACE_NAME:-wolves-ai}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "${DOZZLE_PORT:-9999}:8080"
+    environment:
+      - DOZZLE_LEVEL=info
+      - DOZZLE_TAILSIZE=300
+      - DOZZLE_NO_ANALYTICS=true
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  dynamodb-data:
+    name: "${DYNAMO_VOLUME_NAME:-dynamodb-data-wolves-ai}"
+
+networks:
+  app-network:
+    driver: bridge

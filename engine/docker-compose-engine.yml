@@ -1,0 +1,17 @@
+services:
+  engine:
+    container_name: "engine-${WORKSPACE_NAME:-wolves-ai}"
+    build:
+      context: ..
+      dockerfile: engine/Dockerfile
+      target: development
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+      - SNAPSHOT_DIR=/app/runs
+      - DYNAMO_ENDPOINT=http://db:8000
+    volumes:
+      - ..:/app
+      - /app/engine/.venv
+    networks:
+      - app-network
+    restart: "no"

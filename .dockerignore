@@ -1,0 +1,6 @@
+.git
+.venv
+engine/.venv
+web/node_modules
+web/.next
+runs

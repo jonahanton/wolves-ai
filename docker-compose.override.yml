@@ -1,0 +1,12 @@
+services:
+  engine:
+    networks:
+      - app-network
+
+  web:
+    networks:
+      - app-network
+
+  db:
+    networks:
+      - app-network

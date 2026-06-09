@@ -1,0 +1,10 @@
+services:
+  db:
+    image: amazon/dynamodb-local:latest
+    container_name: "db-${WORKSPACE_NAME:-wolves-ai}"
+    restart: unless-stopped
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/home/dynamodblocal/data"]
+    ports:
+      - "${DB_PORT:-8000}:8000"
+    networks:
+      - app-network
