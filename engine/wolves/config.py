@@ -33,7 +33,11 @@ class Settings(BaseSettings):
     data_dir: Path = REPO_ROOT / "data"
     snapshot_dir: Path = REPO_ROOT / "runs"
     n_sims: int = 10_000
+
+    aws_region: str = "eu-west-2"
     dynamo_endpoint: str = ""
+    dynamo_table: str = "wolves-forecaster"
+    snapshot_bucket: str = ""
 
     runs_root: Path = REPO_ROOT / "runs"
     tool_timeout_seconds: float = 30.0

@@ -15,7 +15,7 @@ from wolves.snapshot import RunMeta, Snapshot, TeamInfo
 logger = logging.getLogger(__name__)
 
 
-def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0) -> Snapshot:
+def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id: str | None = None) -> Snapshot:
     """Run the simulation and assemble a snapshot."""
     fmt = load_format(settings.data_dir)
     tsv = sorted((settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
@@ -25,7 +25,7 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0) -> Snap
     now = datetime.now(UTC)
     return Snapshot(
         run=RunMeta(
-            run_id=now.strftime("run-%Y%m%d-%H%M%S"),
+            run_id=run_id or now.strftime("run-%Y%m%d-%H%M%S"),
             created_at=now.isoformat(timespec="seconds"),
             n_sims=n_sims,
             engine_version="0.1.0",
