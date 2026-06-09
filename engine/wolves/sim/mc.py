@@ -4,8 +4,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from wolves.sim.format import GROUPS, FormatData
-from wolves.sim.match import expected_score, simulate_goals
+from wolves.sim.elo import rating_delta
+from wolves.sim.format import GROUPS, FormatData, GroupMatch, PlayedResult
+from wolves.sim.match import STAGE_GAP_MULT, goal_means, knockout_home_wins, simulate_goals
+from wolves.sim.tiebreaks import rank_group, rank_thirds
+from wolves.sim.venues import venue_bonus_table
+
+RATING_SIGMA = 35.0
+MIN_GOAL_MEAN_AFTER_OFFSET = 0.05
 
 
 class ThirdsAllocationError(Exception):
@@ -19,6 +25,7 @@ class SimResult:
     n_sims: int
     rank_in_group: np.ndarray
     third_qualified: np.ndarray
+    group_goals: dict[int, tuple[np.ndarray, np.ndarray]]
     ko_home: dict[int, np.ndarray]
     ko_away: dict[int, np.ndarray]
     ko_winner: dict[int, np.ndarray]
@@ -48,33 +55,71 @@ def allocate_thirds(qualified: frozenset[int], slot_elig: list[tuple[int, list[i
     return assignment if backtrack(0) else None
 
 
-def run_tournament(fmt: FormatData, ratings: np.ndarray, *, n_sims: int, seed: int = 0) -> SimResult:
-    """Vectorised Monte Carlo over the exact 2026 format with M0 simplifications.
-
-    Simplifications vs the full model (WS-A): no head-to-head or fair-play
-    tiebreaks (random in their place), no hot rating updates, single fixed
-    goal budget, extra time folded into one Elo-weighted draw resolution.
-    """
+def run_tournament(
+    fmt: FormatData,
+    base_ratings: np.ndarray,
+    *,
+    n_sims: int,
+    seed: int = 0,
+    rating_sigma: float = RATING_SIGMA,
+    results: dict[int, PlayedResult] | None = None,
+    fixture_goal_offsets: dict[int, tuple[float, float]] | None = None,
+) -> SimResult:
+    """Vectorised Monte Carlo over the exact 2026 format with hot in-sim Elo updates."""
     rng = np.random.default_rng(seed)
     idx = fmt.team_index()
     members = fmt.group_members()
     n_teams = len(fmt.teams)
+    played = results or {}
+    offsets = fixture_goal_offsets or {}
+    bonus = venue_bonus_table(fmt)
+    sims = np.arange(n_sims)
+
+    ratings = base_ratings[:, None] + rng.normal(0.0, rating_sigma, (n_teams, n_sims))
+
+    def match_lambdas(
+        home: np.ndarray, away: np.ndarray, city: str, stage: str, match: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        diff = STAGE_GAP_MULT[stage] * (ratings[home, sims] - ratings[away, sims]) + (
+            bonus[city][home] - bonus[city][away]
+        )
+        lam_h, lam_a = goal_means(diff)
+        if match in offsets:
+            off_h, off_a = offsets[match]
+            lam_h = np.maximum(lam_h + off_h, MIN_GOAL_MEAN_AFTER_OFFSET)
+            lam_a = np.maximum(lam_a + off_a, MIN_GOAL_MEAN_AFTER_OFFSET)
+        return diff, lam_h, lam_a
 
     pts = np.zeros((n_teams, n_sims), dtype=np.int32)
     gf = np.zeros((n_teams, n_sims), dtype=np.int32)
     ga = np.zeros((n_teams, n_sims), dtype=np.int32)
+    group_goals: dict[int, tuple[np.ndarray, np.ndarray]] = {}
 
-    for m in fmt.group_matches:
+    for m in sorted(fmt.group_matches, key=lambda m: m.date):
         hi, ai = idx[m.home], idx[m.away]
-        hg, ag = simulate_goals(rng, ratings[hi], ratings[ai], n_sims)
+        diff, lam_h, lam_a = match_lambdas(np.full(n_sims, hi), np.full(n_sims, ai), m.city, "group", m.match)
+        if m.match in played:
+            r = played[m.match]
+            hg = np.full(n_sims, r.home_goals, dtype=np.int16)
+            ag = np.full(n_sims, r.away_goals, dtype=np.int16)
+        else:
+            hg_raw, ag_raw = simulate_goals(rng, lam_h, lam_a)
+            hg, ag = hg_raw.astype(np.int16), ag_raw.astype(np.int16)
+        group_goals[m.match] = (hg, ag)
         pts[hi] += np.where(hg > ag, 3, np.where(hg == ag, 1, 0))
         pts[ai] += np.where(ag > hg, 3, np.where(hg == ag, 1, 0))
         gf[hi] += hg
         ga[hi] += ag
         gf[ai] += ag
         ga[ai] += hg
+        delta = rating_delta(diff, hg, ag, stage="group")
+        ratings[hi] += delta
+        ratings[ai] -= delta
 
-    sims = np.arange(n_sims)
+    matches_by_group: dict[str, list[GroupMatch]] = {g: [] for g in GROUPS}
+    for m in fmt.group_matches:
+        matches_by_group[m.group].append(m)
+
     rank_in_group = np.zeros((n_teams, n_sims), dtype=np.int8)
     winner = np.zeros((12, n_sims), dtype=np.int32)
     runner = np.zeros((12, n_sims), dtype=np.int32)
@@ -85,8 +130,21 @@ def run_tournament(fmt: FormatData, ratings: np.ndarray, *, n_sims: int, seed: i
 
     for g_i, g in enumerate(GROUPS):
         tidx = np.array(members[g])
+        local = {t: k for k, t in enumerate(tidx)}
+        h2h_pts = np.zeros((4, 4, n_sims), dtype=np.int16)
+        h2h_gd = np.zeros((4, 4, n_sims), dtype=np.int16)
+        h2h_gf = np.zeros((4, 4, n_sims), dtype=np.int16)
+        for m in matches_by_group[g]:
+            i, j = local[idx[m.home]], local[idx[m.away]]
+            hg, ag = group_goals[m.match]
+            h2h_pts[i, j] += np.where(hg > ag, 3, np.where(hg == ag, 1, 0)).astype(np.int16)
+            h2h_pts[j, i] += np.where(ag > hg, 3, np.where(hg == ag, 1, 0)).astype(np.int16)
+            h2h_gd[i, j] += hg - ag
+            h2h_gd[j, i] += ag - hg
+            h2h_gf[i, j] += hg
+            h2h_gf[j, i] += ag
         p, f, a = pts[tidx], gf[tidx], ga[tidx]
-        order = np.lexsort((rng.random((4, n_sims)), f, f - a, p), axis=0)
+        order = rank_group(rng, p, f - a, f, h2h_pts, h2h_gd, h2h_gf)
         for k in range(4):
             rank_in_group[tidx[order[3 - k]], sims] = k
         winner[g_i] = tidx[order[3]]
@@ -97,7 +155,7 @@ def run_tournament(fmt: FormatData, ratings: np.ndarray, *, n_sims: int, seed: i
         third_gd[g_i] = (f - a)[third_local, sims]
         third_gf[g_i] = f[third_local, sims]
 
-    order = np.lexsort((rng.random((12, n_sims)), third_gf, third_gd, third_pts), axis=0)
+    order = rank_thirds(rng, third_pts, third_gd, third_gf)
     third_qualified = np.zeros((12, n_sims), dtype=bool)
     third_qualified[order[4:], sims] = True
 
@@ -133,8 +191,22 @@ def run_tournament(fmt: FormatData, ratings: np.ndarray, *, n_sims: int, seed: i
     for m in sorted(fmt.knockout, key=lambda m: m.match):
         h = resolve(m.home, m.match)
         a = resolve(m.away, m.match)
-        hg, ag2 = simulate_goals(rng, ratings[h], ratings[a], n_sims)
-        home_wins = np.where(hg == ag2, rng.random(n_sims) < expected_score(ratings[h], ratings[a]), hg > ag2)
+        diff, lam_h, lam_a = match_lambdas(h, a, m.city, "knockout", m.match)
+        if m.match in played:
+            r = played[m.match]
+            hg = np.full(n_sims, r.home_goals, dtype=np.int16)
+            ag = np.full(n_sims, r.away_goals, dtype=np.int16)
+            home_wins = (h == idx[r.winner]) if r.winner is not None else np.repeat(hg[0] > ag[0], n_sims)
+        else:
+            hg_raw, ag_raw = simulate_goals(rng, lam_h, lam_a)
+            hg, ag = hg_raw.astype(np.int16), ag_raw.astype(np.int16)
+            home_wins = knockout_home_wins(rng, diff, hg, ag)
+        # A tie decided after a level 90 minutes updates ratings as a one-goal win.
+        elo_hg = np.where(hg == ag, hg + home_wins, hg)
+        elo_ag = np.where(hg == ag, ag + ~home_wins, ag)
+        delta = rating_delta(diff, elo_hg, elo_ag, stage="knockout")
+        ratings[h, sims] += delta
+        ratings[a, sims] -= delta
         ko_home[m.match] = h
         ko_away[m.match] = a
         ko_winner[m.match] = np.where(home_wins, h, a)
@@ -144,6 +216,7 @@ def run_tournament(fmt: FormatData, ratings: np.ndarray, *, n_sims: int, seed: i
         n_sims=n_sims,
         rank_in_group=rank_in_group,
         third_qualified=third_qualified,
+        group_goals=group_goals,
         ko_home=ko_home,
         ko_away=ko_away,
         ko_winner=ko_winner,
