@@ -1,7 +1,8 @@
+import { slotRationale } from "@/lib/agent-fields";
 import { englandSpine } from "@/lib/bracket";
 import { formatMatchDate } from "@/lib/format";
 import type { Finish, Snapshot } from "@/lib/snapshot";
-import { venueTraits, type VenueTraits } from "@/lib/venues";
+import { venueLine } from "@/lib/venues";
 
 const STAGE_LABELS: Record<string, string> = {
   r32: "Last 32",
@@ -26,9 +27,11 @@ export interface OpponentView {
 export interface SpineStageView {
   stage: string;
   stageLabel: string;
+  match: number;
   city: string;
+  venueLabel: string | null;
   dateLabel: string;
-  traits: VenueTraits;
+  rationale: string | null;
   opponents: OpponentView[];
   moreCount: number;
 }
@@ -56,9 +59,11 @@ export function buildSpineViews(snapshot: Snapshot, names: Map<string, string>):
     stages: englandSpine(snapshot, path.finish).map((stage) => ({
       stage: stage.stage,
       stageLabel: STAGE_LABELS[stage.stage] ?? stage.stage,
+      match: stage.match,
       city: stage.city,
+      venueLabel: venueLine(stage.city),
       dateLabel: formatMatchDate(stage.date),
-      traits: venueTraits(stage.city),
+      rationale: slotRationale(snapshot, stage.match),
       opponents: stage.opponents.slice(0, 3).map((c) => ({
         teamId: c.team_id,
         name: names.get(c.team_id) ?? c.team_id,

@@ -1,6 +1,7 @@
 import { PathSpine } from "@/components/path/path-spine";
 import { TravelForkCard } from "@/components/path/travel-fork-card";
 import { PageHeader } from "@/components/shell/page-header";
+import { travelMemo } from "@/lib/agent-fields";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { teamNames } from "@/lib/snapshot";
 import { buildSpineViews } from "@/lib/spine-view";
@@ -14,7 +15,7 @@ export default async function PathPage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 p-4">
       <PageHeader title="Path" subtitle="England's route through the knockouts" />
-      <TravelForkCard england={snapshot.england} />
+      <TravelForkCard england={snapshot.england} memo={travelMemo(snapshot)} />
       <PathSpine views={views} />
     </main>
   );

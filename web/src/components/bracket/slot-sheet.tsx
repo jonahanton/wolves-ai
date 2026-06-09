@@ -1,5 +1,4 @@
 import { ProbBar } from "@/components/charts/prob-bar";
-import { VenueChips } from "@/components/path/venue-chips";
 import { BottomSheet } from "@/components/ui/sheet";
 import type { SideView, SlotView } from "@/lib/bracket-view";
 
@@ -34,17 +33,21 @@ export function SlotSheet({ slot, onClose }: SlotSheetProps) {
     >
       {slot && (
         <div className="pb-2">
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {slot.city} &middot; {slot.dateLabel}
-            <VenueChips traits={slot.traits} />
+            {slot.venueLabel && <span className="block">{slot.venueLabel}</span>}
           </p>
           <div className="mt-1 divide-y">
             <SideDistribution side={slot.home} />
             <SideDistribution side={slot.away} />
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Probabilities are how often each team lands here across the latest simulation run. The agent&apos;s
-            per-slot reasoning arrives with the daily runs.
+          <p className="mt-1 border-t border-dashed pt-3 text-sm">
+            {slot.rationale ?? (
+              <span className="text-xs text-muted-foreground">
+                Probabilities are how often each team lands here across the latest simulation run. The
+                agent&apos;s read on this tie lands with the daily run.
+              </span>
+            )}
           </p>
         </div>
       )}

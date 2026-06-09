@@ -50,6 +50,11 @@ export function SlotCard({ slot, onSelect }: SlotCardProps) {
         <Side side={slot.home} />
         <Side side={slot.away} />
       </div>
+      {slot.rationale && (
+        <p className="mt-2 line-clamp-2 border-t border-dashed pt-2 text-xs text-muted-foreground">
+          {slot.rationale}
+        </p>
+      )}
     </button>
   );
 }

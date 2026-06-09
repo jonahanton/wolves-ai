@@ -3,6 +3,7 @@ import { FinishSummary } from "@/components/today/finish-summary";
 import { NextFixtureCard } from "@/components/today/next-fixture-card";
 import { RunHeader } from "@/components/today/run-header";
 import { WhatMoved } from "@/components/today/what-moved";
+import { englandStory } from "@/lib/agent-fields";
 import { summariseSnapshot } from "@/lib/derive";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { nextEnglandFixture } from "@/lib/schedule";
@@ -22,7 +23,7 @@ export default async function TodayPage() {
       <WhatMoved summary={summariseSnapshot(snapshot)} />
       {fixture && <NextFixtureCard fixture={fixture} names={names} />}
       <FinishSummary england={snapshot.england} />
-      <DailyStory />
+      <DailyStory story={englandStory(snapshot)} />
     </main>
   );
 }
