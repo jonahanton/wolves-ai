@@ -4,13 +4,12 @@ import type { SpineStageView } from "@/lib/spine-view";
 
 interface SpineCardProps {
   stage: SpineStageView;
-  tilt: "l" | "r";
   featured?: boolean;
 }
 
-export function SpineCard({ stage, tilt, featured = false }: SpineCardProps) {
+export function SpineCard({ stage, featured = false }: SpineCardProps) {
   return (
-    <article className={`sticker p-3.5 sticker-tilt-${tilt} ${featured ? "foil" : ""}`}>
+    <article className={`sticker p-3.5 ${featured ? "foil" : ""}`}>
       <header className="flex items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">{stage.stageLabel}</h3>
         <span className="text-xs text-muted-foreground">

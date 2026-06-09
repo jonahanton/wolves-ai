@@ -184,14 +184,6 @@
   pointer-events: none;
 }
 
-.sticker-tilt-l {
-  rotate: -1.1deg;
-}
-
-.sticker-tilt-r {
-  rotate: 0.9deg;
-}
-
 @keyframes foil-sweep {
   0%,
   55% {

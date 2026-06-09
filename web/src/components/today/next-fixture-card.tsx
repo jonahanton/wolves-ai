@@ -10,7 +10,7 @@ export function NextFixtureCard({ fixture, names }: NextFixtureCardProps) {
   const home = names.get(fixture.home) ?? fixture.home;
   const away = names.get(fixture.away) ?? fixture.away;
   return (
-    <section className="sticker foil sticker-tilt-l p-4" aria-label="England's next fixture">
+    <section className="sticker foil p-4" aria-label="England's next fixture">
       <p className="text-[11px] font-semibold tracking-widest text-gold uppercase">Next for England</p>
       <p className="mt-1.5 text-lg font-semibold tracking-tight">
         {home} <span className="text-muted-foreground">v</span> {away}
