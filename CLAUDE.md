@@ -19,6 +19,8 @@ British English. No em-dashes anywhere: code, prose, commits, UI copy, generated
 
 Comments are rare and only state a why the code cannot: a contract, race, platform quirk, or deliberate decision. Never narrate structure or what a line does. Same rule in configs. If a comment explains what the next line does, delete it.
 
+Comments and docstrings never reference plan phases, milestones, or workstreams (M0, WS-A, "Phase 2 adds..."). Code describes itself as it is; the plan lives in the plan note.
+
 Small focused files. Logic lives in pure modules, not in entrypoints or components. Name things so comments are unnecessary. No dead code, no commented-out code, no speculative abstractions or options nobody asked for.
 
 ### Python (engine/)

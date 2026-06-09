@@ -49,11 +49,11 @@ def allocate_thirds(qualified: frozenset[int], slot_elig: list[tuple[int, list[i
 
 
 def run_tournament(fmt: FormatData, ratings: np.ndarray, *, n_sims: int, seed: int = 0) -> SimResult:
-    """Vectorised Monte Carlo over the exact 2026 format with M0 simplifications.
+    """Vectorised Monte Carlo over the exact 2026 format.
 
-    Simplifications vs the full model (WS-A): no head-to-head or fair-play
-    tiebreaks (random in their place), no hot rating updates, single fixed
-    goal budget, extra time folded into one Elo-weighted draw resolution.
+    Known simplifications: no head-to-head or fair-play tiebreaks (random in
+    their place), no hot rating updates, single fixed goal budget, extra time
+    folded into one Elo-weighted draw resolution.
     """
     rng = np.random.default_rng(seed)
     idx = fmt.team_index()

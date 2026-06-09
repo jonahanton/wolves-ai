@@ -11,7 +11,7 @@ def expected_score(elo_a: np.ndarray, elo_b: np.ndarray) -> np.ndarray:
 
 
 def goal_means(elo_a: np.ndarray, elo_b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Split a fixed goal budget by Elo expectancy; the M0 model, replaced in WS-A."""
+    """Split a fixed goal budget by Elo expectancy."""
     w = expected_score(elo_a, elo_b)
     return TOTAL_GOALS * w, TOTAL_GOALS * (1.0 - w)
 
