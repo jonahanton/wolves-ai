@@ -1,0 +1,21 @@
+# Secrets
+.env
+.env.worktree
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+
+# OS / editor
+.DS_Store
+
+# Run artefacts
+runs/
