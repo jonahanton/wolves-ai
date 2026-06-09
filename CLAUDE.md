@@ -23,6 +23,8 @@ Comments and docstrings never reference plan phases, milestones, or workstreams 
 
 Small focused files. Logic lives in pure modules, not in entrypoints or components. Name things so comments are unnecessary. No dead code, no commented-out code, no speculative abstractions or options nobody asked for.
 
+When a change supersedes something, delete the superseded thing in the same change: interim scaffolding, parallel implementations, unused vendored modules, settings nobody reads. Every merge leaves the tree simpler than it found it.
+
 ### Python (engine/)
 
 - `from __future__ import annotations`; modern typing (`int | None`, PEP 695 generics, no `typing.Optional`); keyword-only options (`*,`); async throughout; fully typed public signatures.
