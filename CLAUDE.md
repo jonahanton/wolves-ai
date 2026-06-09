@@ -15,7 +15,7 @@ World Cup 2026 forecasting app.
 
 ## Style
 
-British English. No em-dashes anywhere: code, prose, commits, UI copy, generated narrative.
+British English. No em-dashes anywhere: code, prose, commits, UI copy, generated narrative. Code is required to be very high quality and well structured. Extendable and maintainable.
 
 Comments are rare and only state a why the code cannot: a contract, race, platform quirk, or deliberate decision. Never narrate structure or what a line does. Same rule in configs. If a comment explains what the next line does, delete it.
 
