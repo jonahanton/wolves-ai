@@ -22,6 +22,9 @@ format:
 test:
 	cd engine && .venv/bin/pytest tests/ -q
 
+release:
+	@scripts/release.sh $(env)
+
 db/init:
 	cd engine && \
 	AWS_ACCESS_KEY_ID=$${AWS_ACCESS_KEY_ID:-local} AWS_SECRET_ACCESS_KEY=$${AWS_SECRET_ACCESS_KEY:-local} \
