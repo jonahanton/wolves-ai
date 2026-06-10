@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     anthropic_max_retries: int = 5
     smart_model: str = "claude-opus-4-8"
     fast_model: str = "claude-sonnet-4-6"
-    worker_model: str = "claude-haiku-4-5"
+    worker_model: str = "claude-sonnet-4-6"
 
     brave_api_key: str = ""
     exa_api_key: str = ""
