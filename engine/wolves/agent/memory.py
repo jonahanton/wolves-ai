@@ -39,9 +39,7 @@ class RunMemory:
         if not text.strip():
             return
         self.lessons_path.parent.mkdir(parents=True, exist_ok=True)
-        lesson = Lesson(
-            date=datetime.now(UTC).strftime("%Y-%m-%d"), run_id=self.run_id, scope=scope, text=text.strip()
-        )
+        lesson = Lesson(date=datetime.now(UTC).strftime("%Y-%m-%d"), run_id=self.run_id, scope=scope, text=text.strip())
         with self.lessons_path.open("a", encoding="utf-8") as handle:
             handle.write(lesson.model_dump_json() + "\n")
 
@@ -61,11 +59,7 @@ class RunMemory:
     def read_latest_journal(self) -> str | None:
         """Return the most recent journal from a previous run, if any."""
         candidates = sorted(
-            (
-                p
-                for p in (self.runs_root / "runs").glob(f"*/{_JOURNAL_NAME}")
-                if p.parent.name != self.run_id
-            ),
+            (p for p in (self.runs_root / "runs").glob(f"*/{_JOURNAL_NAME}") if p.parent.name != self.run_id),
             key=lambda p: p.parent.name,
         )
         if not candidates:
