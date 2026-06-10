@@ -1,10 +1,4 @@
-"""Agent-mode runner.
-
-``python -m wolves.run_agent --dev`` runs the full graph offline: scripted
-models, fixture-backed clients, in-memory tracer, $0 spend. ``--live``
-refuses to run unless ANTHROPIC_API_KEY is set and ``--confirm-spend`` is
-passed with a per-run dollar ceiling, enforced as a hard cap in the runtime.
-"""
+"""Agent runner: --dev is offline and $0; --live meters real APIs behind --confirm-spend."""
 
 from __future__ import annotations
 
@@ -39,7 +33,6 @@ from wolves.clients.odds import (
     PolymarketClient,
     TheOddsApiClient,
 )
-from wolves.clients.s3 import S3UnavailableError
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
 from wolves.graph.contracts import Brief, ForecastOutput, LedgerEvidence, ResearchOutput, WavePlan
@@ -58,6 +51,10 @@ from wolves.observability import (
     configure_cli_logging,
 )
 from wolves.quant.observed import ObservedQuant
+from wolves.s3.agent_state import build_agent_state_store
+from wolves.s3.client import S3UnavailableError
+from wolves.s3.layout import run_dir
+from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import FormatData, load_format
 from wolves.sim.ratings import load_elo_ratings
 from wolves.snapshot import (
@@ -71,8 +68,6 @@ from wolves.snapshot import (
     Snapshot,
     TeamInfo,
 )
-from wolves.store.agent_state import build_agent_state_store
-from wolves.store.publish import SnapshotPublisher
 from wolves.tools._budget_gate import BudgetGate
 
 logger = logging.getLogger(__name__)
@@ -215,7 +210,7 @@ def _build_deps(
         polymarket=polymarket,
         fixtures=fixtures,
         sim=EngineSimulation(),
-        ledger=EvidenceLedger(settings.runs_root / run_id / "ledger.jsonl"),
+        ledger=EvidenceLedger(run_dir(settings.runs_root, run_id) / "ledger.jsonl"),
         memory=RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path),
         quant=ObservedQuant(runtime),
         gate=BudgetGate(),

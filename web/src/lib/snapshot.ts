@@ -181,7 +181,7 @@ export interface AgentBlock {
 export interface ChampionBlock {
   id: string;
   version: string;
-  dataset_version: string;
+  dataset_id: string;
   half_life_days?: number | null;
   blend_weight?: number;
 }

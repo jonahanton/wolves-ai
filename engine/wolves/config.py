@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from wolves.s3.layout import BUCKET_DEV, CALIBRATION, LESSONS, StorageMode
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -35,8 +37,8 @@ class Settings(BaseSettings):
     aws_region: str = "eu-west-2"
     dynamo_endpoint: str = ""
     dynamo_table: str = "wolves-forecaster"
-    bucket: str = "wolves-superforecaster-dev"
-    storage_mode: str = "both"
+    bucket: str = BUCKET_DEV
+    storage_mode: StorageMode = "both"
 
     runs_root: Path = REPO_ROOT / "runs"
     tool_timeout_seconds: float = 30.0
@@ -68,11 +70,11 @@ class Settings(BaseSettings):
 
     @property
     def lessons_path(self) -> Path:
-        return self.runs_root / "agent-state" / "lessons.jsonl"
+        return self.runs_root / LESSONS.key()
 
     @property
     def calibration_path(self) -> Path:
-        return self.runs_root / "agent-state" / "calibration.jsonl"
+        return self.runs_root / CALIBRATION.key()
 
 
 @lru_cache

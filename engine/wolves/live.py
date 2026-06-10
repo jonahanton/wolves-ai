@@ -18,11 +18,11 @@ from wolves import ENGINE_VERSION
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
 from wolves.config import Settings
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
 from wolves.sim.format import PlayedResult, load_format, load_results
 from wolves.sim.overlay import results_from_fixtures
 from wolves.snapshot import RunMeta, Snapshot
-from wolves.store.publish import SnapshotPublisher
 
 logger = logging.getLogger(__name__)
 

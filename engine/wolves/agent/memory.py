@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from wolves.s3.layout import run_dir
+
 _JOURNAL_NAME = "journal.md"
 LESSONS_SHOWN = 25
 
@@ -14,12 +16,6 @@ class Lesson(BaseModel):
     run_id: str
     scope: str
     text: str
-
-
-def run_dir(runs_root: Path, run_id: str) -> Path:
-    """Per-run artifact directory; runs/ nests under the mirror root so the
-    local tree matches the bucket key space exactly."""
-    return runs_root / "runs" / run_id
 
 
 class RunMemory:

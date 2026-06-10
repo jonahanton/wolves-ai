@@ -1,6 +1,4 @@
-"""Champion registry: the single record deciding which model produces
-published numbers. Lives in S3 beside the agent state, cached locally so dev
-and CI work offline; nothing outside this module decides what ships."""
+"""The single record deciding which model produces published numbers."""
 
 from __future__ import annotations
 
@@ -11,11 +9,11 @@ from pydantic import BaseModel, ConfigDict
 
 from wolves.config import Settings
 from wolves.gate.encompassing import EncompassingResult
-from wolves.store.artifacts import ArtifactStore
+from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.layout import CHAMPION
 
 logger = logging.getLogger(__name__)
 
-CHAMPION_KEY = "models/champion.json"
 ELO_CHAMPION_ID = "elo-baseline"
 
 
@@ -49,13 +47,13 @@ class ChampionRegistry:
         self._artifacts = ArtifactStore(settings)
 
     def load(self) -> ChampionRecord:
-        body = self._artifacts.get_text(CHAMPION_KEY, prefer="s3")
+        body = self._artifacts.get(CHAMPION)
         if body is not None:
             return ChampionRecord.model_validate_json(body)
         logger.info("no champion record found; using the Elo baseline")
         return elo_baseline()
 
     def promote(self, record: ChampionRecord) -> Path:
-        self._artifacts.put_text(CHAMPION_KEY, record.model_dump_json(indent=2))
+        key = self._artifacts.put(CHAMPION, record.model_dump_json(indent=2))
         logger.info("champion %s@%s promoted", record.model_id, record.model_version)
-        return self._artifacts.local_path(CHAMPION_KEY)
+        return self._artifacts.local_path(key)

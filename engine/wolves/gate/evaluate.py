@@ -1,5 +1,4 @@
-"""Run the gate: leak-free per-fold fits, encompassing test against the
-de-vigged market, and (with --promote) a champion record write."""
+"""Gate evaluation: leak-free fits and the encompassing test against the market."""
 
 from __future__ import annotations
 

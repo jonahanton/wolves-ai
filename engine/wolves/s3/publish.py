@@ -1,9 +1,4 @@
-"""Snapshot publication shared by the scheduled entrypoints: local files for
-dev parity, S3 for the site, the run index for ops. Defence in depth on the
-kill switch: the EventBridge schedule state is the primary switch and the
-run_enabled control item is re-checked here so an in-flight schedule change
-still stops the run. An unreachable table must not block local dev, so it
-downgrades to a warning."""
+"""Snapshot publication, re-checking the kill switch; an unreachable index degrades to a warning."""
 
 from __future__ import annotations
 
@@ -11,9 +6,10 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from wolves.store.artifacts import ArtifactStore
-from wolves.store.records import RunRecord, RunStatus
-from wolves.store.store import RunIndex, RunIndexUnavailableError, SnapshotStore
+from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.index import RunIndex, RunIndexUnavailableError
+from wolves.s3.records import RunRecord, RunStatus
+from wolves.s3.snapshots import SnapshotStore
 
 if TYPE_CHECKING:
     from datetime import date

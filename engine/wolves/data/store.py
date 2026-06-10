@@ -1,7 +1,4 @@
-"""Dataset distribution. A dataset's identity is a digest of its source
-hashes, so identical inputs rebuild to the same id and any source change mints
-a new one; nobody hand-bumps versions. datasets/latest.json points at the id
-runs should use unless they pin one."""
+"""Dataset distribution; ids are digests of source hashes, never hand-bumped versions."""
 
 from __future__ import annotations
 
@@ -13,12 +10,10 @@ from pydantic import BaseModel
 
 from wolves.config import Settings
 from wolves.data.contracts import DatasetManifest
-from wolves.store.artifacts import ArtifactStore
+from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.layout import DATASET, DATASET_LATEST, DATASET_MANIFEST
 
 logger = logging.getLogger(__name__)
-
-PREFIX = "datasets"
-LATEST_KEY = f"{PREFIX}/latest.json"
 
 
 class DatasetNotFoundError(Exception):
@@ -41,7 +36,7 @@ def dataset_id_from_hashes(source_hashes: dict[str, str]) -> str:
 
 
 def dataset_filename(dataset_id: str) -> str:
-    return f"wolves-data-{dataset_id}.duckdb"
+    return Path(DATASET.key(dataset_id=dataset_id)).name
 
 
 class DatasetStore:
@@ -50,17 +45,17 @@ class DatasetStore:
 
     def publish(self, out_dir: Path, manifest: DatasetManifest) -> str:
         """Persist the built DuckDB, its manifest and the latest pointer."""
-        filename = dataset_filename(manifest.dataset_id)
-        key = f"{PREFIX}/{filename}"
-        self._artifacts.put_bytes(key, (out_dir / filename).read_bytes())
-        self._artifacts.put_text(f"{key}.manifest.json", manifest.model_dump_json(indent=2))
-        pointer = LatestPointer(dataset_id=manifest.dataset_id, built_at=manifest.built_at, tables=manifest.tables)
-        self._artifacts.put_text(LATEST_KEY, pointer.model_dump_json(indent=2))
-        logger.info("published dataset %s", manifest.dataset_id)
+        dataset_id = manifest.dataset_id
+        db_bytes = (out_dir / dataset_filename(dataset_id)).read_bytes()
+        key = self._artifacts.put(DATASET, db_bytes, dataset_id=dataset_id)
+        self._artifacts.put(DATASET_MANIFEST, manifest.model_dump_json(indent=2), dataset_id=dataset_id)
+        pointer = LatestPointer(dataset_id=dataset_id, built_at=manifest.built_at, tables=manifest.tables)
+        self._artifacts.put(DATASET_LATEST, pointer.model_dump_json(indent=2))
+        logger.info("published dataset %s", dataset_id)
         return key
 
     def latest_id(self) -> str | None:
-        body = self._artifacts.get_text(LATEST_KEY, prefer="s3")
+        body = self._artifacts.get(DATASET_LATEST)
         return LatestPointer.model_validate_json(body).dataset_id if body else None
 
     def fetch(self, *, dataset_id: str | None = None) -> tuple[Path, DatasetManifest]:
@@ -68,12 +63,11 @@ class DatasetStore:
         resolved = dataset_id or self.latest_id()
         if resolved is None:
             raise DatasetNotFoundError("latest")
-        filename = dataset_filename(resolved)
-        body = self._artifacts.get_bytes(f"{PREFIX}/{filename}")
-        manifest_text = self._artifacts.get_text(f"{PREFIX}/{filename}.manifest.json")
+        body = self._artifacts.get_binary(DATASET, dataset_id=resolved)
+        manifest_text = self._artifacts.get(DATASET_MANIFEST, dataset_id=resolved)
         if body is None or manifest_text is None:
             raise DatasetNotFoundError(resolved)
-        path = self._artifacts.local_path(f"{PREFIX}/{filename}")
+        path = self._artifacts.local_path(DATASET.key(dataset_id=resolved))
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)

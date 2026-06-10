@@ -1,5 +1,4 @@
-"""Build the research dataset: one DuckDB file plus parquet mirrors, named by
-a digest of its source hashes so runs pin exactly what they fitted on."""
+"""Build the research dataset: one DuckDB file plus parquet mirrors."""
 
 from __future__ import annotations
 
@@ -23,6 +22,8 @@ from wolves.data.sources.market_closes import ClosingOddsRecord, OutrightCloseRe
 from wolves.data.sources.registry import build_team_dimension
 from wolves.data.store import DatasetStore, dataset_filename, dataset_id_from_hashes
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.layout import ODDS_CLOSE
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ async def build_dataset(settings: Settings, *, out_dir: Path) -> DatasetManifest
     elo_tsv = latest_elo_tsv(settings.data_dir / "ratings")
     teams = build_team_dimension(settings.data_dir, elo_tsv=elo_tsv, matches=matches)
     closes_dir = settings.data_dir / "odds"
-    market_closes.restore_closes_from_s3(settings, closes_dir)
+    ArtifactStore(settings).sync_down(prefix=ODDS_CLOSE.prefix, into=closes_dir)
     closes, outright_closes = market_closes.load_closes(closes_dir)
     elo_years = elo_history.load_elo_history(settings.data_dir / "ratings")
 

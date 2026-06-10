@@ -9,6 +9,7 @@ from typing import Any
 from wolves.observability.budget import BudgetState, Caps
 from wolves.observability.events import EventLog
 from wolves.observability.tracer import SpanHandle, Tracer
+from wolves.s3.layout import run_dir
 
 # Semantic observation types carried as span attributes so the trace UI can
 # distinguish agent turns, generations, retrievals and tool calls.
@@ -42,7 +43,7 @@ class RunPaths:
 
     @classmethod
     def for_run(cls, runs_root: Path, run_id: str) -> RunPaths:
-        root = runs_root / run_id
+        root = run_dir(runs_root, run_id)
         workspace = root / "workspace"
         for sub in ("raw", "derived", "models", "quant"):
             (workspace / sub).mkdir(parents=True, exist_ok=True)

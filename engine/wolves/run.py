@@ -16,9 +16,9 @@ from wolves.gate.registry import ELO_CHAMPION_ID
 from wolves.markets.blend import blend_probabilities
 from wolves.markets.outright import build_clients, outright_consensus
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
 from wolves.snapshot import ChampionBlock, MarketsBlock, RunMeta, Snapshot, TeamInterval
-from wolves.store.publish import SnapshotPublisher
 
 logger = logging.getLogger(__name__)
 

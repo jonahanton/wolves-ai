@@ -114,7 +114,7 @@ async def test_full_graph_run(tmp_path: Path):
 
     assert deps.ledger.get("led-0001") is not None
     assert "Anchor on odds" in deps.settings.lessons_path.read_text()
-    assert (tmp_path / "e2e-run" / "journal.md").exists()
+    assert (tmp_path / "runs" / "e2e-run" / "journal.md").exists()
 
     events = EventLog.read(deps.runtime.paths.events)
     kinds = {e.kind for e in events}
