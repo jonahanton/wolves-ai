@@ -10,7 +10,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime
 
 import numpy as np
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from wolves.config import Settings
 from wolves.data.contracts import MatchRecord
@@ -49,25 +49,44 @@ class _Perturbation(BaseModel):
         return self.expires is None or on <= self.expires
 
 
+class DeltaDistribution(BaseModel):
+    """A parameter delta whose magnitude is itself uncertain: Normal(mean, sd).
+
+    The simulator integrates it by inflating the parameter covariance, so each
+    sim world draws its own magnitude; fixture-level calls (score_grid,
+    match_probs) price the mean only."""
+
+    mean: float
+    sd: float = Field(ge=0.0)
+
+
+def _delta_mean(delta: float | DeltaDistribution) -> float:
+    return delta.mean if isinstance(delta, DeltaDistribution) else delta
+
+
+def _delta_var(delta: float | DeltaDistribution) -> float:
+    return delta.sd**2 if isinstance(delta, DeltaDistribution) else 0.0
+
+
 class StrengthPerturbation(_Perturbation):
     """Shift one team's ability, in strength units (log goal-rate scale).
     Calibration: top teams sit ~0.05 apart and 0.1 moves a favourite ~4pp of
     title probability; deltas beyond +/-0.3 imply a different team entirely."""
 
     team: str
-    delta: float
+    delta: float | DeltaDistribution
 
 
 class TempoPerturbation(_Perturbation):
     """Shift the tournament-wide scoring intercept (log goals per side)."""
 
-    delta: float
+    delta: float | DeltaDistribution
 
 
 class HomeAdvantagePerturbation(_Perturbation):
     """Shift the host home-advantage term."""
 
-    delta: float
+    delta: float | DeltaDistribution
 
 
 class MatchRatePerturbation(_Perturbation):
@@ -178,9 +197,10 @@ class Forecaster:
 
     def _perturbed(
         self, perturbations: tuple[Perturbation, ...]
-    ) -> tuple[FittedState, dict[int, tuple[float, float]], dict[int, ScorelineDistribution]]:
+    ) -> tuple[FittedState, dict[int, tuple[float, float]], dict[int, ScorelineDistribution], np.ndarray]:
         """Apply every active perturbation: parameter shifts land on the fitted
-        state, fixture-level ones become goal offsets or injected distributions."""
+        state, fixture-level ones become goal offsets or injected distributions,
+        and distribution-valued deltas accumulate per-parameter variance."""
         state = self.state
         active = [p for p in perturbations if p.active(on=state.as_of)]
         group_ids, knockout_ids = self._match_ids()
@@ -188,17 +208,21 @@ class Forecaster:
         strengths = state.strengths.copy()
         globals_ = dict(state.globals_)
         offsets: dict[int, tuple[float, float]] = {}
+        extra_var = np.zeros(len(state.strengths) + 2)
         index = {team: i for i, team in enumerate(state.teams)}
         for p in active:
             if isinstance(p, StrengthPerturbation):
                 key = registry_team_key(p.team)
                 if key not in index:
                     raise UnknownModelTeamError(p.team, state.model_id)
-                strengths[index[key]] += p.delta
+                strengths[index[key]] += _delta_mean(p.delta)
+                extra_var[index[key]] += _delta_var(p.delta)
             elif isinstance(p, TempoPerturbation):
-                globals_["intercept"] += p.delta
+                globals_["intercept"] += _delta_mean(p.delta)
+                extra_var[-2] += _delta_var(p.delta)
             elif isinstance(p, HomeAdvantagePerturbation):
-                globals_["home_adv"] += p.delta
+                globals_["home_adv"] += _delta_mean(p.delta)
+                extra_var[-1] += _delta_var(p.delta)
             elif isinstance(p, MatchRatePerturbation):
                 if p.match not in group_ids | knockout_ids:
                     raise UnknownMatchError(p.match)
@@ -218,7 +242,7 @@ class Forecaster:
                     raise UnknownMatchError(p.match)
                 base = self.model.score_distribution(self._group_fixture(p.match), perturbed)
                 grids[p.match] = base.reweighted(p_home=p.p_home, p_draw=p.p_draw, p_away=p.p_away)
-        return perturbed, offsets, grids
+        return perturbed, offsets, grids, extra_var
 
     def score_grid(
         self,
@@ -231,7 +255,7 @@ class Forecaster:
     ) -> ScorelineDistribution:
         """Scoreline grid for one fixture; match binds match-keyed perturbations."""
         fixture = Fixture(home=registry_team_key(home), away=registry_team_key(away), neutral=neutral)
-        state, offsets, grids = self._perturbed(perturbations)
+        state, offsets, grids, _ = self._perturbed(perturbations)
         if match is None:
             keyed = sorted(set(offsets) | set(grids))
             if keyed:
@@ -281,9 +305,14 @@ class Forecaster:
         live_distributions: dict[int, ScorelineDistribution] | None = None,
         parameter_uncertainty: bool = True,
     ) -> SimResult:
-        state, offsets, grids = self._perturbed(perturbations)
+        state, offsets, grids, extra_var = self._perturbed(perturbations)
         if not parameter_uncertainty:
             state = replace(state, covariance=None)
+        if extra_var.any():
+            # Injected magnitude uncertainty is the perturbation's own, so it
+            # survives parameter_uncertainty=False; each sim world draws a magnitude.
+            base_cov = state.covariance if state.covariance is not None else np.zeros((len(extra_var), len(extra_var)))
+            state = replace(state, covariance=base_cov + np.diag(extra_var))
         # Live in-progress states outrank what-if injections for the same match.
         injected = {**grids, **(live_distributions or {})}
         engine = PoissonMatchEngine(self.fmt, state)

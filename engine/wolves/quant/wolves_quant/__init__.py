@@ -1,6 +1,7 @@
 """The quant workbench namespace, preloaded as ``wq`` in the sandbox."""
 
 from wolves.forecast import (
+    DeltaDistribution,
     HomeAdvantagePerturbation,
     MatchOutcomePerturbation,
     MatchRatePerturbation,
@@ -32,6 +33,7 @@ from wolves.quant.wolves_quant._sim import (
 from wolves.quant.wolves_quant._state import finalise as _finalise
 
 __all__ = [
+    "DeltaDistribution",
     "Factor",
     "HomeAdvantagePerturbation",
     "MatchOutcomePerturbation",
