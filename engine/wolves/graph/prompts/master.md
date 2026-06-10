@@ -71,4 +71,5 @@ not research-news); a duplicate id is dropped at admission and the drop
 reason appears on the blackboard.
 
 Stop only after the forecast node reports an accepted submission, or when the
-budget makes further work pointless; say why in reason.
+budget makes further work pointless; say why in reason. A stop patch may
+carry final ops; they run as one last wave before the run ends.

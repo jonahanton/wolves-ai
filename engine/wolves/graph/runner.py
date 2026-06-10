@@ -114,16 +114,20 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 break
             ops, dropped = admit(patch, board=board, settings=settings)
             board.dropped = dropped
-            if patch.stop or not patch.ops:
-                logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "empty wave")
-                break
             if not ops:
+                if patch.stop or not patch.ops:
+                    logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "empty wave")
+                    break
                 # Every proposed op was dropped; the drops are on the
                 # blackboard, so give the master another planning turn.
                 logger.warning("wave %d fully dropped at admission; re-planning", board.wave)
                 continue
             outcomes = await _execute_wave(ops, deps=deps, store=store, models=models)
             board.merge(ops, outcomes)
+            if patch.stop:
+                # A stop patch may carry final ops; they run before the end.
+                logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "stop")
+                break
             if submission_state.accepted is not None:
                 break
             if submission_state.validation_failures > settings.agent_submit_retries:
