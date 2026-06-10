@@ -62,14 +62,18 @@ def main() -> None:
 
     first = json.loads(snapshots[0].read_text())
     last = json.loads(snapshots[-1].read_text())
-    check("submission by artifact reference", last["agent"]["artifact_id"] == "mixture-001")
-    check(
-        "two-world mixture published",
-        sorted(w["name"] for w in last["agent"]["worlds"]) == ["keeper_doubt", "keeper_fit"],
-    )
-    flat = next(t["champion_prob"] for t in first["teams"] if t["team_id"] == "england")
-    check("mixture moved England off the unperturbed baseline", 0 < flat < 1)
-    check("ledger evidence published", any(e["id"] == "led-0001" for e in last["agent"]["ledger_entries"]))
+    artifact_id = last["agent"]["artifact_id"]
+    artifacts_dir = REPLAY_ROOT / "runs" / last["run"]["run_id"] / "artifacts"
+    index = json.loads((artifacts_dir / "index.json").read_text())
+    cited = next((r for r in index["records"] if r["id"] == artifact_id), None)
+    check("submission cites a mixture artifact in the run index", cited is not None and cited["kind"] == "mixture")
+    artifact = json.loads((artifacts_dir / f"{artifact_id}.json").read_text())
+    published_worlds = sorted(w["name"] for w in last["agent"]["worlds"])
+    check("published worlds match the cited artifact", published_worlds == sorted(artifact["payload"]["worlds"]))
+    focus = first["focus"]["team_id"]
+    flat = next(t["champion_prob"] for t in first["teams"] if t["team_id"] == focus)
+    check("focus team champion probability published in (0, 1)", 0 < flat < 1)
+    check("ledger evidence published", len(last["agent"]["ledger_entries"]) > 0)
     check("attribution decomposed on later days", last["agent"]["attribution"] is not None)
 
     scenarios = (REPLAY_ROOT / "agent-state" / "scenarios.jsonl").read_text().splitlines()
