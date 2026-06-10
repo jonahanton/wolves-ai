@@ -95,7 +95,7 @@ def score_resolved_matches(
 def score_yesterday(settings: Settings, *, as_of: str, run_id: str) -> str:
     """Score forecasts that resolved since the previous run and append the
     scorecard to LESSONS.md; return the summary (empty when nothing scored)."""
-    previous, baseline = load_previous_snapshots(settings.snapshot_dir, before=date.fromisoformat(as_of))
+    previous, baseline = load_previous_snapshots(settings.runs_root, before=date.fromisoformat(as_of))
     if previous is None:
         return ""
     ledger = CalibrationLedger(settings.calibration_path)

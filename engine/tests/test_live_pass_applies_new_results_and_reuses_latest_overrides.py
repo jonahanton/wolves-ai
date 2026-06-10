@@ -33,12 +33,12 @@ def _write_agent_snapshot(settings: Settings) -> None:
         rating_overrides=[RatingOverrideOut(team_id="england", delta_elo=DELTA, cause="keeper fit")],
     )
     snapshot = base.model_copy(update={"run": base.run.model_copy(update={"kind": "agent"}), "agent": agent})
-    settings.snapshot_dir.mkdir(parents=True, exist_ok=True)
-    (settings.snapshot_dir / "agent-20260611-090000.json").write_text(snapshot.model_dump_json())
+    settings.runs_root.mkdir(parents=True, exist_ok=True)
+    (settings.runs_root / "agent-20260611-090000.json").write_text(snapshot.model_dump_json())
 
 
 async def test_live_pass_overlays_the_result_and_applies_the_agent_override(tmp_path):
-    settings = Settings(snapshot_dir=tmp_path)
+    settings = Settings(runs_root=tmp_path)
     _write_agent_snapshot(settings)
     fixtures = FakeFixturesClient(matches=[_finished_match_one()])
 

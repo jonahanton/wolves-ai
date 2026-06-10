@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     football_data_api_key: str = ""
 
     data_dir: Path = REPO_ROOT / "data"
-    snapshot_dir: Path = REPO_ROOT / "runs"
     n_sims: int = 10_000
 
     aws_region: str = "eu-west-2"

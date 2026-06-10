@@ -91,8 +91,7 @@ def settings(tmp_path) -> Settings:
 
     return Settings(
         data_dir=tmp_path / "data",
-        snapshot_dir=snapshot_dir,
-        runs_root=tmp_path / "runs",
+        runs_root=snapshot_dir,
         calibration_path=tmp_path / "runs" / "calibration.jsonl",
         lessons_path=tmp_path / "runs" / "LESSONS.md",
     )

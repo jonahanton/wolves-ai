@@ -81,7 +81,7 @@ async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int
 
     fmt = load_format(settings.data_dir)
     overlay = results_from_fixtures(fmt, await fixtures.fixtures())
-    previous, overrides = scan_snapshots(settings.snapshot_dir)
+    previous, overrides = scan_snapshots(settings.runs_root)
     pending = pending_results(
         overlay,
         file_results=load_results(settings.data_dir),
