@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
-from wolves.clients.fetch._ssrf import check_host, check_url
+from wolves.connectors._ssrf import check_host, check_url
 
 from ._dates import parse_date
 from ._http import _raise_for_status, async_retrying

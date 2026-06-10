@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from pydantic_ai import Agent, RunContext, Tool
+from pydantic_ai import RunContext, Tool
 from pydantic_ai.toolsets import FunctionToolset
 
 from wolves.agent_tools.core import ToolSpec
@@ -40,32 +40,6 @@ def build_toolset(
     for spec in specs:
         toolset.add_tool(_build_tool(spec, before_invoke, after, prepare_for))
     return toolset
-
-
-def register_specs(
-    agent: Agent,
-    specs: list[ToolSpec],
-    *,
-    before_invoke: BeforeInvokeHook | None = None,
-    after_result: AfterResultHook | None = None,
-    prepare_for: PrepareFor | None = None,
-) -> None:
-    """Mount specs onto the agent's first ``FunctionToolset``.
-
-    Prefer ``Agent(toolsets=[build_toolset(specs)])`` at construction
-    time; this post-hoc path is for hosts that need to mount specs on
-    an already-built agent. Raises ``RuntimeError`` if the agent has
-    no function toolset.
-    """
-    after = after_result or _default_after_result
-    target = next((ts for ts in agent.toolsets if isinstance(ts, FunctionToolset)), None)
-    if target is None:
-        raise RuntimeError(
-            "Agent has no FunctionToolset to register specs onto; "
-            "pass build_toolset(specs) via Agent(toolsets=...) instead."
-        )
-    for spec in specs:
-        target.add_tool(_build_tool(spec, before_invoke, after, prepare_for))
 
 
 def _build_tool(
