@@ -29,7 +29,6 @@ class _TextExtractor(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.title: str | None = None
         self.published_raw: str | None = None
-        self.canonical: str | None = None
         self._chunks: list[str] = []
         self._skip_depth = 0
         self._in_title = False
@@ -41,15 +40,11 @@ class _TextExtractor(HTMLParser):
             self._in_title = True
         elif tag == "meta":
             self._handle_meta(dict(attrs))
-        elif tag == "link":
-            self._handle_link(dict(attrs))
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        # Self-closing <meta .../> and <link .../> do not emit an end tag.
+        # A self-closing <meta .../> does not emit an end tag.
         if tag == "meta":
             self._handle_meta(dict(attrs))
-        elif tag == "link":
-            self._handle_link(dict(attrs))
 
     def handle_endtag(self, tag: str) -> None:
         if tag in _SKIP_TAGS and self._skip_depth > 0:
@@ -74,12 +69,6 @@ class _TextExtractor(HTMLParser):
             return
         if key in _DATE_META or key == "date":
             self.published_raw = content
-
-    def _handle_link(self, attrs: dict[str, str | None]) -> None:
-        if self.canonical is None and (attrs.get("rel") or "").lower() == "canonical":
-            href = attrs.get("href")
-            if href:
-                self.canonical = href
 
     @property
     def text(self) -> str:
