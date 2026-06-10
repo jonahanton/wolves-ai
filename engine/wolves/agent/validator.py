@@ -98,7 +98,7 @@ def _artifact_payload(
             )
         )
         return None
-    if artifact.kind not in ("mixture", "forecast", "quant"):
+    if artifact.kind not in ("mixture", "forecast"):
         issues.append(
             _issue("wrong_artifact_kind", f"artifact {artifact.id} is {artifact.kind}, not a computed forecast")
         )

@@ -34,7 +34,7 @@ def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, list[PublishedW
     newest: Snapshot | None = None
     newest_agent: Snapshot | None = None
     if not snapshot_dir.exists():
-        return None, {}
+        return None, []
     for path in snapshot_dir.rglob("*.json"):
         if path.name == "latest.json":
             continue

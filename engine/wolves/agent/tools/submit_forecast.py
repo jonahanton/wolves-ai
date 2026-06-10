@@ -64,7 +64,9 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
                 ),
             }
         )
-    if report.escalations and not (args.change_justification.strip() and args.evidence_ids):
+    if deps.submission.escalation_fired and not (args.change_justification.strip() and args.evidence_ids):
+        # Once an escalation fires, the steelman substance is required even if
+        # the resubmission swaps in a quieter artifact; the move was flagged.
         deps.submission.validation_failures += 1
         deps.runtime.emit("validation", deps.actor, "escalated resubmission without substance rejected")
         return ToolResult(

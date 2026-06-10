@@ -51,6 +51,9 @@ def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
         if any(isinstance(p, ScorelinePerturbation) for p in perturbations):
             raise ForecastArtifactError(f"world {name!r} pins a scoreline; what-if instruments never publish")
         worlds.append(PublishedWorld(name=name, weight=weight, perturbations=perturbations))
+    for name in worlds_block:
+        if name not in weights:
+            raise ForecastArtifactError(f"world {name!r} has a configuration but no weight")
     total = sum(w.weight for w in worlds)
     if abs(total - 1.0) > 1e-6:
         raise ForecastArtifactError(f"world weights sum to {total:.4f}, not 1")
@@ -94,7 +97,12 @@ def mixed_outputs(
         entry.p_home = _mix(weights, per_world, lambda o, m=entry.match: _match(o, m).p_home)
         entry.p_away = _mix(weights, per_world, lambda o, m=entry.match: _match(o, m).p_away)
         if entry.p_draw is not None:
-            entry.p_draw = max(0.0, round(1.0 - entry.p_home - entry.p_away, 6))
+            entry.p_draw = _mix(weights, per_world, lambda o, m=entry.match: _match(o, m).p_draw or 0.0)
+            total = entry.p_home + entry.p_draw + entry.p_away
+            if total > 0:
+                entry.p_home = round(entry.p_home / total, 6)
+                entry.p_draw = round(entry.p_draw / total, 6)
+                entry.p_away = round(entry.p_away / total, 6)
     return mixed
 
 
@@ -120,6 +128,9 @@ def govern_outputs(outputs: SimOutputs, anchor: SimOutputs, *, d: float) -> None
     for stage, p in outputs.england.reach_probs.items():
         blended = blend_log_odds({stage: p}, {stage: anchor.england.reach_probs.get(stage, p)}, d=d)
         outputs.england.reach_probs[stage] = round(blended[stage], 6)
+    for stage, p in outputs.england.finish_probs.items():
+        blended = blend_log_odds({stage: p}, {stage: anchor.england.finish_probs.get(stage, p)}, d=d)
+        outputs.england.finish_probs[stage] = round(blended[stage], 6)
 
 
 def _mix(weights: dict[str, float], per_world: dict[str, SimOutputs], pick) -> float:

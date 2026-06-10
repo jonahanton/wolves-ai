@@ -39,6 +39,7 @@ from wolves.clients.odds import (
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
 from wolves.forecast import Forecaster
+from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, NodePatch, QuantOutput, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.observed_model import ObservedModel
@@ -56,6 +57,7 @@ from wolves.observability import (
 )
 from wolves.quant.observed import ObservedQuant
 from wolves.s3.agent_state import build_agent_state_store
+from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
 from wolves.s3.layout import SCENARIOS, SOURCES_SEEN, run_dir
@@ -79,7 +81,7 @@ logger = logging.getLogger(__name__)
 
 def _dev_submission(as_of: str) -> dict:
     return {
-        "artifact_id": "quant-001",
+        "artifact_id": "mixture-001",
         "narrative": {
             "england_story": (
                 "England's camp is calm: the keeper trained in full and the market still makes them "
@@ -431,6 +433,17 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         run_id=run_id,
         as_of=as_of,
     )
+    if not args.live:
+        # The scripted forecast submits by reference, so the dev run seeds the
+        # computed artifact a real quant node would have registered.
+        store = RunArtifactStore(ArtifactStore(settings), run_id=run_id)
+        store.add(
+            kind="mixture",
+            created_by="dev-seed",
+            summary="dev baseline mixture",
+            payload={"weights": {"baseline": 1.0}, "worlds": {"baseline": {"perturbations": []}}, "mixture": {}},
+        )
+        deps.artifacts = store
     try:
         result = await run_graph(deps, as_of=as_of, models=models)
     except Exception:
