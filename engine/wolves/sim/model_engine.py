@@ -23,7 +23,7 @@ class PoissonMatchEngine:
 
     def __init__(self, fmt: FormatData, state: FittedState, *, parameter_draws: int = PARAMETER_DRAWS) -> None:
         self._state = state
-        self._draws = parameter_draws
+        self.parameter_draws = parameter_draws
         state_index = {team: i for i, team in enumerate(state.teams)}
         keys = [registry_team_key(team.id) for team in fmt.teams]
         for team, key in zip(fmt.teams, keys, strict=True):
@@ -44,10 +44,10 @@ class PoissonMatchEngine:
         n_params = mean.shape[0]
         if state.covariance is not None:
             # svd tolerates the near-singular pinv covariance where cholesky would raise.
-            draws = rng.multivariate_normal(mean, state.covariance, size=self._draws, method="svd")
+            draws = rng.multivariate_normal(mean, state.covariance, size=self.parameter_draws, method="svd")
         else:
-            draws = np.tile(mean, (self._draws, 1))
-        world_draw = np.arange(n_sims) % self._draws
+            draws = np.tile(mean, (self.parameter_draws, 1))
+        world_draw = np.arange(n_sims) % self.parameter_draws
         params = draws[world_draw]
         self._strengths = params[:, : n_params - 2][:, self._param_idx].T
         self._intercept = params[:, n_params - 2]
