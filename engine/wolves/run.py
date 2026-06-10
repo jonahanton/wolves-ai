@@ -36,7 +36,12 @@ def _markets_block(settings: Settings, forecaster: Forecaster, model_probs: dict
             await odds.aclose()
             await polymarket.aclose()
 
-    market = asyncio.run(fetch())
+    # Market sources must never kill the daily run; the block is simply omitted.
+    try:
+        market = asyncio.run(fetch())
+    except Exception:
+        logger.warning("markets fetch failed; omitting the markets block", exc_info=True)
+        return None
     if not market:
         return None
     weight = forecaster.champion.blend_weight
