@@ -54,7 +54,10 @@ class Settings(BaseSettings):
     graph_max_nodes: int = 12
     graph_max_wave_workers: int = 4
     graph_node_timeout_s: int = 240
-    graph_node_request_limit: int = 8
+    graph_research_request_limit: int = 8
+    graph_quant_request_limit: int = 8
+    graph_forecast_request_limit: int = 16
+    graph_critic_request_limit: int = 4
 
     confirmed_delta_cap_elo: float = 50.0
     soft_delta_cap_elo: float = 10.0

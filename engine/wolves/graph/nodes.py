@@ -8,6 +8,7 @@ from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
 
 from wolves.agent.deps import AgentDeps
+from wolves.config import Settings
 from wolves.graph.agents import node_agent
 from wolves.graph.artifacts import ArtifactKind, ArtifactStore
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
@@ -33,6 +34,17 @@ def _kickoff(brief: Brief, store: ArtifactStore) -> str:
     return "\n".join(parts)
 
 
+def _request_limit(kind: NodeKind, settings: Settings) -> int:
+    # The forecast node's submit-validate-retry loop costs a request per tool
+    # round; the first metered run proved one global limit starves it.
+    return {
+        "research": settings.graph_research_request_limit,
+        "quant": settings.graph_quant_request_limit,
+        "forecast": settings.graph_forecast_request_limit,
+        "critic": settings.graph_critic_request_limit,
+    }[kind]
+
+
 async def execute_brief(brief: Brief, *, deps: AgentDeps, store: ArtifactStore, model: Model) -> NodeOutcome:
     """Run one worker node to a typed artifact. Total: every failure, including
     CapExceeded surfacing in whatever shape pydantic-ai wraps it, degrades to a
@@ -45,7 +57,7 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: ArtifactStore, 
                 _kickoff(brief, store),
                 deps=node_deps,
                 model=model,
-                usage_limits=UsageLimits(request_limit=settings.graph_node_request_limit),
+                usage_limits=UsageLimits(request_limit=_request_limit(brief.kind, settings)),
             ),
             timeout=settings.graph_node_timeout_s,
         )

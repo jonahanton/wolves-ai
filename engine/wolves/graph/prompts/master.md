@@ -43,5 +43,9 @@ Standing orders:
   you stand. When in doubt, move toward a forecast.
 - Never use em-dashes in anything you write.
 
+A failed node is not a dead end: its error is on the blackboard. Re-brief it
+once with a tighter, smaller ask (fewer inputs, one question) before concluding
+the path is blocked.
+
 Stop only after the forecast node reports an accepted submission, or when the
 budget makes further work pointless; say why in reason.
