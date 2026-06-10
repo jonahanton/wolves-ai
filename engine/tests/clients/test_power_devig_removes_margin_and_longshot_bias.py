@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from wolves.clients.odds import DevigError, blend_abilities, consensus_probabilities, power_devig
+from wolves.clients.odds import DevigError, consensus_probabilities, power_devig
 
 
 def test_devigged_probabilities_sum_to_one():
@@ -41,12 +41,3 @@ def test_consensus_averages_in_log_odds_and_renormalises():
     assert consensus["England"] == pytest.approx(0.5, abs=1e-9)
     assert sum(consensus.values()) == pytest.approx(1.0, abs=1e-9)
 
-
-def test_lambda_blend_moves_abilities_toward_market_and_leaves_unpriced_teams():
-    model = {"england": 2000.0, "ghana": 1700.0, "panama": 1600.0}
-    market = {"england": 0.14, "ghana": 0.001}
-    blended = blend_abilities(model, market, lam=0.3)
-    assert blended["england"] > blended["ghana"]
-    assert blended["panama"] == 1600.0
-    no_blend = blend_abilities(model, market, lam=0.0)
-    assert no_blend["england"] == pytest.approx(2000.0)

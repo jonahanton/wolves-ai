@@ -1,4 +1,3 @@
-from wolves.clients.odds.blend import blend_abilities, market_implied_abilities
 from wolves.clients.odds.client import TheOddsApiClient
 from wolves.clients.odds.contracts import (
     Bookmaker,
@@ -36,10 +35,8 @@ __all__ = [
     "PolymarketClient",
     "PolymarketMarket",
     "TheOddsApiClient",
-    "blend_abilities",
     "consensus_probabilities",
     "event_consensus",
-    "market_implied_abilities",
     "markets_from_events",
     "power_devig",
     "team_id_for_name",
