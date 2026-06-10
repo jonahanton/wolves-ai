@@ -96,6 +96,30 @@ class ArtifactStore:
             keys |= set(self._s3.list_keys(prefix=prefix))
         return sorted(keys)
 
+    def sync_up(self, *, prefix: str) -> int:
+        """Upload local files under the prefix missing from the bucket; returns the count.
+
+        Skips keys already in the bucket, so it suits immutable families;
+        mutable pointers go through put(), which always overwrites."""
+        if self._s3 is None:
+            return 0
+        base = self.local_path(prefix)
+        if not base.exists():
+            return 0
+        existing = set(self._s3.list_keys(prefix=prefix))
+        uploaded = 0
+        for path in sorted(base.rglob("*")):
+            if not path.is_file():
+                continue
+            key = path.relative_to(self.local_root).as_posix()
+            if key in existing:
+                continue
+            self._s3.put_bytes(key, path.read_bytes())
+            uploaded += 1
+        if uploaded:
+            logger.info("synced %d object(s) under %s to s3://%s", uploaded, prefix, self.bucket)
+        return uploaded
+
     def sync_down(self, *, prefix: str, suffix: str = "", into: Path | None = None) -> int:
         """Download bucket objects missing locally; returns the new-file count.
 

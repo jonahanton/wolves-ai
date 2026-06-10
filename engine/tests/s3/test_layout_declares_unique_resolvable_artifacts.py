@@ -22,6 +22,8 @@ def test_keys_resolve_and_stay_under_their_prefix():
         "dataset_id": "abc",
         "tournament": "wc2022",
         "snapshot": "outrights",
+        "artifact_id": "quant-001",
+        "path": "quant/node-1/analysis_001.py",
     }
     for spec in LAYOUT:
         fields = [field for _, field, _, _ in string.Formatter().parse(spec.pattern) if field]

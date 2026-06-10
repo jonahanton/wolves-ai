@@ -11,12 +11,13 @@ from wolves.agent.consensus import median_overrides
 from wolves.agent.contracts import Disagreement, ForecastSubmission, OverrideSample, RatingOverride
 from wolves.agent.deps import AgentDeps
 from wolves.agent.validator import validate_submission
-from wolves.graph.artifacts import NodeArtifactStore
+from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
 from wolves.graph.master import admit, plan_wave
 from wolves.graph.nodes import execute_brief
 from wolves.observability.runtime import CapExceeded, ObservedRuntime
+from wolves.s3.artifacts import ArtifactStore
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ async def _execute_wave(
     briefs: list[Brief],
     *,
     deps: AgentDeps,
-    store: NodeArtifactStore,
+    store: RunArtifactStore,
     models: GraphModels,
 ) -> list[NodeOutcome]:
     semaphore = asyncio.Semaphore(deps.settings.graph_max_wave_workers)
@@ -93,7 +94,8 @@ async def _execute_wave(
 
 async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> GraphRunResult:
     """The wave loop: plan, admit, execute, merge, until acceptance or caps."""
-    store = NodeArtifactStore(deps.runtime.paths.root / "artifacts")
+    store = deps.artifacts or RunArtifactStore(ArtifactStore(deps.settings), run_id=deps.runtime.run_id)
+    deps.artifacts = store
     board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
     settings = deps.settings
     submission_state = deps.submission

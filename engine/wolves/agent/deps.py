@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.ledger import EvidenceLedger
@@ -15,6 +16,9 @@ from wolves.llm.observed import ObservedLLM
 from wolves.observability.runtime import ObservedRuntime
 from wolves.quant.observed import ObservedQuant
 from wolves.tools._budget_gate import BudgetGate
+
+if TYPE_CHECKING:
+    from wolves.graph.artifacts import RunArtifactStore
 
 
 @dataclass
@@ -47,4 +51,5 @@ class AgentDeps:
     limits: ValidatorLimits
     actor: str = "master"
     submission: SubmissionState = field(default_factory=SubmissionState)
+    artifacts: RunArtifactStore | None = None
     python_calls: int = 0

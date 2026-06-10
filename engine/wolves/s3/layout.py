@@ -67,6 +67,29 @@ RUN_JOURNAL = ArtifactSpec(
     content_type=MARKDOWN,
     description="Agent journal appended during one run.",
 )
+RUN_ARTIFACT = ArtifactSpec(
+    name="run-artifact",
+    pattern="runs/{run_id}/artifacts/{artifact_id}.json",
+    description="One node-produced artifact: typed payload plus metadata.",
+)
+RUN_ARTIFACT_INDEX = ArtifactSpec(
+    name="run-artifact-index",
+    pattern="runs/{run_id}/artifacts/index.json",
+    mutable=True,
+    description="Metadata index over one run's artifacts; rewritten as the run grows.",
+)
+RUN_EVENTS = ArtifactSpec(
+    name="run-events",
+    pattern="runs/{run_id}/events.jsonl",
+    content_type=NDJSON,
+    description="Append-only event log for one run.",
+)
+RUN_WORKSPACE_FILE = ArtifactSpec(
+    name="run-workspace-file",
+    pattern="runs/{run_id}/workspace/{path}",
+    content_type=BINARY,
+    description="One file from a run's working tree (quant code, inputs, outputs).",
+)
 DATASET = ArtifactSpec(
     name="dataset",
     pattern="datasets/wolves-data-{dataset_id}.duckdb",
@@ -112,6 +135,20 @@ LESSONS = ArtifactSpec(
     mutable=True,
     description="Append-only cross-run agent lessons.",
 )
+SCENARIOS = ArtifactSpec(
+    name="scenarios",
+    pattern="agent-state/scenarios.jsonl",
+    content_type=NDJSON,
+    mutable=True,
+    description="Cross-run scenario registry: lifecycle status and weight history per scenario id.",
+)
+SOURCES_SEEN = ArtifactSpec(
+    name="sources-seen",
+    pattern="agent-state/sources_seen.jsonl",
+    content_type=NDJSON,
+    mutable=True,
+    description="Cross-run memory of sources already fetched, for dedupe and what_changed.",
+)
 CALIBRATION = ArtifactSpec(
     name="calibration",
     pattern="agent-state/calibration.jsonl",
@@ -124,6 +161,10 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     SNAPSHOT,
     SNAPSHOT_LATEST,
     RUN_JOURNAL,
+    RUN_ARTIFACT,
+    RUN_ARTIFACT_INDEX,
+    RUN_EVENTS,
+    RUN_WORKSPACE_FILE,
     DATASET,
     DATASET_MANIFEST,
     DATASET_LATEST,
@@ -132,6 +173,8 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     ODDS_SERIES_POINT,
     ODDS_CLOSE,
     LESSONS,
+    SCENARIOS,
+    SOURCES_SEEN,
     CALIBRATION,
 )
 

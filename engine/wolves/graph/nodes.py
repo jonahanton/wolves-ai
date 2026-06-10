@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
-import json
 
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
@@ -10,7 +9,7 @@ from pydantic_ai.usage import UsageLimits
 from wolves.agent.deps import AgentDeps
 from wolves.config import Settings
 from wolves.graph.agents import node_agent
-from wolves.graph.artifacts import ArtifactKind, NodeArtifactStore
+from wolves.graph.artifacts import ArtifactKind, RunArtifactStore
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
 from wolves.tools._budget_gate import BudgetGate
 
@@ -22,15 +21,16 @@ _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
 }
 
 
-def _kickoff(brief: Brief, store: NodeArtifactStore) -> str:
+def _kickoff(brief: Brief, store: RunArtifactStore) -> str:
+    # References only: payloads stay out of the kickoff so an arbitrarily
+    # large dossier cannot blow the node's context; read_artifact pulls them.
     parts = [f"Objective: {brief.objective}", "", brief.brief]
-    for artifact_id in brief.input_artifact_ids:
-        artifact = store.get(artifact_id)
-        if artifact is None:
-            continue
+    records = [r for r in (store.record(a) for a in brief.input_artifact_ids) if r is not None]
+    if records:
         parts.append("")
-        parts.append(f"Artifact {artifact.id} ({artifact.kind}, by {artifact.created_by}):")
-        parts.append(json.dumps(artifact.payload, ensure_ascii=False))
+        parts.append("Input artifacts (open any with read_artifact):")
+        for record in records:
+            parts.append(f"- {record.id} ({record.kind}, by {record.created_by}): {record.summary}")
     return "\n".join(parts)
 
 
@@ -45,7 +45,7 @@ def _request_limit(kind: NodeKind, settings: Settings) -> int:
     }[kind]
 
 
-async def execute_brief(brief: Brief, *, deps: AgentDeps, store: NodeArtifactStore, model: Model) -> NodeOutcome:
+async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStore, model: Model) -> NodeOutcome:
     """Run one worker node to a typed artifact. Total: every failure, including
     CapExceeded surfacing in whatever shape pydantic-ai wraps it, degrades to a
     failed outcome so the wave and the run carry on."""

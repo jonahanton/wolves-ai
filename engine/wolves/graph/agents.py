@@ -11,6 +11,7 @@ from wolves.agent.tools import (
     get_odds,
     get_results_and_fixtures,
     ledger_query,
+    read_artifact,
     read_journal,
     run_python,
     run_simulation,
@@ -28,10 +29,17 @@ from wolves.tools._truncation import truncate_result
 _PROMPTS = Path(__file__).parent / "prompts"
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
-    "research": [web_search.SPEC, web_fetch.SPEC, get_odds.SPEC, get_results_and_fixtures.SPEC],
-    "quant": [run_python.SPEC, run_simulation.SPEC],
-    "forecast": [ledger_query.SPEC, run_simulation.SPEC, read_journal.SPEC, write_journal.SPEC, submit_forecast.SPEC],
-    "critic": [ledger_query.SPEC],
+    "research": [web_search.SPEC, web_fetch.SPEC, get_odds.SPEC, get_results_and_fixtures.SPEC, read_artifact.SPEC],
+    "quant": [run_python.SPEC, run_simulation.SPEC, read_artifact.SPEC],
+    "forecast": [
+        ledger_query.SPEC,
+        run_simulation.SPEC,
+        read_journal.SPEC,
+        write_journal.SPEC,
+        submit_forecast.SPEC,
+        read_artifact.SPEC,
+    ],
+    "critic": [ledger_query.SPEC, read_artifact.SPEC],
 }
 
 _NODE_OUTPUTS: dict[NodeKind, type] = {

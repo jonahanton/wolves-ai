@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.graph.conftest import build_graph_deps
+from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.config import Settings
-from wolves.graph.artifacts import NodeArtifactStore
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import Brief, NodeOutcome, WavePlan
 from wolves.graph.master import admit
@@ -17,7 +16,7 @@ def _brief(node_id: str, *, kind: str = "research", artifact_ids: list[str] | No
 def test_admission_trims_invalid_and_over_cap_briefs(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
     settings = Settings(_env_file=None, graph_max_nodes=10, graph_max_wave_workers=3)
-    store = NodeArtifactStore(tmp_path / "artifacts")
+    store = build_run_store(tmp_path)
     board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
     known = store.add(kind="evidence", created_by="research-0", summary="s", payload={"summary": "s"})
     done = _brief("research-0")
@@ -45,7 +44,7 @@ def test_admission_trims_invalid_and_over_cap_briefs(tmp_path: Path):
 def test_admission_respects_remaining_node_budget(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
     settings = Settings(_env_file=None, graph_max_nodes=2, graph_max_wave_workers=4)
-    store = NodeArtifactStore(tmp_path / "artifacts")
+    store = build_run_store(tmp_path)
     board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
     done = _brief("research-0")
     board.merge([done], [NodeOutcome(node_id="research-0", kind="research", ok=True)])

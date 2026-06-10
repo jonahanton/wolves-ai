@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.graph.conftest import build_graph_deps
-from wolves.graph.artifacts import NodeArtifactStore
+from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import Brief, NodeOutcome
 
@@ -13,7 +12,7 @@ SENTINEL = "SECRET-PAYLOAD-TEXT-THAT-MUST-NOT-LEAK"
 
 def test_summary_is_metadata_only(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
-    store = NodeArtifactStore(tmp_path / "artifacts")
+    store = build_run_store(tmp_path)
     board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
 
     artifact = store.add(
