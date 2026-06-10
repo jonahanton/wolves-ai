@@ -13,6 +13,8 @@ Weigh holistically, not arithmetically:
   treat any outlet's transfer-rumour desk as tier 3 regardless of its tier.
 - Staleness relative to the question's tempo, measured against the as-of date
   you are given: lineup news decays in hours, tournament context in weeks.
+  An unknown publish date is not fresh; on a fast-moving question, score an
+  undated candidate as if it were old unless its content proves otherwise.
 - A candidate already seen by a previous run is mostly priced into the current
   forecast; score it down unless the sub-question is about what changed since.
 - Penalise speculation, engagement-bait and headlines that promise more than

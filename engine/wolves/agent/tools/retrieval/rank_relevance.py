@@ -35,9 +35,12 @@ class _Rankings(BaseModel):
 
 def _candidate_block(c: Candidate, seen_run: str | None) -> str:
     tier = source_tier(c.url)
-    parts = [f"url: {c.url}", f"title: {c.title}", f"tier: {tier if tier is not None else 'unknown'}"]
-    if c.published_at:
-        parts.append(f"published: {c.published_at}")
+    parts = [
+        f"url: {c.url}",
+        f"title: {c.title}",
+        f"tier: {tier if tier is not None else 'unknown'}",
+        f"published: {c.published_at or 'unknown'}",
+    ]
     if c.snippet:
         parts.append(f"snippet: {c.snippet[:300]}")
     if seen_run:
