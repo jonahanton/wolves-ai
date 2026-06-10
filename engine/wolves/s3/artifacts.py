@@ -7,12 +7,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from wolves.s3.client import S3Client
-from wolves.s3.layout import ArtifactSpec, StorageMode
+from wolves.s3.layout import BINARY, JSON, MARKDOWN, NDJSON, ArtifactSpec, StorageMode
 
 if TYPE_CHECKING:
     from wolves.config import Settings
 
 logger = logging.getLogger(__name__)
+
+_SUFFIX_CONTENT_TYPES = {".json": JSON, ".jsonl": NDJSON, ".md": MARKDOWN}
+
+
+def _content_type(key: str) -> str:
+    return _SUFFIX_CONTENT_TYPES.get(Path(key).suffix, BINARY)
 
 
 class StorageConfigError(Exception):
@@ -114,7 +120,7 @@ class ArtifactStore:
             key = path.relative_to(self.local_root).as_posix()
             if key in existing:
                 continue
-            self._s3.put_bytes(key, path.read_bytes())
+            self._s3.put_bytes(key, path.read_bytes(), content_type=_content_type(key))
             uploaded += 1
         if uploaded:
             logger.info("synced %d object(s) under %s to s3://%s", uploaded, prefix, self.bucket)

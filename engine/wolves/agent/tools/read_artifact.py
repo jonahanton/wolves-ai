@@ -29,13 +29,7 @@ async def _read_artifact(args: ReadArtifactArgs, deps: AgentDeps) -> ToolResult[
             payload=None,
             error=ToolError(type="unknown_artifact", message=f"no artifact {args.artifact_id!r}; known ids: {known}"),
         )
-    payload: dict[str, Any] = {
-        "id": artifact.id,
-        "kind": artifact.kind,
-        "created_by": artifact.created_by,
-        "summary": artifact.summary,
-        "payload": artifact.payload,
-    }
+    payload: dict[str, Any] = artifact.model_dump(mode="json")
     files = store.workspace_files(artifact.id)
     if files:
         payload["workspace_files"] = files
