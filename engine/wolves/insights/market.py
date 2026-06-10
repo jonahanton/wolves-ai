@@ -89,6 +89,27 @@ def _match_movements(series: list[SeriesPoint]) -> list[MatchMovement]:
     return sorted(movements, key=lambda m: m.commence_at)
 
 
+def moves_between(archive_dir: Path, *, since: str, floor_pp: float) -> dict[str, float]:
+    """Bookmaker outright moves in pp from the last point at or before since to
+    the latest point, noise-floored, largest first; empty when nothing new."""
+    series = load_series(archive_dir)
+    if len(series) < 2:
+        return {}
+    baseline = next((p for p in reversed(series) if p.captured_at <= since), series[0])
+    latest = series[-1]
+    if baseline is latest:
+        return {}
+    teams = set(baseline.outright_bookmakers) | set(latest.outright_bookmakers)
+    moves = {
+        team: round(
+            (latest.outright_bookmakers.get(team, 0.0) - baseline.outright_bookmakers.get(team, 0.0)) * 100.0, 2
+        )
+        for team in teams
+    }
+    significant = {team: delta for team, delta in moves.items() if abs(delta) >= floor_pp}
+    return dict(sorted(significant.items(), key=lambda kv: abs(kv[1]), reverse=True))
+
+
 def market_movement(archive_dir: Path, fmt: FormatData, *, history_points: int = HISTORY_POINTS) -> MarketMovement:
     series = load_series(archive_dir)
     if not series:

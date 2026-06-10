@@ -44,11 +44,18 @@ def build_dossier(deps: AgentDeps) -> str:
 def _what_changed(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     from datetime import date as _date
 
-    from wolves.insights.what_changed import load_latest_snapshot, what_changed
+    from wolves.insights.what_changed import diff_inputs, load_latest_snapshot, what_changed
 
     if not deps.as_of:
         return ""
     previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of))
+    played, market_moves, fixtures = diff_inputs(
+        previous=previous,
+        forecaster=deps.forecaster,
+        archive_dir=deps.settings.runs_root / "odds-archive",
+        as_of=deps.as_of,
+        move_floor_pp=deps.settings.market_movement_noise_floor_pp,
+    )
     return what_changed(
         previous=previous,
         current_titles=titles,
@@ -56,6 +63,9 @@ def _what_changed(deps: AgentDeps, titles: dict[str, float] | None) -> str:
         source_memory=deps.source_memory,
         run_id=deps.runtime.run_id,
         as_of=deps.as_of,
+        played_results=played,
+        market_moves_pp=market_moves,
+        upcoming_fixtures=fixtures,
     ).digest()
 
 
