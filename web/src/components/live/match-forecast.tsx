@@ -1,5 +1,6 @@
 import { formatPct } from "@/lib/format";
 import type { LiveFixtureView } from "@/lib/live-view";
+import { ENGLAND } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 
 interface MatchForecastProps {
@@ -14,13 +15,13 @@ export function MatchForecast({ fixture }: MatchForecastProps) {
     {
       key: "home",
       prob: forecast.pHome,
-      className: fixture.homeId === "england" ? "bg-gold" : "bg-foreground/60",
+      className: fixture.homeId === ENGLAND ? "bg-gold" : "bg-foreground/60",
     },
     ...(forecast.pDraw !== null ? [{ key: "draw", prob: forecast.pDraw, className: "bg-foreground/20" }] : []),
     {
       key: "away",
       prob: forecast.pAway,
-      className: fixture.awayId === "england" ? "bg-gold" : "bg-foreground/40",
+      className: fixture.awayId === ENGLAND ? "bg-gold" : "bg-foreground/40",
     },
   ];
 

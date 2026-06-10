@@ -2,6 +2,7 @@ import { MatchForecast } from "@/components/live/match-forecast";
 import { WolfMascot } from "@/components/mascot/wolf-mascot";
 import { formatKickoff, formatMatchDate } from "@/lib/format";
 import type { LiveFixtureView } from "@/lib/live-view";
+import { ENGLAND, groupStageStart } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 
 function TeamName({ id, name, onSelect }: { id: string | null; name: string; onSelect: (id: string) => void }) {
@@ -10,7 +11,7 @@ function TeamName({ id, name, onSelect }: { id: string | null; name: string; onS
     <button
       type="button"
       onClick={() => onSelect(id)}
-      className={cn("font-medium underline-offset-2 hover:underline", id === "england" && "text-gold")}
+      className={cn("font-medium underline-offset-2 hover:underline", id === ENGLAND && "text-gold")}
     >
       {name}
     </button>
@@ -33,7 +34,7 @@ export function MatchList({ preTournament, day, fixtures, onSelectTeam }: MatchL
           <div>
             <p className="font-medium">Nothing kicking off yet.</p>
             <p className="text-sm text-muted-foreground">
-              The group stage starts {day ? formatMatchDate(`${day}T12:00:00Z`) : "on 11 Jun"}.
+              The group stage starts {formatMatchDate(day ? `${day}T12:00:00Z` : groupStageStart)}.
             </p>
           </div>
         </div>
