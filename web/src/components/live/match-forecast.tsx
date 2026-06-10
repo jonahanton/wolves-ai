@@ -25,28 +25,30 @@ export function MatchForecast({ fixture }: MatchForecastProps) {
     },
   ];
 
+  const notes = [
+    forecast.pDraw !== null ? `Draw ${formatPct(forecast.pDraw)}` : null,
+    forecast.modalScore ? `Most likely ${forecast.modalScore}` : null,
+    forecast.pDecided90 !== null ? `${formatPct(forecast.pDecided90)} settled in 90` : null,
+  ].filter((note) => note !== null);
+
   return (
-    <div className="mt-2">
-      <div className="flex h-1.5 gap-px overflow-hidden rounded-full bg-secondary">
+    <div className="px-3 pb-3">
+      <div className="flex h-0.5 gap-px overflow-hidden bg-secondary">
         {segments.map((segment) => (
           <div
             key={segment.key}
-            className={cn("rounded-full", segment.className)}
+            className={cn("h-full", segment.className)}
             style={{ width: `${Math.max(segment.prob * 100, 1.5)}%` }}
           />
         ))}
       </div>
-      <p className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] tabular-nums text-muted-foreground">
-        <span>
-          {fixture.homeName} {formatPct(forecast.pHome)}
-        </span>
-        {forecast.pDraw !== null && <span>Draw {formatPct(forecast.pDraw)}</span>}
-        <span>
-          {fixture.awayName} {formatPct(forecast.pAway)}
-        </span>
-        {forecast.modalScore && <span>Most likely {forecast.modalScore}</span>}
-        {forecast.pDecided90 !== null && <span>{formatPct(forecast.pDecided90)} settled in 90</span>}
-      </p>
+      {notes.length > 0 && (
+        <p className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
+          {notes.map((note) => (
+            <span key={note}>{note}</span>
+          ))}
+        </p>
+      )}
       {forecast.pPairing !== null && (
         <p className="mt-0.5 text-[11px] text-muted-foreground">
           Most likely pairing, seen in {formatPct(forecast.pPairing)} of sims; the chances assume it happens.

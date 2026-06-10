@@ -12,7 +12,7 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
           type="button"
           aria-label={`${label} score down`}
           onClick={() => onChange(Math.max(0, value - 1))}
-          className="rounded-full border p-1.5 text-muted-foreground active:scale-95"
+          className="rounded-lg border p-1.5 text-muted-foreground active:scale-95"
         >
           <Minus size={14} />
         </button>
@@ -21,7 +21,7 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
           type="button"
           aria-label={`${label} score up`}
           onClick={() => onChange(value + 1)}
-          className="rounded-full border p-1.5 text-muted-foreground active:scale-95"
+          className="rounded-lg border p-1.5 text-muted-foreground active:scale-95"
         >
           <Plus size={14} />
         </button>
@@ -40,7 +40,7 @@ export function ScoreEntry({ home, away }: ScoreEntryProps) {
   const [awayScore, setAwayScore] = useState(0);
 
   return (
-    <section className="rounded-xl border bg-card p-4" aria-label="Manual score entry">
+    <section className="rounded-xl border bg-card p-3" aria-label="Manual score entry">
       <h2 className="font-semibold">Manual score entry</h2>
       <p className="mt-0.5 text-sm text-muted-foreground">For when the feed is stale or you are offline.</p>
       <div className="mt-4 flex items-start gap-2">
