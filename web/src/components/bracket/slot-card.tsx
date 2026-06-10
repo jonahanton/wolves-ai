@@ -12,7 +12,7 @@ function Side({ side }: { side: SideView }) {
       {top && (
         <div className="mt-1 flex items-center gap-2">
           <div className="flex-1">
-            <ProbBar label={top.name} prob={top.prob} highlight />
+            <ProbBar label={top.name} prob={top.prob} highlight gold={top.teamId === "england"} />
           </div>
           {more > 0 && <span className="shrink-0 text-[11px] text-muted-foreground">+{more} more</span>}
         </div>

@@ -1,25 +1,40 @@
 import { formatPct } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 interface ProbBarProps {
   label: string;
   prob: number;
   highlight?: boolean;
+  gold?: boolean;
 }
 
-export function ProbBar({ label, prob, highlight = false }: ProbBarProps) {
+export function ProbBar({ label, prob, highlight = false, gold = false }: ProbBarProps) {
   const pct = Math.round(prob * 100);
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="w-28 shrink-0 truncate">{label}</span>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
+    <div className="text-sm">
+      <div className="flex items-baseline justify-between gap-2">
+        <span
+          className={cn(
+            "min-w-0 truncate",
+            highlight ? "font-medium" : "text-muted-foreground",
+            gold && "text-gold",
+          )}
+        >
+          {label}
+        </span>
+        <span className={cn("shrink-0", highlight ? "font-semibold" : "text-muted-foreground")}>
+          {formatPct(prob)}
+        </span>
+      </div>
+      <div className="mt-1 h-0.5 w-full bg-secondary">
         <div
-          className={`h-full rounded-full transition-[width] duration-300 ease-[var(--ease-out)] ${
-            highlight ? "bg-gold" : "bg-foreground/40"
-          }`}
-          style={{ width: `${Math.max(pct, 2)}%` }}
+          className={cn(
+            "h-full transition-[width] duration-300 ease-[var(--ease-out)]",
+            gold ? "bg-gold" : highlight ? "bg-foreground/70" : "bg-foreground/30",
+          )}
+          style={{ width: `${Math.max(pct, 1)}%` }}
         />
       </div>
-      <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">{formatPct(prob)}</span>
     </div>
   );
 }
