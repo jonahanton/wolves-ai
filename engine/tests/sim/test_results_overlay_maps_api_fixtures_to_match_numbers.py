@@ -98,3 +98,16 @@ def test_knockout_draw_without_a_winner_flag_is_skipped(fmt):
     )
 
     assert results_from_fixtures(fmt, [fixture]) == {}
+
+
+def test_knockout_on_a_shared_date_without_a_city_is_skipped(fmt):
+    fixture = _fixture(
+        kickoff=datetime.fromisoformat("2026-06-30T17:00:00-04:00"),
+        home="England",
+        away="France",
+        home_goals=2,
+        away_goals=1,
+        city=None,
+    )
+
+    assert results_from_fixtures(fmt, [fixture]) == {}

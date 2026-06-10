@@ -13,7 +13,8 @@ import asyncio
 import logging
 import re
 import sys
-from datetime import UTC, datetime, timedelta
+import time
+from datetime import UTC, date, datetime, timedelta
 
 import numpy as np
 from pydantic_ai.models import Model
@@ -38,6 +39,7 @@ from wolves.clients.odds import (
     PolymarketClient,
     TheOddsApiClient,
 )
+from wolves.clients.s3 import S3UnavailableError
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
 from wolves.graph.contracts import Brief, ForecastOutput, LedgerEvidence, ResearchOutput, WavePlan
@@ -63,7 +65,7 @@ from wolves.snapshot import (
     TeamInfo,
 )
 from wolves.store.agent_state import build_agent_state_store
-from wolves.store.publish import write_local_snapshot
+from wolves.store.publish import SnapshotPublisher
 from wolves.tools._budget_gate import BudgetGate
 
 logger = logging.getLogger(__name__)
@@ -301,9 +303,23 @@ def _build_snapshot(
 async def _run(args: argparse.Namespace, settings: Settings) -> int:
     as_of = args.as_of or datetime.now(UTC).date().isoformat()
     run_id = datetime.now(UTC).strftime("agent-%Y%m%d-%H%M%S")
+    started = time.monotonic()
+    publisher = SnapshotPublisher(settings)
+    if not publisher.run_enabled():
+        logger.warning("run %s skipped: runs disabled by kill switch", run_id)
+        return 0
     state = build_agent_state_store(settings)
     if state is not None:
-        state.pull()
+        # An amnesia run that later pushes would overwrite good S3 state with
+        # truncated state, so a failed pull ends the run cleanly instead.
+        try:
+            state.pull()
+        except S3UnavailableError:
+            logger.exception("run %s aborted: agent state pull failed", run_id)
+            publisher.record_failure(
+                run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+            )
+            return 1
     fmt = load_format(settings.data_dir)
     tsv = sorted((settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
     ratings = load_elo_ratings(tsv, fmt)
@@ -353,6 +369,11 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     )
     try:
         result = await run_graph(deps, as_of=as_of, models=models)
+    except Exception:
+        publisher.record_failure(
+            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+        )
+        raise
     finally:
         await web.aclose()
         await odds.aclose()
@@ -371,6 +392,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
         if state is not None:
             state.push(run_id=run_id)
+        publisher.record_failure(
+            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+        )
         return 1
 
     snapshot = _build_snapshot(
@@ -384,7 +408,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         seed=args.seed,
     )
     runtime.shutdown()
-    write_local_snapshot(settings, snapshot)
+    publisher.publish(snapshot, as_of=date.fromisoformat(as_of), started=started)
     if state is not None:
         state.push(run_id=run_id)
     logger.info(

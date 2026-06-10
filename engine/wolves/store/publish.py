@@ -24,8 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 def build_run_index(settings: Settings) -> RunIndex | None:
-    """Construct the run index when DynamoDB config is present."""
-    if not settings.dynamo_endpoint and not settings.snapshot_bucket:
+    """Construct the run index when cloud config is present: a snapshot bucket
+    (production) or an explicit local DynamoDB endpoint (dev stack)."""
+    if not settings.snapshot_bucket and not settings.dynamo_endpoint:
         return None
     return RunIndex(
         table_name=settings.dynamo_table,

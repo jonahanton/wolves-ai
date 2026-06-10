@@ -26,11 +26,13 @@ from wolves.store.publish import SnapshotPublisher
 logger = logging.getLogger(__name__)
 
 
-def latest_snapshot(snapshot_dir: Path) -> Snapshot | None:
-    """Return the newest readable snapshot, ignoring the latest.json pointer."""
+def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, dict[str, float]]:
+    """One directory scan: the newest readable snapshot, plus rating overrides
+    from the newest snapshot that carries an agent block."""
     newest: Snapshot | None = None
+    newest_agent: Snapshot | None = None
     if not snapshot_dir.exists():
-        return None
+        return None, {}
     for path in snapshot_dir.glob("*.json"):
         if path.name == "latest.json":
             continue
@@ -41,28 +43,16 @@ def latest_snapshot(snapshot_dir: Path) -> Snapshot | None:
             continue
         if newest is None or snapshot.run.created_at > newest.run.created_at:
             newest = snapshot
-    return newest
-
-
-def latest_agent_overrides(snapshot_dir: Path) -> dict[str, float]:
-    """Rating overrides from the newest snapshot that carries an agent block."""
-    newest: Snapshot | None = None
-    if not snapshot_dir.exists():
-        return {}
-    for path in snapshot_dir.glob("*.json"):
-        if path.name == "latest.json":
-            continue
-        try:
-            snapshot = Snapshot.model_validate_json(path.read_text(encoding="utf-8"))
-        except ValidationError:
-            continue
-        if snapshot.agent is None:
-            continue
-        if newest is None or snapshot.run.created_at > newest.run.created_at:
-            newest = snapshot
-    if newest is None or newest.agent is None:
-        return {}
-    return {o.team_id: o.delta_elo for o in newest.agent.rating_overrides}
+        if snapshot.agent is not None and (
+            newest_agent is None or snapshot.run.created_at > newest_agent.run.created_at
+        ):
+            newest_agent = snapshot
+    overrides = (
+        {o.team_id: o.delta_elo for o in newest_agent.agent.rating_overrides}
+        if newest_agent is not None and newest_agent.agent is not None
+        else {}
+    )
+    return newest, overrides
 
 
 def pending_results(
@@ -91,16 +81,15 @@ async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int
 
     fmt = load_format(settings.data_dir)
     overlay = results_from_fixtures(fmt, await fixtures.fixtures())
+    previous, overrides = scan_snapshots(settings.snapshot_dir)
     pending = pending_results(
         overlay,
         file_results=load_results(settings.data_dir),
-        previous=latest_snapshot(settings.snapshot_dir),
+        previous=previous,
     )
     if not pending:
         logger.info("no new results; live pass is a no-op")
         return False
-
-    overrides = latest_agent_overrides(settings.snapshot_dir)
     now = datetime.now(UTC)
     run_id = now.strftime("live-%Y%m%d-%H%M%S")
     created_at = now.isoformat(timespec="seconds")
