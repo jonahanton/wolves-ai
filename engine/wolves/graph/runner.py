@@ -66,11 +66,12 @@ def _cap_exceeded(exc: Exception) -> bool:
     return False
 
 
-def _budget_at_caps(runtime: ObservedRuntime) -> bool:
+def _budget_at_caps(runtime: ObservedRuntime, *, reserve_micros: int = 0, reserve_calls: int = 0) -> bool:
+    """True once spend crosses the caps minus a reserve held back for a final forecast."""
     budget, caps = runtime.budget, runtime.caps
-    if budget.llm_calls >= caps.max_llm_calls:
+    if budget.llm_calls >= caps.max_llm_calls - reserve_calls:
         return True
-    return bool(caps.max_cost_micros) and budget.cost_micros >= caps.max_cost_micros
+    return bool(caps.max_cost_micros) and budget.cost_micros >= caps.max_cost_micros - reserve_micros
 
 
 async def _execute_wave(
@@ -130,13 +131,19 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             if submission_state.validation_failures > settings.agent_submit_retries:
                 logger.error("submission retries exhausted after %d failures", submission_state.validation_failures)
                 break
-            if _budget_at_caps(deps.runtime):
-                logger.warning("budget at caps after wave %d; stopping", board.wave)
+            if _budget_at_caps(
+                deps.runtime,
+                reserve_micros=int(settings.graph_forecast_reserve_usd * 1_000_000),
+                reserve_calls=settings.graph_forecast_reserve_llm_calls,
+            ):
+                logger.warning("budget within forecast reserve after wave %d; stopping waves", board.wave)
                 budget_exhausted = True
                 break
 
         retries_left = submission_state.validation_failures <= settings.agent_submit_retries
-        if submission_state.accepted is None and not budget_exhausted and retries_left:
+        if submission_state.accepted is None and retries_left and not _budget_at_caps(deps.runtime):
+            # The reserve held back above funds this last forecast even when the
+            # wave loop stopped for budget; a cap mid-submit degrades, not raises.
             op = NodePatch(
                 node_id="runner-demand-submit",
                 kind="forecast",
@@ -144,8 +151,14 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 brief=_DEMAND_SUBMIT,
                 input_artifact_ids=[a.id for a in store.all()],
             )
-            outcome = await execute_brief(op, deps=deps, store=store, model=models.nodes["forecast"])
-            board.merge([op], [outcome])
+            try:
+                outcome = await execute_brief(op, deps=deps, store=store, model=models.nodes["forecast"])
+            except Exception as exc:
+                if not _cap_exceeded(exc):
+                    raise
+                logger.warning("demand-submit stopped by cap: %s", exc)
+            else:
+                board.merge([op], [outcome])
 
         return GraphRunResult(
             submission=submission_state.accepted,

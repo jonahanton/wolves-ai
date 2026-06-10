@@ -76,8 +76,10 @@ class Settings(BaseSettings):
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
 
-    agent_run_ceiling_usd: float = 0.25
+    agent_run_ceiling_usd: float = 1.00
     agent_run_ceiling_max_usd: float = 1.50
+    graph_forecast_reserve_usd: float = 0.18
+    graph_forecast_reserve_llm_calls: int = 8
 
     @property
     def lessons_path(self) -> Path:

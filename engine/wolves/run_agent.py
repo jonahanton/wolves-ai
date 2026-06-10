@@ -281,6 +281,23 @@ def _calibration_block(settings: Settings) -> CalibrationSummary | None:
     )
 
 
+async def _publish_fallback(
+    settings: Settings, publisher: SnapshotPublisher, *, as_of: date, n_sims: int, seed: int, started: float
+) -> None:
+    """Publish a deterministic sim-only snapshot so a failed agent run never leaves the day dark."""
+    from wolves.run import generate_snapshot, run_id_for
+
+    try:
+        # generate_snapshot drives its own event loop for the markets block.
+        snapshot = await asyncio.to_thread(
+            generate_snapshot, settings, n_sims=n_sims, seed=seed, run_id=f"{run_id_for(as_of)}-fallback"
+        )
+        publisher.publish(snapshot, as_of=as_of, started=started)
+        logger.warning("published deterministic fallback snapshot %s", snapshot.run.run_id)
+    except Exception:
+        logger.error("deterministic fallback publish failed", exc_info=True)
+
+
 def _build_snapshot(
     *,
     settings: Settings,
@@ -495,6 +512,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             state.push(run_id=run_id)
         publisher.record_failure(
             run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+        )
+        await _publish_fallback(
+            settings, publisher, as_of=date.fromisoformat(as_of), n_sims=args.sims, seed=args.seed, started=started
         )
         return 1
 
