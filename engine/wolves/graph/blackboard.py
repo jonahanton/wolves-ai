@@ -31,6 +31,7 @@ class Blackboard:
         self._runtime = runtime
         self.nodes: list[NodeRecord] = []
         self.challenges: list[str] = []
+        self.dropped: list[str] = []
         self.wave = 0
 
     def merge(self, briefs: list[Brief], outcomes: list[NodeOutcome]) -> None:
@@ -106,4 +107,6 @@ class Blackboard:
             ],
             "open_challenges": self.challenges,
         }
+        if self.dropped:
+            state["last_wave_admission_drops"] = self.dropped
         return json.dumps(state, ensure_ascii=False)

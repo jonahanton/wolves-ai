@@ -110,10 +110,16 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 logger.warning("master plan stopped by cap: %s", exc)
                 budget_exhausted = True
                 break
-            briefs = admit(plan, board=board, settings=settings)
-            if plan.stop or not briefs:
+            briefs, dropped = admit(plan, board=board, settings=settings)
+            board.dropped = dropped
+            if plan.stop or not plan.briefs:
                 logger.info("master stopped after wave %d: %s", board.wave, plan.reason or "empty wave")
                 break
+            if not briefs:
+                # Every proposed brief was dropped; the drops are on the
+                # blackboard, so give the master another planning turn.
+                logger.warning("wave %d fully dropped at admission; re-planning", board.wave)
+                continue
             outcomes = await _execute_wave(briefs, deps=deps, store=store, models=models)
             board.merge(briefs, outcomes)
             if submission_state.accepted is not None:

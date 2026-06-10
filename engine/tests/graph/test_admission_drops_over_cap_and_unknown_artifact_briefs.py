@@ -35,9 +35,10 @@ def test_admission_trims_invalid_and_over_cap_briefs(tmp_path: Path):
         ]
     )
 
-    admitted = admit(plan, board=board, settings=settings)
+    admitted, dropped = admit(plan, board=board, settings=settings)
 
     assert [b.node_id for b in admitted] == ["quant-1", "forecast-a", "research-3"]
+    assert [d.split(":")[0] for d in dropped] == ["research-0", "research-2", "forecast-b", "research-4"]
     deps.runtime.shutdown()
 
 
@@ -51,5 +52,5 @@ def test_admission_respects_remaining_node_budget(tmp_path: Path):
 
     plan = WavePlan(briefs=[_brief("research-1"), _brief("research-2")])
 
-    assert [b.node_id for b in admit(plan, board=board, settings=settings)] == ["research-1"]
+    assert [b.node_id for b in admit(plan, board=board, settings=settings)[0]] == ["research-1"]
     deps.runtime.shutdown()

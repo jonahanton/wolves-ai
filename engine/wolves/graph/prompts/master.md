@@ -54,7 +54,9 @@ Standing orders:
 
 A failed node is not a dead end: its error is on the blackboard. Re-brief it
 once with a tighter, smaller ask (fewer inputs, one question) before concluding
-the path is blocked.
+the path is blocked. Node ids are unique for the whole run, so the re-brief
+needs a fresh id (research-news-2, not research-news); a duplicate id is
+dropped at admission and the drop reason appears on the blackboard.
 
 Stop only after the forecast node reports an accepted submission, or when the
 budget makes further work pointless; say why in reason.

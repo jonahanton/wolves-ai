@@ -18,25 +18,31 @@ async def plan_wave(prompt: str, *, model: Model) -> WavePlan:
     return result.output
 
 
-def admit(plan: WavePlan, *, board: Blackboard, settings: Settings) -> list[Brief]:
-    """Trim a wave plan against hard caps; every drop is logged, never fatal."""
+def admit(plan: WavePlan, *, board: Blackboard, settings: Settings) -> tuple[list[Brief], list[str]]:
+    """Trim a wave plan against hard caps; drops are returned for the
+    blackboard so the master can react, never fatal."""
     admitted: list[Brief] = []
+    drops: list[str] = []
     seen = {n.node_id for n in board.nodes}
     forecast_admitted = False
 
+    def drop(brief: Brief, why: str) -> None:
+        drops.append(f"{brief.node_id}: {why}")
+        logger.warning("admission dropped %s: %s", brief.node_id, why)
+
     for brief in plan.briefs:
         if brief.node_id in seen:
-            logger.warning("admission dropped %s: duplicate node_id", brief.node_id)
+            drop(brief, "duplicate node_id; node ids are unique for the whole run, pick a fresh one")
             continue
         if brief.node_id.startswith("runner-"):
-            logger.warning("admission dropped %s: runner- ids are reserved", brief.node_id)
+            drop(brief, "runner- ids are reserved")
             continue
         unknown = [a for a in brief.input_artifact_ids if not board.artifacts.has(a)]
         if unknown:
-            logger.warning("admission dropped %s: unknown artifact ids %s", brief.node_id, unknown)
+            drop(brief, f"unknown artifact ids {unknown}")
             continue
         if brief.kind == "forecast" and forecast_admitted:
-            logger.warning("admission dropped %s: one forecast node per wave", brief.node_id)
+            drop(brief, "one forecast node per wave")
             continue
         forecast_admitted = forecast_admitted or brief.kind == "forecast"
         seen.add(brief.node_id)
@@ -44,6 +50,6 @@ def admit(plan: WavePlan, *, board: Blackboard, settings: Settings) -> list[Brie
 
     remaining = max(0, settings.graph_max_nodes - len(board.nodes))
     cap = min(remaining, settings.graph_max_wave_workers)
-    for dropped in admitted[cap:]:
-        logger.warning("admission dropped %s: over node or wave worker cap", dropped.node_id)
-    return admitted[:cap]
+    for over in admitted[cap:]:
+        drop(over, "over node or wave worker cap")
+    return admitted[:cap], drops
