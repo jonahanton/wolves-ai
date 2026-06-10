@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime
 
 from wolves import ENGINE_VERSION
 from wolves.config import Settings
+from wolves.observability.logging import configure_cli_logging
 from wolves.sim.api import run_simulation
 from wolves.snapshot import RunMeta, Snapshot
 from wolves.store.publish import SnapshotPublisher
@@ -64,7 +65,7 @@ def daily_run(settings: Settings, *, as_of: date, n_sims: int, seed: int = 0) ->
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    configure_cli_logging()
     settings = Settings()
     parser = argparse.ArgumentParser(description="Run the daily forecast")
     parser.add_argument("--as-of", type=date.fromisoformat, default=datetime.now(UTC).date())

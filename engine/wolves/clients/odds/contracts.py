@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -42,6 +43,14 @@ class CreditUsage(BaseModel):
 
 class OddsResponse(BaseModel):
     events: list[OddsEvent] = Field(default_factory=list)
+    credits: CreditUsage = Field(default_factory=CreditUsage)
+
+
+class RawOddsResponse(BaseModel):
+    """Verbatim API payload. The typed parse drops bookmaker detail, so the
+    odds archive stores this and parses downstream at read time."""
+
+    payload: list[Any] = Field(default_factory=list)
     credits: CreditUsage = Field(default_factory=CreditUsage)
 
 

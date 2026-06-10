@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from wolves import ENGINE_VERSION
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
 from wolves.config import Settings
+from wolves.observability.logging import configure_cli_logging
 from wolves.sim.api import run_simulation
 from wolves.sim.format import PlayedResult, load_format, load_results
 from wolves.sim.overlay import results_from_fixtures
@@ -144,7 +145,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    configure_cli_logging()
     settings = Settings()
     parser = argparse.ArgumentParser(description="Run a live results update pass")
     parser.add_argument("--sims", type=int, default=settings.n_sims)

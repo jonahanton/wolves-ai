@@ -7,7 +7,7 @@ import httpx
 
 from wolves.connectors._http import _raise_for_status, async_retrying
 
-from .contracts import CreditUsage, OddsClient, OddsEvent, OddsResponse
+from .contracts import CreditUsage, OddsClient, OddsEvent, OddsResponse, RawOddsResponse
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +49,18 @@ class TheOddsApiClient(OddsClient):
         self._client = client or httpx.AsyncClient(timeout=timeout)
 
     async def outrights(self) -> OddsResponse:
-        return await self._odds(OUTRIGHTS_SPORT, "outrights")
+        return _parse(await self.outrights_raw())
 
     async def h2h(self) -> OddsResponse:
-        return await self._odds(H2H_SPORT, "h2h")
+        return _parse(await self.h2h_raw())
 
-    async def _odds(self, sport_key: str, markets: str) -> OddsResponse:
+    async def outrights_raw(self) -> RawOddsResponse:
+        return await self._fetch(OUTRIGHTS_SPORT, "outrights")
+
+    async def h2h_raw(self) -> RawOddsResponse:
+        return await self._fetch(H2H_SPORT, "h2h")
+
+    async def _fetch(self, sport_key: str, markets: str) -> RawOddsResponse:
         params: dict[str, Any] = {
             "apiKey": self._api_key,
             "regions": self._regions,
@@ -74,10 +80,15 @@ class TheOddsApiClient(OddsClient):
                     usage.last_cost,
                     usage.remaining,
                 )
-                events = [OddsEvent.model_validate(item) for item in response.json()]
-                return OddsResponse(events=events, credits=usage)
-        return OddsResponse()
+                return RawOddsResponse(payload=response.json(), credits=usage)
+        # async_retrying reraises on exhaustion, so an empty response can never masquerade as success.
+        raise AssertionError("unreachable")
 
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()
+
+
+def _parse(raw: RawOddsResponse) -> OddsResponse:
+    events = [OddsEvent.model_validate(item) for item in raw.payload]
+    return OddsResponse(events=events, credits=raw.credits)
