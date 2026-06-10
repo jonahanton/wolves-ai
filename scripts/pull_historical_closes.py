@@ -14,7 +14,7 @@ import httpx
 from wolves.config import Settings
 from wolves.data.tournaments import CLOSES_TOURNAMENTS, ClosesTournament
 from wolves.observability.logging import configure_cli_logging
-from wolves.s3.client import S3Client
+from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.layout import ODDS_CLOSE
 
 logger = logging.getLogger("pull_historical_closes")
@@ -74,12 +74,13 @@ def mirror_to_s3(settings: Settings) -> None:
     if settings.storage_mode == "local" or not settings.bucket:
         logger.warning("cloud storage off; close snapshots exist on this machine only")
         return
-    s3 = S3Client(bucket=settings.bucket, region=settings.aws_region)
-    existing = set(s3.list_keys(prefix=ODDS_CLOSE.prefix))
+    # Mode s3: data/odds is the local home for closes, not the runs mirror.
+    store = ArtifactStore(settings.model_copy(update={"storage_mode": "s3"}))
+    existing = set(store.list_keys(prefix=ODDS_CLOSE.prefix))
     for path in sorted(ODDS_DIR.glob("*/*.json")):
         key = ODDS_CLOSE.key(tournament=path.parent.name, snapshot=path.stem)
         if key not in existing:
-            s3.put_text(key, path.read_text(encoding="utf-8"), content_type=ODDS_CLOSE.content_type)
+            store.put(ODDS_CLOSE, path.read_text(encoding="utf-8"), tournament=path.parent.name, snapshot=path.stem)
             logger.info("mirrored %s", key)
 
 

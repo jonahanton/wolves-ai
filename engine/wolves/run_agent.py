@@ -335,8 +335,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
         llm: LLMClient = build_llm(settings, model=settings.worker_model)
         provider = AnthropicProvider(api_key=settings.anthropic_api_key)
-        # Five Haiku-master dry runs planned inconsistently; the planner gets the
-        # stronger model while workers stay on the cheap one.
+        # Wave planning needs the stronger model; workers stay on the cheap one.
         worker = ObservedModel(AnthropicModel(settings.worker_model, provider=provider), runtime=runtime)
         master = ObservedModel(AnthropicModel(settings.fast_model, provider=provider), runtime=runtime)
         models = GraphModels(

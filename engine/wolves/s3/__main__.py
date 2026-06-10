@@ -22,9 +22,10 @@ def main() -> None:
         return
     store = ArtifactStore(settings)
     print(f"\nmode={store.mode} bucket={store.bucket or '-'} local_root={store.local_root}")
-    for prefix in sorted({spec.prefix.split("/", 1)[0] + "/" for spec in LAYOUT}):
+    for prefix in sorted({spec.prefix for spec in LAYOUT}):
+        names = ", ".join(spec.name for spec in LAYOUT if spec.prefix == prefix)
         keys = store.list_keys(prefix=prefix)
-        print(f"\n{prefix}  {len(keys)} object(s)")
+        print(f"\n{prefix} ({names})  {len(keys)} object(s)")
         for key in keys[-5:]:
             print(f"  {key}")
 

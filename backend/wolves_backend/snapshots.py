@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
     from wolves_backend.clients.snapshot_bucket import SnapshotBucket
 
-RUN_ID_PATTERN = re.compile(r"^run-(\d{4})(\d{2})(\d{2})$")
+RUN_ID_PATTERN = re.compile(r"^(?:run|live|agent)-(\d{4})(\d{2})(\d{2})(?:-\d{6})?$")
 LATEST_KEY = "snapshots/latest.json"
 
 

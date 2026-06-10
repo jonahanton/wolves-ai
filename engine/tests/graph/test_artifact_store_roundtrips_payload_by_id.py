@@ -4,11 +4,11 @@ import json
 import re
 from pathlib import Path
 
-from wolves.graph.artifacts import ArtifactStore
+from wolves.graph.artifacts import NodeArtifactStore
 
 
 def test_roundtrip(tmp_path: Path):
-    store = ArtifactStore(tmp_path / "artifacts")
+    store = NodeArtifactStore(tmp_path / "artifacts")
     payload = {"summary": "keeper fit", "evidence": [{"claim": "trained in full"}]}
 
     artifact = store.add(kind="evidence", created_by="research-keeper", summary="keeper fit", payload=payload)

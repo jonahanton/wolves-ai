@@ -1,7 +1,4 @@
-"""Match-day live update: poll results, overlay them on the sim with the
-latest agent rating overrides, and publish a fresh snapshot. One pass per
-invocation because the scheduler owns the cadence; --loop exists for local
-dev only. A pass with no results beyond the latest snapshot is a no-op."""
+"""Match-day live pass: overlay polled results plus agent overrides, republish."""
 
 from __future__ import annotations
 
@@ -18,7 +15,9 @@ from wolves import ENGINE_VERSION
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
 from wolves.config import Settings
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
+from wolves.s3.layout import SNAPSHOT
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
 from wolves.sim.format import PlayedResult, load_format, load_results
@@ -83,6 +82,9 @@ async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int
 
     fmt = load_format(settings.data_dir)
     overlay = results_from_fixtures(fmt, await fixtures.fixtures())
+    # Fresh containers hold no snapshots; without this the continuity check
+    # and the agent overrides silently degrade to nothing.
+    ArtifactStore(settings).sync_down(prefix=SNAPSHOT.prefix)
     previous, overrides = scan_snapshots(settings.runs_root / "snapshots")
     pending = pending_results(
         overlay,

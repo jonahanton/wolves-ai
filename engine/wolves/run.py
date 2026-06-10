@@ -1,5 +1,4 @@
-"""One-shot sim entrypoint, run daily by the production scheduler. The
-date-derived run id makes reruns for the same day replace, not duplicate."""
+"""Daily sim entrypoint; the date-derived run id makes reruns replace, not duplicate."""
 
 from __future__ import annotations
 
