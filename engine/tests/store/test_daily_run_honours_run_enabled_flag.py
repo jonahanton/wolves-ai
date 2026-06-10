@@ -7,7 +7,7 @@ import boto3
 from moto import mock_aws
 
 from wolves.config import Settings
-from wolves.daily import daily_run
+from wolves.run import daily_run
 from wolves.store.init import ensure_table
 from wolves.store.store import RunIndex
 
