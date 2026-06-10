@@ -137,6 +137,15 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
         [
             [("ledger_query", {"team_id": "england"})],
             [
+                (
+                    "scenario_update",
+                    {
+                        "action": "open",
+                        "name": f"keeper_watch_{as_of}",
+                        "weight": 0.2,
+                        "reason": "monitor fitness into the next matchday",
+                    },
+                ),
                 ("write_journal", {"text": "Keeper confirmed fit; sim and market agree England are third favourites."}),
                 ("submit_forecast", _dev_submission(as_of)),
             ],
@@ -440,8 +449,15 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         store.add(
             kind="mixture",
             created_by="dev-seed",
-            summary="dev baseline mixture",
-            payload={"weights": {"baseline": 1.0}, "worlds": {"baseline": {"perturbations": []}}, "mixture": {}},
+            summary="dev keeper mixture",
+            payload={
+                "weights": {"keeper_fit": 0.8, "keeper_doubt": 0.2},
+                "worlds": {
+                    "keeper_fit": {"perturbations": []},
+                    "keeper_doubt": {"perturbations": [{"team": "england", "delta": -0.03, "reason": "keeper doubt"}]},
+                },
+                "mixture": {},
+            },
         )
         deps.artifacts = store
     try:
