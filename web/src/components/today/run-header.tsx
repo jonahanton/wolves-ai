@@ -12,7 +12,7 @@ export function RunHeader({ run, mood }: RunHeaderProps) {
   return (
     <header className="flex items-start justify-between gap-3 pt-2">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Today</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">Today</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
           Updated {formatUpdated(run.created_at)} &middot; {run.n_sims.toLocaleString("en-GB")} sims
         </p>
