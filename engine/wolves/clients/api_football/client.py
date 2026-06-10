@@ -7,7 +7,7 @@ import httpx
 
 from wolves.connectors._http import _raise_for_status, async_retrying
 
-from .contracts import FixturesClient, MatchFixture, MatchStatus
+from .contracts import FixturesClient, MatchFixture, MatchStatus, WinnerSide
 
 _BASE_URL = "https://v3.football.api-sports.io"
 WORLD_CUP_LEAGUE_ID = 1
@@ -25,6 +25,14 @@ def _status(short: str) -> MatchStatus:
     return "scheduled"
 
 
+def _winner(teams: dict[str, Any]) -> WinnerSide | None:
+    if (teams.get("home") or {}).get("winner"):
+        return "home"
+    if (teams.get("away") or {}).get("winner"):
+        return "away"
+    return None
+
+
 def _to_fixture(item: dict[str, Any]) -> MatchFixture:
     fixture = item.get("fixture") or {}
     teams = item.get("teams") or {}
@@ -39,6 +47,7 @@ def _to_fixture(item: dict[str, Any]) -> MatchFixture:
         home_goals=goals.get("home"),
         away_goals=goals.get("away"),
         city=venue.get("city"),
+        winner=_winner(teams),
     )
 
 
