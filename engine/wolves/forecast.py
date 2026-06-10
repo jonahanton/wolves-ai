@@ -27,9 +27,13 @@ from wolves.models.contracts import (
 )
 from wolves.models.inmatch import MatchState, final_score_distribution, live_win_probabilities
 from wolves.models.poisson import PoissonDecayModel
-from wolves.sim.format import FormatData, PlayedResult, load_format
+from wolves.sim.api import SimOutputs
+from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
 from wolves.sim.mc import SimResult, run_tournament
 from wolves.sim.model_engine import PoissonMatchEngine
+from wolves.sim.outputs import build_england, build_groups, build_matches, build_slots, build_team_reach
+from wolves.sim.ratings import load_elo_ratings, load_squad_values
+from wolves.snapshot import TeamInfo
 
 DEFAULT_SIMS = 20_000
 
@@ -153,6 +157,44 @@ class Forecaster:
         )
         winners = result.ko_winner[max(result.ko_winner)]
         return {team.id: float((winners == i).mean()) for i, team in enumerate(self.fmt.teams)}
+
+    def sim_outputs(
+        self,
+        *,
+        n_sims: int,
+        seed: int = 0,
+        live_distributions: dict[int, ScorelineDistribution] | None = None,
+    ) -> SimOutputs:
+        """Full snapshot outputs from the champion simulation, with played
+        results from the data directory baked in."""
+        results = load_results(self._settings.data_dir)
+        result = self.simulate(n_sims=n_sims, seed=seed, results=results, live_distributions=live_distributions)
+        reach = build_team_reach(self.fmt, result)
+        elo_path = sorted((self._settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
+        elo = load_elo_ratings(elo_path, self.fmt)
+        values = load_squad_values(self._settings.data_dir / "ratings" / "squad-values.json", self.fmt)
+        teams = [
+            TeamInfo(
+                team_id=team.id,
+                name=team.name,
+                group=team.group,
+                elo=round(float(elo[i]), 1),
+                rating=round(float(elo[i]), 1),
+                value_eur_m=float(values[i]),
+                champion_prob=reach[team.id]["champion"],
+                reach_probs=reach[team.id],
+            )
+            for i, team in enumerate(self.fmt.teams)
+        ]
+        return SimOutputs(
+            n_sims=n_sims,
+            seed=seed,
+            england=build_england(self.fmt, result),
+            slots=build_slots(self.fmt, result),
+            teams=teams,
+            groups=build_groups(self.fmt, result),
+            matches=build_matches(self.fmt, result, played=set(results)),
+        )
 
     def perturbation_impact(
         self, perturbation: StrengthPerturbation, *, n_sims: int = DEFAULT_SIMS, seed: int = 0

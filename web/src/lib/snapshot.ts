@@ -178,6 +178,27 @@ export interface AgentBlock {
   calibration: CalibrationSummary | null;
 }
 
+export interface ChampionBlock {
+  id: string;
+  version: string;
+  dataset_version: string;
+  half_life_days?: number | null;
+  blend_weight?: number;
+}
+
+export interface TeamInterval {
+  team_id: string;
+  lo: number;
+  hi: number;
+}
+
+export interface MarketsBlock {
+  model_probs?: Record<string, number>;
+  market_probs?: Record<string, number>;
+  blend_probs?: Record<string, number>;
+  model_weight?: number;
+}
+
 export interface Snapshot {
   schema_version: number;
   run: RunMeta;
@@ -187,6 +208,9 @@ export interface Snapshot {
   groups?: GroupBlock[];
   matches?: MatchProbs[];
   agent?: AgentBlock | null;
+  champion?: ChampionBlock | null;
+  intervals?: TeamInterval[];
+  markets?: MarketsBlock | null;
 }
 
 export function teamNames(snapshot: Snapshot): Map<string, string> {
