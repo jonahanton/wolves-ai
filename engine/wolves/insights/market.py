@@ -1,6 +1,6 @@
 """Market movement digests over the stored series: bookmaker outrights,
-Polymarket and per-match h2h as time series with deltas. Falls back to a
-rebuild from raw snapshots when the series file is missing."""
+Polymarket and per-match h2h as time series with deltas. Output is capped at
+source so a full tournament of snapshots stays a small digest."""
 
 from __future__ import annotations
 
@@ -8,8 +8,13 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from wolves.markets.series import SeriesPoint, load_series, rebuild_series
+from wolves.clients.s3.client import S3Client
+from wolves.config import Settings
+from wolves.markets.series import SERIES_SUFFIX, SeriesPoint, load_series, rebuild_series
 from wolves.sim.format import FormatData
+
+TOP_TEAMS = 20
+HISTORY_POINTS = 5
 
 
 class ProbabilityPoint(BaseModel):
@@ -41,7 +46,7 @@ class MarketMovement(BaseModel):
     matches: list[MatchMovement]
 
 
-def _movements(series: list[SeriesPoint], source: str) -> list[TeamMovement]:
+def _movements(series: list[SeriesPoint], source: str, *, history_points: int) -> list[TeamMovement]:
     history: dict[str, list[ProbabilityPoint]] = {}
     for point in series:
         for team, prob in getattr(point, source).items():
@@ -54,12 +59,13 @@ def _movements(series: list[SeriesPoint], source: str) -> list[TeamMovement]:
             TeamMovement(
                 team=team,
                 current=current,
-                history=points,
+                history=points[-history_points:],
                 delta_pp_vs_previous=round((current - previous) * 100.0, 2),
                 delta_pp_vs_oldest=round((current - points[0].probability) * 100.0, 2),
             )
         )
-    return sorted(movements, key=lambda m: -m.current)
+    ranked = sorted(movements, key=lambda m: (-abs(m.delta_pp_vs_previous), -m.current))
+    return sorted(ranked[:TOP_TEAMS], key=lambda m: -m.current)
 
 
 def _match_movements(series: list[SeriesPoint]) -> list[MatchMovement]:
@@ -85,13 +91,35 @@ def _match_movements(series: list[SeriesPoint]) -> list[MatchMovement]:
     return sorted(movements, key=lambda m: m.commence_at)
 
 
-def market_movement(archive_dir: Path, fmt: FormatData) -> MarketMovement:
+def market_movement(archive_dir: Path, fmt: FormatData, *, history_points: int = HISTORY_POINTS) -> MarketMovement:
     series = load_series(archive_dir)
     if not series:
         series = rebuild_series(archive_dir, fmt)
     return MarketMovement(
         snapshots=[point.captured_at for point in series],
-        outright_bookmakers=_movements(series, "outright_bookmakers"),
-        outright_polymarket=_movements(series, "outright_polymarket"),
+        outright_bookmakers=_movements(series, "outright_bookmakers", history_points=history_points),
+        outright_polymarket=_movements(series, "outright_polymarket", history_points=history_points),
         matches=_match_movements(series),
     )
+
+
+def sync_series_from_s3(settings: Settings, archive_dir: Path) -> int:
+    """Download series points a fresh container does not have; returns new files."""
+    if not settings.agent_state_bucket:
+        return 0
+    s3 = S3Client(bucket=settings.agent_state_bucket, region=settings.aws_region)
+    downloaded = 0
+    for key in s3.list_keys(prefix="odds-archive/"):
+        if not key.endswith(SERIES_SUFFIX):
+            continue
+        relative = Path(key).relative_to("odds-archive")
+        destination = archive_dir / relative
+        if destination.exists():
+            continue
+        body = s3.get_text(key)
+        if body is None:
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(body, encoding="utf-8")
+        downloaded += 1
+    return downloaded

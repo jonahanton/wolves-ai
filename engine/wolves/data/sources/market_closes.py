@@ -12,6 +12,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from wolves.clients.s3.client import S3Client
+from wolves.config import Settings
 from wolves.data.prices import valid_price
 from wolves.data.teams import canonical_team_key
 
@@ -103,6 +105,27 @@ def _outright_records(tournament: str, snapshot: dict[str, Any]) -> list[Outrigh
         for outcome in market["outcomes"]
         if (price := valid_price(outcome["price"])) is not None
     ]
+
+
+def restore_closes_from_s3(settings: Settings, odds_root: Path) -> int:
+    """Download purchased close snapshots a fresh environment does not hold."""
+    if not settings.agent_state_bucket:
+        return 0
+    s3 = S3Client(bucket=settings.agent_state_bucket, region=settings.aws_region)
+    restored = 0
+    for key in s3.list_keys(prefix="odds-archive/closes/"):
+        destination = odds_root / Path(key).relative_to("odds-archive/closes")
+        if destination.exists():
+            continue
+        body = s3.get_text(key)
+        if body is None:
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(body, encoding="utf-8")
+        restored += 1
+    if restored:
+        logger.info("restored %d close snapshot(s) from S3", restored)
+    return restored
 
 
 def load_closes(odds_root: Path) -> tuple[list[ClosingOddsRecord], list[OutrightCloseRecord]]:

@@ -19,12 +19,16 @@ class TeamDelta(BaseModel):
     delta_pp: float
 
 
+ROUNDS = ("r32", "r16", "qf", "sf", "final")
+
+
 class ScenarioResult(BaseModel):
     n_sims: int
     seed: int
     perturbations: list[str]
+    mover_threshold_pp: float
     title_movers: list[TeamDelta]
-    r32_movers: list[TeamDelta]
+    round_movers: dict[str, list[TeamDelta]]
 
 
 def _movers(
@@ -71,6 +75,7 @@ def run_scenario(
         n_sims=n_sims,
         seed=seed,
         perturbations=[f"{type(p).__name__} {p.model_dump_json()}" for p in perturbations],
+        mover_threshold_pp=MOVER_THRESHOLD_PP,
         title_movers=_movers(base, perturbed, "champion"),
-        r32_movers=_movers(base, perturbed, "r32"),
+        round_movers={round_: _movers(base, perturbed, round_) for round_ in ROUNDS},
     )

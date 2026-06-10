@@ -10,12 +10,12 @@ from dataclasses import replace
 from datetime import UTC, date, datetime
 
 import numpy as np
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from wolves.config import Settings
-from wolves.data.build import dataset_filename
 from wolves.data.contracts import MatchRecord
 from wolves.data.overlay import overlay_results
+from wolves.data.store import DatasetStore
 from wolves.data.teams import registry_team_key
 from wolves.gate.registry import ChampionRegistry
 from wolves.models.contracts import (
@@ -50,7 +50,9 @@ class _Perturbation(BaseModel):
 
 
 class StrengthPerturbation(_Perturbation):
-    """Shift one team's ability, in strength units (log goal-rate scale)."""
+    """Shift one team's ability, in strength units (log goal-rate scale).
+    Calibration: top teams sit ~0.05 apart and 0.1 moves a favourite ~4pp of
+    title probability; deltas beyond +/-0.3 imply a different team entirely."""
 
     team: str
     delta: float
@@ -86,6 +88,13 @@ class MatchOutcomePerturbation(_Perturbation):
     p_draw: float
     p_away: float
 
+    @model_validator(mode="after")
+    def _probabilities_sum_to_one(self) -> MatchOutcomePerturbation:
+        total = self.p_home + self.p_draw + self.p_away
+        if not 0.99 <= total <= 1.01:
+            raise ValueError(f"outcome probabilities sum to {total:.3f}, not 1")
+        return self
+
 
 class ScorelinePerturbation(_Perturbation):
     """Pin one fixture to an exact scoreline (a what-if, not a forecast)."""
@@ -118,13 +127,18 @@ class Forecaster:
         self._settings = settings
         self.fmt: FormatData = load_format(settings.data_dir)
         self.champion = ChampionRegistry(settings).load()
-        self.dataset = dataset or DatasetHandle(
-            path=settings.runs_root / "datasets" / dataset_filename(settings.dataset_version),
-            version=settings.dataset_version,
-        )
+        self._dataset = dataset
         half_life = self.champion.half_life_days
         self.model = PoissonDecayModel(**({"half_life_days": half_life} if half_life else {}))
         self._state: FittedState | None = None
+
+    @property
+    def dataset(self) -> DatasetHandle:
+        """Resolved lazily so champion-free paths never touch the dataset store."""
+        if self._dataset is None:
+            path, _ = DatasetStore(self._settings).fetch(version=self._settings.dataset_version)
+            self._dataset = DatasetHandle(path=path, version=self._settings.dataset_version)
+        return self._dataset
 
     def fit(self, *, as_of: date | None = None, extra_results: list[MatchRecord] | None = None) -> FittedState:
         """Fit the champion; extra_results overlay fresh full-time results so a
@@ -327,5 +341,5 @@ class Forecaster:
             won = winners == i
             per_draw = np.array([won[draws == d].mean() for d in range(engine.parameter_draws)])
             lo, hi = np.quantile(per_draw, quantiles)
-            out[team.id] = (float(lo), float(hi))
+            out[team.id] = (round(float(lo), 4), round(float(hi), 4))
         return out

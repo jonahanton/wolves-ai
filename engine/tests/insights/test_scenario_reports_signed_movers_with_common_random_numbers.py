@@ -19,4 +19,4 @@ def test_a_boost_moves_its_own_team_up_and_rivals_down(forecaster) -> None:
 def test_no_perturbation_means_no_movers(forecaster) -> None:
     result = run_scenario(forecaster, (), n_sims=8000, seed=4)
     assert result.title_movers == []
-    assert result.r32_movers == []
+    assert all(movers == [] for movers in result.round_movers.values())

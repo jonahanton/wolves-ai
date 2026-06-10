@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 import numpy as np
 
 from wolves.config import Settings
-from wolves.data.build import dataset_filename
+from wolves.data.store import DatasetStore
 from wolves.gate.encompassing import EncompassingResult, encompassing_test
 from wolves.gate.holdout import load_holdout
 from wolves.gate.registry import ChampionRecord, ChampionRegistry
@@ -51,10 +51,8 @@ def main() -> None:
     parser.add_argument("--promote", action="store_true", help="write the champion record on completion")
     args = parser.parse_args()
 
-    dataset = DatasetHandle(
-        path=settings.runs_root / "datasets" / dataset_filename(settings.dataset_version),
-        version=settings.dataset_version,
-    )
+    path, _ = DatasetStore(settings).fetch(version=settings.dataset_version)
+    dataset = DatasetHandle(path=path, version=settings.dataset_version)
     model = PoissonDecayModel()
     report = evaluate_poisson(dataset)
     logger.info("gate report: %s", report.model_dump_json(indent=2))

@@ -52,6 +52,8 @@ class DatasetStore:
         if db_path.exists() and manifest_path.exists():
             return db_path, DatasetManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
 
+        if not self._settings.agent_state_bucket:
+            raise DatasetNotFoundError(version, "(no bucket configured)")
         s3 = S3Client(bucket=self._settings.agent_state_bucket, region=self._settings.aws_region)
         body = s3.get_bytes(f"{S3_PREFIX}/{filename}")
         manifest_text = s3.get_text(f"{S3_PREFIX}/{filename}.manifest.json")

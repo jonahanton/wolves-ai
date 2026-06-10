@@ -12,7 +12,7 @@ def test_reach_view_decays_through_rounds_and_slots_sum(forecaster) -> None:
     assert p_play == sorted(p_play, reverse=True)
     assert sum(tree.qualification.values()) == pytest.approx(1.0, abs=0.01)
     r32 = tree.stages[0]
-    assert sum(slot.share for slot in r32.slots) == pytest.approx(r32.p_play, abs=0.01)
+    assert sum(slot.p_slot for slot in r32.slots) == pytest.approx(r32.p_play, abs=0.01)
 
 
 def test_title_view_conditions_on_winning(forecaster) -> None:
@@ -21,3 +21,4 @@ def test_title_view_conditions_on_winning(forecaster) -> None:
     final = next(stage for stage in tree.stages if stage.stage == "final")
     assert final.p_play == pytest.approx(1.0)
     assert final.p_advance_given_play == pytest.approx(1.0)
+    assert "conditional on this team winning" in tree.conditioning

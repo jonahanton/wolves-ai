@@ -20,13 +20,13 @@ OPPONENTS_SHOWN = 5
 
 class OpponentShare(BaseModel):
     team: str
-    share: float
+    p_opponent_given_slot: float
     strength_rank: int
 
 
 class SlotNode(BaseModel):
     match: int
-    share: float
+    p_slot: float
     opponents: list[OpponentShare]
 
 
@@ -40,6 +40,7 @@ class StageNode(BaseModel):
 class PathTree(BaseModel):
     team: str
     view: Literal["reach", "title"]
+    conditioning: str
     n_sims: int
     p_champion: float
     qualification: dict[str, float]
@@ -108,9 +109,13 @@ def team_path_tree(
             slots.append(
                 SlotNode(
                     match=match,
-                    share=round(float(involved.sum() / denominator), 4),
+                    p_slot=round(float(involved.sum() / denominator), 4),
                     opponents=[
-                        OpponentShare(team=ids[opp], share=round(count / len(opponents), 4), strength_rank=ranks[opp])
+                        OpponentShare(
+                            team=ids[opp],
+                            p_opponent_given_slot=round(count / len(opponents), 4),
+                            strength_rank=ranks[opp],
+                        )
                         for opp, count in top
                     ],
                 )
@@ -121,13 +126,19 @@ def team_path_tree(
                 stage=stage,
                 p_play=round(n_played / denominator, 4),
                 p_advance_given_play=round(float(advanced.sum() / n_played), 4) if n_played else 0.0,
-                slots=sorted(slots, key=lambda s: -s.share),
+                slots=sorted(slots, key=lambda s: -s.p_slot),
             )
         )
 
+    conditioning = (
+        "every probability is conditional on this team winning the title"
+        if view == "title"
+        else "probabilities are unconditional; p_opponent_given_slot is conditional on playing that slot"
+    )
     return PathTree(
         team=team,
         view=view,
+        conditioning=conditioning,
         n_sims=n_sims,
         p_champion=round(float(champion.mean()), 4),
         qualification=_qualification(result, team_idx, condition),
