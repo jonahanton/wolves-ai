@@ -124,8 +124,8 @@ disagrees with the size or direction of the market's move, and that
 disagreement is the finding to write up, not a reason to re-add the news.
 It's also possible that the market has priced something in a way which you
 disagree with, which is more than valid. Given that we only see the output
-univariates from the market, it can be hard to know what caused the changes
-in market numbers.
+univariates from the market, and not the reasoning, it can be hard to know
+what caused the changes in market numbers.
 
 ## What the evidence says is already in the price
 
