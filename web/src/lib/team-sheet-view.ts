@@ -2,7 +2,6 @@ import { STAGE_LABELS } from "@/lib/bracket-view";
 import { formatMatchDate } from "@/lib/format";
 import { championMarketLegs } from "@/lib/markets";
 import { REACH_STAGES } from "@/lib/reach-stages";
-import { ENGLAND } from "@/lib/schedule";
 import type { MatchProbs, Snapshot } from "@/lib/snapshot";
 
 export interface ReachPoint {
@@ -24,7 +23,7 @@ export interface TeamSheetView {
   teamId: string;
   name: string;
   group: string;
-  isEngland: boolean;
+  isFocus: boolean;
   rating: number;
   valueEurM: number | null;
   championProb: number;
@@ -65,7 +64,7 @@ export function buildTeamSheetViews(snapshot: Snapshot, names: Map<string, strin
       teamId: team.team_id,
       name: names.get(team.team_id) ?? team.team_id,
       group: team.group,
-      isEngland: team.team_id === ENGLAND,
+      isFocus: team.team_id === snapshot.focus.team_id,
       rating: team.rating ?? team.elo,
       valueEurM: team.value_eur_m ?? null,
       championProb: team.champion_prob ?? team.reach_probs?.champion ?? 0,

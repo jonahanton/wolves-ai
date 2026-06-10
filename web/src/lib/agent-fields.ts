@@ -10,8 +10,8 @@ function asText(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value : null;
 }
 
-export function englandStory(snapshot: Snapshot): string | null {
-  return asText(narrativeField(snapshot, "england_story"));
+export function focusStory(snapshot: Snapshot): string | null {
+  return asText(narrativeField(snapshot, "focus_story"));
 }
 
 export function travelMemo(snapshot: Snapshot): string | null {

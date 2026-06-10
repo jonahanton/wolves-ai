@@ -1,11 +1,10 @@
 import { REACH_STAGES } from "@/lib/reach-stages";
-import { ENGLAND } from "@/lib/schedule";
 import type { Snapshot } from "@/lib/snapshot";
 
 export interface OddsRow {
   teamId: string;
   name: string;
-  isEngland: boolean;
+  isFocus: boolean;
   reach: Record<string, number>;
   championProb: number;
 }
@@ -20,7 +19,7 @@ export function buildOddsView(snapshot: Snapshot, names: Map<string, string>): O
     .map((team) => ({
       teamId: team.team_id,
       name: names.get(team.team_id) ?? team.team_id,
-      isEngland: team.team_id === ENGLAND,
+      isFocus: team.team_id === snapshot.focus.team_id,
       reach: Object.fromEntries(REACH_STAGES.map((stage) => [stage.key, team.reach_probs?.[stage.key] ?? 0])),
       championProb: team.champion_prob ?? team.reach_probs?.champion ?? 0,
     }))

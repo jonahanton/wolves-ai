@@ -10,12 +10,14 @@ export const dynamic = "force-dynamic";
 
 export default async function PathPage() {
   const snapshot = await loadLatestSnapshot();
-  const views = buildSpineViews(snapshot, teamNames(snapshot));
+  const names = teamNames(snapshot);
+  const views = buildSpineViews(snapshot, names);
+  const focusName = names.get(snapshot.focus.team_id) ?? snapshot.focus.team_id;
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
-      <PageHeader title="Path" subtitle="England's route through the knockouts" />
-      <TravelForkCard england={snapshot.england} memo={travelMemo(snapshot)} />
+      <PageHeader title="Path" subtitle={`${focusName}'s route through the knockouts`} />
+      <TravelForkCard focus={snapshot.focus} memo={travelMemo(snapshot)} />
       <PathSpine views={views} />
     </main>
   );

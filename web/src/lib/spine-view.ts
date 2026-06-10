@@ -1,5 +1,5 @@
 import { slotRationale } from "@/lib/agent-fields";
-import { englandSpine } from "@/lib/bracket";
+import { focusSpine } from "@/lib/bracket";
 import { formatMatchDate } from "@/lib/format";
 import type { Finish, Snapshot } from "@/lib/snapshot";
 import { venueLine } from "@/lib/venues";
@@ -12,11 +12,14 @@ const STAGE_LABELS: Record<string, string> = {
   final: "Final",
 };
 
-const FINISH_LABELS: Record<Finish, string> = {
-  win_group: "Win Group L",
-  runner_up: "Finish second",
-  third: "Through in third",
-};
+function finishLabel(finish: Finish, group: string): string {
+  const labels: Record<Finish, string> = {
+    win_group: `Win Group ${group}`,
+    runner_up: "Finish second",
+    third: "Through in third",
+  };
+  return labels[finish];
+}
 
 export interface OpponentView {
   teamId: string;
@@ -51,12 +54,12 @@ const TOGGLE_LABELS: Record<Finish, string> = {
 };
 
 export function buildSpineViews(snapshot: Snapshot, names: Map<string, string>): SpineView[] {
-  return snapshot.england.paths.map((path) => ({
+  return snapshot.focus.paths.map((path) => ({
     finish: path.finish,
-    finishLabel: FINISH_LABELS[path.finish] ?? path.finish,
+    finishLabel: finishLabel(path.finish, snapshot.focus.group),
     toggleLabel: TOGGLE_LABELS[path.finish] ?? path.finish,
     prob: path.prob,
-    stages: englandSpine(snapshot, path.finish).map((stage) => ({
+    stages: focusSpine(snapshot, path.finish).map((stage) => ({
       stage: stage.stage,
       stageLabel: STAGE_LABELS[stage.stage] ?? stage.stage,
       match: stage.match,

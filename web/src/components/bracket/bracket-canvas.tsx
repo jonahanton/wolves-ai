@@ -16,7 +16,7 @@ function truncate(text: string, max: number): string {
 
 function TieNode({ node, onSelect, wasDrag, dimmed }: TieNodeProps) {
   const { slot } = node;
-  const england = slot.englandProb > 0;
+  const focus = slot.focusProb > 0;
   const home = slot.home.candidates[0];
   const away = slot.away.candidates[0];
 
@@ -35,8 +35,8 @@ function TieNode({ node, onSelect, wasDrag, dimmed }: TieNodeProps) {
         height={NODE_H}
         rx={8}
         fill="var(--card)"
-        stroke={england ? "var(--gold)" : "var(--border-strong)"}
-        strokeWidth={england ? 1.5 : 1}
+        stroke={focus ? "var(--gold)" : "var(--border-strong)"}
+        strokeWidth={focus ? 1.5 : 1}
       />
       <text x={8} y={15} fontSize={9} fill="var(--muted-foreground)">
         {truncate(`M${slot.match} · ${slot.city} · ${slot.dateLabel}`, 30)}
@@ -44,7 +44,7 @@ function TieNode({ node, onSelect, wasDrag, dimmed }: TieNodeProps) {
       {[home, away].map((candidate, i) => {
         const y = 33 + i * 18;
         const side = i === 0 ? slot.home : slot.away;
-        const isEngland = candidate?.teamId === "england";
+        const isFocus = candidate?.teamId === slot.focusTeamId;
         return (
           <g key={side.label}>
             <text
@@ -52,7 +52,7 @@ function TieNode({ node, onSelect, wasDrag, dimmed }: TieNodeProps) {
               y={y}
               fontSize={11.5}
               fontWeight={600}
-              fill={isEngland ? "var(--gold)" : "var(--foreground)"}
+              fill={isFocus ? "var(--gold)" : "var(--foreground)"}
             >
               {truncate(candidate?.name ?? side.description, NAME_CHARS)}
             </text>
@@ -89,24 +89,24 @@ interface BracketCanvasProps {
 
 export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
   const layout = useMemo(() => buildCanvasLayout(view), [view]);
-  const [followEngland, setFollowEngland] = useState(false);
+  const [followFocus, setFollowFocus] = useState(false);
   const { containerRef, contentRef, focusOn, fit, zoomBy, wasDrag } = usePanZoom({
     contentWidth: layout.width,
     contentHeight: layout.height,
   });
 
-  const englandMatches = useMemo(
-    () => new Set(layout.nodes.filter((node) => node.slot.englandProb > 0).map((node) => node.slot.match)),
+  const focusMatches = useMemo(
+    () => new Set(layout.nodes.filter((node) => node.slot.focusProb > 0).map((node) => node.slot.match)),
     [layout],
   );
 
-  const focusEngland = useCallback(() => {
-    const england = layout.nodes.find((node) => node.slot.match === layout.englandMatch);
-    if (england) focusOn(england.x + NODE_W / 2, england.y + NODE_H / 2, 1);
+  const centreOnFocus = useCallback(() => {
+    const target = layout.nodes.find((node) => node.slot.match === layout.focusMatch);
+    if (target) focusOn(target.x + NODE_W / 2, target.y + NODE_H / 2, 1);
     else fit();
   }, [layout, focusOn, fit]);
 
-  useEffect(() => focusEngland(), [focusEngland]);
+  useEffect(() => centreOnFocus(), [centreOnFocus]);
 
   const controls = [
     { label: "Zoom in", icon: Plus, action: () => zoomBy(1.4) },
@@ -146,7 +146,7 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
             ))}
             {layout.edges.map((edge) => {
               const d = edgePath(layout, edge);
-              const offPath = !englandMatches.has(edge.fromMatch) || !englandMatches.has(edge.toMatch);
+              const offPath = !focusMatches.has(edge.fromMatch) || !focusMatches.has(edge.toMatch);
               return d ? (
                 <path
                   key={`${edge.fromMatch}-${edge.toMatch}`}
@@ -154,7 +154,7 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
                   fill="none"
                   stroke="var(--border-strong)"
                   strokeWidth={1}
-                  opacity={followEngland && offPath ? 0.25 : 1}
+                  opacity={followFocus && offPath ? 0.25 : 1}
                   className="transition-opacity duration-150"
                 />
               ) : null;
@@ -165,7 +165,7 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
                 node={node}
                 onSelect={onSelect}
                 wasDrag={wasDrag}
-                dimmed={followEngland && !englandMatches.has(node.slot.match)}
+                dimmed={followFocus && !focusMatches.has(node.slot.match)}
               />
             ))}
           </svg>
@@ -185,18 +185,18 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
         </div>
         <button
           type="button"
-          aria-pressed={followEngland}
+          aria-pressed={followFocus}
           onClick={() => {
-            const next = !followEngland;
-            setFollowEngland(next);
-            if (next) focusEngland();
+            const next = !followFocus;
+            setFollowFocus(next);
+            if (next) centreOnFocus();
           }}
           className={cn(
             "absolute top-2.5 left-2.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors duration-150",
-            followEngland ? "border-gold/60 bg-card text-gold" : "bg-card text-muted-foreground",
+            followFocus ? "border-gold/60 bg-card text-gold" : "bg-card text-muted-foreground",
           )}
         >
-          Follow England
+          Follow {view.focusName}
         </button>
       </div>
       <p className="mt-2 text-center text-xs text-muted-foreground">

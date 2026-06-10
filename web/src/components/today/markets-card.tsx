@@ -38,10 +38,9 @@ interface RowCellsProps {
 }
 
 function RowCells({ row }: RowCellsProps) {
-  const england = row.teamId === "england";
   return (
     <>
-      <span className={`truncate ${england ? "font-medium text-gold" : ""}`}>{row.name}</span>
+      <span className={`truncate ${row.isFocus ? "font-medium text-gold" : ""}`}>{row.name}</span>
       <span className="text-right tabular-nums font-medium">{formatPct(row.modelProb)}</span>
       <span className="text-right tabular-nums text-muted-foreground">
         {row.marketProb === null ? "–" : formatPct(row.marketProb)}

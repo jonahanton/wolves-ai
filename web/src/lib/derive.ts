@@ -24,10 +24,10 @@ const REACH_LABELS: Record<string, string> = {
 
 export function summariseSnapshot(snapshot: Snapshot): SnapshotSummary {
   const metrics: Record<string, number> = {};
-  for (const [stage, prob] of Object.entries(snapshot.england.reach_probs)) {
+  for (const [stage, prob] of Object.entries(snapshot.focus.reach_probs)) {
     metrics[`reach:${stage}`] = prob;
   }
-  for (const path of snapshot.england.paths) {
+  for (const path of snapshot.focus.paths) {
     metrics[`city:${path.city}`] = path.prob;
   }
   return { runId: snapshot.run.run_id, createdAt: snapshot.run.created_at, metrics };

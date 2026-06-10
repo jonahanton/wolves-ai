@@ -47,7 +47,7 @@ export function OddsTable({ view, onSelectTeam }: OddsTableProps) {
               className={cn(GRID, "w-full px-2.5 text-left text-xs hover:bg-secondary/60")}
             >
               <span className="flex items-center text-muted-foreground">{rank + 1}</span>
-              <span className={cn("flex min-w-0 items-center font-medium", row.isEngland && "text-gold")}>
+              <span className={cn("flex min-w-0 items-center font-medium", row.isFocus && "text-gold")}>
                 <span className="truncate">{row.name}</span>
               </span>
               {TABLE_STAGES.map((stage, i) => {
@@ -59,7 +59,7 @@ export function OddsTable({ view, onSelectTeam }: OddsTableProps) {
                       "flex items-center justify-end px-1.5 py-2",
                       i === TABLE_STAGES.length - 1 ? "font-semibold" : "text-foreground/80",
                     )}
-                    style={{ backgroundColor: heatFill(prob, row.isEngland) }}
+                    style={{ backgroundColor: heatFill(prob, row.isFocus) }}
                   >
                     {formatPctBare(prob)}
                   </span>

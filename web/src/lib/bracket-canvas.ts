@@ -18,7 +18,7 @@ export interface CanvasLayout {
   height: number;
   nodeWidth: number;
   nodeHeight: number;
-  englandMatch: number | null;
+  focusMatch: number | null;
   columnLabels: { label: string; x: number }[];
 }
 
@@ -105,9 +105,9 @@ export function buildCanvasLayout(view: BracketViewModel): CanvasLayout {
     }
   }
 
-  const englandR32 = slots
-    .filter((slot) => slot.stage === "r32" && slot.englandProb > 0)
-    .sort((a, b) => b.englandProb - a.englandProb)[0];
+  const focusR32 = slots
+    .filter((slot) => slot.stage === "r32" && slot.focusProb > 0)
+    .sort((a, b) => b.focusProb - a.focusProb)[0];
 
   const columnLabels = [
     { label: "Last 32", x: columnX(0) },
@@ -128,7 +128,7 @@ export function buildCanvasLayout(view: BracketViewModel): CanvasLayout {
     height: TOP_PAD + 8 * ROW_PITCH - (ROW_PITCH - NODE_H),
     nodeWidth: NODE_W,
     nodeHeight: NODE_H,
-    englandMatch: englandR32?.match ?? null,
+    focusMatch: focusR32?.match ?? null,
     columnLabels,
   };
 }

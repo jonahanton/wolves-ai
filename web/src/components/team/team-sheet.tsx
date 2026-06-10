@@ -51,7 +51,7 @@ export function TeamSheet({ view, onClose }: TeamSheetProps) {
     >
       {view && (
         <div className="pb-2">
-          <p className={cn("text-sm", view.isEngland ? "text-gold" : "text-muted-foreground")}>
+          <p className={cn("text-sm", view.isFocus ? "text-gold" : "text-muted-foreground")}>
             Group {view.group}
           </p>
           <dl className="mt-3 grid grid-cols-3 gap-3">
@@ -69,7 +69,7 @@ export function TeamSheet({ view, onClose }: TeamSheetProps) {
           </p>
           <section className="mt-4">
             <h3 className="text-sm font-medium">How often they reach each round (%)</h3>
-            <ReachCurve reach={view.reach} highlight={view.isEngland} />
+            <ReachCurve reach={view.reach} highlight={view.isFocus} />
           </section>
           <section className="mt-4">
             <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Likely route</h3>

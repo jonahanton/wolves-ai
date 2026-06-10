@@ -28,7 +28,7 @@ export interface RoundOpponents {
   opponents: Candidate[];
 }
 
-export interface EnglandPath {
+export interface FocusTeamPath {
   finish: Finish;
   prob: number;
   r32_match: number;
@@ -73,12 +73,12 @@ export interface WhatIfFixture {
   outcomes: WhatIfOutcome[];
 }
 
-export interface EnglandBlock {
+export interface FocusTeamBlock {
   team_id: string;
   group: string;
   finish_probs: Record<string, number>;
   reach_probs: Record<string, number>;
-  paths: EnglandPath[];
+  paths: FocusTeamPath[];
   modal_path?: ModalStep[];
   city_probs?: Record<string, CityProb[]>;
   lock_dates?: LockDate[];
@@ -132,7 +132,7 @@ export interface MatchProbs {
 }
 
 export interface NarrativeBlock {
-  england_story: string;
+  focus_story: string;
   slot_rationales: Record<string, string>;
   travel_memo: string;
 }
@@ -224,7 +224,7 @@ export interface MarketsBlock {
 export interface Snapshot {
   schema_version: number;
   run: RunMeta;
-  england: EnglandBlock;
+  focus: FocusTeamBlock;
   slots: Slot[];
   teams: TeamInfo[];
   groups?: GroupBlock[];
