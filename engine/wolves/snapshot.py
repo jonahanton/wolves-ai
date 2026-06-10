@@ -126,9 +126,16 @@ class MatchProbs(BaseModel):
 class RunMeta(BaseModel):
     run_id: str
     created_at: str
+    as_of: str = ""
     n_sims: int
     engine_version: str
     kind: str
+
+
+def run_day(meta: RunMeta) -> str:
+    """The forecast day a run speaks for; runs are as_of-keyed, and the
+    wall-clock created_at only stands in for replays of older snapshots."""
+    return meta.as_of or meta.created_at[:10]
 
 
 class NarrativeBlock(BaseModel):

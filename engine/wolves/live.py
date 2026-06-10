@@ -127,6 +127,7 @@ async def live_pass(
         run=RunMeta(
             run_id=run_id,
             created_at=created_at,
+            as_of=now.date().isoformat(),
             n_sims=n_sims,
             engine_version=ENGINE_VERSION,
             kind="live",

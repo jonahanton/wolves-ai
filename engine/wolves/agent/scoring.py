@@ -4,7 +4,7 @@ today's delta caps already reflect yesterday's P&L."""
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -13,7 +13,7 @@ from wolves.agent.calibration import CalibrationLedger, MatchForecast, MatchScor
 from wolves.agent.memory import RunMemory
 from wolves.config import Settings
 from wolves.sim.format import PlayedResult, load_results
-from wolves.snapshot import MatchProbs, Snapshot
+from wolves.snapshot import MatchProbs, Snapshot, run_day
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapsh
         except ValidationError:
             logger.warning("skipping unreadable snapshot %s", path)
             continue
-        if datetime.fromisoformat(snapshot.run.created_at).date() >= before:
+        if date.fromisoformat(run_day(snapshot.run)) >= before:
             continue
         if latest is None or snapshot.run.created_at > latest.run.created_at:
             latest = snapshot

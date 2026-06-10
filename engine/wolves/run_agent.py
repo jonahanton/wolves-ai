@@ -73,6 +73,7 @@ from wolves.snapshot import (
     ScenarioWeightOut,
     Snapshot,
     WorldOut,
+    run_day,
 )
 from wolves.tools._budget_gate import BudgetGate
 
@@ -337,6 +338,7 @@ def _build_snapshot(
         run=RunMeta(
             run_id=run_id,
             created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            as_of=deps.as_of,
             n_sims=n_sims,
             engine_version=ENGINE_VERSION,
             kind="agent",
@@ -359,7 +361,7 @@ def _attribution_block(deps: AgentDeps, outputs) -> AttributionOut | None:
         previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=date.fromisoformat(deps.as_of))
         if previous is None:
             return None
-        previous_as_of = datetime.fromisoformat(previous.run.created_at).date()
+        previous_as_of = date.fromisoformat(run_day(previous.run))
         submitted = {t.team_id: t.champion_prob for t in outputs.teams}
         report = decompose(
             deps.forecaster,

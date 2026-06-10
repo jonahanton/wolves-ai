@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.source_memory import SourceMemory
-from wolves.snapshot import Snapshot
+from wolves.snapshot import Snapshot, run_day
 
 
 class WhatChanged(BaseModel):
@@ -55,7 +55,7 @@ def what_changed(
         }
         moves = dict(sorted(deltas.items(), key=lambda kv: abs(kv[1]), reverse=True))
     today = date.fromisoformat(as_of)
-    previous_day = datetime.fromisoformat(previous.run.created_at).date()
+    previous_day = date.fromisoformat(run_day(previous.run))
     expired = [
         e.id for e in ledger.all() if e.expiry is not None and previous_day <= date.fromisoformat(e.expiry) < today
     ]

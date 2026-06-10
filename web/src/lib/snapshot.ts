@@ -88,6 +88,7 @@ export interface EnglandBlock {
 export interface RunMeta {
   run_id: string;
   created_at: string;
+  as_of?: string;
   n_sims: number;
   engine_version: string;
   kind: string;
