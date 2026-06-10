@@ -119,3 +119,34 @@ def rebuild_series(archive_dir: Path, fmt: FormatData) -> list[SeriesPoint]:
             points.append(point)
     logger.info("rebuilt market series: %d point(s)", len(points))
     return sorted(points, key=lambda p: p.captured_at)
+
+
+def compact_series(archive_dir: Path) -> Path:
+    """Fold the per-snapshot outright series points into one parquet table.
+
+    Derived and rebuildable; raw snapshots stay the source of truth. One row
+    per (captured_at, source, team)."""
+    import pandas as pd
+
+    rows = [
+        {"captured_at": point.captured_at, "source": source, "team": team, "p_title": prob}
+        for point in load_series(archive_dir)
+        for source, outright in (
+            ("bookmakers", point.outright_bookmakers),
+            ("polymarket", point.outright_polymarket),
+        )
+        for team, prob in outright.items()
+    ]
+    import duckdb
+
+    destination = archive_dir / "market_series.parquet"
+    frame = pd.DataFrame(rows, columns=["captured_at", "source", "team", "p_title"])
+    con = duckdb.connect()
+    try:
+        con.register("series", frame)
+        # duckdb writes parquet natively, so pandas needs no pyarrow dependency.
+        con.execute(f"COPY series TO '{destination.as_posix()}' (FORMAT parquet)")
+    finally:
+        con.close()
+    logger.info("compacted market series: %d row(s)", len(rows))
+    return destination

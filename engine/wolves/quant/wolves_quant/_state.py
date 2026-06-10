@@ -94,7 +94,20 @@ def connection() -> duckdb.DuckDBPyConnection:
             raise SandboxContextError("dataset", "query helpers need the research dataset")
         import duckdb
 
-        SESSION.db = duckdb.connect(ctx.dataset_path, read_only=True)
+        # An in-memory catalog of views over the attached read-only databases,
+        # so research and overlay tables both resolve by bare name.
+        db = duckdb.connect()
+        db.execute(f"ATTACH '{Path(ctx.dataset_path).as_posix()}' AS research (READ_ONLY)")
+        catalogs = ["research"]
+        overlay = SESSION.root / "inputs" / "overlay.duckdb"
+        if overlay.exists():
+            db.execute(f"ATTACH '{overlay.as_posix()}' AS overlay (READ_ONLY)")
+            catalogs.append("overlay")
+        for catalog in catalogs:
+            tables = db.execute(f"SELECT table_name FROM duckdb_tables() WHERE database_name = '{catalog}'").fetchall()
+            for (table,) in tables:
+                db.execute(f'CREATE VIEW IF NOT EXISTS "{table}" AS SELECT * FROM {catalog}."{table}"')
+        SESSION.db = db
     return SESSION.db
 
 

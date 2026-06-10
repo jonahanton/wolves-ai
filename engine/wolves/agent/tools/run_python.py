@@ -9,6 +9,7 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent_tools.core import ToolSpec
 from wolves.agent_tools.result import ToolResult
 from wolves.quant.context import build_sandbox_context
+from wolves.quant.inputs import prepare_inputs
 
 _RESULT_CAP_CHARS = 8_000
 _STDOUT_CAP_CHARS = 2_000
@@ -21,7 +22,9 @@ class RunPythonArgs(BaseModel):
 async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
     deps.python_calls += 1
     workspace = deps.quant.workspace(deps.actor)
-    deps.quant.write_context(workspace, build_sandbox_context(deps))
+    context = build_sandbox_context(deps)
+    deps.quant.write_context(workspace, context)
+    prepare_inputs(workspace, context)
     script = workspace.next_analysis_name()
     deps.quant.write_analysis(actor=deps.actor, workspace=workspace, code=args.code, filename=script)
     result = await deps.quant.execute(actor=deps.actor, workspace=workspace, script=script)
