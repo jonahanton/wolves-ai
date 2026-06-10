@@ -4,6 +4,7 @@ fitted on."""
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import hashlib
 import logging
@@ -109,6 +110,7 @@ async def build_dataset(settings: Settings, *, version: str, out_dir: Path) -> D
     elo_tsv = latest_elo_tsv(settings.data_dir / "ratings")
     teams = build_team_dimension(settings.data_dir, elo_tsv=elo_tsv, matches=matches)
     closes_dir = settings.data_dir / "odds"
+    market_closes.restore_closes_from_s3(settings, closes_dir)
     closes, outright_closes = market_closes.load_closes(closes_dir)
     elo_years = elo_history.load_elo_history(settings.data_dir / "ratings")
 
@@ -139,10 +141,17 @@ async def build_dataset(settings: Settings, *, version: str, out_dir: Path) -> D
 def main() -> None:
     configure_cli_logging()
     settings = Settings()
-    manifest = asyncio.run(
-        build_dataset(settings, version=settings.dataset_version, out_dir=settings.runs_root / "datasets")
-    )
+    parser = argparse.ArgumentParser(description="Build the research dataset")
+    parser.add_argument("--publish", action="store_true", help="upload the built dataset to S3")
+    args = parser.parse_args()
+    out_dir = settings.runs_root / "datasets"
+    manifest = asyncio.run(build_dataset(settings, version=settings.dataset_version, out_dir=out_dir))
     logger.info("manifest: %s", manifest.model_dump_json())
+    if args.publish:
+        # Imported here because store depends on this module for the filename scheme.
+        from wolves.data.store import DatasetStore
+
+        DatasetStore(settings).publish(out_dir, version=settings.dataset_version)
 
 
 if __name__ == "__main__":

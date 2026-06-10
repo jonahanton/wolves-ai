@@ -22,7 +22,10 @@ class StubOdds:
     async def outrights_raw(self) -> RawOddsResponse:
         if self._fail:
             raise ConnectionError("odds api down")
-        return RawOddsResponse(payload=[{"id": "evt", "bookmakers": []}], credits=CreditUsage(last_cost=2))
+        return RawOddsResponse(
+            payload=[{"id": "evt", "sport_key": "soccer_fifa_world_cup_winner", "bookmakers": []}],
+            credits=CreditUsage(last_cost=2),
+        )
 
     async def h2h_raw(self) -> RawOddsResponse:
         if self._fail:
@@ -68,7 +71,7 @@ async def test_s3_outage_is_loud_but_the_local_snapshot_survives(tmp_path, monke
         def __init__(self, *, bucket: str, region: str) -> None:
             self._bucket = bucket
 
-        def put_text(self, key: str, body: str, *, content_type: str) -> None:
+        def put_text(self, key: str, body: str, *, content_type: str = "text/plain") -> None:
             raise S3UnavailableError(self._bucket, "put_object")
 
     monkeypatch.setattr(wolves.archive, "S3Client", FailingS3)
