@@ -18,7 +18,8 @@ from pydantic import BaseModel
 from wolves import ENGINE_VERSION
 from wolves.config import Settings
 from wolves.data.contracts import DatasetManifest, MatchOddsRecord, MatchRecord, ShootoutRecord, TeamRecord
-from wolves.data.sources import football_data, market_closes, martj42
+from wolves.data.sources import elo_history, football_data, market_closes, martj42
+from wolves.data.sources.elo_history import EloHistoryRecord
 from wolves.data.sources.market_closes import ClosingOddsRecord, OutrightCloseRecord
 from wolves.data.sources.registry import build_team_dimension
 from wolves.observability.logging import configure_cli_logging
@@ -109,6 +110,7 @@ async def build_dataset(settings: Settings, *, version: str, out_dir: Path) -> D
     teams = build_team_dimension(settings.data_dir, elo_tsv=elo_tsv, matches=matches)
     closes_dir = settings.data_dir / "odds"
     closes, outright_closes = market_closes.load_closes(closes_dir)
+    elo_years = elo_history.load_elo_history(settings.data_dir / "ratings")
 
     manifest = write_dataset(
         out_dir,
@@ -120,6 +122,7 @@ async def build_dataset(settings: Settings, *, version: str, out_dir: Path) -> D
             "teams": _frame(teams, TeamRecord),
             "market_closes": _frame(closes, ClosingOddsRecord),
             "outright_closes": _frame(outright_closes, OutrightCloseRecord),
+            "elo_history": _frame(elo_years, EloHistoryRecord),
         },
         hashes={
             "martj42_results": _sha256(results_text),
