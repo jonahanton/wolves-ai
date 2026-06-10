@@ -11,9 +11,10 @@ interface RouteContext {
 
 async function proxyRequest(request: NextRequest, context: RouteContext): Promise<Response> {
   const { slug } = await context.params;
-  const url = new URL(slug.join("/"), BACKEND_URL);
+  const url = new URL(slug.map(encodeURIComponent).join("/"), BACKEND_URL);
 
-  // Prevent SSRF: the resolved URL must stay within the backend origin.
+  // Prevent SSRF: encoding blocks absolute or protocol-relative segments and the
+  // origin pin is the last-resort guard should one ever resolve outside the backend.
   if (url.origin !== BACKEND_ORIGIN) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }

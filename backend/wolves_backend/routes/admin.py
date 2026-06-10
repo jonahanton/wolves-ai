@@ -24,7 +24,7 @@ async def run_history(request: Request, deps: DepsDep) -> RunHistory:
 
 @router.get("/schedule")
 async def schedule_state(deps: DepsDep) -> ScheduleState:
-    return await asyncio.to_thread(deps.schedule.state)
+    return await asyncio.to_thread(lambda: deps.schedule.state())
 
 
 @router.post("/schedule")

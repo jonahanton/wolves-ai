@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 # Request must be importable at runtime: FastAPI resolves the get_deps
 # annotation when wiring the dependency.
-from fastapi import Request
+from fastapi import Request  # noqa: TC002
 
 from wolves_backend.clients.engine_tasks import EngineTasks
 from wolves_backend.clients.run_index import RunIndex

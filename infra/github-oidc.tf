@@ -48,7 +48,7 @@ data "aws_iam_policy_document" "github_release" {
       "ecr:BatchGetImage",
       "ecr:GetDownloadUrlForLayer",
     ]
-    resources = [aws_ecr_repository.engine.arn]
+    resources = [aws_ecr_repository.engine.arn, aws_ecr_repository.backend.arn]
   }
 
   # RegisterTaskDefinition supports no resource scoping.
