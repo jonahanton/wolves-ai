@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from wolves.clients.odds import weighted_consensus
+from wolves.markets.devig import weighted_consensus
 
 BOOKMAKERS = {"france": 0.20, "spain": 0.30, "england": 0.50}
 POLYMARKET = {"france": 0.40, "spain": 0.30, "england": 0.30}

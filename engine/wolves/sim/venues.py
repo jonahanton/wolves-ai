@@ -31,9 +31,7 @@ def venue_bonus_table(fmt: FormatData) -> dict[str, np.ndarray]:
 
 def host_at_home_table(fmt: FormatData) -> dict[str, np.ndarray]:
     """Per-city boolean vector: is each team the host nation at this venue."""
-    return {
-        v.city: np.array([HOST_COUNTRY.get(t.id) == v.country for t in fmt.teams], dtype=bool) for v in fmt.venues
-    }
+    return {v.city: np.array([HOST_COUNTRY.get(t.id) == v.country for t in fmt.teams], dtype=bool) for v in fmt.venues}
 
 
 def altitude_bonus_table(fmt: FormatData) -> dict[str, np.ndarray]:

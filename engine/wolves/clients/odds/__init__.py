@@ -8,7 +8,6 @@ from wolves.clients.odds.contracts import (
     OddsResponse,
     Outcome,
 )
-from wolves.clients.odds.devig import DevigError, consensus_probabilities, power_devig, weighted_consensus
 from wolves.clients.odds.fakes import FakeOddsClient, FakePolymarketClient
 from wolves.clients.odds.markets import event_consensus
 from wolves.clients.odds.polymarket import (

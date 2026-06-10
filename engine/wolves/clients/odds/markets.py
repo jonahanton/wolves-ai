@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from wolves.markets.devig import consensus_probabilities, power_devig
+
 from .contracts import OddsEvent
-from .devig import consensus_probabilities, power_devig
 
 
 def event_consensus(event: OddsEvent, *, market_key: str) -> dict[str, float]:
