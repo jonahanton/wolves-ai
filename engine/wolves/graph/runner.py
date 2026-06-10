@@ -129,7 +129,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
         retries_left = submission_state.validation_failures <= settings.agent_submit_retries
         if submission_state.accepted is None and not budget_exhausted and retries_left:
             brief = Brief(
-                node_id="forecast-final",
+                node_id="runner-demand-submit",
                 kind="forecast",
                 objective="Submit the final forecast",
                 brief=_DEMAND_SUBMIT,

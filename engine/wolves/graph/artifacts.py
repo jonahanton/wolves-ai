@@ -20,8 +20,9 @@ class Artifact(BaseModel):
 class ArtifactStore:
     """In-memory artifact index persisted to the run directory on creation.
 
-    ``add`` is safe under concurrent node execution on a single-threaded
-    event loop: ids are random, entries are write-once and never mutated."""
+    ``add`` is safe under concurrent node execution only because the
+    synchronous ``write_text`` never yields to the event loop; do not swap
+    in async file I/O without adding a lock around write-and-index."""
 
     def __init__(self, root: Path) -> None:
         self._root = root

@@ -20,6 +20,7 @@ from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 
+from wolves import ENGINE_VERSION
 from wolves.agent.calibration import CalibrationLedger
 from wolves.agent.deps import AgentDeps
 from wolves.agent.fakes import ScriptedLLM
@@ -273,7 +274,7 @@ def _build_snapshot(
             run_id=run_id,
             created_at=datetime.now(UTC).isoformat(timespec="seconds"),
             n_sims=n_sims,
-            engine_version="0.1.0",
+            engine_version=ENGINE_VERSION,
             kind="agent",
         ),
         england=outputs.england,

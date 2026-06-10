@@ -28,6 +28,9 @@ def admit(plan: WavePlan, *, board: Blackboard, settings: Settings) -> list[Brie
         if brief.node_id in seen:
             logger.warning("admission dropped %s: duplicate node_id", brief.node_id)
             continue
+        if brief.node_id.startswith("runner-"):
+            logger.warning("admission dropped %s: runner- ids are reserved", brief.node_id)
+            continue
         unknown = [a for a in brief.input_artifact_ids if not board.artifacts.has(a)]
         if unknown:
             logger.warning("admission dropped %s: unknown artifact ids %s", brief.node_id, unknown)

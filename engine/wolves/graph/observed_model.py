@@ -1,12 +1,26 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
+
+from pydantic_ai import RunContext
 from pydantic_ai.messages import ModelMessage, ModelResponse
-from pydantic_ai.models import Model, ModelRequestParameters
+from pydantic_ai.models import Model, ModelRequestParameters, StreamedResponse
 from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.settings import ModelSettings
 
 from wolves.llm.pricing import cost_micros
 from wolves.observability.runtime import ObservedRuntime
+
+
+def _usage_dict(usage: Any) -> dict[str, int]:
+    return {
+        "input": usage.input_tokens,
+        "output": usage.output_tokens,
+        "cache_write": usage.cache_write_tokens,
+        "cache_read": usage.cache_read_tokens,
+    }
 
 
 class ObservedModel(WrapperModel):
@@ -37,12 +51,7 @@ class ObservedModel(WrapperModel):
             model=self.model_name,
         ) as rec:
             response = await super().request(messages, model_settings, model_request_parameters)
-            usage = {
-                "input": response.usage.input_tokens,
-                "output": response.usage.output_tokens,
-                "cache_write": response.usage.cache_write_tokens,
-                "cache_read": response.usage.cache_read_tokens,
-            }
+            usage = _usage_dict(response.usage)
             cost = cost_micros(response.model_name or self.model_name, usage)
             self._runtime.add_cost(cost)
             rec.set_output(
@@ -58,3 +67,21 @@ class ObservedModel(WrapperModel):
                 cost_micros=cost,
             )
             return response
+
+    @asynccontextmanager
+    async def request_stream(
+        self,
+        messages: list[ModelMessage],
+        model_settings: ModelSettings | None,
+        model_request_parameters: ModelRequestParameters,
+        run_context: RunContext[Any] | None = None,
+    ) -> AsyncIterator[StreamedResponse]:
+        # Nothing streams today, but a future run_stream call must not bypass
+        # the ceiling: charge before the call, settle cost when the stream closes.
+        self._runtime.charge_llm()
+        async with super().request_stream(messages, model_settings, model_request_parameters, run_context) as stream:
+            try:
+                yield stream
+            finally:
+                usage = _usage_dict(stream.usage())
+                self._runtime.add_cost(cost_micros(self.model_name, usage))
