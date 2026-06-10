@@ -28,10 +28,16 @@ async def fetch(url: str, *, client: httpx.AsyncClient) -> str:
 
 def parse_results(text: str) -> list[MatchRecord]:
     records: list[MatchRecord] = []
+    seen: set[tuple] = set()
     for row in csv.DictReader(io.StringIO(text)):
         # Scheduled-but-unplayed fixtures appear with NA scores at the tail of the file.
         if row["home_score"] in ("", "NA"):
             continue
+        # The upstream file occasionally carries an exact duplicate row.
+        key = (row["date"], row["home_team"], row["away_team"], row["home_score"], row["away_score"])
+        if key in seen:
+            continue
+        seen.add(key)
         records.append(
             MatchRecord(
                 date=date.fromisoformat(row["date"]),

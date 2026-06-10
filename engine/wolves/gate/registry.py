@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from wolves.clients.s3.client import S3Client
 from wolves.config import Settings
@@ -20,6 +20,8 @@ ELO_CHAMPION_ID = "elo-baseline"
 
 
 class ChampionRecord(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: str
     model_version: str
     dataset_version: str

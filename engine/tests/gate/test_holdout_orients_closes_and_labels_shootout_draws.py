@@ -26,6 +26,16 @@ def dataset(tmp_path) -> DatasetHandle:
                 "neutral": True,
             },
             {
+                "date": date(2014, 6, 12),
+                "home_team": "brazil",
+                "away_team": "croatia",
+                "home_goals": 3,
+                "away_goals": 1,
+                "tournament": "FIFA World Cup",
+                "importance": 4.0,
+                "neutral": False,
+            },
+            {
                 "date": date(2022, 12, 13),
                 "home_team": "argentina",
                 "away_team": "croatia",
@@ -44,6 +54,7 @@ def dataset(tmp_path) -> DatasetHandle:
     closes = pd.DataFrame(
         [
             {
+                "tournament": "wc2022",
                 "snapshot_at": datetime(2022, 12, 18, 14, 50),
                 "commence_at": datetime(2022, 12, 18, 15, 0),
                 "home_team": "france",
@@ -75,7 +86,7 @@ def dataset(tmp_path) -> DatasetHandle:
     write_dataset(
         out,
         version="t",
-        tables={"matches": matches, "shootouts": shootouts, "wc2022_closes": closes, "match_odds": match_odds},
+        tables={"matches": matches, "shootouts": shootouts, "market_closes": closes, "match_odds": match_odds},
         hashes={},
     )
     return DatasetHandle(path=out / "wolves-data-t.duckdb", version="t")
@@ -91,7 +102,7 @@ def test_flipped_closes_reorient_and_shootouts_label_as_draws(dataset) -> None:
     assert final.market[0] > final.market[2]
 
 
-def test_football_data_rows_join_without_shootout_correction(dataset) -> None:
+def test_workbook_rows_take_outcomes_from_the_results_backbone(dataset) -> None:
     wc2014 = next(m for m in load_holdout(dataset) if m.fold == "World Cup 2014")
     assert wc2014.outcome == 0
     assert wc2014.fit_as_of == date(2014, 6, 12)

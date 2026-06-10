@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from wolves.data.sources.wc2022_closes import load_closes
+from wolves.data.sources.market_closes import load_closes
 
 H2H_SNAPSHOT = {
     "timestamp": "2022-12-18T14:50:38Z",
@@ -53,13 +53,15 @@ OUTRIGHT_SNAPSHOT = {
 
 
 def test_window_filter_and_outcome_mapping(tmp_path) -> None:
-    (tmp_path / "h2h-20221218T1455Z.json").write_text(json.dumps(H2H_SNAPSHOT), encoding="utf-8")
-    (tmp_path / "outrights-close.json").write_text(json.dumps(OUTRIGHT_SNAPSHOT), encoding="utf-8")
+    (tmp_path / "wc2022").mkdir()
+    (tmp_path / "wc2022" / "h2h-20221218T1455Z.json").write_text(json.dumps(H2H_SNAPSHOT), encoding="utf-8")
+    (tmp_path / "wc2022" / "outrights-close.json").write_text(json.dumps(OUTRIGHT_SNAPSHOT), encoding="utf-8")
 
     closes, outrights = load_closes(tmp_path)
 
     assert len(closes) == 1
     close = closes[0]
+    assert close.tournament == "wc2022"
     assert (close.home_team, close.away_team, close.bookmaker) == ("argentina", "france", "pinnacle")
     assert (close.home_price, close.draw_price, close.away_price) == (2.6, 3.1, 3.05)
     assert [(o.team, o.price) for o in outrights] == [("brazil", 4.2)]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 SCHEMA_VERSION = 1
 
@@ -181,6 +181,33 @@ class AgentBlock(BaseModel):
     calibration: CalibrationSummary | None = None
 
 
+class ChampionBlock(BaseModel):
+    """Which trusted model produced the simulation numbers."""
+
+    id: str
+    version: str
+    dataset_version: str
+    half_life_days: float | None = None
+    blend_weight: float = 0.0
+
+
+class TeamInterval(BaseModel):
+    team_id: str
+    lo: float
+    hi: float
+
+
+class MarketsBlock(BaseModel):
+    """Published title probabilities: model, de-vigged market and the blend."""
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    model_probs: dict[str, float] = Field(default_factory=dict)
+    market_probs: dict[str, float] = Field(default_factory=dict)
+    blend_probs: dict[str, float] = Field(default_factory=dict)
+    model_weight: float = 0.0
+
+
 class TeamInfo(BaseModel):
     team_id: str
     name: str
@@ -203,3 +230,6 @@ class Snapshot(BaseModel):
     groups: list[GroupBlock] = Field(default_factory=list)
     matches: list[MatchProbs] = Field(default_factory=list)
     agent: AgentBlock | None = None
+    champion: ChampionBlock | None = None
+    intervals: list[TeamInterval] = Field(default_factory=list)
+    markets: MarketsBlock | None = None
