@@ -44,6 +44,7 @@ def dataset(tmp_path) -> DatasetHandle:
     closes = pd.DataFrame(
         [
             {
+                "tournament": "wc2022",
                 "snapshot_at": datetime(2022, 12, 18, 14, 50),
                 "commence_at": datetime(2022, 12, 18, 15, 0),
                 "home_team": "france",
@@ -75,7 +76,7 @@ def dataset(tmp_path) -> DatasetHandle:
     write_dataset(
         out,
         version="t",
-        tables={"matches": matches, "shootouts": shootouts, "wc2022_closes": closes, "match_odds": match_odds},
+        tables={"matches": matches, "shootouts": shootouts, "market_closes": closes, "match_odds": match_odds},
         hashes={},
     )
     return DatasetHandle(path=out / "wolves-data-t.duckdb", version="t")

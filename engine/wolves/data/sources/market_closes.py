@@ -1,7 +1,6 @@
-"""WC2022 closing odds pulled from The Odds API historical endpoint by
-scripts/pull_wc2022_closes.py. Each h2h snapshot was taken minutes before one
-kickoff cluster, so only events commencing shortly after the snapshot carry
-closing prices; later events appear too but at non-closing prices."""
+"""Closing odds pulled by scripts/pull_historical_closes.py. Each h2h snapshot
+was taken minutes before one kickoff cluster, so only events commencing shortly
+after the snapshot carry closing prices; later events appear at drifted prices."""
 
 from __future__ import annotations
 
@@ -22,6 +21,7 @@ CLOSING_WINDOW = timedelta(minutes=30)
 
 
 class ClosingOddsRecord(BaseModel):
+    tournament: str
     snapshot_at: datetime
     commence_at: datetime
     home_team: str
@@ -33,13 +33,14 @@ class ClosingOddsRecord(BaseModel):
 
 
 class OutrightCloseRecord(BaseModel):
+    tournament: str
     snapshot_at: datetime
     bookmaker: str
     team: str
     price: float
 
 
-def _h2h_records(snapshot: dict[str, Any]) -> list[ClosingOddsRecord]:
+def _h2h_records(tournament: str, snapshot: dict[str, Any]) -> list[ClosingOddsRecord]:
     snapshot_at = datetime.fromisoformat(snapshot["timestamp"])
     records: list[ClosingOddsRecord] = []
     for event in snapshot["data"]:
@@ -63,6 +64,7 @@ def _h2h_records(snapshot: dict[str, Any]) -> list[ClosingOddsRecord]:
                 continue
             records.append(
                 ClosingOddsRecord(
+                    tournament=tournament,
                     snapshot_at=snapshot_at,
                     commence_at=commence_at,
                     home_team=canonical_team_key(home),
@@ -76,10 +78,11 @@ def _h2h_records(snapshot: dict[str, Any]) -> list[ClosingOddsRecord]:
     return records
 
 
-def _outright_records(snapshot: dict[str, Any]) -> list[OutrightCloseRecord]:
+def _outright_records(tournament: str, snapshot: dict[str, Any]) -> list[OutrightCloseRecord]:
     snapshot_at = datetime.fromisoformat(snapshot["timestamp"])
     return [
         OutrightCloseRecord(
+            tournament=tournament,
             snapshot_at=snapshot_at,
             bookmaker=bookmaker["key"],
             team=canonical_team_key(outcome["name"]),
@@ -94,17 +97,21 @@ def _outright_records(snapshot: dict[str, Any]) -> list[OutrightCloseRecord]:
     ]
 
 
-def load_closes(odds_dir: Path) -> tuple[list[ClosingOddsRecord], list[OutrightCloseRecord]]:
-    """Parse every pulled snapshot; absent directory means no closes on this machine."""
-    if not odds_dir.exists():
-        logger.warning("%s absent; wc2022 close tables will be empty", odds_dir)
+def load_closes(odds_root: Path) -> tuple[list[ClosingOddsRecord], list[OutrightCloseRecord]]:
+    """Parse every pulled snapshot under odds_root/<tournament>/; an absent
+    root means no closes on this machine."""
+    if not odds_root.exists():
+        logger.warning("%s absent; market close tables will be empty", odds_root)
         return [], []
     closes: list[ClosingOddsRecord] = []
     outrights: list[OutrightCloseRecord] = []
-    for path in sorted(odds_dir.glob("*.json")):
+    for path in sorted(odds_root.glob("*/*.json")):
+        tournament = path.parent.name
         snapshot = json.loads(path.read_text(encoding="utf-8"))
+        if not snapshot.get("timestamp") or not snapshot.get("data"):
+            continue
         if path.name.startswith("outrights"):
-            outrights.extend(_outright_records(snapshot))
+            outrights.extend(_outright_records(tournament, snapshot))
         else:
-            closes.extend(_h2h_records(snapshot))
+            closes.extend(_h2h_records(tournament, snapshot))
     return closes, outrights
