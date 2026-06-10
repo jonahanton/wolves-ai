@@ -59,6 +59,25 @@ class S3Client:
             ),
         )
 
+    def get_bytes(self, key: str) -> bytes | None:
+        """Return the object body as bytes, or None when the key is absent."""
+        try:
+            response = self._s3.get_object(Bucket=self.bucket, Key=key)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") in _MISSING_CODES:
+                return None
+            raise S3UnavailableError(self.bucket, "get_object") from exc
+        except BotoCoreError as exc:
+            raise S3UnavailableError(self.bucket, "get_object") from exc
+        return response["Body"].read()
+
+    def put_bytes(self, key: str, body: bytes, *, content_type: str = "application/octet-stream") -> None:
+        """Write the binary body to the key."""
+        self._guard(
+            "put_object",
+            lambda: self._s3.put_object(Bucket=self.bucket, Key=key, Body=body, ContentType=content_type),
+        )
+
     def list_keys(self, *, prefix: str) -> list[str]:
         """Return every key under the prefix."""
         paginator = self._s3.get_paginator("list_objects_v2")
