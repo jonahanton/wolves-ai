@@ -19,7 +19,9 @@ from wolves.clients.odds.contracts import CreditUsage, RawOddsResponse
 from wolves.clients.odds.polymarket import GammaPolymarketClient
 from wolves.clients.s3.client import S3Client
 from wolves.config import Settings
+from wolves.markets.series import SERIES_FILENAME, append_point, point_from_snapshot
 from wolves.observability.logging import configure_cli_logging
+from wolves.sim.format import load_format
 
 logger = logging.getLogger(__name__)
 
@@ -112,10 +114,16 @@ async def archive_pass(
     local_path.write_text(body, encoding="utf-8")
     logger.info("archived %s locally (%d bytes)", key, len(body))
 
+    series_path = settings.runs_root / "odds-archive" / SERIES_FILENAME
+    append_point(series_path, point_from_snapshot(snapshot.model_dump(), load_format(settings.data_dir)))
+
     # Local write happens first so an S3 outage is loud without losing the snapshot.
     if settings.agent_state_bucket:
         s3 = S3Client(bucket=settings.agent_state_bucket, region=settings.aws_region)
         s3.put_text(f"{S3_PREFIX}/{key}", body, content_type="application/json")
+        s3.put_text(
+            f"{S3_PREFIX}/{SERIES_FILENAME}", series_path.read_text(encoding="utf-8"), content_type="application/json"
+        )
         logger.info("archived %s to s3://%s/%s/%s", key, settings.agent_state_bucket, S3_PREFIX, key)
     else:
         logger.info("agent_state_bucket unset; snapshot kept locally only")

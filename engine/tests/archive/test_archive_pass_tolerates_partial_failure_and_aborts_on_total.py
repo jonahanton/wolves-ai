@@ -68,7 +68,7 @@ async def test_s3_outage_is_loud_but_the_local_snapshot_survives(tmp_path, monke
         def __init__(self, *, bucket: str, region: str) -> None:
             self._bucket = bucket
 
-        def put_text(self, key: str, body: str, *, content_type: str) -> None:
+        def put_text(self, key: str, body: str, *, content_type: str = "text/plain") -> None:
             raise S3UnavailableError(self._bucket, "put_object")
 
     monkeypatch.setattr(wolves.archive, "S3Client", FailingS3)

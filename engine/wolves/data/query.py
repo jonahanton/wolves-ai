@@ -62,7 +62,8 @@ class DatasetQuery:
     def market_history(self, team: str) -> list[dict[str, Any]]:
         """Closing 1X2 prices for the team across archived tournaments."""
         return self.sql(
-            "select tournament, commence_at, home_team, away_team, bookmaker, home_price, draw_price, away_price"
+            "select tournament, cast(commence_at as varchar) as commence_at, home_team, away_team, bookmaker,"
+            " home_price, draw_price, away_price"
             " from market_closes where home_team = ? or away_team = ? order by commence_at",
             [team, team],
         )

@@ -88,6 +88,22 @@ def _round_robin_rows() -> list[dict]:
 
 @pytest.fixture(scope="session")
 def fixture_dataset(tmp_path_factory) -> DatasetHandle:
+    from wolves.data.build import _frame
+    from wolves.data.contracts import TeamRecord
+    from wolves.data.sources.elo_history import EloHistoryRecord
+    from wolves.data.sources.market_closes import ClosingOddsRecord, OutrightCloseRecord
+
     out_dir = tmp_path_factory.mktemp("dataset")
-    write_dataset(out_dir, version="test", tables={"matches": pd.DataFrame(_round_robin_rows())}, hashes={})
+    write_dataset(
+        out_dir,
+        version="test",
+        tables={
+            "matches": pd.DataFrame(_round_robin_rows()),
+            "teams": _frame([TeamRecord(team=t) for t in TEAMS], TeamRecord),
+            "elo_history": _frame([], EloHistoryRecord),
+            "market_closes": _frame([], ClosingOddsRecord),
+            "outright_closes": _frame([], OutrightCloseRecord),
+        },
+        hashes={},
+    )
     return DatasetHandle(path=out_dir / "wolves-data-test.duckdb", version="test")

@@ -45,6 +45,9 @@ class _FitData:
     away_goals: np.ndarray
     at_home: np.ndarray
     weights: np.ndarray
+    dates: tuple[str, ...]
+    tournaments: tuple[str, ...]
+    importance: np.ndarray
 
 
 class InsufficientFitDataError(Exception):
@@ -63,7 +66,7 @@ def load_fit_data(
     connection = duckdb.connect(str(dataset.path), read_only=True)
     try:
         rows = connection.execute(
-            "select date, home_team, away_team, home_goals, away_goals, importance, neutral"
+            "select date, home_team, away_team, home_goals, away_goals, importance, neutral, tournament"
             " from matches where date < ? and date >= ? and importance >= ? order by date",
             [as_of.isoformat(), date.fromordinal(int(window_start)).isoformat(), min_importance],
         ).fetchall()
@@ -92,6 +95,9 @@ def load_fit_data(
         away_goals=np.array([row[4] for row in rows], dtype=np.float64),
         at_home=np.array([0.0 if row[6] else 1.0 for row in rows], dtype=np.float64),
         weights=decay * importance,
+        dates=tuple(row[0].isoformat() for row in rows),
+        tournaments=tuple(row[7] for row in rows),
+        importance=importance,
     )
 
 
