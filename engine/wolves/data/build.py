@@ -17,9 +17,10 @@ from pydantic import BaseModel
 
 from wolves import ENGINE_VERSION
 from wolves.config import Settings
-from wolves.data.contracts import DatasetManifest
-from wolves.data.sources import football_data, martj42
+from wolves.data.contracts import DatasetManifest, MatchOddsRecord, MatchRecord, ShootoutRecord, TeamRecord
+from wolves.data.sources import football_data, martj42, wc2022_closes
 from wolves.data.sources.registry import build_team_dimension
+from wolves.data.sources.wc2022_closes import ClosingOddsRecord, OutrightCloseRecord
 from wolves.observability.logging import configure_cli_logging
 
 logger = logging.getLogger(__name__)
@@ -42,13 +43,25 @@ def dataset_filename(version: str) -> str:
     return f"wolves-data-{version}.duckdb"
 
 
-def _frame(records: list[BaseModel]) -> pd.DataFrame:
+def _frame[T: BaseModel](records: list[T], model: type[T]) -> pd.DataFrame:
+    if not records:
+        return pd.DataFrame(columns=list(model.model_fields))
     return pd.DataFrame([record.model_dump() for record in records])
 
 
 def _sha256(text_or_bytes: str | bytes) -> str:
     data = text_or_bytes.encode("utf-8") if isinstance(text_or_bytes, str) else text_or_bytes
     return hashlib.sha256(data).hexdigest()
+
+
+def _dir_sha256(directory: Path) -> str:
+    if not directory.exists():
+        return "absent"
+    digest = hashlib.sha256()
+    for path in sorted(directory.glob("*.json")):
+        digest.update(path.name.encode("utf-8"))
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
 
 
 def write_dataset(
@@ -94,21 +107,26 @@ async def build_dataset(settings: Settings, *, version: str, out_dir: Path) -> D
     match_odds = football_data.parse_workbook(workbook)
     elo_tsv = latest_elo_tsv(settings.data_dir / "ratings")
     teams = build_team_dimension(settings.data_dir, elo_tsv=elo_tsv, matches=matches)
+    closes_dir = settings.data_dir / "odds" / "wc2022"
+    closes, outright_closes = wc2022_closes.load_closes(closes_dir)
 
     manifest = write_dataset(
         out_dir,
         version=version,
         tables={
-            "matches": _frame(matches),
-            "shootouts": _frame(shootouts),
-            "match_odds": _frame(match_odds),
-            "teams": _frame(teams),
+            "matches": _frame(matches, MatchRecord),
+            "shootouts": _frame(shootouts, ShootoutRecord),
+            "match_odds": _frame(match_odds, MatchOddsRecord),
+            "teams": _frame(teams, TeamRecord),
+            "wc2022_closes": _frame(closes, ClosingOddsRecord),
+            "wc2022_outright_close": _frame(outright_closes, OutrightCloseRecord),
         },
         hashes={
             "martj42_results": _sha256(results_text),
             "martj42_shootouts": _sha256(shootouts_text),
             "football_data_internationals": _sha256(workbook),
             "elo_snapshot": _sha256(elo_tsv.read_bytes()),
+            "wc2022_closes": _dir_sha256(closes_dir),
         },
     )
     logger.info("dataset %s built: %s", version, manifest.tables)
