@@ -4,6 +4,7 @@ import numpy as np
 from pydantic import BaseModel, Field
 
 from wolves.config import get_settings
+from wolves.sim.engine import EloMatchEngine
 from wolves.sim.format import PlayedResult, load_format, load_results
 from wolves.sim.mc import run_tournament
 from wolves.sim.outputs import build_england, build_groups, build_matches, build_slots, build_team_reach
@@ -71,7 +72,7 @@ def run_simulation(
     resolved_seed = inputs.seed if inputs.seed is not None else int(np.random.default_rng().integers(2**31))
     result = run_tournament(
         fmt,
-        base,
+        EloMatchEngine(fmt, base),
         n_sims=inputs.n_sims,
         seed=resolved_seed,
         results=results,
