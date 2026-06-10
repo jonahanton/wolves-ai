@@ -6,7 +6,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from tests.graph.conftest import build_graph_deps, build_run_store
-from wolves.graph.contracts import Brief, ForecastOutput, ResearchOutput, WavePlan
+from wolves.graph.contracts import ForecastOutput, GraphPatch, NodePatch, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.nodes import execute_brief
 from wolves.graph.runner import GraphModels, run_graph
@@ -27,7 +27,7 @@ def _flaky_research() -> FunctionModel:
 async def test_execute_brief_is_total(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
     store = build_run_store(tmp_path)
-    brief = Brief(node_id="research-bad", kind="research", objective="FAIL", brief="FAIL")
+    brief = NodePatch(node_id="research-bad", kind="research", objective="FAIL", brief="FAIL")
 
     with deps.runtime.run_trace():
         outcome = await execute_brief(brief, deps=deps, store=store, model=_flaky_research())
@@ -40,14 +40,14 @@ async def test_execute_brief_is_total(tmp_path: Path):
 
 async def test_wave_with_a_failed_node_still_merges_the_good_one(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
-    plan = WavePlan(
-        briefs=[
-            Brief(node_id="research-bad", kind="research", objective="FAIL", brief="FAIL"),
-            Brief(node_id="research-good", kind="research", objective="good", brief="find things"),
+    plan = GraphPatch(
+        ops=[
+            NodePatch(node_id="research-bad", kind="research", objective="FAIL", brief="FAIL"),
+            NodePatch(node_id="research-good", kind="research", objective="good", brief="find things"),
         ]
     )
     models = GraphModels(
-        master=scripted_model([plan, WavePlan(stop=True, reason="done")]),
+        master=scripted_model([plan, GraphPatch(stop=True, reason="done")]),
         nodes={
             "research": _flaky_research(),
             "quant": scripted_model([], model_name="unused"),

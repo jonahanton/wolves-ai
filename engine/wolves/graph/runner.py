@@ -13,7 +13,7 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent.validator import validate_submission
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.blackboard import Blackboard
-from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
+from wolves.graph.contracts import NodeKind, NodeOutcome, NodePatch
 from wolves.graph.master import admit, plan_wave
 from wolves.graph.nodes import execute_brief
 from wolves.observability.runtime import CapExceeded, ObservedRuntime
@@ -77,7 +77,7 @@ def _budget_at_caps(runtime: ObservedRuntime) -> bool:
 
 
 async def _execute_wave(
-    briefs: list[Brief],
+    ops: list[NodePatch],
     *,
     deps: AgentDeps,
     store: RunArtifactStore,
@@ -85,11 +85,11 @@ async def _execute_wave(
 ) -> list[NodeOutcome]:
     semaphore = asyncio.Semaphore(deps.settings.graph_max_wave_workers)
 
-    async def run_one(brief: Brief) -> NodeOutcome:
+    async def run_one(op: NodePatch) -> NodeOutcome:
         async with semaphore:
-            return await execute_brief(brief, deps=deps, store=store, model=models.nodes[brief.kind])
+            return await execute_brief(op, deps=deps, store=store, model=models.nodes[op.kind])
 
-    return list(await asyncio.gather(*(run_one(b) for b in briefs)))
+    return list(await asyncio.gather(*(run_one(op) for op in ops)))
 
 
 async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> GraphRunResult:
@@ -105,25 +105,25 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
         for wave in range(settings.graph_max_waves):
             prompt = board.summary() if wave else f"{_kickoff(deps, as_of)}\n\nBlackboard:\n{board.summary()}"
             try:
-                plan = await plan_wave(prompt, model=models.master)
+                patch = await plan_wave(prompt, model=models.master)
             except Exception as exc:
                 if not _cap_exceeded(exc):
                     raise
                 logger.warning("master plan stopped by cap: %s", exc)
                 budget_exhausted = True
                 break
-            briefs, dropped = admit(plan, board=board, settings=settings)
+            ops, dropped = admit(patch, board=board, settings=settings)
             board.dropped = dropped
-            if plan.stop or not plan.briefs:
-                logger.info("master stopped after wave %d: %s", board.wave, plan.reason or "empty wave")
+            if patch.stop or not patch.ops:
+                logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "empty wave")
                 break
-            if not briefs:
-                # Every proposed brief was dropped; the drops are on the
+            if not ops:
+                # Every proposed op was dropped; the drops are on the
                 # blackboard, so give the master another planning turn.
                 logger.warning("wave %d fully dropped at admission; re-planning", board.wave)
                 continue
-            outcomes = await _execute_wave(briefs, deps=deps, store=store, models=models)
-            board.merge(briefs, outcomes)
+            outcomes = await _execute_wave(ops, deps=deps, store=store, models=models)
+            board.merge(ops, outcomes)
             if submission_state.accepted is not None:
                 break
             if submission_state.validation_failures > settings.agent_submit_retries:
@@ -136,15 +136,15 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
 
         retries_left = submission_state.validation_failures <= settings.agent_submit_retries
         if submission_state.accepted is None and not budget_exhausted and retries_left:
-            brief = Brief(
+            op = NodePatch(
                 node_id="runner-demand-submit",
                 kind="forecast",
                 objective="Submit the final forecast",
                 brief=_DEMAND_SUBMIT,
                 input_artifact_ids=[a.id for a in store.all()],
             )
-            outcome = await execute_brief(brief, deps=deps, store=store, model=models.nodes["forecast"])
-            board.merge([brief], [outcome])
+            outcome = await execute_brief(op, deps=deps, store=store, model=models.nodes["forecast"])
+            board.merge([op], [outcome])
 
         if submission_state.accepted is None:
             return GraphRunResult(

@@ -53,11 +53,18 @@ class Settings(BaseSettings):
     graph_max_waves: int = 4
     graph_max_nodes: int = 12
     graph_max_wave_workers: int = 4
-    graph_node_timeout_s: int = 240
-    graph_research_request_limit: int = 12
-    graph_quant_request_limit: int = 8
-    graph_forecast_request_limit: int = 16
-    graph_critic_request_limit: int = 4
+    graph_max_research_nodes: int = 6
+    graph_max_quant_nodes: int = 6
+    graph_max_forecast_nodes: int = 3
+    graph_max_critic_nodes: int = 3
+    graph_research_timeout_s: int = 240
+    graph_quant_timeout_s: int = 420
+    graph_forecast_timeout_s: int = 300
+    graph_critic_timeout_s: int = 180
+    graph_research_request_limit: int = 24
+    graph_quant_request_limit: int = 24
+    graph_forecast_request_limit: int = 24
+    graph_critic_request_limit: int = 8
 
     confirmed_delta_cap_elo: float = 50.0
     soft_delta_cap_elo: float = 10.0

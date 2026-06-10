@@ -23,7 +23,7 @@ from wolves.agent.tools import (
 from wolves.agent_tools.adapters.pydantic_ai import build_toolset
 from wolves.agent_tools.core import ToolSpec
 from wolves.agent_tools.result import ToolResult
-from wolves.graph.contracts import CritiqueOutput, ForecastOutput, NodeKind, QuantOutput, ResearchOutput, WavePlan
+from wolves.graph.contracts import CritiqueOutput, ForecastOutput, GraphPatch, NodeKind, QuantOutput, ResearchOutput
 from wolves.tools._truncation import truncate_result
 
 _PROMPTS = Path(__file__).parent / "prompts"
@@ -70,6 +70,6 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
 
 
 @cache
-def master_agent() -> Agent[None, WavePlan]:
+def master_agent() -> Agent[None, GraphPatch]:
     """The planner: pure structured output over the blackboard summary, no tools."""
-    return Agent(output_type=WavePlan, system_prompt=_prompt("master"))
+    return Agent(output_type=GraphPatch, system_prompt=_prompt("master"))

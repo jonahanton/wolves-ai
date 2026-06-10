@@ -12,7 +12,7 @@ import pytest
 
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps
-from wolves.graph.contracts import Brief, ForecastOutput, LedgerEvidence, ResearchOutput, WavePlan
+from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, NodePatch, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.runner import GraphModels, run_graph
 from wolves.observability import EventLog
@@ -64,11 +64,11 @@ FORECAST = scripted_model(
 )
 
 
-def _forecast_wave(prompt: str) -> WavePlan:
+def _forecast_wave(prompt: str) -> GraphPatch:
     artifact_ids = sorted(set(re.findall(r"evidence-[0-9a-f]{8}", prompt)))
-    return WavePlan(
-        briefs=[
-            Brief(
+    return GraphPatch(
+        ops=[
+            NodePatch(
                 node_id="forecast",
                 kind="forecast",
                 objective="Submit today's forecast",
@@ -83,7 +83,7 @@ async def test_full_graph_run(tmp_path: Path):
     deps = build_graph_deps(tmp_path, structured=list(K_SAMPLES), run_id="e2e-run")
     master = scripted_model(
         [
-            WavePlan(briefs=[Brief(node_id="research-keeper", kind="research", objective="keeper", brief="...")]),
+            GraphPatch(ops=[NodePatch(node_id="research-keeper", kind="research", objective="keeper", brief="...")]),
             _forecast_wave,
         ],
         model_name="master",

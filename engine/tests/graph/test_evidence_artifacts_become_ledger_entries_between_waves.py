@@ -4,7 +4,7 @@ from pathlib import Path
 
 from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.graph.blackboard import Blackboard
-from wolves.graph.contracts import Brief, LedgerEvidence, NodeOutcome, ResearchOutput
+from wolves.graph.contracts import LedgerEvidence, NodeOutcome, NodePatch, ResearchOutput
 
 
 def test_merge_converts_evidence_serially(tmp_path: Path):
@@ -32,7 +32,7 @@ def test_merge_converts_evidence_serially(tmp_path: Path):
         ],
     )
     artifact = store.add(kind="evidence", created_by="research-1", summary=output.summary, payload=output.model_dump())
-    brief = Brief(node_id="research-1", kind="research", objective="squad news", brief="...")
+    brief = NodePatch(node_id="research-1", kind="research", objective="squad news", brief="...")
 
     board.merge([brief], [NodeOutcome(node_id="research-1", kind="research", ok=True, artifact_ids=[artifact.id])])
 

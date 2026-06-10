@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from wolves.agent.ledger import EvidenceLedger
 from wolves.graph.artifacts import RunArtifactStore
-from wolves.graph.contracts import Brief, NodeOutcome, ResearchOutput
+from wolves.graph.contracts import NodeOutcome, NodePatch, ResearchOutput
 from wolves.observability.runtime import ObservedRuntime
 
 
@@ -16,6 +16,8 @@ class NodeRecord(BaseModel):
     objective: str
     ok: bool
     error: str | None = None
+    requests: int = 0
+    replaced_by: str | None = None
 
 
 class Blackboard:
@@ -34,17 +36,24 @@ class Blackboard:
         self.dropped: list[str] = []
         self.wave = 0
 
-    def merge(self, briefs: list[Brief], outcomes: list[NodeOutcome]) -> None:
-        """Fold one wave's outcomes in: node records, evidence to ledger, challenges."""
-        objectives = {b.node_id: b.objective for b in briefs}
+    def merge(self, ops: list[NodePatch], outcomes: list[NodeOutcome]) -> None:
+        """Fold one wave's outcomes in: node records, lineage, evidence to
+        ledger, challenges."""
+        by_id = {op.node_id: op for op in ops}
         for outcome in outcomes:
+            op = by_id.get(outcome.node_id)
+            if op is not None and op.replaces is not None:
+                for node in self.nodes:
+                    if node.node_id == op.replaces:
+                        node.replaced_by = outcome.node_id
             self.nodes.append(
                 NodeRecord(
                     node_id=outcome.node_id,
                     kind=outcome.kind,
-                    objective=objectives.get(outcome.node_id, ""),
+                    objective=op.objective if op is not None else "",
                     ok=outcome.ok,
                     error=outcome.error,
+                    requests=outcome.requests,
                 )
             )
             for artifact_id in outcome.artifact_ids:
@@ -94,7 +103,9 @@ class Blackboard:
                     "kind": n.kind,
                     "objective": n.objective[:80],
                     "ok": n.ok,
+                    "requests": n.requests,
                     **({"error": n.error[:120]} if n.error else {}),
+                    **({"replaced_by": n.replaced_by} if n.replaced_by else {}),
                 }
                 for n in self.nodes
             ],

@@ -19,8 +19,17 @@ class Brief(BaseModel):
     input_artifact_ids: list[str] = Field(default_factory=list)
 
 
-class WavePlan(BaseModel):
-    briefs: list[Brief] = Field(default_factory=list)
+class NodePatch(Brief):
+    """One graph-patch operation: open a line of inquiry, optionally
+    superseding an earlier node it re-briefs or reconciles."""
+
+    replaces: str | None = None
+
+
+class GraphPatch(BaseModel):
+    """The master's wave plan: patches the runtime admits against caps."""
+
+    ops: list[NodePatch] = Field(default_factory=list)
     stop: bool = False
     reason: str = ""
 
@@ -64,3 +73,4 @@ class NodeOutcome(BaseModel):
     ok: bool
     artifact_ids: list[str] = Field(default_factory=list)
     error: str | None = None
+    requests: int = 0

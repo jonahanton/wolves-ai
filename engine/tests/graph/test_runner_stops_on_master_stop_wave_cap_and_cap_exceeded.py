@@ -6,7 +6,7 @@ from pydantic_ai.models import Model
 
 from tests.graph.conftest import build_graph_deps
 from wolves.config import Settings
-from wolves.graph.contracts import Brief, ForecastOutput, ResearchOutput, WavePlan
+from wolves.graph.contracts import ForecastOutput, GraphPatch, NodePatch, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.observed_model import ObservedModel
 from wolves.graph.runner import GraphModels, run_graph
@@ -17,8 +17,8 @@ def _settings(tmp_path: Path, **overrides: object) -> Settings:
     return Settings(_env_file=None, runs_root=tmp_path, **overrides)
 
 
-def _research_plan(node_id: str) -> WavePlan:
-    return WavePlan(briefs=[Brief(node_id=node_id, kind="research", objective=node_id, brief="...")])
+def _research_plan(node_id: str) -> GraphPatch:
+    return GraphPatch(ops=[NodePatch(node_id=node_id, kind="research", objective=node_id, brief="...")])
 
 
 def _models(master: Model, *, research: Model | None = None, forecast: Model | None = None) -> GraphModels:
@@ -36,7 +36,7 @@ def _models(master: Model, *, research: Model | None = None, forecast: Model | N
 async def test_master_stop_ends_planning_after_one_turn(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
     # A one-step master script: a second planning turn would exhaust it and raise.
-    models = _models(scripted_model([WavePlan(stop=True, reason="nothing to do")]))
+    models = _models(scripted_model([GraphPatch(stop=True, reason="nothing to do")]))
 
     result = await run_graph(deps, as_of="2026-06-10", models=models)
 
@@ -66,7 +66,7 @@ async def test_wave_cap_bounds_planning_turns(tmp_path: Path):
 
 async def test_cap_exceeded_during_planning_marks_budget_exhausted(tmp_path: Path):
     deps = build_graph_deps(tmp_path, caps=Caps(max_llm_calls=0))
-    master = ObservedModel(scripted_model([WavePlan(stop=True)]), runtime=deps.runtime)
+    master = ObservedModel(scripted_model([GraphPatch(stop=True)]), runtime=deps.runtime)
     # Node scripts are empty: dispatching any node, including the final
     # demand-to-submit forecast, would raise GraphScriptExhaustedError.
     models = _models(master, forecast=scripted_model([], model_name="unused"))

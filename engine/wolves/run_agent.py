@@ -35,7 +35,7 @@ from wolves.clients.odds import (
 )
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
-from wolves.graph.contracts import Brief, ForecastOutput, LedgerEvidence, ResearchOutput, WavePlan
+from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, NodePatch, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.observed_model import ObservedModel
 from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
@@ -141,11 +141,11 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
         model_name="dev-forecast",
     )
 
-    def forecast_wave(prompt: str) -> WavePlan:
-        artifact_ids = sorted(set(re.findall(r"evidence-[0-9a-f]{8}", prompt)))
-        return WavePlan(
-            briefs=[
-                Brief(
+    def forecast_wave(prompt: str) -> GraphPatch:
+        artifact_ids = sorted(set(re.findall(r"evidence-\d{3}", prompt)))
+        return GraphPatch(
+            ops=[
+                NodePatch(
                     node_id="forecast",
                     kind="forecast",
                     objective="Submit today's forecast",
@@ -158,9 +158,9 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
 
     master = scripted_model(
         [
-            WavePlan(
-                briefs=[
-                    Brief(
+            GraphPatch(
+                ops=[
+                    NodePatch(
                         node_id="research-keeper",
                         kind="research",
                         objective="England keeper fitness",
@@ -170,7 +170,7 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
                 reason="Check the keeper story before forecasting.",
             ),
             forecast_wave,
-            WavePlan(stop=True, reason="Submission accepted."),
+            GraphPatch(stop=True, reason="Submission accepted."),
         ],
         model_name="dev-master",
     )

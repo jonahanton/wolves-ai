@@ -45,6 +45,17 @@ def _request_limit(kind: NodeKind, settings: Settings) -> int:
     }[kind]
 
 
+def _timeout(kind: NodeKind, settings: Settings) -> int:
+    # Quant nodes build and check models, not single expressions; their
+    # budget is minutes while a critic pass stays tight.
+    return {
+        "research": settings.graph_research_timeout_s,
+        "quant": settings.graph_quant_timeout_s,
+        "forecast": settings.graph_forecast_timeout_s,
+        "critic": settings.graph_critic_timeout_s,
+    }[kind]
+
+
 async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStore, model: Model) -> NodeOutcome:
     """Run one worker node to a typed artifact. Total: every failure, including
     CapExceeded surfacing in whatever shape pydantic-ai wraps it, degrades to a
@@ -59,7 +70,7 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
                 model=model,
                 usage_limits=UsageLimits(request_limit=_request_limit(brief.kind, settings)),
             ),
-            timeout=settings.graph_node_timeout_s,
+            timeout=_timeout(brief.kind, settings),
         )
     except Exception as exc:
         return NodeOutcome(node_id=brief.node_id, kind=brief.kind, ok=False, error=f"{type(exc).__name__}: {exc}")
@@ -70,4 +81,10 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         summary=output.summary,
         payload=output.model_dump(mode="json"),
     )
-    return NodeOutcome(node_id=brief.node_id, kind=brief.kind, ok=True, artifact_ids=[artifact.id])
+    return NodeOutcome(
+        node_id=brief.node_id,
+        kind=brief.kind,
+        ok=True,
+        artifact_ids=[artifact.id],
+        requests=result.usage.requests,
+    )
