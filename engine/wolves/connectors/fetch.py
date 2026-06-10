@@ -5,7 +5,7 @@ import hashlib
 import re
 from datetime import UTC, datetime
 from html.parser import HTMLParser
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 
@@ -105,9 +105,8 @@ class HttpFetchClient(FetchClient):
         self._max_chars = max_chars
 
     async def fetch(self, url: str) -> FetchedPage:
-        response = await self._get_following_redirects(url)
+        response, raw_bytes = await self._get_following_redirects(url)
 
-        raw_bytes = response.content[: self._max_bytes]
         content_type = response.headers.get("content-type", "").lower()
         page_text = _decode(raw_bytes, content_type)
 
@@ -138,31 +137,49 @@ class HttpFetchClient(FetchClient):
             raw_char_count=raw_char_count,
         )
 
-    async def _get_following_redirects(self, url: str) -> httpx.Response:
+    async def _get_following_redirects(self, url: str) -> tuple[httpx.Response, bytes]:
+        initial_scheme = urlsplit(url).scheme.lower()
         current = url
         for _ in range(_MAX_REDIRECTS + 1):
+            if initial_scheme == "https" and urlsplit(current).scheme.lower() == "http":
+                raise ValueError("refusing HTTPS to HTTP redirect downgrade")
             await _guard_url(current)
-            response = await self._get(current)
+            response, body = await self._get(current)
             if not response.is_redirect:
-                return response
+                return response, body
             location = response.headers.get("location")
             if not location:
-                return response
+                return response, body
             current = urljoin(str(response.url), location)
         raise ValueError(f"too many redirects (>{_MAX_REDIRECTS})")
 
-    async def _get(self, url: str) -> httpx.Response:
+    async def _get(self, url: str) -> tuple[httpx.Response, bytes]:
         async for attempt in async_retrying():
             with attempt:
-                response = await self._client.get(url, headers={"User-Agent": _USER_AGENT})
-                if not response.is_redirect:
+                async with self._client.stream("GET", url, headers={"User-Agent": _USER_AGENT}) as response:
+                    if response.is_redirect:
+                        return response, b""
                     _raise_for_status(response)
-                return response
+                    return response, await _read_capped(response, self._max_bytes)
         raise RuntimeError("unreachable")
 
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()
+
+
+async def _read_capped(response: httpx.Response, max_bytes: int) -> bytes:
+    """Stream the body, truncating at the cap so a huge page cannot exhaust memory."""
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in response.aiter_bytes():
+        remaining = max_bytes - total
+        if len(chunk) >= remaining:
+            chunks.append(chunk[:remaining])
+            break
+        chunks.append(chunk)
+        total += len(chunk)
+    return b"".join(chunks)
 
 
 async def _guard_url(url: str) -> None:
