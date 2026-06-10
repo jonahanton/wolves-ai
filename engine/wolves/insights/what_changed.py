@@ -119,7 +119,10 @@ def diff_inputs(
             played = played_since(forecaster.dataset.path, since=date.fromisoformat(run_day(previous.run)), until=today)
         except Exception as exc:
             logger.warning("played-results diff skipped: %s", exc)
-    moves = moves_between(archive_dir, since=previous.run.created_at, floor_pp=move_floor_pp)
+    try:
+        moves = moves_between(archive_dir, since=previous.run.created_at, floor_pp=move_floor_pp)
+    except Exception as exc:
+        logger.warning("market-moves diff skipped: %s", exc)
     return played, moves, fixtures
 
 
