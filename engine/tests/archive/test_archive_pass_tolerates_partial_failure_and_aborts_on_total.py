@@ -22,7 +22,10 @@ class StubOdds:
     async def outrights_raw(self) -> RawOddsResponse:
         if self._fail:
             raise ConnectionError("odds api down")
-        return RawOddsResponse(payload=[{"id": "evt", "bookmakers": []}], credits=CreditUsage(last_cost=2))
+        return RawOddsResponse(
+            payload=[{"id": "evt", "sport_key": "soccer_fifa_world_cup_winner", "bookmakers": []}],
+            credits=CreditUsage(last_cost=2),
+        )
 
     async def h2h_raw(self) -> RawOddsResponse:
         if self._fail:

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from wolves.markets.series import SERIES_FILENAME, SeriesPoint, load_series, rebuild_series
+from wolves.markets.series import SeriesPoint, load_series, rebuild_series
 from wolves.sim.format import FormatData
 
 
@@ -86,7 +86,7 @@ def _match_movements(series: list[SeriesPoint]) -> list[MatchMovement]:
 
 
 def market_movement(archive_dir: Path, fmt: FormatData) -> MarketMovement:
-    series = load_series(archive_dir / SERIES_FILENAME)
+    series = load_series(archive_dir)
     if not series:
         series = rebuild_series(archive_dir, fmt)
     return MarketMovement(

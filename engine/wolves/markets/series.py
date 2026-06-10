@@ -1,7 +1,7 @@
-"""The market time series: each raw archive snapshot parsed once into a
-compact append-only series.jsonl of de-vigged consensus probabilities. Raw
-payloads stay the source of truth; the series is what the agent queries, the
-backend serves and a rebuild can always regenerate."""
+"""The market time series: each raw archive snapshot parsed once into a small
+point file beside it (idempotent and safe on stateless infrastructure, where a
+local append would not survive between runs). Consumers combine the points;
+raw payloads stay the source of truth and a rebuild regenerates every point."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from wolves.sim.format import FormatData
 
 logger = logging.getLogger(__name__)
 
-SERIES_FILENAME = "series.jsonl"
+SERIES_SUFFIX = ".series.json"
 
 
 class MatchPoint(BaseModel):
@@ -88,29 +88,36 @@ def point_from_snapshot(snapshot: dict[str, Any], fmt: FormatData) -> SeriesPoin
     )
 
 
-def append_point(series_path: Path, point: SeriesPoint) -> None:
-    series_path.parent.mkdir(parents=True, exist_ok=True)
-    with series_path.open("a", encoding="utf-8") as handle:
-        handle.write(point.model_dump_json() + "\n")
+def point_path(raw_path: Path) -> Path:
+    return raw_path.with_suffix(SERIES_SUFFIX)
 
 
-def load_series(series_path: Path) -> list[SeriesPoint]:
-    if not series_path.exists():
-        return []
-    points = [SeriesPoint.model_validate_json(line) for line in series_path.read_text(encoding="utf-8").splitlines()]
+def write_point(raw_path: Path, point: SeriesPoint) -> Path:
+    destination = point_path(raw_path)
+    destination.write_text(point.model_dump_json(), encoding="utf-8")
+    return destination
+
+
+def _raw_paths(archive_dir: Path) -> list[Path]:
+    return sorted(p for p in archive_dir.glob("*/*.json") if not p.name.endswith(SERIES_SUFFIX))
+
+
+def load_series(archive_dir: Path) -> list[SeriesPoint]:
+    points = [
+        SeriesPoint.model_validate_json(path.read_text(encoding="utf-8"))
+        for path in sorted(archive_dir.glob(f"*/*{SERIES_SUFFIX}"))
+    ]
     return sorted(points, key=lambda p: p.captured_at)
 
 
 def rebuild_series(archive_dir: Path, fmt: FormatData) -> list[SeriesPoint]:
-    """Regenerate the whole series from the raw snapshots and rewrite the file."""
+    """Regenerate every point file from the raw snapshots."""
     points = []
-    for path in sorted(archive_dir.glob("*/*.json")):
+    for path in _raw_paths(archive_dir):
         snapshot = json.loads(path.read_text(encoding="utf-8"))
         if snapshot.get("sources"):
-            points.append(point_from_snapshot(snapshot, fmt))
-    points.sort(key=lambda p: p.captured_at)
-    series_path = archive_dir / SERIES_FILENAME
-    series_path.parent.mkdir(parents=True, exist_ok=True)
-    series_path.write_text("".join(p.model_dump_json() + "\n" for p in points), encoding="utf-8")
-    logger.info("rebuilt market series: %d points", len(points))
-    return points
+            point = point_from_snapshot(snapshot, fmt)
+            write_point(path, point)
+            points.append(point)
+    logger.info("rebuilt market series: %d point(s)", len(points))
+    return sorted(points, key=lambda p: p.captured_at)

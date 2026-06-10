@@ -9,6 +9,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Protocol
 
 from pydantic import BaseModel
@@ -19,7 +20,7 @@ from wolves.clients.odds.contracts import CreditUsage, RawOddsResponse
 from wolves.clients.odds.polymarket import GammaPolymarketClient
 from wolves.clients.s3.client import S3Client
 from wolves.config import Settings
-from wolves.markets.series import SERIES_FILENAME, append_point, point_from_snapshot
+from wolves.markets.series import point_from_snapshot, point_path, write_point
 from wolves.observability.logging import configure_cli_logging
 from wolves.sim.format import load_format
 
@@ -114,16 +115,23 @@ async def archive_pass(
     local_path.write_text(body, encoding="utf-8")
     logger.info("archived %s locally (%d bytes)", key, len(body))
 
-    series_path = settings.runs_root / "odds-archive" / SERIES_FILENAME
-    append_point(series_path, point_from_snapshot(snapshot.model_dump(), load_format(settings.data_dir)))
+    # Series derivation must never block raw archiving; rebuild_series can backfill.
+    series_file: Path | None = None
+    try:
+        point = point_from_snapshot(snapshot.model_dump(), load_format(settings.data_dir))
+        series_file = write_point(local_path, point)
+    except Exception:
+        logger.warning("series point derivation failed for %s; raw snapshot kept", key, exc_info=True)
 
     # Local write happens first so an S3 outage is loud without losing the snapshot.
     if settings.agent_state_bucket:
         s3 = S3Client(bucket=settings.agent_state_bucket, region=settings.aws_region)
         s3.put_text(f"{S3_PREFIX}/{key}", body, content_type="application/json")
-        s3.put_text(
-            f"{S3_PREFIX}/{SERIES_FILENAME}", series_path.read_text(encoding="utf-8"), content_type="application/json"
-        )
+        if series_file is not None:
+            series_key = str(point_path(Path(key)))
+            s3.put_text(
+                f"{S3_PREFIX}/{series_key}", series_file.read_text(encoding="utf-8"), content_type="application/json"
+            )
         logger.info("archived %s to s3://%s/%s/%s", key, settings.agent_state_bucket, S3_PREFIX, key)
     else:
         logger.info("agent_state_bucket unset; snapshot kept locally only")
