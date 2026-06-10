@@ -1,0 +1,95 @@
+"""Pydantic-AI adapter: mount ``ToolSpec``s onto an ``Agent``."""
+
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+from typing import Any
+
+from pydantic_ai import Agent, RunContext, Tool
+from pydantic_ai.toolsets import FunctionToolset
+
+from wolves.agent_tools.core import ToolSpec
+from wolves.agent_tools.result import ToolResult
+
+BeforeInvokeHook = Callable[[ToolSpec, Any, RunContext[Any]], Awaitable[Any | None]]
+AfterResultHook = Callable[[ToolSpec, Any, RunContext[Any], ToolResult], Awaitable[Any]]
+PrepareFor = Callable[[ToolSpec], Any | None]
+
+
+async def _default_after_result(spec: ToolSpec, args: Any, ctx: RunContext[Any], result: ToolResult) -> str:
+    return result.model_dump_json()
+
+
+def build_toolset(
+    specs: list[ToolSpec],
+    *,
+    before_invoke: BeforeInvokeHook | None = None,
+    after_result: AfterResultHook | None = None,
+    prepare_for: PrepareFor | None = None,
+) -> FunctionToolset:
+    """Build a ``FunctionToolset`` containing the specs.
+
+    Pass it via ``Agent(toolsets=[...])`` at construction time.
+
+    ``prepare_for`` is an optional ``(spec) -> ToolPrepareFunc | None``
+    callback (per pydantic-ai's ``Tool.prepare`` contract) deciding
+    whether the tool is advertised on a given turn.
+    """
+    after = after_result or _default_after_result
+    toolset: FunctionToolset = FunctionToolset()
+    for spec in specs:
+        toolset.add_tool(_build_tool(spec, before_invoke, after, prepare_for))
+    return toolset
+
+
+def register_specs(
+    agent: Agent,
+    specs: list[ToolSpec],
+    *,
+    before_invoke: BeforeInvokeHook | None = None,
+    after_result: AfterResultHook | None = None,
+    prepare_for: PrepareFor | None = None,
+) -> None:
+    """Mount specs onto the agent's first ``FunctionToolset``.
+
+    Prefer ``Agent(toolsets=[build_toolset(specs)])`` at construction
+    time; this post-hoc path is for hosts that need to mount specs on
+    an already-built agent. Raises ``RuntimeError`` if the agent has
+    no function toolset.
+    """
+    after = after_result or _default_after_result
+    target = next((ts for ts in agent.toolsets if isinstance(ts, FunctionToolset)), None)
+    if target is None:
+        raise RuntimeError(
+            "Agent has no FunctionToolset to register specs onto; "
+            "pass build_toolset(specs) via Agent(toolsets=...) instead."
+        )
+    for spec in specs:
+        target.add_tool(_build_tool(spec, before_invoke, after, prepare_for))
+
+
+def _build_tool(
+    spec: ToolSpec,
+    before_invoke: BeforeInvokeHook | None,
+    after_result: AfterResultHook,
+    prepare_for: PrepareFor | None,
+) -> Tool:
+    async def _runner(ctx: RunContext[Any], **kwargs: Any) -> Any:
+        args = spec.args_model(**kwargs)
+        if before_invoke is not None:
+            short_circuit = await before_invoke(spec, args, ctx)
+            if short_circuit is not None:
+                return short_circuit
+        result = await spec.fn(args, ctx.deps)
+        return await after_result(spec, args, ctx, result)
+
+    tool = Tool.from_schema(
+        function=_runner,
+        name=spec.name,
+        description=spec.description,
+        json_schema=spec.json_schema,
+        takes_ctx=True,
+    )
+    if prepare_for is not None:
+        tool.prepare = prepare_for(spec)
+    return tool

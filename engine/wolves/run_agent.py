@@ -1,7 +1,7 @@
 """Agent-mode runner.
 
-``python -m wolves.run_agent --dev`` runs the full harness offline: scripted
-fake LLM, fixture-backed clients, in-memory tracer, $0 spend. ``--live``
+``python -m wolves.run_agent --dev`` runs the full graph offline: scripted
+models, fixture-backed clients, in-memory tracer, $0 spend. ``--live``
 refuses to run unless ANTHROPIC_API_KEY is set and ``--confirm-spend`` is
 passed with a per-run dollar ceiling, enforced as a hard cap in the runtime.
 """
@@ -11,16 +11,20 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import re
 import sys
 from datetime import UTC, datetime, timedelta
 
 import numpy as np
+from pydantic_ai.models import Model
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.providers.anthropic import AnthropicProvider
 
+from wolves import ENGINE_VERSION
 from wolves.agent.calibration import CalibrationLedger
 from wolves.agent.deps import AgentDeps
-from wolves.agent.fakes import ScriptedLLM, tool_call_turn
+from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.ledger import EvidenceLedger
-from wolves.agent.loop import MasterRunResult, run_master
 from wolves.agent.memory import RunMemory
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.sim_runner import EngineSimulation
@@ -36,8 +40,12 @@ from wolves.clients.odds import (
 )
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
+from wolves.graph.contracts import Brief, ForecastOutput, LedgerEvidence, ResearchOutput, WavePlan
+from wolves.graph.fakes import scripted_model
+from wolves.graph.observed_model import ObservedModel
+from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
 from wolves.llm.anthropic import build_llm
-from wolves.llm.client import LLMClient, ToolTurn
+from wolves.llm.client import LLMClient
 from wolves.llm.observed import ObservedLLM
 from wolves.observability import Caps, InMemoryTracer, ObservedRuntime, build_logfire_tracer, build_runtime
 from wolves.quant.observed import ObservedQuant
@@ -59,10 +67,8 @@ from wolves.tools._budget_gate import BudgetGate
 logger = logging.getLogger(__name__)
 
 
-def _dev_script(as_of: str) -> tuple[list[ToolTurn], list[dict]]:
-    """A canned full run: memory, odds anchor, delegation, ledger, sim, submit."""
-    expiry = (datetime.fromisoformat(as_of) + timedelta(days=3)).date().isoformat()
-    submission = {
+def _dev_submission(as_of: str) -> dict:
+    return {
         "rating_overrides": [
             {
                 "team_id": "england",
@@ -86,66 +92,96 @@ def _dev_script(as_of: str) -> tuple[list[ToolTurn], list[dict]]:
         "delta_vs_yesterday": 0.0,
         "change_justification": "",
     }
-    turns = [
-        tool_call_turn(("read_journal", {}), ("get_odds", {"market": "outrights"}), text="Memory and anchor first."),
-        tool_call_turn(
-            (
-                "spawn_researcher",
-                {
-                    "briefs": [
-                        {
-                            "objective": "England keeper fitness",
-                            "brief": "Confirm from primary sources whether the first-choice keeper is fit to start.",
-                            "input_artifact_ids": [],
-                        }
-                    ]
-                },
-            )
-        ),
-        tool_call_turn(("web_search", {"query": "England keeper fitness", "freshness": "pd"})),
-        tool_call_turn(
-            (
-                "report_findings",
-                {
-                    "objective": "England keeper fitness",
-                    "summary": "Keeper trained in full; FA statement confirms availability.",
-                    "evidence": [
-                        {
-                            "claim": "Keeper trained in full",
-                            "source_url": "https://www.reuters.com/world/example-article-2026",
-                            "quote": "trained in full",
-                        }
-                    ],
-                    "signals": [],
-                },
-            )
-        ),
-        tool_call_turn(
-            (
-                "ledger_append",
-                {
-                    "claim": "First-choice keeper confirmed fit by the FA",
-                    "source_url": "https://www.reuters.com/world/example-article-2026",
-                    "status": "confirmed",
-                    "mechanism": "keeper returns to the XI",
-                    "proposed_delta": 15.0,
-                    "expiry": expiry,
-                    "team_id": "england",
-                },
-            )
-        ),
-        tool_call_turn(("run_simulation", {"rating_overrides": {"england": 15.0}, "seed": 1})),
-        tool_call_turn(
-            ("write_journal", {"text": "Keeper confirmed fit; sim and market agree England are third favourites."}),
-            ("submit_forecast", submission),
-        ),
-    ]
-    sample = {
-        "rating_overrides": [
-            {"team_id": "england", "delta_elo": 15.0, "cause": "keeper fit", "ledger_ids": ["led-0001"]}
-        ]
-    }
-    return turns, [sample, sample]
+
+
+def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
+    """A canned full graph walk: one research wave, then a forecast node that
+    queries the ledger, runs the sim and submits through the validator."""
+    expiry = (datetime.fromisoformat(as_of) + timedelta(days=3)).date().isoformat()
+
+    research = scripted_model(
+        [
+            [("web_search", {"query": "England keeper fitness", "freshness": "pd"})],
+            ResearchOutput(
+                summary="Keeper trained in full; FA statement confirms availability.",
+                evidence=[
+                    LedgerEvidence(
+                        claim="First-choice keeper confirmed fit by the FA",
+                        source_url="https://www.reuters.com/world/example-article-2026",
+                        quote="trained in full",
+                        status="confirmed",
+                        mechanism="keeper returns to the XI",
+                        proposed_delta=15.0,
+                        expiry=expiry,
+                        team_id="england",
+                    )
+                ],
+            ),
+        ],
+        model_name="dev-research",
+    )
+
+    forecast = scripted_model(
+        [
+            [("ledger_query", {"team_id": "england"})],
+            [("run_simulation", {"rating_overrides": {"england": 15.0}, "n_sims": 1000, "seed": 1})],
+            [
+                ("write_journal", {"text": "Keeper confirmed fit; sim and market agree England are third favourites."}),
+                ("submit_forecast", _dev_submission(as_of)),
+            ],
+            ForecastOutput(summary="Submitted the keeper-adjusted forecast."),
+        ],
+        model_name="dev-forecast",
+    )
+
+    def forecast_wave(prompt: str) -> WavePlan:
+        artifact_ids = sorted(set(re.findall(r"evidence-[0-9a-f]{8}", prompt)))
+        return WavePlan(
+            briefs=[
+                Brief(
+                    node_id="forecast",
+                    kind="forecast",
+                    objective="Submit today's forecast",
+                    brief="Weigh the keeper evidence, run the sim and submit.",
+                    input_artifact_ids=artifact_ids,
+                )
+            ],
+            reason="Dossier ready; move to the forecast.",
+        )
+
+    master = scripted_model(
+        [
+            WavePlan(
+                briefs=[
+                    Brief(
+                        node_id="research-keeper",
+                        kind="research",
+                        objective="England keeper fitness",
+                        brief="Confirm from primary sources whether the first-choice keeper is fit to start.",
+                    )
+                ],
+                reason="Check the keeper story before forecasting.",
+            ),
+            forecast_wave,
+            WavePlan(stop=True, reason="Submission accepted."),
+        ],
+        model_name="dev-master",
+    )
+
+    idle = scripted_model([], model_name="dev-idle")
+
+    def observed(model: Model) -> ObservedModel:
+        return ObservedModel(model, runtime=runtime)
+
+    return GraphModels(
+        master=observed(master),
+        nodes={
+            "research": observed(research),
+            "quant": observed(idle),
+            "forecast": observed(forecast),
+            "critic": observed(idle),
+        },
+    )
 
 
 def _build_deps(
@@ -157,8 +193,6 @@ def _build_deps(
     odds: OddsClient,
     polymarket: PolymarketClient,
     fixtures: FixturesClient,
-    fmt: FormatData,
-    ratings: np.ndarray,
     run_id: str,
 ) -> AgentDeps:
     calibration = CalibrationLedger(settings.calibration_path)
@@ -173,7 +207,7 @@ def _build_deps(
         ledger=EvidenceLedger(settings.runs_root / run_id / "ledger.jsonl"),
         memory=RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path),
         quant=ObservedQuant(runtime),
-        gate=BudgetGate(settings.agent_tool_budget),
+        gate=BudgetGate(),
         settings=settings,
         limits=ValidatorLimits(
             confirmed_delta_cap_elo=settings.confirmed_delta_cap_elo,
@@ -212,7 +246,7 @@ def _build_snapshot(
     *,
     settings: Settings,
     deps: AgentDeps,
-    result: MasterRunResult,
+    result: GraphRunResult,
     fmt: FormatData,
     ratings: np.ndarray,
     run_id: str,
@@ -240,7 +274,7 @@ def _build_snapshot(
             run_id=run_id,
             created_at=datetime.now(UTC).isoformat(timespec="seconds"),
             n_sims=n_sims,
-            engine_version="0.1.0",
+            engine_version=ENGINE_VERSION,
             kind="agent",
         ),
         england=outputs.england,
@@ -276,6 +310,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         tracer = build_logfire_tracer(settings) if settings.logfire_token else InMemoryTracer()
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
         llm: LLMClient = build_llm(settings, model=settings.worker_model)
+        provider = AnthropicProvider(api_key=settings.anthropic_api_key)
+        models = GraphModels.uniform(
+            ObservedModel(AnthropicModel(settings.worker_model, provider=provider), runtime=runtime)
+        )
         web = build_web(settings, runtime)
         odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
         polymarket: PolymarketClient = GammaPolymarketClient()
@@ -285,13 +323,18 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         logger.info("LIVE run %s: model=%s, ceiling=$%.2f", run_id, settings.worker_model, ceiling)
     else:
         runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=Caps(), runs_root=settings.runs_root)
-        turns, samples = _dev_script(as_of)
-        llm = ScriptedLLM(turns=turns, structured=samples)
+        models = _dev_models(runtime, as_of)
+        sample = {
+            "rating_overrides": [
+                {"team_id": "england", "delta_elo": 15.0, "cause": "keeper fit", "ledger_ids": ["led-0001"]}
+            ]
+        }
+        llm = ScriptedLLM(turns=[], structured=[sample, sample])
         web = ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient())
         odds = FakeOddsClient()
         polymarket = FakePolymarketClient()
         fixtures = FakeFixturesClient()
-        logger.info("dev run %s: fake LLM and fixture clients, $0 spend", run_id)
+        logger.info("dev run %s: scripted models and fixture clients, $0 spend", run_id)
 
     deps = _build_deps(
         settings=settings,
@@ -301,12 +344,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         odds=odds,
         polymarket=polymarket,
         fixtures=fixtures,
-        fmt=fmt,
-        ratings=ratings,
         run_id=run_id,
     )
     try:
-        result = await run_master(deps, as_of=as_of)
+        result = await run_graph(deps, as_of=as_of, models=models)
     finally:
         await web.aclose()
         await odds.aclose()
@@ -341,9 +382,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     (settings.snapshot_dir / f"{run_id}.json").write_text(payload)
     (settings.snapshot_dir / "latest.json").write_text(payload)
     logger.info(
-        "run %s complete in %d turn(s): %d override(s), disagreement max %.1f, cost $%.4f",
+        "run %s complete in %d wave(s): %d override(s), disagreement max %.1f, cost $%.4f",
         run_id,
-        result.turns,
+        result.waves,
         len(snapshot.agent.rating_overrides) if snapshot.agent else 0,
         result.disagreement.max_spread if result.disagreement else 0.0,
         spent,
@@ -356,7 +397,7 @@ def main() -> None:
     settings = Settings()
     parser = argparse.ArgumentParser(description="Run the forecast agent")
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--dev", action="store_true", help="offline run: fake LLM and fixtures, $0 spend")
+    mode.add_argument("--dev", action="store_true", help="offline run: scripted models and fixtures, $0 spend")
     mode.add_argument("--live", action="store_true", help="metered run against real APIs")
     parser.add_argument("--confirm-spend", action="store_true", help="required with --live")
     parser.add_argument("--ceiling", type=float, default=None, help="per-run dollar ceiling for --live")

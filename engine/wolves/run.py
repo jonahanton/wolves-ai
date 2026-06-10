@@ -5,13 +5,12 @@ import json
 import logging
 from datetime import UTC, datetime
 
+from wolves import ENGINE_VERSION
 from wolves.config import Settings
 from wolves.sim.api import run_simulation
 from wolves.snapshot import RunMeta, Snapshot
 
 logger = logging.getLogger(__name__)
-
-ENGINE_VERSION = "0.2.0"
 
 
 def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id: str | None = None) -> Snapshot:

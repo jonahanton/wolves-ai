@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from wolves.agent.contracts import ForecastSubmission, WorkerResult
+from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
 from wolves.agent.sim_runner import SimulationApi
@@ -18,9 +18,19 @@ from wolves.tools._budget_gate import BudgetGate
 
 
 @dataclass
+class SubmissionState:
+    """Run-level submission outcome. Shared by reference across per-node deps
+    copies so the forecast node's submit tool writes where the runner reads."""
+
+    accepted: ForecastSubmission | None = None
+    validation_failures: int = 0
+    tripwire_fired: bool = False
+
+
+@dataclass
 class AgentDeps:
-    """Everything a tool can reach. One instance per loop (master or worker);
-    workers get a copy with their own actor, gate and toolset."""
+    """Everything a tool can reach. Nodes get a copy with their own actor and
+    gate; the submission state stays shared by reference."""
 
     runtime: ObservedRuntime
     llm: ObservedLLM
@@ -36,8 +46,5 @@ class AgentDeps:
     settings: Settings
     limits: ValidatorLimits
     actor: str = "master"
-    accepted: ForecastSubmission | None = None
-    validation_failures: int = 0
-    tripwire_fired: bool = False
+    submission: SubmissionState = field(default_factory=SubmissionState)
     python_calls: int = 0
-    worker_reports: list[WorkerResult] = field(default_factory=list)
