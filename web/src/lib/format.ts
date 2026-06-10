@@ -8,6 +8,12 @@ export function formatPct(prob: number): string {
   return `${pct}%`;
 }
 
+export function formatPctBare(prob: number): string {
+  const pct = roundPct(prob);
+  if (pct === 0 && prob > 0) return "<1";
+  return `${pct}`;
+}
+
 export function frequencyFrame(prob: number): string | null {
   if (prob <= 0) return null;
   if (prob < 0.01) return "under 1 in 100 sims";

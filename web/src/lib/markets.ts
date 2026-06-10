@@ -20,7 +20,7 @@ interface MarketLeg {
 
 // Market legs arrive with a later engine run; until then the snapshot carries no markets block
 // and team champion probabilities are read defensively for the same reason.
-function marketLegs(snapshot: Snapshot): Map<string, number> {
+export function championMarketLegs(snapshot: Snapshot): Map<string, number> {
   const markets = (snapshot as unknown as { markets?: { champion?: unknown } | null }).markets;
   const legs = markets?.champion;
   if (!Array.isArray(legs)) return new Map();
@@ -45,7 +45,7 @@ function championProb(team: unknown): number {
 const ROW_LIMIT = 6;
 
 export function buildMarketsView(snapshot: Snapshot, names: Map<string, string>): MarketsView {
-  const legs = marketLegs(snapshot);
+  const legs = championMarketLegs(snapshot);
   const rows = [...snapshot.teams]
     .map((team) => ({ teamId: team.team_id, modelProb: championProb(team) }))
     .sort((a, b) => b.modelProb - a.modelProb)

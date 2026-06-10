@@ -5,7 +5,7 @@ import type { Slot, SlotSide, Snapshot } from "@/lib/snapshot";
 import type { OpponentView } from "@/lib/spine-view";
 import { venueLine } from "@/lib/venues";
 
-const STAGE_LABELS: Record<string, string> = {
+export const STAGE_LABELS: Record<string, string> = {
   r32: "Last 32",
   r16: "Last 16",
   qf: "Quarter-finals",

@@ -1,16 +1,31 @@
+import { MatchForecast } from "@/components/live/match-forecast";
 import { WolfMascot } from "@/components/mascot/wolf-mascot";
 import { formatKickoff, formatMatchDate } from "@/lib/format";
-import type { GroupMatch } from "@/lib/schedule";
+import type { LiveFixtureView } from "@/lib/live-view";
+import { ENGLAND, groupStageStart } from "@/lib/schedule";
+import { cn } from "@/lib/utils";
+
+function TeamName({ id, name, onSelect }: { id: string | null; name: string; onSelect: (id: string) => void }) {
+  if (!id) return <span className="font-medium">{name}</span>;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(id)}
+      className={cn("font-medium underline-offset-2 hover:underline", id === ENGLAND && "text-gold")}
+    >
+      {name}
+    </button>
+  );
+}
 
 interface MatchListProps {
   preTournament: boolean;
-  matchday: { day: string; matches: GroupMatch[] } | null;
-  names: Map<string, string>;
+  day: string | null;
+  fixtures: LiveFixtureView[];
+  onSelectTeam: (teamId: string) => void;
 }
 
-export function MatchList({ preTournament, matchday, names }: MatchListProps) {
-  const name = (id: string) => names.get(id) ?? id;
-
+export function MatchList({ preTournament, day, fixtures, onSelectTeam }: MatchListProps) {
   return (
     <section aria-label="Matches">
       {preTournament && (
@@ -19,26 +34,30 @@ export function MatchList({ preTournament, matchday, names }: MatchListProps) {
           <div>
             <p className="font-medium">Nothing kicking off yet.</p>
             <p className="text-sm text-muted-foreground">
-              The group stage starts {matchday ? formatMatchDate(`${matchday.day}T12:00:00Z`) : "on 11 Jun"}.
+              The group stage starts {formatMatchDate(day ? `${day}T12:00:00Z` : groupStageStart)}.
             </p>
           </div>
         </div>
       )}
-      {matchday && (
+      {fixtures.length > 0 && (
         <div className="mt-4">
           <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             {preTournament ? "Opening matchday" : "Today's matches"}
           </h2>
           <div className="divide-y rounded-xl border bg-card">
-            {matchday.matches.map((match) => (
-              <div key={match.match} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm">
-                <span className="truncate font-medium">
-                  {name(match.home)} <span className="font-normal text-muted-foreground">v</span>{" "}
-                  {name(match.away)}
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatKickoff(match.date)} &middot; {match.city}
-                </span>
+            {fixtures.map((fixture) => (
+              <div key={fixture.match} className="px-3.5 py-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate">
+                    <TeamName id={fixture.homeId} name={fixture.homeName} onSelect={onSelectTeam} />{" "}
+                    <span className="text-muted-foreground">v</span>{" "}
+                    <TeamName id={fixture.awayId} name={fixture.awayName} onSelect={onSelectTeam} />
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {formatKickoff(fixture.date)} &middot; {fixture.city}
+                  </span>
+                </div>
+                <MatchForecast fixture={fixture} />
               </div>
             ))}
           </div>

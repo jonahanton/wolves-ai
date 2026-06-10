@@ -1,19 +1,25 @@
-import { BracketBoard } from "@/components/bracket/bracket-board";
-import { PageHeader } from "@/components/shell/page-header";
+import { TournamentBoard } from "@/components/tournament/tournament-board";
 import { buildBracketView } from "@/lib/bracket-view";
+import { buildGroupsView } from "@/lib/groups-view";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
+import { buildOddsView } from "@/lib/odds-view";
 import { teamNames } from "@/lib/snapshot";
+import { buildTeamSheetViews } from "@/lib/team-sheet-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function BracketPage() {
   const snapshot = await loadLatestSnapshot();
-  const view = buildBracketView(snapshot, teamNames(snapshot));
+  const names = teamNames(snapshot);
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 p-4">
-      <PageHeader title="Bracket" subtitle="Every knockout slot, most likely occupants" />
-      <BracketBoard view={view} />
+      <TournamentBoard
+        bracket={buildBracketView(snapshot, names)}
+        odds={buildOddsView(snapshot, names)}
+        groups={buildGroupsView(snapshot, names)}
+        teamSheets={buildTeamSheetViews(snapshot, names)}
+      />
     </main>
   );
 }

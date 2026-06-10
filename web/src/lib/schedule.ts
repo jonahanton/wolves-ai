@@ -39,8 +39,22 @@ export function nextEnglandFixture(now: Date): GroupMatch | null {
   return englandGroupFixtures().find((m) => new Date(m.date) >= now) ?? null;
 }
 
-export function nextMatchday(now: Date): { day: string; matches: GroupMatch[] } | null {
-  const upcoming = groupMatches
+export interface Fixture {
+  match: number;
+  stage: string;
+  date: string;
+  city: string;
+  home: string;
+  away: string;
+}
+
+const allFixtures: Fixture[] = [
+  ...groupMatches.map(({ match, date, city, home, away }) => ({ match, stage: "group", date, city, home, away })),
+  ...knockoutMatches,
+];
+
+export function nextMatchday(now: Date): { day: string; matches: Fixture[] } | null {
+  const upcoming = allFixtures
     .filter((m) => new Date(m.date) >= now)
     .sort((a, b) => a.date.localeCompare(b.date));
   if (upcoming.length === 0) return null;
