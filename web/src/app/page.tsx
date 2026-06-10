@@ -4,7 +4,7 @@ import { FinishSummary } from "@/components/today/finish-summary";
 import { MarketsCard } from "@/components/today/markets-card";
 import { NextFixtureCard } from "@/components/today/next-fixture-card";
 import { RunHeader } from "@/components/today/run-header";
-import { WhatMoved } from "@/components/today/what-moved";
+import { TodayBoard } from "@/components/today/today-board";
 import { englandStory, ledgerEntries } from "@/lib/agent-fields";
 import { summariseSnapshot } from "@/lib/derive";
 import { buildMarketsView } from "@/lib/markets";
@@ -23,7 +23,7 @@ export default async function TodayPage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 p-4">
       <RunHeader run={snapshot.run} mood={mood} />
-      <WhatMoved summary={summariseSnapshot(snapshot)} />
+      <TodayBoard summary={summariseSnapshot(snapshot)} heroProb={snapshot.england.reach_probs.r32 ?? 0} />
       {fixture && <NextFixtureCard fixture={fixture} names={names} />}
       <FinishSummary england={snapshot.england} />
       <MarketsCard view={buildMarketsView(snapshot, names)} />

@@ -14,6 +14,7 @@ export interface DeltaChip {
 }
 
 const REACH_LABELS: Record<string, string> = {
+  r32: "Reach last 32",
   r16: "Reach last 16",
   qf: "Reach quarters",
   sf: "Reach semis",
