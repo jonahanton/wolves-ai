@@ -40,4 +40,3 @@ def test_consensus_averages_in_log_odds_and_renormalises():
     )
     assert consensus["England"] == pytest.approx(0.5, abs=1e-9)
     assert sum(consensus.values()) == pytest.approx(1.0, abs=1e-9)
-
