@@ -20,6 +20,7 @@ from wolves.quant.observed import ObservedQuant
 from wolves.tools._budget_gate import BudgetGate
 
 if TYPE_CHECKING:
+    from wolves.forecast import Forecaster
     from wolves.graph.artifacts import RunArtifactStore
 
 
@@ -63,5 +64,6 @@ class AgentDeps:
     as_of: str = ""
     submission: SubmissionState = field(default_factory=SubmissionState)
     artifacts: RunArtifactStore | None = None
+    forecaster: Forecaster | None = None
     todos: list[TodoItem] = field(default_factory=list)
     python_calls: int = 0

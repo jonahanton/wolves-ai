@@ -35,6 +35,7 @@ from wolves.clients.odds import (
 )
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
+from wolves.forecast import Forecaster
 from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, NodePatch, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.observed_model import ObservedModel
@@ -201,8 +202,16 @@ def _build_deps(
     polymarket: PolymarketClient,
     fixtures: FixturesClient,
     run_id: str,
+    as_of: str,
 ) -> AgentDeps:
     calibration = CalibrationLedger(settings.calibration_path)
+    forecaster: Forecaster | None = None
+    try:
+        forecaster = Forecaster(settings)
+        forecaster.fit(as_of=date.fromisoformat(as_of))
+    except Exception as exc:
+        forecaster = None
+        logger.warning("run continues without a fitted forecaster: %s", exc)
     return AgentDeps(
         runtime=runtime,
         llm=ObservedLLM(llm, runtime),
@@ -216,6 +225,8 @@ def _build_deps(
         quant=ObservedQuant(runtime),
         gate=BudgetGate(),
         settings=settings,
+        as_of=as_of,
+        forecaster=forecaster,
         limits=ValidatorLimits(
             confirmed_delta_cap_elo=settings.confirmed_delta_cap_elo,
             soft_delta_cap_elo=settings.soft_delta_cap_elo,
@@ -373,6 +384,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         polymarket=polymarket,
         fixtures=fixtures,
         run_id=run_id,
+        as_of=as_of,
     )
     try:
         result = await run_graph(deps, as_of=as_of, models=models)

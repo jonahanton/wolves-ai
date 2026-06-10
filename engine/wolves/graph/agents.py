@@ -8,14 +8,23 @@ from pydantic_ai import Agent, RunContext
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools import (
+    calibration_readback,
+    data_query,
     get_odds,
     get_results_and_fixtures,
     ledger_query,
+    market_movement,
+    model_explain,
+    model_vs_market,
+    perturbation_impact,
     read_artifact,
     read_journal,
     run_python,
+    run_scenario,
     run_simulation,
     submit_forecast,
+    team_dossier,
+    team_path_tree,
     think,
     todo,
     web_fetch,
@@ -34,16 +43,33 @@ _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
     "research": [web_search.SPEC, web_fetch.SPEC, get_odds.SPEC, get_results_and_fixtures.SPEC, *_FREE_SPECS],
-    "quant": [run_python.SPEC, run_simulation.SPEC, *_FREE_SPECS],
+    "quant": [
+        run_python.SPEC,
+        run_simulation.SPEC,
+        data_query.SPEC,
+        model_explain.SPEC,
+        model_vs_market.SPEC,
+        perturbation_impact.SPEC,
+        *_FREE_SPECS,
+    ],
     "forecast": [
         ledger_query.SPEC,
         run_simulation.SPEC,
+        run_scenario.SPEC,
+        perturbation_impact.SPEC,
+        team_path_tree.SPEC,
+        model_explain.SPEC,
+        team_dossier.SPEC,
+        model_vs_market.SPEC,
+        market_movement.SPEC,
+        data_query.SPEC,
+        calibration_readback.SPEC,
         read_journal.SPEC,
         write_journal.SPEC,
         submit_forecast.SPEC,
         *_FREE_SPECS,
     ],
-    "critic": [ledger_query.SPEC, *_FREE_SPECS],
+    "critic": [ledger_query.SPEC, model_vs_market.SPEC, run_scenario.SPEC, *_FREE_SPECS],
 }
 
 _NODE_OUTPUTS: dict[NodeKind, type] = {

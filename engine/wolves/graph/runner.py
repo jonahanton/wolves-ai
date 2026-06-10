@@ -10,6 +10,7 @@ from pydantic_ai.models import Model
 from wolves.agent.consensus import median_overrides
 from wolves.agent.contracts import Disagreement, ForecastSubmission, OverrideSample, RatingOverride
 from wolves.agent.deps import AgentDeps
+from wolves.agent.dossier import build_dossier
 from wolves.agent.validator import validate_submission
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.blackboard import Blackboard
@@ -58,7 +59,11 @@ class GraphRunResult:
 def _kickoff(deps: AgentDeps, as_of: str) -> str:
     lessons = deps.memory.read_lessons().strip() or "(empty)"
     journal = (deps.memory.read_latest_journal() or "").strip() or "(none)"
-    return f"Today is {as_of}. Produce today's forecast.\n\nLESSONS.md:\n{lessons}\n\nLatest journal:\n{journal}"
+    dossier = build_dossier(deps).strip() or "(no deterministic dossier this run)"
+    return (
+        f"Today is {as_of}. Produce today's forecast.\n\nDossier:\n{dossier}\n\n"
+        f"Lessons:\n{lessons}\n\nLatest journal:\n{journal}"
+    )
 
 
 def _cap_exceeded(exc: Exception) -> bool:

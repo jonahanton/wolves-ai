@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     graph_forecast_request_limit: int = 24
     graph_critic_request_limit: int = 8
 
+    market_movement_noise_floor_pp: float = 0.7
+
     confirmed_delta_cap_elo: float = 50.0
     soft_delta_cap_elo: float = 10.0
     justification_threshold: float = 0.05

@@ -20,3 +20,13 @@ def reserve_or_refuse(deps: AgentDeps) -> ToolResult[Any] | None:
         payload=None,
         error=ToolError(type="budget_exhausted", message=budget_exhausted_message()),
     )
+
+
+def forecaster_or_refuse(deps: AgentDeps) -> ToolResult[Any] | None:
+    if deps.forecaster is not None:
+        return None
+    return ToolResult(
+        ok=False,
+        payload=None,
+        error=ToolError(type="no_forecaster", message="this run carries no fitted forecaster"),
+    )
