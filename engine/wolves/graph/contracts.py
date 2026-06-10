@@ -42,6 +42,8 @@ class LedgerEvidence(EvidenceItem):
     proposed_delta: float = 0.0
     expiry: str | None = None
     team_id: str | None = None
+    relevance: float | None = None
+    retrieval_id: str | None = None
 
 
 class ResearchOutput(BaseModel):

@@ -9,6 +9,7 @@ from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
 from wolves.agent.sim_runner import SimulationApi
+from wolves.agent.source_memory import SourceMemory
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FixturesClient
 from wolves.clients.odds import OddsClient, PolymarketClient
@@ -65,5 +66,6 @@ class AgentDeps:
     submission: SubmissionState = field(default_factory=SubmissionState)
     artifacts: RunArtifactStore | None = None
     forecaster: Forecaster | None = None
+    source_memory: SourceMemory | None = None
     todos: list[TodoItem] = field(default_factory=list)
     python_calls: int = 0

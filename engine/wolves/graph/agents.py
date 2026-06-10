@@ -17,6 +17,7 @@ from wolves.agent.tools import (
     model_explain,
     model_vs_market,
     perturbation_impact,
+    rank_relevance,
     read_artifact,
     read_journal,
     run_python,
@@ -42,7 +43,14 @@ _PROMPTS = Path(__file__).parent / "prompts"
 _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
-    "research": [web_search.SPEC, web_fetch.SPEC, get_odds.SPEC, get_results_and_fixtures.SPEC, *_FREE_SPECS],
+    "research": [
+        web_search.SPEC,
+        web_fetch.SPEC,
+        rank_relevance.SPEC,
+        get_odds.SPEC,
+        get_results_and_fixtures.SPEC,
+        *_FREE_SPECS,
+    ],
     "quant": [
         run_python.SPEC,
         run_simulation.SPEC,

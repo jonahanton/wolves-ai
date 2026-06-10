@@ -85,6 +85,8 @@ class Blackboard:
                 proposed_delta=item.proposed_delta,
                 expiry=item.expiry,
                 team_id=item.team_id,
+                relevance=item.relevance,
+                retrieval_id=item.retrieval_id,
             )
         return len(output.evidence)
 

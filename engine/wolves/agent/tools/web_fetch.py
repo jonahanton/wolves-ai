@@ -24,6 +24,8 @@ async def _web_fetch(args: WebFetchArgs, deps: AgentDeps) -> ToolResult[Any]:
         tool_name="web_fetch",
         timeout_seconds=deps.settings.tool_timeout_seconds,
     )
+    if deps.source_memory is not None:
+        deps.source_memory.record(page.final_url, run_id=deps.runtime.run_id, disposition="fetched")
     return ToolResult(
         payload={"url": page.final_url, "title": page.title, "text": page.text},
         sources=[SourceRef(url=page.final_url, title=page.title or page.final_url, source_type="web")],

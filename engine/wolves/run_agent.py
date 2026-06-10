@@ -23,6 +23,7 @@ from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.sim_runner import EngineSimulation
+from wolves.agent.source_memory import SourceMemory
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
 from wolves.clients.odds import (
@@ -55,7 +56,7 @@ from wolves.quant.observed import ObservedQuant
 from wolves.s3.agent_state import build_agent_state_store
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
-from wolves.s3.layout import run_dir
+from wolves.s3.layout import SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import FormatData, load_format
 from wolves.sim.ratings import load_elo_ratings
@@ -222,6 +223,7 @@ def _build_deps(
         sim=EngineSimulation(),
         ledger=EvidenceLedger(run_dir(settings.runs_root, run_id) / "ledger.jsonl"),
         memory=RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path),
+        source_memory=SourceMemory(settings.runs_root / SOURCES_SEEN.key()),
         quant=ObservedQuant(runtime),
         gate=BudgetGate(),
         settings=settings,
