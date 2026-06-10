@@ -12,6 +12,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import BotoCoreError, ClientError
 
+from wolves.clients.s3 import S3Client
 from wolves.store.records import RunRecord, RunStatus
 
 if TYPE_CHECKING:
@@ -46,15 +47,14 @@ class SnapshotStore:
     """Write snapshots to S3: an immutable dated key plus a latest.json pointer."""
 
     def __init__(self, *, bucket: str, region: str) -> None:
-        self._bucket = bucket
-        self._s3 = boto3.client("s3", region_name=region)
+        self._s3 = S3Client(bucket=bucket, region=region)
 
     def put_snapshot(self, snapshot: Snapshot, *, as_of: date) -> str:
         """Upload the snapshot and repoint latest.json; return the dated key."""
         key = snapshot_key(as_of, snapshot.run.run_id)
-        body = snapshot.model_dump_json().encode()
+        body = snapshot.model_dump_json()
         for target in (key, LATEST_KEY):
-            self._s3.put_object(Bucket=self._bucket, Key=target, Body=body, ContentType="application/json")
+            self._s3.put_text(target, body, content_type="application/json")
         return key
 
 

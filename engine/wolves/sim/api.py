@@ -4,7 +4,7 @@ import numpy as np
 from pydantic import BaseModel, Field
 
 from wolves.config import get_settings
-from wolves.sim.format import load_format, load_results
+from wolves.sim.format import PlayedResult, load_format, load_results
 from wolves.sim.mc import run_tournament
 from wolves.sim.outputs import build_england, build_groups, build_matches, build_slots, build_team_reach
 from wolves.sim.ratings import blend_value_prior, load_elo_ratings, load_squad_values
@@ -41,8 +41,12 @@ def run_simulation(
     fixture_goal_offsets: dict[int, tuple[float, float]],
     n_sims: int,
     seed: int | None,
+    *,
+    extra_results: dict[int, PlayedResult] | None = None,
 ) -> SimOutputs:
-    """Run the full tournament simulation; the frozen interface the agent harness calls."""
+    """Run the full tournament simulation; the frozen interface the agent harness calls.
+
+    extra_results are polled live results overlaid on top of the results file."""
     inputs = SimInputs(
         rating_overrides=rating_overrides,
         fixture_goal_offsets=fixture_goal_offsets,
@@ -51,7 +55,7 @@ def run_simulation(
     )
     data_dir = get_settings().data_dir
     fmt = load_format(data_dir)
-    results = load_results(data_dir)
+    results = load_results(data_dir) | (extra_results or {})
 
     elo_path = sorted((data_dir / "ratings").glob("elo-2*.tsv"))[-1]
     elo = load_elo_ratings(elo_path, fmt)

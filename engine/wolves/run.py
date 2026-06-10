@@ -1,16 +1,24 @@
+"""One-shot sim entrypoint, run daily by the production scheduler. The
+date-derived run id makes reruns for the same day replace, not duplicate."""
+
 from __future__ import annotations
 
 import argparse
-import json
 import logging
-from datetime import UTC, datetime
+import time
+from datetime import UTC, date, datetime
 
 from wolves import ENGINE_VERSION
 from wolves.config import Settings
 from wolves.sim.api import run_simulation
 from wolves.snapshot import RunMeta, Snapshot
+from wolves.store.publish import SnapshotPublisher
 
 logger = logging.getLogger(__name__)
+
+
+def run_id_for(as_of: date) -> str:
+    return f"run-{as_of:%Y%m%d}"
 
 
 def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id: str | None = None) -> Snapshot:
@@ -34,32 +42,36 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
     )
 
 
+def daily_run(settings: Settings, *, as_of: date, n_sims: int, seed: int = 0) -> bool:
+    """Run the daily forecast unless disabled; return True when a run happened."""
+    publisher = SnapshotPublisher(settings)
+    if not publisher.run_enabled():
+        logger.info("run_enabled is off; skipping the daily run for %s", as_of)
+        return False
+
+    run_id = run_id_for(as_of)
+    created_at = datetime.now(UTC).isoformat(timespec="seconds")
+    started = time.monotonic()
+    try:
+        snapshot = generate_snapshot(settings, n_sims=n_sims, seed=seed, run_id=run_id)
+    except Exception:
+        publisher.record_failure(run_id=run_id, created_at=created_at, started=started)
+        raise
+
+    s3_key = publisher.publish(snapshot, as_of=as_of, started=started)
+    logger.info("daily run %s completed in %.1fs (s3_key=%s)", run_id, time.monotonic() - started, s3_key or "local")
+    return True
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     settings = Settings()
-    parser = argparse.ArgumentParser(description="Generate a forecast snapshot")
+    parser = argparse.ArgumentParser(description="Run the daily forecast")
+    parser.add_argument("--as-of", type=date.fromisoformat, default=datetime.now(UTC).date())
     parser.add_argument("--sims", type=int, default=settings.n_sims)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
-
-    snapshot = generate_snapshot(settings, n_sims=args.sims, seed=args.seed)
-    payload = snapshot.model_dump_json(indent=1)
-
-    settings.snapshot_dir.mkdir(parents=True, exist_ok=True)
-    (settings.snapshot_dir / f"{snapshot.run.run_id}.json").write_text(payload)
-    (settings.snapshot_dir / "latest.json").write_text(payload)
-
-    win_path = next(p for p in snapshot.england.paths if p.finish == "win_group")
-    top = win_path.opponents[0] if win_path.opponents else None
-    logger.info("snapshot %s written to %s", snapshot.run.run_id, settings.snapshot_dir)
-    logger.info(
-        "England win Group L %.0f%%; most likely R32 opponent if so: %s (%.0f%%) in %s",
-        snapshot.england.finish_probs["win_group"] * 100,
-        top.team_id if top else "n/a",
-        (top.prob if top else 0) * 100,
-        win_path.city,
-    )
-    logger.info("reach probabilities: %s", json.dumps(snapshot.england.reach_probs))
+    daily_run(settings, as_of=args.as_of, n_sims=args.sims, seed=args.seed)
 
 
 if __name__ == "__main__":
