@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     aws_region: str = "eu-west-2"
-    snapshot_bucket: str = ""
+    bucket: str = ""
     snapshot_dir: Path = REPO_ROOT / "runs"
 
     dynamo_table: str = "wolves-forecaster"

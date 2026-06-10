@@ -16,6 +16,7 @@ from wolves.gate.registry import ChampionRecord, ChampionRegistry
 from wolves.models.contracts import DatasetHandle, Fixture, UnknownModelTeamError
 from wolves.models.poisson import PoissonDecayModel
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.cli import add_storage_argument, apply_storage_choice
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,9 @@ def main() -> None:
     settings = Settings()
     parser = argparse.ArgumentParser(description="Evaluate the Poisson challenger against the market")
     parser.add_argument("--promote", action="store_true", help="write the champion record on completion")
+    add_storage_argument(parser)
     args = parser.parse_args()
+    settings = apply_storage_choice(settings, args.storage)
 
     path, manifest = DatasetStore(settings).fetch()
     dataset = DatasetHandle(path=path, dataset_id=manifest.dataset_id)

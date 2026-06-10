@@ -31,7 +31,7 @@ resource "aws_iam_role" "task" {
 data "aws_iam_policy_document" "engine_task" {
   statement {
     actions   = ["s3:PutObject", "s3:GetObject", "s3:ListBucket"]
-    resources = [aws_s3_bucket.snapshots.arn, "${aws_s3_bucket.snapshots.arn}/*"]
+    resources = [data.aws_s3_bucket.artifacts.arn, "${data.aws_s3_bucket.artifacts.arn}/*"]
   }
 
   statement {
@@ -67,8 +67,8 @@ resource "aws_ecs_task_definition" "daily" {
       essential = true
       environment = [
         { name = "AWS_REGION", value = var.region },
-        { name = "SNAPSHOT_BUCKET", value = aws_s3_bucket.snapshots.bucket },
-        { name = "AGENT_STATE_BUCKET", value = aws_s3_bucket.snapshots.bucket },
+        { name = "BUCKET", value = data.aws_s3_bucket.artifacts.bucket },
+        { name = "STORAGE_MODE", value = "both" },
         { name = "DYNAMO_TABLE", value = aws_dynamodb_table.forecaster.name },
         { name = "RUNS_ROOT", value = "/tmp/runs" },
       ]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
@@ -18,6 +19,7 @@ from wolves.config import Settings
 from wolves.markets.series import point_from_snapshot
 from wolves.observability.logging import configure_cli_logging
 from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.layout import ODDS_SERIES_POINT, ODDS_SNAPSHOT
 from wolves.sim.format import load_format
 
@@ -128,7 +130,10 @@ async def _run(settings: Settings) -> None:
 
 def main() -> None:
     configure_cli_logging()
-    asyncio.run(_run(Settings()))
+    parser = argparse.ArgumentParser(description="Archive one raw odds snapshot")
+    add_storage_argument(parser)
+    args = parser.parse_args()
+    asyncio.run(_run(apply_storage_choice(Settings(), args.storage)))
 
 
 if __name__ == "__main__":

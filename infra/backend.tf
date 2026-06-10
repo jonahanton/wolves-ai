@@ -39,7 +39,7 @@ resource "aws_iam_role" "backend_task" {
 data "aws_iam_policy_document" "backend_task" {
   statement {
     actions   = ["s3:GetObject", "s3:ListBucket"]
-    resources = [aws_s3_bucket.snapshots.arn, "${aws_s3_bucket.snapshots.arn}/*"]
+    resources = [data.aws_s3_bucket.artifacts.arn, "${data.aws_s3_bucket.artifacts.arn}/*"]
   }
 
   statement {
@@ -127,7 +127,7 @@ resource "aws_ecs_task_definition" "backend" {
       environment = [
         { name = "ENVIRONMENT", value = "production" },
         { name = "AWS_REGION", value = var.region },
-        { name = "SNAPSHOT_BUCKET", value = aws_s3_bucket.snapshots.bucket },
+        { name = "BUCKET", value = data.aws_s3_bucket.artifacts.bucket },
         { name = "DYNAMO_TABLE", value = aws_dynamodb_table.forecaster.name },
         { name = "SCHEDULE_NAME", value = aws_scheduler_schedule.daily_run.name },
         { name = "ECS_CLUSTER_ARN", value = aws_ecs_cluster.this.arn },

@@ -101,7 +101,7 @@ def build_test_app(
         _env_file=None,
         environment=environment,
         admin_dev_bypass=admin_dev_bypass,
-        snapshot_bucket="test-bucket" if s3 is not None else "",
+        bucket="test-bucket" if s3 is not None else "",
         snapshot_dir=snapshot_dir or Path("/nonexistent"),
         ecs_subnets="subnet-1,subnet-2",
         ecs_security_group="sg-1",

@@ -1,10 +1,5 @@
-"""Pull closing odds for every tournament in the closes registry from The
-Odds API historical endpoint (10 paid credits per snapshot). Raw snapshots
-live in the gitignored data/odds/<slug>/ and mirror to S3 when a bucket is
-configured. Idempotent: existing files are never re-fetched.
-
-Run from the repo root: uv run --project engine python scripts/pull_historical_closes.py
-"""
+"""Pull historical closing odds (10 paid credits per snapshot) into the
+gitignored data/odds/<slug>/ and mirror them to the bucket; idempotent."""
 
 from __future__ import annotations
 
@@ -16,10 +11,11 @@ from pathlib import Path
 
 import httpx
 
-from wolves.clients.s3.client import S3Client
 from wolves.config import Settings
 from wolves.data.tournaments import CLOSES_TOURNAMENTS, ClosesTournament
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.client import S3Client
+from wolves.s3.layout import ODDS_CLOSE
 
 logger = logging.getLogger("pull_historical_closes")
 
@@ -75,15 +71,15 @@ async def pull_snapshot(
 
 
 def mirror_to_s3(settings: Settings) -> None:
-    if not settings.agent_state_bucket:
-        logger.warning("agent_state_bucket unset; snapshots exist on this machine only")
+    if settings.storage_mode == "local" or not settings.bucket:
+        logger.warning("cloud storage off; close snapshots exist on this machine only")
         return
-    s3 = S3Client(bucket=settings.agent_state_bucket, region=settings.aws_region)
-    existing = set(s3.list_keys(prefix="odds-archive/closes/"))
+    s3 = S3Client(bucket=settings.bucket, region=settings.aws_region)
+    existing = set(s3.list_keys(prefix=ODDS_CLOSE.prefix))
     for path in sorted(ODDS_DIR.glob("*/*.json")):
-        key = f"odds-archive/closes/{path.parent.name}/{path.name}"
+        key = ODDS_CLOSE.key(tournament=path.parent.name, snapshot=path.stem)
         if key not in existing:
-            s3.put_text(key, path.read_text(encoding="utf-8"), content_type="application/json")
+            s3.put_text(key, path.read_text(encoding="utf-8"), content_type=ODDS_CLOSE.content_type)
             logger.info("mirrored %s", key)
 
 

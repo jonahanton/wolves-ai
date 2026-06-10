@@ -16,6 +16,7 @@ from wolves.gate.registry import ELO_CHAMPION_ID
 from wolves.markets.blend import blend_probabilities
 from wolves.markets.outright import build_clients, outright_consensus
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
 from wolves.snapshot import ChampionBlock, MarketsBlock, RunMeta, Snapshot, TeamInterval
@@ -127,8 +128,9 @@ def main() -> None:
     parser.add_argument("--as-of", type=date.fromisoformat, default=datetime.now(UTC).date())
     parser.add_argument("--sims", type=int, default=settings.n_sims)
     parser.add_argument("--seed", type=int, default=0)
+    add_storage_argument(parser)
     args = parser.parse_args()
-    daily_run(settings, as_of=args.as_of, n_sims=args.sims, seed=args.seed)
+    daily_run(apply_storage_choice(settings, args.storage), as_of=args.as_of, n_sims=args.sims, seed=args.seed)
 
 
 if __name__ == "__main__":

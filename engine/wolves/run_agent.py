@@ -52,6 +52,7 @@ from wolves.observability import (
 )
 from wolves.quant.observed import ObservedQuant
 from wolves.s3.agent_state import build_agent_state_store
+from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
 from wolves.s3.layout import run_dir
 from wolves.s3.publish import SnapshotPublisher
@@ -441,7 +442,9 @@ def main() -> None:
     parser.add_argument("--sims", type=int, default=settings.n_sims)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--as-of", type=str, default=None)
+    add_storage_argument(parser)
     args = parser.parse_args()
+    settings = apply_storage_choice(settings, args.storage)
 
     if args.live:
         if not settings.anthropic_api_key:

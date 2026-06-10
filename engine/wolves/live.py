@@ -18,6 +18,7 @@ from wolves import ENGINE_VERSION
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
 from wolves.config import Settings
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
 from wolves.sim.format import PlayedResult, load_format, load_results
@@ -152,8 +153,9 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--loop", action="store_true", help="poll repeatedly; local dev only")
     parser.add_argument("--interval", type=float, default=900.0, help="seconds between --loop passes")
+    add_storage_argument(parser)
     args = parser.parse_args()
-    asyncio.run(_run(args, settings))
+    asyncio.run(_run(args, apply_storage_choice(settings, args.storage)))
 
 
 if __name__ == "__main__":

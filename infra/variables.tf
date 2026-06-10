@@ -93,3 +93,9 @@ variable "log_retention_days" {
   type    = number
   default = 30
 }
+
+variable "bucket" {
+  description = "Artifact bucket the production stack reads and writes"
+  type        = string
+  default     = "wolves-superforecaster-prod"
+}

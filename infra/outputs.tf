@@ -3,8 +3,8 @@ output "aws_region" {
   value = var.region
 }
 
-output "snapshot_bucket" {
-  value = aws_s3_bucket.snapshots.bucket
+output "bucket" {
+  value = data.aws_s3_bucket.artifacts.bucket
 }
 
 output "dynamo_table" {

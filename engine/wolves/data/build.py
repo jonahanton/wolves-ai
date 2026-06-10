@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import hashlib
 import logging
@@ -23,6 +24,7 @@ from wolves.data.sources.registry import build_team_dimension
 from wolves.data.store import DatasetStore, dataset_filename, dataset_id_from_hashes
 from wolves.observability.logging import configure_cli_logging
 from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.layout import ODDS_CLOSE
 
 logger = logging.getLogger(__name__)
@@ -136,7 +138,10 @@ async def build_dataset(settings: Settings, *, out_dir: Path) -> DatasetManifest
 
 def main() -> None:
     configure_cli_logging()
-    settings = Settings()
+    parser = argparse.ArgumentParser(description="Build and publish the research dataset")
+    add_storage_argument(parser)
+    args = parser.parse_args()
+    settings = apply_storage_choice(Settings(), args.storage)
     out_dir = settings.runs_root / "datasets"
     manifest = asyncio.run(build_dataset(settings, out_dir=out_dir))
     logger.info("manifest: %s", manifest.model_dump_json())

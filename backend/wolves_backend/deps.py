@@ -26,11 +26,7 @@ class Deps:
 
 
 def build_deps(settings: Settings) -> Deps:
-    bucket = (
-        SnapshotBucket(bucket=settings.snapshot_bucket, region=settings.aws_region)
-        if settings.snapshot_bucket
-        else None
-    )
+    bucket = SnapshotBucket(bucket=settings.bucket, region=settings.aws_region) if settings.bucket else None
     return Deps(
         snapshots=SnapshotSource(bucket=bucket, local_dir=settings.snapshot_dir),
         run_index=RunIndex(
