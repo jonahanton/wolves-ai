@@ -11,7 +11,7 @@ import pandas as pd
 from wolves.connectors._http import _raise_for_status, async_retrying
 from wolves.data.contracts import MatchOddsRecord
 from wolves.data.prices import valid_price
-from wolves.data.teams import team_key
+from wolves.data.teams import canonical_team_key
 
 WORKBOOK_URL = "https://www.football-data.co.uk/internationals.xlsx"
 # The server rejects default client agents with a 300 response.
@@ -77,8 +77,8 @@ def parse_workbook(content: bytes) -> list[MatchOddsRecord]:
                     MatchOddsRecord(
                         competition=str(row_map["Competition"]),
                         date=played,
-                        home_team=team_key(str(row_map["Home"])),
-                        away_team=team_key(str(row_map["Away"])),
+                        home_team=canonical_team_key(str(row_map["Home"])),
+                        away_team=canonical_team_key(str(row_map["Away"])),
                         home_goals=int(row_map["HGFT"]),
                         away_goals=int(row_map["AGFT"]),
                         bookmaker=bookmaker,

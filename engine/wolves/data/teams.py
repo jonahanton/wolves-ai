@@ -32,7 +32,12 @@ def team_key(name: str) -> str:
 
 
 # Odds feeds whose slugs differ from the martj42 backbone key.
-_SOURCE_ALIASES: dict[str, str] = {"usa": "united-states"}
+_SOURCE_ALIASES: dict[str, str] = {
+    "usa": "united-states",
+    "d-r-congo": "dr-congo",
+    "ireland": "republic-of-ireland",
+    "bosnia-herzegovina": "bosnia-and-herzegovina",
+}
 
 
 def canonical_team_key(name: str) -> str:
