@@ -5,7 +5,7 @@ from pathlib import Path
 
 from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.agent.source_memory import SourceMemory
-from wolves.agent.tools.rank_relevance import Candidate, RankRelevanceArgs, _rank_relevance
+from wolves.agent.tools.retrieval.rank_relevance import Candidate, RankRelevanceArgs, _rank_relevance
 
 
 async def test_ranking_records_artifact_memory_and_tiers(tmp_path: Path):

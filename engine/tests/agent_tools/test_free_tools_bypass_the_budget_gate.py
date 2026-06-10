@@ -4,10 +4,10 @@ import dataclasses
 from pathlib import Path
 
 from tests.graph.conftest import build_graph_deps
-from wolves.agent.tools.think import ThinkArgs, _think
-from wolves.agent.tools.todo import TodoWriteArgs, _todo_write
-from wolves.agent.tools.web_search import WebSearchArgs, _web_search
-from wolves.tools._budget_gate import BudgetGate
+from wolves.agent.tools.meta.think import ThinkArgs, _think
+from wolves.agent.tools.meta.todo import TodoWriteArgs, _todo_write
+from wolves.agent.tools.retrieval.web_search import WebSearchArgs, _web_search
+from wolves.agent_tools._budget_gate import BudgetGate
 
 
 async def test_think_and_todo_run_on_an_exhausted_gate(tmp_path: Path):

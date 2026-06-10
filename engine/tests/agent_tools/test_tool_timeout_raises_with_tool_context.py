@@ -4,8 +4,8 @@ import asyncio
 
 import pytest
 
+from wolves.agent_tools._timeout import run_with_timeout
 from wolves.agent_tools.errors import ToolTimeoutError
-from wolves.tools._timeout import run_with_timeout
 
 
 async def test_returns_result_when_fast_enough():

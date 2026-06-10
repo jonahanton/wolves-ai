@@ -6,41 +6,28 @@ from typing import Any
 from pydantic_ai import Agent, RunContext
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools import (
-    calibration_readback,
-    data_query,
+from wolves.agent.tools.market import market_movement, model_vs_market
+from wolves.agent.tools.memory import (
     forecast_history,
-    get_odds,
-    get_results_and_fixtures,
     ledger_query,
-    market_movement,
-    model_explain,
-    model_vs_market,
-    perturbation_impact,
     previous_forecast,
-    rank_relevance,
-    read_artifact,
     read_journal,
-    run_python,
-    run_scenario,
-    run_simulation,
     scenario_update,
-    submit_forecast,
-    team_dossier,
-    team_path_tree,
-    think,
-    todo,
-    web_fetch,
-    web_search,
     what_changed,
     write_journal,
 )
+from wolves.agent.tools.meta import read_artifact, think, todo
+from wolves.agent.tools.model import calibration_readback, model_explain
+from wolves.agent.tools.retrieval import get_odds, get_results_and_fixtures, rank_relevance, web_fetch, web_search
+from wolves.agent.tools.simulation import perturbation_impact, run_scenario, run_simulation, team_path_tree
+from wolves.agent.tools.submission import submit_forecast
+from wolves.agent.tools.workbench import data_query, run_python, team_dossier
+from wolves.agent_tools._truncation import truncate_result
 from wolves.agent_tools.adapters.pydantic_ai import build_toolset
 from wolves.agent_tools.core import ToolSpec
 from wolves.agent_tools.result import ToolResult
 from wolves.graph.contracts import CritiqueOutput, ForecastOutput, GraphPatch, NodeKind, QuantOutput, ResearchOutput
 from wolves.prompts import prompt
-from wolves.tools._truncation import truncate_result
 
 _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
 

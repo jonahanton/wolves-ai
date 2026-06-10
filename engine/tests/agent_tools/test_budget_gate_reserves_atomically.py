@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from wolves.tools._budget_gate import BudgetGate
+from wolves.agent_tools._budget_gate import BudgetGate
 
 
 def test_reservations_stop_exactly_at_budget():
