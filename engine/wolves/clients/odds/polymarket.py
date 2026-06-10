@@ -88,7 +88,8 @@ class GammaPolymarketClient(PolymarketClient):
                 response = await self._client.get(f"{_BASE_URL}/events", params={"slug": WINNER_SLUG})
                 _raise_for_status(response)
                 return response.json()
-        return []
+        # async_retrying reraises on exhaustion, so an empty response can never masquerade as success.
+        raise AssertionError("unreachable")
 
     async def aclose(self) -> None:
         if self._owns_client:

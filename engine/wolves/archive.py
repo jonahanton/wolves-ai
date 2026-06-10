@@ -56,7 +56,8 @@ class ArchiveSnapshot(BaseModel):
 
 
 def archive_key(now: datetime) -> str:
-    return f"{now:%Y-%m-%d}/{now:%H%M}.json"
+    # Second granularity so a scheduler misfire cannot clobber an earlier snapshot.
+    return f"{now:%Y-%m-%d}/{now:%H%M%S}.json"
 
 
 async def capture_sources(*, odds: RawOddsSource, polymarket: RawEventsSource, now: datetime) -> ArchiveSnapshot:

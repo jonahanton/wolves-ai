@@ -8,3 +8,4 @@ def configure_cli_logging() -> None:
     The Odds API key travels as a query parameter and must never reach logs."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)

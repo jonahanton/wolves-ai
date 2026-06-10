@@ -81,7 +81,8 @@ class TheOddsApiClient(OddsClient):
                     usage.remaining,
                 )
                 return RawOddsResponse(payload=response.json(), credits=usage)
-        return RawOddsResponse()
+        # async_retrying reraises on exhaustion, so an empty response can never masquerade as success.
+        raise AssertionError("unreachable")
 
     async def aclose(self) -> None:
         if self._owns_client:
