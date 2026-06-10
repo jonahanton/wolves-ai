@@ -51,13 +51,20 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
         return
     registered = {r.summary for r in store.all() if r.kind == "mixture"}
     for filename in files:
-        if not (filename.startswith("mixture") and filename.endswith(".json")):
+        if not filename.endswith(".json"):
             continue
         marker = f"{workspace_dir}/{filename}"
         if marker in registered:
             continue
         workspace = deps.quant.workspace(deps.actor)
-        payload = json.loads((workspace.outputs / filename).read_text(encoding="utf-8"))
+        try:
+            payload = json.loads((workspace.outputs / filename).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        # Mixture artifacts are recognised by shape, not filename, so any
+        # scenario_mixture(name=...) output registers.
+        if not (isinstance(payload, dict) and {"mixture", "conditionals", "weights"} <= payload.keys()):
+            continue
         store.add(
             kind="mixture",
             created_by=deps.actor,

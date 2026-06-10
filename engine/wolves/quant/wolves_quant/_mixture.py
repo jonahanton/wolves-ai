@@ -125,14 +125,14 @@ def _worlds(blocks: list[Factor], joint: dict[str, float] | None) -> list[tuple[
         count *= len(block.variants)
     if count > ENUMERATION_LIMIT:
         raise MixtureSizeError(count)
-    worlds: list[tuple[str, float, tuple[Scenario, ...]]] = []
-    for combo in product(*(block.variants for block in blocks)):
-        key = "|".join(v.name for v in combo)
-        weight = joint[key] if joint is not None else _product(v.weight for v in combo)
-        worlds.append((key, weight, combo))
-    if joint is not None and set(joint) != {key for key, _, _ in worlds}:
-        raise ValueError(f"joint keys must cover the lattice exactly: {sorted(key for key, _, _ in worlds)}")
-    return worlds
+    combos = list(product(*(block.variants for block in blocks)))
+    keys = ["|".join(v.name for v in combo) for combo in combos]
+    if joint is not None and set(joint) != set(keys):
+        raise ValueError(f"joint keys must cover the lattice exactly: {sorted(keys)}")
+    return [
+        (key, joint[key] if joint is not None else _product(v.weight for v in combo), combo)
+        for key, combo in zip(keys, combos, strict=True)
+    ]
 
 
 def _world_probs(parts: tuple[Scenario, ...], *, n_sims: int | None, seed: int) -> dict[str, float]:

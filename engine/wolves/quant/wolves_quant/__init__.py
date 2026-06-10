@@ -29,7 +29,6 @@ from wolves.quant.wolves_quant._sim import (
     score_grid,
     simulate,
 )
-from wolves.quant.wolves_quant._state import context as _context
 from wolves.quant.wolves_quant._state import finalise as _finalise
 
 __all__ = [

@@ -1,8 +1,7 @@
 """Budget-gate guard shared by every budgeted tool.
 
-Free tools (run_python, ledger, journal, submit_forecast) never call this:
-scratch reasoning and bookkeeping must not compete with external actions
-for budget, per the FREE_TOOLS convention."""
+Free tools never call this: scratch reasoning, bookkeeping and workspace
+computation must not compete with external actions for budget."""
 
 from __future__ import annotations
 

@@ -57,7 +57,7 @@ async def test_missing_result_is_a_structured_error(tmp_path: Path):
     result = await run_analysis(workspace, script="analysis_001.py", caps=Caps.small())
     assert not result.ok
     assert result.no_result
-    assert result.error and "assign the finding to `result`" in result.error
+    assert result.error and "`result` was never assigned" in result.error
 
 
 async def test_network_access_is_blocked(tmp_path: Path):

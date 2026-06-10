@@ -19,8 +19,8 @@ _MAX_CAPTURE_CHARS = 20_000
 _RESULT_MARKER = "__WQ_RESULT__:"
 
 NO_RESULT_MESSAGE = (
-    "No value was returned: assign the finding to `result` at the end of the script "
-    "(a bare expression or print() does not count)."
+    "No value was returned: `result` was never assigned, or was explicitly None. Assign the "
+    "finding to `result` at the end of the script (a bare expression or print() does not count)."
 )
 
 # Hardens the child before running the analysis script: blocks the network and
@@ -71,7 +71,10 @@ _code = open({script!r}, encoding="utf-8").read()
 try:
     exec(compile(_code, {script!r}, "exec"), _ns)
 finally:
-    wq._finalise()
+    try:
+        wq._finalise()
+    except OSError:
+        pass
 print("\\n{marker}" + _json.dumps(wq._sanitise(_ns.get("result")), default=str))
 """
 
