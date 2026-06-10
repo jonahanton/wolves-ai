@@ -24,10 +24,7 @@ function MatchRow({ fixture, onSelectTeam }: { fixture: LiveFixtureView; onSelec
   const forecast = fixture.forecast;
   return (
     <div className="grid h-14 grid-cols-[48px_minmax(0,1fr)_52px] items-center px-3">
-      <div className="flex flex-col text-[11px] text-muted-foreground">
-        <span>{formatKickoffTime(fixture.date)}</span>
-        <span className="truncate">{fixture.city}</span>
-      </div>
+      <div className="text-[11px] text-muted-foreground">{formatKickoffTime(fixture.date)}</div>
       <div className="flex min-w-0 flex-col gap-0.5 text-sm leading-tight">
         <TeamName id={fixture.homeId} name={fixture.homeName} onSelect={onSelectTeam} />
         <TeamName id={fixture.awayId} name={fixture.awayName} onSelect={onSelectTeam} />
