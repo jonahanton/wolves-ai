@@ -22,3 +22,6 @@ Weigh holistically, not arithmetically:
 
 The weighing is judgement: a three-day-old federation statement can outrank a
 fresh aggregator rumour, or not, depending on the question.
+
+Return exactly one ranking per candidate, every candidate scored, copying each
+url verbatim.

@@ -64,7 +64,8 @@ async def evaluate() -> int:
                 sub_question=case["sub_question"],
                 candidates=[Candidate(**c) for c in case["candidates"]],
             )
-            result = await _rank_relevance(args, deps)
+            with runtime.observe(kind="tool", actor="eval", name="rank_relevance_eval"):
+                result = await _rank_relevance(args, deps)
             line = score_case(case, result.payload["rankings"]) if result.ok else None
             if line is None:
                 failures += 1

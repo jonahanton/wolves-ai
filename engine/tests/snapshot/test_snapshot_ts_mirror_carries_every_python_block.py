@@ -7,7 +7,7 @@ import pytest
 
 from wolves.snapshot import ChampionBlock, MarketsBlock, Snapshot, TeamInterval
 
-TS_SOURCE = (Path(__file__).resolve().parents[2] / "web" / "src" / "lib" / "snapshot.ts").read_text(encoding="utf-8")
+TS_SOURCE = (Path(__file__).resolve().parents[3] / "web" / "src" / "lib" / "snapshot.ts").read_text(encoding="utf-8")
 
 
 def _ts_has_field(name: str) -> bool:
