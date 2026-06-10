@@ -13,6 +13,7 @@ _FIXTURE = Path("wolves/clients/api_football/fixtures/fixtures.json")
 
 async def test_fixture_parses_into_typed_matches_with_status_mapping():
     body = json.loads(_FIXTURE.read_text())
+    body["response"][0]["teams"]["home"]["winner"] = True
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["x-apisports-key"] == "test-key"
@@ -26,7 +27,9 @@ async def test_fixture_parses_into_typed_matches_with_status_mapping():
     by_id = {m.fixture_id: m for m in matches}
     assert by_id[1300001].status == "finished"
     assert (by_id[1300001].home_goals, by_id[1300001].away_goals) == (2, 0)
+    assert by_id[1300001].winner == "home"
     assert by_id[1300015].status == "live"
+    assert by_id[1300015].winner is None
     assert by_id[1300021].status == "scheduled"
     assert by_id[1300021].home_goals is None
 

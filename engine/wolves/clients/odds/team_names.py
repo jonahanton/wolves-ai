@@ -24,6 +24,7 @@ _ALIASES = {
     "dr congo": "congo-dr",
     "democratic republic of the congo": "congo-dr",
     "cape verde": "cabo-verde",
+    "cape verde islands": "cabo-verde",
     "czech republic": "czechia",
     "united states": "usa",
     "bosnia": "bosnia-and-herzegovina",
