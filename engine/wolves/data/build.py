@@ -19,8 +19,8 @@ from wolves import ENGINE_VERSION
 from wolves.config import Settings
 from wolves.data.contracts import DatasetManifest, MatchOddsRecord, MatchRecord, ShootoutRecord, TeamRecord
 from wolves.data.sources import football_data, market_closes, martj42
-from wolves.data.sources.registry import build_team_dimension
 from wolves.data.sources.market_closes import ClosingOddsRecord, OutrightCloseRecord
+from wolves.data.sources.registry import build_team_dimension
 from wolves.observability.logging import configure_cli_logging
 
 logger = logging.getLogger(__name__)
