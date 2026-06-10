@@ -1,8 +1,15 @@
 import { formatPctBare } from "@/lib/format";
-import type { GroupView } from "@/lib/groups-view";
+import type { GroupTeamRow, GroupView } from "@/lib/groups-view";
+import { heatFill } from "@/lib/heat";
 import { cn } from "@/lib/utils";
 
-const GRID = "grid grid-cols-[minmax(0,1fr)_2.4rem_2.2rem_2.2rem_2.2rem] items-center gap-x-2";
+const GRID = "grid grid-cols-[minmax(0,1fr)_2.4rem_2.4rem_2.4rem_2.4rem] items-stretch";
+
+const PROB_COLUMNS: { label: string; value: (team: GroupTeamRow) => number }[] = [
+  { label: "1st", value: (team) => team.winGroup },
+  { label: "2nd", value: (team) => team.runnerUp },
+  { label: "3rd+", value: (team) => team.thirdQualified },
+];
 
 interface GroupTablesProps {
   groups: GroupView[];
@@ -12,7 +19,7 @@ interface GroupTablesProps {
 export function GroupTables({ groups, onSelectTeam }: GroupTablesProps) {
   if (groups.length === 0) {
     return (
-      <section className="rounded-xl border bg-card p-4" aria-label="Group forecasts">
+      <section className="rounded-xl border bg-card p-3" aria-label="Group forecasts">
         <p className="text-sm text-muted-foreground">Group forecasts land with the next engine run.</p>
       </section>
     );
@@ -20,12 +27,13 @@ export function GroupTables({ groups, onSelectTeam }: GroupTablesProps) {
 
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">Where each side most likely finishes, group by group.</p>
       {groups.map((group) => (
         <section key={group.group} aria-label={`Group ${group.group}`}>
           <div className="overflow-hidden rounded-xl border bg-card">
-            <div className={cn(GRID, "border-b px-3 py-2")}>
+            <div className={cn(GRID, "items-center border-b px-3 py-2")}>
               <h2 className="text-sm font-semibold">Group {group.group}</h2>
-              {["xPts", "1st", "2nd", "3rd+"].map((label) => (
+              {["xPts", ...PROB_COLUMNS.map((column) => column.label)].map((label) => (
                 <span
                   key={label}
                   className="text-right text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
@@ -40,19 +48,26 @@ export function GroupTables({ groups, onSelectTeam }: GroupTablesProps) {
                   key={team.teamId}
                   type="button"
                   onClick={() => onSelectTeam(team.teamId)}
-                  className={cn(GRID, "w-full px-3 py-1.5 text-left text-xs hover:bg-secondary/60")}
+                  className={cn(GRID, "w-full px-3 text-left text-xs hover:bg-secondary/60")}
                 >
-                  <span className={cn("truncate font-medium", team.isEngland && "text-gold")}>{team.name}</span>
-                  <span className="text-right font-semibold tabular-nums">{team.expectedPoints.toFixed(1)}</span>
-                  <span className="text-right tabular-nums text-muted-foreground">
-                    {formatPctBare(team.winGroup)}
+                  <span className={cn("flex min-w-0 items-center font-medium", team.isEngland && "text-gold")}>
+                    <span className="truncate">{team.name}</span>
                   </span>
-                  <span className="text-right tabular-nums text-muted-foreground">
-                    {formatPctBare(team.runnerUp)}
+                  <span className="flex items-center justify-end px-1 py-2 font-semibold">
+                    {team.expectedPoints.toFixed(1)}
                   </span>
-                  <span className="text-right tabular-nums text-muted-foreground">
-                    {formatPctBare(team.thirdQualified)}
-                  </span>
+                  {PROB_COLUMNS.map((column) => {
+                    const prob = column.value(team);
+                    return (
+                      <span
+                        key={column.label}
+                        className="flex items-center justify-end px-1 py-2 text-foreground/80"
+                        style={{ backgroundColor: heatFill(prob, team.isEngland) }}
+                      >
+                        {formatPctBare(prob)}
+                      </span>
+                    );
+                  })}
                 </button>
               ))}
             </div>
