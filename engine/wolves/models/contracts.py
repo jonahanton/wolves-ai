@@ -73,6 +73,31 @@ class ScorelineDistribution:
         flat = rng.choice(side * side, size=n, p=self.grid.ravel())
         return flat // side, flat % side
 
+    def reweighted(self, *, p_home: float, p_draw: float, p_away: float) -> ScorelineDistribution:
+        """Scale W/D/L mass to the targets, keeping scoreline shape within each outcome."""
+        total = p_home + p_draw + p_away
+        targets = (p_home / total, p_draw / total, p_away / total)
+        masses = (self.p_home, self.p_draw, self.p_away)
+        side = self.grid.shape[0]
+        regions = (
+            np.tril(np.ones((side, side)), -1),
+            np.eye(side),
+            np.triu(np.ones((side, side)), 1),
+        )
+        grid = np.zeros_like(self.grid)
+        for target, mass, region in zip(targets, masses, regions, strict=True):
+            if mass > 0.0:
+                grid += self.grid * region * (target / mass)
+            elif target > 0.0:
+                grid += region / region.sum() * target
+        return ScorelineDistribution(grid=grid / grid.sum())
+
+    @staticmethod
+    def single(home_goals: int, away_goals: int) -> ScorelineDistribution:
+        grid = np.zeros((MAX_GOALS + 1, MAX_GOALS + 1))
+        grid[min(home_goals, MAX_GOALS), min(away_goals, MAX_GOALS)] = 1.0
+        return ScorelineDistribution(grid=grid)
+
 
 @dataclass(frozen=True)
 class FittedState:
