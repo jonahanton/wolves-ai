@@ -4,9 +4,10 @@ import type { EnglandBlock } from "@/lib/snapshot";
 
 interface TravelForkCardProps {
   england: EnglandBlock;
+  memo: string | null;
 }
 
-export function TravelForkCard({ england }: TravelForkCardProps) {
+export function TravelForkCard({ england, memo }: TravelForkCardProps) {
   const forks = [...england.paths].sort((a, b) => b.prob - a.prob);
   const outProb = Math.max(0, 1 - forks.reduce((sum, p) => sum + p.prob, 0));
   const top = forks[0];
@@ -26,10 +27,15 @@ export function TravelForkCard({ england }: TravelForkCardProps) {
         ))}
         <ProbBar label="Out in groups" prob={outProb} />
       </div>
-      {top && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {top.city} happens in {frequencyFrame(top.prob)}. Lock dates land with the agent runs.
-        </p>
+      {memo ? (
+        <p className="mt-3 border-t border-dashed pt-3 text-sm">{memo}</p>
+      ) : (
+        top && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {top.city} happens in {frequencyFrame(top.prob)}. The agent&apos;s booking memo lands with the
+            daily run.
+          </p>
+        )
       )}
     </section>
   );

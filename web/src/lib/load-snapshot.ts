@@ -1,15 +1,14 @@
-import { readFile } from "fs/promises";
-import path from "path";
 import fixture from "@/fixtures/snapshot.json";
 import type { Snapshot } from "@/lib/snapshot";
 
-const SNAPSHOT_DIR = process.env.SNAPSHOT_DIR ?? path.join(process.cwd(), "..", "runs");
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 
 export async function loadLatestSnapshot(): Promise<Snapshot> {
   try {
-    const raw = await readFile(path.join(SNAPSHOT_DIR, "latest.json"), "utf8");
-    return JSON.parse(raw) as unknown as Snapshot;
+    const response = await fetch(`${BACKEND_URL}/snapshots/latest`, { cache: "no-store" });
+    if (response.ok) return (await response.json()) as Snapshot;
   } catch {
-    return fixture as unknown as Snapshot;
+    // Fall through to the bundled fixture; a stale forecast beats an error page.
   }
+  return fixture as unknown as Snapshot;
 }

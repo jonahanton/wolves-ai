@@ -1,8 +1,9 @@
+import { slotRationale } from "@/lib/agent-fields";
 import { englandSlotProb, pinEnglandFirst, r32Halves } from "@/lib/bracket";
 import { formatMatchDate } from "@/lib/format";
 import type { Slot, SlotSide, Snapshot } from "@/lib/snapshot";
 import type { OpponentView } from "@/lib/spine-view";
-import { venueTraits, type VenueTraits } from "@/lib/venues";
+import { venueLine } from "@/lib/venues";
 
 const STAGE_LABELS: Record<string, string> = {
   r32: "Last 32",
@@ -24,8 +25,9 @@ export interface SlotView {
   stage: string;
   stageLabel: string;
   city: string;
+  venueLabel: string | null;
   dateLabel: string;
-  traits: VenueTraits;
+  rationale: string | null;
   englandProb: number;
   home: SideView;
   away: SideView;
@@ -69,14 +71,20 @@ function sideView(side: SlotSide, names: Map<string, string>): SideView {
   };
 }
 
-function slotView(slot: Slot, names: Map<string, string>, englandProb: number): SlotView {
+function slotView(
+  snapshot: Snapshot,
+  slot: Slot,
+  names: Map<string, string>,
+  englandProb: number,
+): SlotView {
   return {
     match: slot.match,
     stage: slot.stage,
     stageLabel: STAGE_LABELS[slot.stage] ?? slot.stage,
     city: slot.city,
+    venueLabel: venueLine(slot.city),
     dateLabel: formatMatchDate(slot.date),
-    traits: venueTraits(slot.city),
+    rationale: slotRationale(snapshot, slot.match),
     englandProb,
     home: sideView(slot.home, names),
     away: sideView(slot.away, names),
@@ -97,7 +105,7 @@ export function buildBracketView(snapshot: Snapshot, names: Map<string, string>)
   const buildHalf = (slots: Slot[]) =>
     pinEnglandFirst(slots).map((slot) => {
       const prob = englandSlotProb(slot);
-      return slotView(slot, names, prob >= ENGLAND_PIN_THRESHOLD ? prob : 0);
+      return slotView(snapshot, slot, names, prob >= ENGLAND_PIN_THRESHOLD ? prob : 0);
     });
 
   const rounds = LATER_ROUNDS.map((stage) => ({
@@ -106,7 +114,7 @@ export function buildBracketView(snapshot: Snapshot, names: Map<string, string>)
     slots: snapshot.slots
       .filter((s) => s.stage === stage)
       .sort((a, b) => a.match - b.match)
-      .map((s) => slotView(s, names, 0)),
+      .map((s) => slotView(snapshot, s, names, 0)),
   })).filter((round) => round.slots.length > 0);
 
   return {

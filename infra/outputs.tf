@@ -1,4 +1,4 @@
-# The web app's server-route environment, plus release workflow inputs.
+# The backend service environment, plus release workflow inputs.
 output "aws_region" {
   value = var.region
 }
@@ -33,6 +33,14 @@ output "ecs_security_group" {
 
 output "ecr_repository_url" {
   value = aws_ecr_repository.engine.repository_url
+}
+
+output "backend_ecr_repository_url" {
+  value = aws_ecr_repository.backend.repository_url
+}
+
+output "backend_service_name" {
+  value = aws_ecs_service.backend.name
 }
 
 output "github_release_role_arn" {

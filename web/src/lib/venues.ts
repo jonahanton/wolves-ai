@@ -1,24 +1,27 @@
-export interface VenueTraits {
-  roof: boolean;
-  heat: boolean;
-  altitude: boolean;
+import venuesData from "@/lib/venues.json";
+
+export interface Venue {
+  city: string;
+  stadium: string;
+  country: string;
+  altitudeM: number;
+  roofed: boolean;
+  lat: number;
+  lon: number;
 }
 
-const NONE: VenueTraits = { roof: false, heat: false, altitude: false };
+const venues = venuesData as Venue[];
+const byCity = new Map(venues.map((venue) => [venue.city, venue]));
 
-const VENUES: Record<string, Partial<VenueTraits>> = {
-  Atlanta: { roof: true },
-  Dallas: { roof: true, heat: true },
-  Houston: { roof: true, heat: true },
-  "Los Angeles": { roof: true },
-  Vancouver: { roof: true },
-  Miami: { heat: true },
-  "Kansas City": { heat: true },
-  Monterrey: { heat: true },
-  "Mexico City": { altitude: true },
-  Guadalajara: { altitude: true },
-};
+export function venueForCity(city: string): Venue | undefined {
+  return byCity.get(city);
+}
 
-export function venueTraits(city: string): VenueTraits {
-  return { ...NONE, ...VENUES[city] };
+const LOAD_BEARING_ALTITUDE_M = 1000;
+
+export function venueLine(city: string): string | null {
+  const venue = byCity.get(city);
+  if (!venue) return null;
+  if (venue.altitudeM < LOAD_BEARING_ALTITUDE_M) return venue.stadium;
+  return `${venue.stadium}, ${venue.altitudeM.toLocaleString("en-GB")} m`;
 }
