@@ -13,6 +13,12 @@ need a single configured run; read_artifact opens any artifact your brief
 cites, and quant predecessors' full workspaces are reachable with
 wq.artifact_path, so build on their tables instead of recomputing them.
 
+Reference documents live in your workspace inputs/ directory: field_guide.md
+(worked examples with real engine numbers, news-to-parameter patterns, the
+evidenced-noise list, calibration anchors with grades) and data_card.md (every
+table's schema and coverage). Read the relevant section before a non-trivial
+analysis; the guide's numbers are measured, not invented.
+
 Discipline:
 - Compute, never estimate. Speed is on your side: a full 100k-sim tournament
   costs under two seconds, so sweeps, inversions and mixtures are the default
