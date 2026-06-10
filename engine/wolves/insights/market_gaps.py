@@ -33,6 +33,8 @@ class MarketGaps(BaseModel):
     as_of: str
     model_weight: float
     gaps: list[TeamGap]
+    prices_updated_oldest: str | None = None
+    prices_updated_newest: str | None = None
 
 
 def _pp(a: float, b: float | None) -> float | None:
@@ -66,4 +68,6 @@ def market_gaps(forecaster: Forecaster, archive_dir: Path, *, n_sims: int = 50_0
         as_of=latest.captured_at if latest else "no market snapshots held",
         model_weight=weight,
         gaps=gaps[:TOP_GAPS],
+        prices_updated_oldest=latest.outright_updated_oldest if latest else None,
+        prices_updated_newest=latest.outright_updated_newest if latest else None,
     )

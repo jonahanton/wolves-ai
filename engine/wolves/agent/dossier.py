@@ -121,6 +121,14 @@ def _baseline(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     return f"Baseline title probabilities (pp, {_DOSSIER_SIMS // 1000}k sims): {rows}."
 
 
+def _price_freshness(oldest: str | None, newest: str | None) -> str:
+    if oldest is None or newest is None:
+        return ""
+    if oldest == newest:
+        return f" Prices updated at {oldest}."
+    return f" Prices updated between {oldest} and {newest}."
+
+
 def _gaps(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     if deps.forecaster is None:
         return ""
@@ -130,7 +138,8 @@ def _gaps(deps: AgentDeps, titles: dict[str, float] | None) -> str:
         f"{c.team}: model {c.model_p_title * 100:.1f} vs market {c.market_p_title * 100:.1f} ({c.gap_pp:+.1f}pp)"
         for c in priced
     )
-    return f"Model vs market, largest gaps: {rows}." if rows else ""
+    freshness = _price_freshness(table.prices_updated_oldest, table.prices_updated_newest)
+    return f"Model vs market, largest gaps: {rows}.{freshness}" if rows else ""
 
 
 def _movement(deps: AgentDeps, titles: dict[str, float] | None) -> str:
@@ -143,9 +152,10 @@ def _movement(deps: AgentDeps, titles: dict[str, float] | None) -> str:
         for m in movement.outright_bookmakers
         if m.delta_pp_vs_previous is not None and abs(m.delta_pp_vs_previous) >= floor
     ]
+    freshness = _price_freshness(movement.prices_updated_oldest, movement.prices_updated_newest)
     if not movers:
-        return f"Market movement: nothing beyond the {floor}pp noise floor."
-    return f"Market movers beyond the {floor}pp noise floor: {', '.join(movers[:8])}."
+        return f"Market movement: nothing beyond the {floor}pp noise floor.{freshness}"
+    return f"Market movers beyond the {floor}pp noise floor: {', '.join(movers[:8])}.{freshness}"
 
 
 def _ledger(deps: AgentDeps, titles: dict[str, float] | None) -> str:

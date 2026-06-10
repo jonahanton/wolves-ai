@@ -36,8 +36,9 @@ SPEC = ToolSpec(
         "The daily gap table: model vs bookmaker consensus vs Polymarket title probabilities per "
         "team, largest gaps first. A null gap means no price exists for that team, not agreement. "
         "legs_disagree_pp is bookmakers minus Polymarket: the two market legs arguing with each "
-        "other is itself a signal. Each gap is a research question: what does the market believe "
-        "that the model does not, or vice versa?"
+        "other is itself a signal. prices_updated_oldest/newest say when the bookmaker prices were "
+        "last refreshed, so check them before treating a gap as news the market has not seen. Each "
+        "gap is a research question: what does the market believe that the model does not, or vice versa?"
     ),
     args_model=MarketGapsArgs,
     fn=_market_gaps,

@@ -40,6 +40,8 @@ class MarketMovement(BaseModel):
     outright_bookmakers: list[TeamMovement]
     outright_polymarket: list[TeamMovement]
     matches: list[MatchMovement]
+    prices_updated_oldest: str | None = None
+    prices_updated_newest: str | None = None
 
 
 def _movements(series: list[SeriesPoint], source: str, *, history_points: int) -> list[TeamMovement]:
@@ -91,9 +93,12 @@ def market_movement(archive_dir: Path, fmt: FormatData, *, history_points: int =
     series = load_series(archive_dir)
     if not series:
         series = rebuild_series(archive_dir, fmt)
+    latest = series[-1] if series else None
     return MarketMovement(
         snapshots=[point.captured_at for point in series],
         outright_bookmakers=_movements(series, "outright_bookmakers", history_points=history_points),
         outright_polymarket=_movements(series, "outright_polymarket", history_points=history_points),
         matches=_match_movements(series),
+        prices_updated_oldest=latest.outright_updated_oldest if latest else None,
+        prices_updated_newest=latest.outright_updated_newest if latest else None,
     )

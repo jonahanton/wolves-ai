@@ -11,12 +11,14 @@ pattern applies unchanged to any team.
 ## Worked examples with real numbers
 
 ### Elasticity, and its convexity
+
 England strength sweeps: +0.02 = +0.61pp title, +0.05 = +1.71, +0.10 = +4.26,
 +0.20 = +9.58, +0.30 = +17.30. Convex, not linear: the +0.30 effect is 4x the
 +0.10 effect. Longshots scale down brutally: Ghana +0.10 = +0.008pp (below
 the noise floor), +0.30 = +0.23pp. Know the slope before sizing a story.
 
 ### The two absence mechanisms, 8x apart
+
 A star missing England's GROUP GAMES ONLY (-0.20 xG per game via
 MatchRatePerturbation) costs -0.38pp title, because England qualify from the
 group regardless. The same star diminished for the WHOLE TOURNAMENT (-0.10
@@ -24,6 +26,7 @@ strength) costs -3.03pp. Which mechanism a news story implies is the single
 most consequential modelling choice in availability analysis.
 
 ### Scenario mixtures and factor lattices
+
 The Saka morning, three worlds 0.55/0.33/0.12: conditionals 6.99/6.61/4.28pp
 England title, mixture 6.54 (-0.45pp vs baseline). Composed with a Dallas
 heat factor (0.70/0.30) the 6-world product lattice gives 6.68 vs baseline
@@ -36,12 +39,14 @@ fixed-point with sd 0.04pp over draws; where the response is locally linear,
 the mean magnitude is adequate and the draw sd is the cheap materiality test.
 
 ### Implied-delta inversion (what is the market pricing?)
+
 Market England 11.18 vs model 7.19: brentq inversion says the market prices
 England +0.099 strength above the model, one key-player-class upgrade. The
 France gap (-7.31pp) is the largest on the board: the market believes
 something the results model does not see. Every gap is a research question.
 
 ### Triangulation
+
 The squad-value regression (corr 0.94 with fitted strengths, n=40) flags
 Colombia as most overrated vs its squad value (+0.22 residual); independently
 Colombia carries the largest positive model-vs-market gap (+2.89pp). Two
@@ -49,12 +54,14 @@ instruments, same suspect: the canonical edge hunt. Squad value is the single
 best-evidenced non-market covariate (Peeters 2018, beats Elo and FIFA rank).
 
 ### Group-stage effects read through group lenses
+
 England v Croatia: win 2-0 = +0.78pp title, draw -0.01, loss 0-1 = -1.40 (a
 loss costs nearly twice the win's gain). The Mexico altitude case moves group
 win 52.2 to 55.0 while title pp moves 0.04: title pp alone hides the action.
 Read group-stage stories through qualification and group-win probabilities.
 
 ### Two update channels, both material
+
 After a mocked matchday (England 2-0, Argentina upset): the bracket overlay
 alone moves England 6.99 to 7.79; refitting moves it further to 8.69. One
 group win is worth ~+0.8pp through the bracket and ~+0.9pp through
@@ -62,6 +69,7 @@ strengths. The attribution report decomposes both; never re-add by hand what
 the refit already priced.
 
 ### News-shock calibration table
+
 Backup keeper in (-0.03 strength) = -1.09pp. Mbappe out (-0.12) = France
 -3.77pp, Spain +0.59. One-match tactical worry (-0.3 xG) = -0.20pp.
 
@@ -105,9 +113,24 @@ impact. Compose and overrule with stated reasons.
   lineup or availability mechanics. Otherwise the honest move is no
   adjustment, with the null cited, and at most a low-weight watch scenario.
 
+### The already-priced-in check
+
+Every price carries its own clock: bookmaker last_update timestamps and the
+Polymarket snapshot captured_at. The discipline is to put the news event time
+next to those clocks and the market_movement series around it. If the market
+re-priced after the news landed, the information is in the price; adjusting
+the model again double-counts it. The edge, if any, is where your mechanism
+disagrees with the size or direction of the market's move, and that
+disagreement is the finding to write up, not a reason to re-add the news.
+It's also possible that the market has priced something in a way which you
+disagree with, which is more than valid. Given that we only see the output
+univariates from the market, it can be hard to know what caused the changes
+in market numbers.
+
 ## What the evidence says is already in the price
 
 Decline briefs built on these; the citation is the finding:
+
 - Momentum and recent-form overlays (null once ability is controlled).
 - Rest-day differentials at 3+ days both sides.
 - Penalty shootout skill beyond a few points off 50/50 (our 50/50 stands and
@@ -144,6 +167,7 @@ Decline briefs built on these; the citation is the finding:
 
 Capable agents p-hack without meaning to, and the failures are invisible, so
 these are rules, not suggestions:
+
 - State the analysis plan in the workspace before touching data on any
   model-fitting task.
 - Report all runs, not the best run; multiplicity is flagged when screening

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools._shared import reserve_or_refuse
-from wolves.clients.odds import OddsEvent, event_consensus, team_id_for_name, winner_probabilities
+from wolves.clients.odds import OddsEvent, event_consensus, market_last_updates, team_id_for_name, winner_probabilities
 from wolves.markets.devig import weighted_consensus
 from wolves.sim.format import Team, load_format
 from wolves.toolkit._timeout import run_with_timeout
@@ -20,6 +21,15 @@ class GetOddsArgs(BaseModel):
 
 def _round4(probs: dict[str, float]) -> dict[str, float]:
     return {name: round(p, 4) for name, p in probs.items()}
+
+
+def _freshness(events: list[OddsEvent], *, market_key: str) -> dict[str, str | None]:
+    updates = [u for event in events for u in market_last_updates(event, market_key=market_key)]
+    return {
+        "fetched_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "prices_updated_oldest": min(updates).isoformat() if updates else None,
+        "prices_updated_newest": max(updates).isoformat() if updates else None,
+    }
 
 
 def _bookmaker_leg(events: list[OddsEvent], teams: list[Team]) -> dict[str, float]:
@@ -63,6 +73,7 @@ async def _outrights_payload(deps: AgentDeps) -> dict[str, Any]:
         "legs": {name: _round4(probs) for name, probs in legs.items()},
         "weights": weights,
         "credits_remaining": response.credits.remaining,
+        **_freshness(response.events, market_key="outrights"),
     }
 
 
@@ -81,7 +92,12 @@ async def _h2h_payload(deps: AgentDeps) -> dict[str, Any]:
         }
         for event in response.events
     ]
-    return {"market": "h2h", "events": events, "credits_remaining": response.credits.remaining}
+    return {
+        "market": "h2h",
+        "events": events,
+        "credits_remaining": response.credits.remaining,
+        **_freshness(response.events, market_key="h2h"),
+    }
 
 
 async def _get_odds(args: GetOddsArgs, deps: AgentDeps) -> ToolResult[Any]:
@@ -106,6 +122,8 @@ SPEC = ToolSpec(
         "Market consensus probabilities. 'outrights' blends two legs in weighted log-odds: de-vigged bookmaker "
         "consensus (power-method de-vig, log-odds averaging across books) and normalised Polymarket winner prices; "
         "both legs are reported separately, keyed by team id. 'h2h' gives match win/draw/loss per bookmaker event. "
+        "fetched_at and prices_updated_oldest/newest report when the response was pulled and when bookmakers last "
+        "re-priced, so you can tell whether a news event is already in the price. "
         "This is your calibration anchor: always state the market number before diverging from it."
     ),
     args_model=GetOddsArgs,
