@@ -6,7 +6,6 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
-from wolves.agent.sim_runner import EngineSimulation
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FakeFixturesClient
 from wolves.clients.odds import FakeOddsClient, FakePolymarketClient
@@ -47,7 +46,6 @@ def build_graph_deps(
         odds=FakeOddsClient(),
         polymarket=FakePolymarketClient(),
         fixtures=FakeFixturesClient(),
-        sim=EngineSimulation(),
         ledger=EvidenceLedger(tmp_path / run_id / "ledger.jsonl"),
         memory=RunMemory(runs_root=tmp_path, run_id=run_id, lessons_path=settings.lessons_path),
         quant=ObservedQuant(runtime),

@@ -64,7 +64,13 @@ def score_resolved_matches(
     """Score the previous snapshot's group-match forecasts that now have results."""
     already = {score.match_id for score in ledger.scores()}
     baseline_entries = {entry.match: entry for entry in baseline.matches} if baseline else {}
-    adjusted_teams = {o.team_id for o in previous.agent.rating_overrides} if previous.agent else set()
+    adjusted_teams: set[str] = set()
+    if previous.agent is not None:
+        for world in previous.agent.worlds:
+            for perturbation in world.perturbations:
+                team = perturbation.get("team")
+                if isinstance(team, str):
+                    adjusted_teams.add(team)
 
     scores: list[MatchScore] = []
     for entry in previous.matches:

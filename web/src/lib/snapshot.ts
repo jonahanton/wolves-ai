@@ -145,21 +145,35 @@ export interface LedgerEntryOut {
   proposed_delta: number;
   expiry: string | null;
   team_id: string | null;
+  relevance: number | null;
+  source_tier: number | null;
+  retrieved_at: string | null;
+  retrieval_id: string | null;
   created_at: string;
 }
 
-export interface RatingOverrideOut {
-  team_id: string;
-  delta_elo: number;
-  cause: string;
+export interface ScenarioWeightOut {
+  name: string;
+  weight: number;
+  scenario_id: string | null;
   ledger_ids: string[];
 }
 
-export interface DisagreementOut {
-  k: number;
-  per_team_spread: Record<string, number>;
-  max_spread: number;
-  mean_spread: number;
+export interface WorldOut {
+  name: string;
+  weight: number;
+  perturbations: Record<string, unknown>[];
+}
+
+export interface GovernorOut {
+  scale: number;
+  effective_d: number;
+}
+
+export interface AttributionOut {
+  bracket_pp: Record<string, number>;
+  refit_pp: Record<string, number>;
+  residual_pp: Record<string, number>;
 }
 
 export interface CalibrationSummary {
@@ -172,9 +186,16 @@ export interface CalibrationSummary {
 
 export interface AgentBlock {
   narrative: NarrativeBlock;
+  artifact_id: string;
   ledger_entries: LedgerEntryOut[];
-  rating_overrides: RatingOverrideOut[];
-  disagreement: DisagreementOut | null;
+  scenario_weights: ScenarioWeightOut[];
+  worlds: WorldOut[];
+  escalations: string[];
+  market_justification: string;
+  change_justification: string;
+  inconsistency_note: string;
+  attribution: AttributionOut | null;
+  governor: GovernorOut | null;
   calibration: CalibrationSummary | null;
 }
 

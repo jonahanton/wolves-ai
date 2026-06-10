@@ -146,21 +146,38 @@ class LedgerEntryOut(BaseModel):
     proposed_delta: float = 0.0
     expiry: str | None = None
     team_id: str | None = None
+    relevance: float | None = None
+    source_tier: int | None = None
+    retrieved_at: str | None = None
+    retrieval_id: str | None = None
     created_at: str
 
 
-class RatingOverrideOut(BaseModel):
-    team_id: str
-    delta_elo: float
-    cause: str
+class ScenarioWeightOut(BaseModel):
+    name: str
+    weight: float
+    scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
 
 
-class DisagreementOut(BaseModel):
-    k: int
-    per_team_spread: dict[str, float] = Field(default_factory=dict)
-    max_spread: float = 0.0
-    mean_spread: float = 0.0
+class WorldOut(BaseModel):
+    """One published world's configuration, kept so live republishes can
+    reapply the agent's adjustments without re-running the agent."""
+
+    name: str
+    weight: float
+    perturbations: list[dict] = Field(default_factory=list)
+
+
+class GovernorOut(BaseModel):
+    scale: float = 1.0
+    effective_d: float = 1.0
+
+
+class AttributionOut(BaseModel):
+    bracket_pp: dict[str, float] = Field(default_factory=dict)
+    refit_pp: dict[str, float] = Field(default_factory=dict)
+    residual_pp: dict[str, float] = Field(default_factory=dict)
 
 
 class CalibrationSummary(BaseModel):
@@ -175,9 +192,16 @@ class AgentBlock(BaseModel):
     """Agent-run extras; absent on sim-only snapshots. Additive by design."""
 
     narrative: NarrativeBlock
+    artifact_id: str = ""
     ledger_entries: list[LedgerEntryOut] = Field(default_factory=list)
-    rating_overrides: list[RatingOverrideOut] = Field(default_factory=list)
-    disagreement: DisagreementOut | None = None
+    scenario_weights: list[ScenarioWeightOut] = Field(default_factory=list)
+    worlds: list[WorldOut] = Field(default_factory=list)
+    escalations: list[str] = Field(default_factory=list)
+    market_justification: str = ""
+    change_justification: str = ""
+    inconsistency_note: str = ""
+    attribution: AttributionOut | None = None
+    governor: GovernorOut | None = None
     calibration: CalibrationSummary | None = None
 
 

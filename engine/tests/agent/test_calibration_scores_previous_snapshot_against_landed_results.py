@@ -13,9 +13,9 @@ from wolves.snapshot import (
     EnglandBlock,
     MatchProbs,
     NarrativeBlock,
-    RatingOverrideOut,
     RunMeta,
     Snapshot,
+    WorldOut,
 )
 
 
@@ -62,7 +62,13 @@ def settings(tmp_path) -> Settings:
     )
     agent = AgentBlock(
         narrative=NarrativeBlock(england_story="story", travel_memo="memo"),
-        rating_overrides=[RatingOverrideOut(team_id="mexico", delta_elo=20.0, cause="cause")],
+        worlds=[
+            WorldOut(
+                name="mexico_altitude",
+                weight=1.0,
+                perturbations=[{"team": "mexico", "delta": 0.05, "reason": "altitude"}],
+            )
+        ],
     )
     previous = _snapshot(
         run_id="agent-20260608-120000",

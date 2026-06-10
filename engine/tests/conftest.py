@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from wolves.agent.contracts import ForecastSubmission, Narrative, RatingOverride
+from wolves.agent.contracts import ForecastSubmission, Narrative
 from wolves.data.build import write_dataset
 from wolves.models.contracts import DatasetHandle
 
@@ -42,25 +42,9 @@ def build_narrative(**overrides: Any) -> Narrative:
 
 def build_submission(**overrides: Any) -> ForecastSubmission:
     fields: dict[str, Any] = {
-        "rating_overrides": [
-            RatingOverride(
-                team_id="england",
-                delta_elo=15.0,
-                cause="First-choice keeper confirmed fit",
-                ledger_ids=["led-0001"],
-            )
-        ],
-        "england_reach_probs": {
-            "r32": 0.97,
-            "r16": 0.62,
-            "qf": 0.38,
-            "sf": 0.22,
-            "final": 0.13,
-            "champion": 0.07,
-        },
+        "artifact_id": "mixture-001",
         "narrative": build_narrative(),
-        "delta_vs_market": 0.01,
-        "delta_vs_yesterday": 0.0,
+        "evidence_ids": ["led-0001"],
     }
     fields.update(overrides)
     return ForecastSubmission(**fields)

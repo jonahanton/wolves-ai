@@ -1,0 +1,130 @@
+"""Resolve a submitted forecast artifact into publishable outputs.
+
+The artifact carries world configurations (typed perturbations plus
+weights); the harness re-simulates each world and mixes every published
+probability by weight, so the snapshot is an integral over the agent's
+latent model, never a typed number. Path-narrative blocks (England paths,
+slots, groups) come from the modal world: probabilities are linear in the
+mixture, bracket narratives are not, and the modal world is the honest
+single story to tell."""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field, TypeAdapter
+
+from wolves.forecast import Forecaster, Perturbation, ScorelinePerturbation
+from wolves.sim.api import SimOutputs
+from wolves.sim.format import PlayedResult
+
+_PERTURBATION = TypeAdapter[Perturbation](Perturbation)
+
+
+class PublishedWorld(BaseModel):
+    name: str
+    weight: float = Field(ge=0.0, le=1.0)
+    perturbations: list[Perturbation] = Field(default_factory=list)
+
+
+class ForecastArtifactError(Exception):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
+    """Parse a mixture artifact's world configurations; a plain simulation
+    artifact (no worlds block) publishes as one unperturbed world."""
+    weights: dict[str, float] = payload.get("weights") or {}
+    worlds_block: dict[str, dict] = payload.get("worlds") or {}
+    if not worlds_block:
+        return [PublishedWorld(name="baseline", weight=1.0)]
+    worlds: list[PublishedWorld] = []
+    for name, weight in weights.items():
+        spec = worlds_block.get(name)
+        if spec is None:
+            raise ForecastArtifactError(f"world {name!r} has a weight but no configuration")
+        if "probs" in spec:
+            raise ForecastArtifactError(
+                f"world {name!r} carries precomputed probabilities; only simulator-built worlds publish "
+                "the full distribution surface"
+            )
+        perturbations = [_PERTURBATION.validate_python(p) for p in spec.get("perturbations", [])]
+        if any(isinstance(p, ScorelinePerturbation) for p in perturbations):
+            raise ForecastArtifactError(f"world {name!r} pins a scoreline; what-if instruments never publish")
+        worlds.append(PublishedWorld(name=name, weight=weight, perturbations=perturbations))
+    total = sum(w.weight for w in worlds)
+    if abs(total - 1.0) > 1e-6:
+        raise ForecastArtifactError(f"world weights sum to {total:.4f}, not 1")
+    return worlds
+
+
+def mixed_outputs(
+    forecaster: Forecaster,
+    worlds: list[PublishedWorld],
+    *,
+    n_sims: int,
+    seed: int,
+    extra_results: dict[int, PlayedResult] | None = None,
+) -> SimOutputs:
+    """Simulate each world with common random numbers and mix the published
+    probabilities by weight."""
+    modal = max(worlds, key=lambda w: w.weight)
+    per_world = {
+        w.name: forecaster.sim_outputs(
+            n_sims=n_sims, seed=seed, perturbations=tuple(w.perturbations), extra_results=extra_results
+        )
+        for w in worlds
+    }
+    if len(worlds) == 1:
+        return per_world[modal.name]
+    weights = {w.name: w.weight for w in worlds}
+    mixed = per_world[modal.name].model_copy(deep=True)
+
+    for stage in mixed.england.finish_probs:
+        mixed.england.finish_probs[stage] = _mix(weights, per_world, lambda o, s=stage: o.england.finish_probs[s])
+    for stage in mixed.england.reach_probs:
+        mixed.england.reach_probs[stage] = _mix(weights, per_world, lambda o, s=stage: o.england.reach_probs[s])
+    for i, team in enumerate(mixed.teams):
+        team.champion_prob = _mix(weights, per_world, lambda o, j=i: o.teams[j].champion_prob)
+        for stage in team.reach_probs:
+            team.reach_probs[stage] = _mix(weights, per_world, lambda o, j=i, s=stage: o.teams[j].reach_probs[s])
+    by_match = {name: {m.match: m for m in outputs.matches} for name, outputs in per_world.items()}
+    for entry in mixed.matches:
+        if not all(entry.match in by_match[name] for name in weights):
+            continue
+        entry.p_home = _mix(weights, per_world, lambda o, m=entry.match: _match(o, m).p_home)
+        entry.p_away = _mix(weights, per_world, lambda o, m=entry.match: _match(o, m).p_away)
+        if entry.p_draw is not None:
+            entry.p_draw = max(0.0, round(1.0 - entry.p_home - entry.p_away, 6))
+    return mixed
+
+
+def govern_outputs(outputs: SimOutputs, anchor: SimOutputs, *, d: float) -> None:
+    """Shrink the published probabilities towards the deterministic anchor in
+    log-odds. Stage-by-stage blending of two monotone reach chains stays
+    monotone at the magnitudes the governor produces; the governor block in
+    the snapshot makes the shrink loud either way."""
+    from wolves.agent.consensus import blend_log_odds
+
+    if d == 1.0:
+        return
+    titles = {t.team_id: t.champion_prob for t in outputs.teams}
+    anchor_titles = {t.team_id: t.champion_prob for t in anchor.teams}
+    governed = blend_log_odds(titles, anchor_titles, d=d, renormalise=True)
+    anchor_teams = {t.team_id: t for t in anchor.teams}
+    for team in outputs.teams:
+        team.champion_prob = round(governed[team.team_id], 6)
+        anchor_reach = anchor_teams[team.team_id].reach_probs
+        for stage, p in team.reach_probs.items():
+            blended = blend_log_odds({stage: p}, {stage: anchor_reach.get(stage, p)}, d=d)
+            team.reach_probs[stage] = round(blended[stage], 6)
+    for stage, p in outputs.england.reach_probs.items():
+        blended = blend_log_odds({stage: p}, {stage: anchor.england.reach_probs.get(stage, p)}, d=d)
+        outputs.england.reach_probs[stage] = round(blended[stage], 6)
+
+
+def _mix(weights: dict[str, float], per_world: dict[str, SimOutputs], pick) -> float:
+    return round(sum(weight * pick(per_world[name]) for name, weight in weights.items()), 6)
+
+
+def _match(outputs: SimOutputs, match: int):
+    return next(m for m in outputs.matches if m.match == match)

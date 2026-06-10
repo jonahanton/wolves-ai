@@ -351,12 +351,21 @@ class Forecaster:
         *,
         n_sims: int,
         seed: int = 0,
+        perturbations: tuple[Perturbation, ...] = (),
         live_distributions: dict[int, ScorelineDistribution] | None = None,
+        extra_results: dict[int, PlayedResult] | None = None,
     ) -> SimOutputs:
         """Full snapshot outputs from the champion simulation, with played
-        results from the data directory baked in."""
-        results = load_results(self._settings.data_dir)
-        result = self.simulate(n_sims=n_sims, seed=seed, results=results, live_distributions=live_distributions)
+        results from the data directory baked in; extra_results overlay
+        freshly polled full times."""
+        results = load_results(self._settings.data_dir) | (extra_results or {})
+        result = self.simulate(
+            n_sims=n_sims,
+            seed=seed,
+            perturbations=perturbations,
+            results=results,
+            live_distributions=live_distributions,
+        )
         reach = build_team_reach(self.fmt, result)
         elo_path = sorted((self._settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
         elo = load_elo_ratings(elo_path, self.fmt)

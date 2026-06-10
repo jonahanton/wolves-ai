@@ -1,14 +1,19 @@
-"""Deterministic submit validator: the hard boundary on the agent's freedom."""
+"""Deterministic submit validator: provenance and coherence are hard; large
+moves escalate to a steelman, never to a cap on conclusions."""
 
 from __future__ import annotations
 
 import itertools
-from datetime import date
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from wolves.agent.contracts import ForecastSubmission
+from wolves.agent.forecast_artifact import ForecastArtifactError, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger
+
+if TYPE_CHECKING:
+    from wolves.graph.artifacts import RunArtifactStore
 
 EM_DASH = "—"
 _REACH_ORDER = ["r32", "r16", "qf", "sf", "final", "champion"]
@@ -16,10 +21,9 @@ _R32_SLOT_COUNT = 16
 
 
 class ValidatorLimits(BaseModel):
-    confirmed_delta_cap_elo: float = 50.0
-    soft_delta_cap_elo: float = 10.0
-    justification_threshold: float = 0.05
-    delta_cap_scale: float = 1.0
+    escalation_threshold_pp: float = 2.0
+    escalation_reference_p: float = 0.10
+    justification_threshold_pp: float = 1.0
 
 
 class ValidationIssue(BaseModel):
@@ -30,6 +34,7 @@ class ValidationIssue(BaseModel):
 class ValidationReport(BaseModel):
     ok: bool
     issues: list[ValidationIssue] = Field(default_factory=list)
+    escalations: list[str] = Field(default_factory=list)
 
     def summary(self) -> str:
         return "; ".join(f"[{i.code}] {i.message}" for i in self.issues)
@@ -38,100 +43,126 @@ class ValidationReport(BaseModel):
 def validate_submission(
     submission: ForecastSubmission,
     *,
+    artifacts: RunArtifactStore | None,
     ledger: EvidenceLedger,
     limits: ValidatorLimits,
+    baseline_titles: dict[str, float] | None = None,
+    previous_titles: dict[str, float] | None = None,
 ) -> ValidationReport:
-    """Check probability coherence, override caps, ledger citations, fixture
-    offset expiries, narrative completeness and justification requirements."""
+    """Provenance (computed artifact, no pinned scorelines, weights cohere),
+    citation discipline on weights, Paleka coherence on the artifact's own
+    numbers, and the escalation diff against the frozen baseline and the
+    previous published forecast."""
     issues: list[ValidationIssue] = []
-    issues += _check_probabilities(submission)
-    issues += _check_overrides(submission, ledger, limits)
-    issues += _check_fixture_offsets(submission)
+    escalations: list[str] = []
+    payload = _artifact_payload(submission, artifacts, issues)
+    if payload is not None:
+        issues += _check_coherence(payload)
+        if baseline_titles is not None:
+            escalations += _diff_escalations(payload, baseline_titles, limits, against="baseline")
+        if previous_titles is not None and not (
+            submission.change_justification.strip() or submission.inconsistency_note.strip()
+        ):
+            moved = _diff_escalations(payload, previous_titles, limits, against="previous published forecast")
+            if moved:
+                issues.append(
+                    _issue(
+                        "unexplained_drift",
+                        "moves beyond threshold vs the previous published forecast need change_justification "
+                        f"or an inconsistency_note: {'; '.join(moved)}",
+                    )
+                )
+    issues += _check_weights(submission, ledger)
     issues += _check_narrative(submission)
-    issues += _check_justifications(submission, limits)
     issues += _check_em_dashes(submission)
-    return ValidationReport(ok=not issues, issues=issues)
+    return ValidationReport(ok=not issues, issues=issues, escalations=escalations)
 
 
 def _issue(code: str, message: str) -> ValidationIssue:
     return ValidationIssue(code=code, message=message)
 
 
-def _check_probabilities(submission: ForecastSubmission) -> list[ValidationIssue]:
+def _artifact_payload(
+    submission: ForecastSubmission, artifacts: RunArtifactStore | None, issues: list[ValidationIssue]
+) -> dict | None:
+    if artifacts is None:
+        issues.append(_issue("no_artifact_store", "this run cannot resolve artifact references"))
+        return None
+    artifact = artifacts.get(submission.artifact_id)
+    if artifact is None:
+        issues.append(
+            _issue(
+                "unknown_artifact",
+                f"artifact {submission.artifact_id!r} does not exist; the forecast publishes by reference "
+                "to a computed artifact, never typed probabilities",
+            )
+        )
+        return None
+    if artifact.kind not in ("mixture", "forecast", "quant"):
+        issues.append(
+            _issue("wrong_artifact_kind", f"artifact {artifact.id} is {artifact.kind}, not a computed forecast")
+        )
+        return None
+    try:
+        worlds_from_payload(artifact.payload)
+    except ForecastArtifactError as exc:
+        issues.append(_issue("artifact_unpublishable", str(exc)))
+        return None
+    return artifact.payload
+
+
+def _check_coherence(payload: dict) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
-    probs = submission.england_reach_probs
-    if not probs:
-        return [_issue("probs_missing", "england_reach_probs is required")]
-    for stage, p in probs.items():
+    mixture: dict[str, float] = payload.get("mixture") or {}
+    for team, p in mixture.items():
         if not 0.0 <= p <= 1.0:
-            issues.append(_issue("prob_out_of_range", f"reach prob for {stage} is {p}"))
-    chain = [probs[s] for s in _REACH_ORDER if s in probs]
+            issues.append(_issue("prob_out_of_range", f"title probability for {team} is {p}"))
+    if mixture:
+        total = sum(mixture.values())
+        if not 0.97 <= total <= 1.03:
+            issues.append(_issue("partition_incoherent", f"title probabilities sum to {total:.3f}, not 1"))
+    reach: dict[str, float] = payload.get("england_reach") or {}
+    chain = [reach[s] for s in _REACH_ORDER if s in reach]
     if any(later > earlier + 1e-9 for earlier, later in itertools.pairwise(chain)):
         issues.append(_issue("probs_incoherent", "reach probabilities must not increase through rounds"))
     return issues
 
 
-def _check_overrides(
-    submission: ForecastSubmission,
-    ledger: EvidenceLedger,
-    limits: ValidatorLimits,
-) -> list[ValidationIssue]:
-    issues: list[ValidationIssue] = []
-    confirmed_cap = limits.confirmed_delta_cap_elo * limits.delta_cap_scale
-    soft_cap = limits.soft_delta_cap_elo * limits.delta_cap_scale
-    soft_totals: dict[str, float] = {}
+def _diff_escalations(
+    payload: dict, reference: dict[str, float], limits: ValidatorLimits, *, against: str
+) -> list[str]:
+    mixture: dict[str, float] = payload.get("mixture") or {}
+    flagged: list[str] = []
+    for team, p in mixture.items():
+        anchor = reference.get(team)
+        if anchor is None:
+            continue
+        scale = min(1.0, anchor / limits.escalation_reference_p) if limits.escalation_reference_p > 0 else 1.0
+        threshold = limits.escalation_threshold_pp * max(scale, 0.05)
+        delta_pp = (p - anchor) * 100
+        if abs(delta_pp) > threshold:
+            flagged.append(f"{team} {delta_pp:+.2f}pp vs {against} (threshold {threshold:.2f}pp)")
+    return flagged
 
-    for override in submission.rating_overrides:
-        label = f"override for {override.team_id}"
-        entries = []
-        for ledger_id in override.ledger_ids:
+
+def _check_weights(submission: ForecastSubmission, ledger: EvidenceLedger) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if submission.scenario_weights:
+        total = sum(w.weight for w in submission.scenario_weights)
+        if not 0.99 <= total <= 1.01:
+            issues.append(_issue("weights_incoherent", f"scenario weights sum to {total:.3f}, not 1"))
+    for weight in submission.scenario_weights:
+        for ledger_id in weight.ledger_ids:
             entry = ledger.get(ledger_id)
             if entry is None:
-                issues.append(_issue("unknown_ledger_id", f"{label} cites unknown ledger id {ledger_id!r}"))
-            else:
-                entries.append(entry)
-        if override.delta_elo == 0.0:
-            continue
-        statuses = {e.status for e in entries}
-        if not entries or statuses <= {"rumour"}:
-            issues.append(
-                _issue(
-                    "uncited_delta",
-                    f"{label} has nonzero delta without a confirmed or probable ledger citation; rumours get zero",
-                )
-            )
-            continue
-        if "confirmed" in statuses:
-            if abs(override.delta_elo) > confirmed_cap:
+                issues.append(_issue("unknown_ledger_id", f"weight {weight.name!r} cites unknown id {ledger_id!r}"))
+            elif entry.status == "rumour":
                 issues.append(
-                    _issue(
-                        "confirmed_cap_exceeded",
-                        f"{label} delta {override.delta_elo:+.1f} exceeds the {confirmed_cap:.0f} Elo confirmed cap",
-                    )
+                    _issue("rumour_cited", f"weight {weight.name!r} cites rumour {ledger_id}; rumours justify nothing")
                 )
-        else:
-            soft_totals[override.team_id] = soft_totals.get(override.team_id, 0.0) + abs(override.delta_elo)
-
-    for team_id, total in soft_totals.items():
-        if total > soft_cap:
-            issues.append(
-                _issue(
-                    "soft_cap_exceeded",
-                    f"soft-evidence deltas for {team_id} total {total:.1f} Elo, above the {soft_cap:.0f} Elo cap",
-                )
-            )
-    return issues
-
-
-def _check_fixture_offsets(submission: ForecastSubmission) -> list[ValidationIssue]:
-    issues: list[ValidationIssue] = []
-    for offset in submission.fixture_offsets:
-        try:
-            date.fromisoformat(offset.expiry)
-        except ValueError:
-            issues.append(
-                _issue("offset_expiry_invalid", f"fixture offset for match {offset.match} needs an ISO date expiry")
-            )
+    for ledger_id in submission.evidence_ids:
+        if ledger.get(ledger_id) is None:
+            issues.append(_issue("unknown_ledger_id", f"evidence_ids cites unknown id {ledger_id!r}"))
     return issues
 
 
@@ -149,22 +180,6 @@ def _check_narrative(submission: ForecastSubmission) -> list[ValidationIssue]:
                 "slot_rationales_incomplete",
                 f"need one rationale per R32 slot ({_R32_SLOT_COUNT}), got {len(rationales)}",
             )
-        )
-    return issues
-
-
-def _check_justifications(submission: ForecastSubmission, limits: ValidatorLimits) -> list[ValidationIssue]:
-    issues: list[ValidationIssue] = []
-    if abs(submission.delta_vs_market) > limits.justification_threshold and not submission.market_justification.strip():
-        issues.append(
-            _issue("market_justification_missing", "delta_vs_market is above threshold and needs justification text")
-        )
-    if (
-        abs(submission.delta_vs_yesterday) > limits.justification_threshold
-        and not submission.change_justification.strip()
-    ):
-        issues.append(
-            _issue("change_justification_missing", "delta_vs_yesterday is above threshold and needs justification text")
         )
     return issues
 

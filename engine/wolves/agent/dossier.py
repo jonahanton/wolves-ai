@@ -79,9 +79,10 @@ def _gaps(deps: AgentDeps) -> str:
     if deps.forecaster is None:
         return ""
     table = model_vs_market(deps.forecaster, deps.settings.runs_root / "odds-archive", n_sims=_DOSSIER_SIMS, seed=0)
+    priced = [c for c in table.comparisons if c.market_p_title is not None][:8]
     rows = "; ".join(
         f"{c.team}: model {c.model_p_title * 100:.1f} vs market {c.market_p_title * 100:.1f} ({c.gap_pp:+.1f}pp)"
-        for c in table.comparisons[:8]
+        for c in priced
     )
     return f"Model vs market, largest gaps: {rows}." if rows else ""
 

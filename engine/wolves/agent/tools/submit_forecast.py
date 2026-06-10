@@ -8,19 +8,37 @@ from wolves.agent.validator import validate_submission
 from wolves.agent_tools.core import ToolSpec
 from wolves.agent_tools.result import ToolError, ToolResult
 
+_BASELINE_SIMS = 50_000
 
-def _tripwire(submission: ForecastSubmission, deps: AgentDeps) -> str | None:
-    threshold = deps.settings.tripwire_threshold
-    reasons: list[str] = []
-    if abs(submission.delta_vs_market) > threshold:
-        reasons.append(f"divergence from market of {submission.delta_vs_market:+.3f}")
-    if abs(submission.delta_vs_yesterday) > threshold:
-        reasons.append(f"day-over-day swing of {submission.delta_vs_yesterday:+.3f}")
-    return " and ".join(reasons) if reasons else None
+
+def _baseline_titles(deps: AgentDeps) -> dict[str, float] | None:
+    if deps.forecaster is None:
+        return None
+    return deps.forecaster.title_probs(n_sims=_BASELINE_SIMS, seed=0)
+
+
+def _previous_titles(deps: AgentDeps) -> dict[str, float] | None:
+    from datetime import date
+
+    from wolves.insights.what_changed import load_latest_snapshot
+
+    if not deps.as_of:
+        return None
+    previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=date.fromisoformat(deps.as_of))
+    if previous is None:
+        return None
+    return {t.team_id: t.champion_prob for t in previous.teams}
 
 
 async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
-    report = validate_submission(args, ledger=deps.ledger, limits=deps.limits)
+    report = validate_submission(
+        args,
+        artifacts=deps.artifacts,
+        ledger=deps.ledger,
+        limits=deps.limits,
+        baseline_titles=_baseline_titles(deps),
+        previous_titles=_previous_titles(deps),
+    )
     if not report.ok:
         deps.submission.validation_failures += 1
         deps.runtime.emit("validation", deps.actor, f"submission rejected: {report.summary()[:200]}")
@@ -32,34 +50,51 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
             ),
         )
 
-    tripped = None if deps.submission.tripwire_fired else _tripwire(args, deps)
-    if tripped is not None:
-        deps.submission.tripwire_fired = True
-        deps.runtime.emit("tripwire", deps.actor, f"tripwire: {tripped}")
+    if report.escalations and not deps.submission.escalation_fired:
+        deps.submission.escalation_fired = True
+        deps.runtime.emit("escalation", deps.actor, f"escalation: {'; '.join(report.escalations)[:200]}")
         return ToolResult(
             payload={
                 "accepted": False,
-                "tripwire": (
-                    f"Tripwire, not a veto: your submission carries a {tripped}. "
-                    "Steelman the opposite case, then call submit_forecast again, "
-                    "either revised or unchanged with your reasoning in the justification text."
+                "escalation": (
+                    "Escalation, not a veto: the artifact moves beyond the threshold vs the frozen baseline "
+                    f"({'; '.join(report.escalations)}). Steelman the opposite case, naming the evidence and "
+                    "the computation behind each move, then call submit_forecast again, revised or unchanged "
+                    "with the steelman in change_justification."
                 ),
             }
         )
+    if report.escalations and not (args.change_justification.strip() and args.evidence_ids):
+        deps.submission.validation_failures += 1
+        deps.runtime.emit("validation", deps.actor, "escalated resubmission without substance rejected")
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="escalation_unsubstantiated",
+                message=(
+                    "A resubmission past the escalation must name its evidence (evidence_ids citing ledger "
+                    "entries) and carry the steelman in change_justification."
+                ),
+            ),
+        )
 
     deps.submission.accepted = args
+    deps.submission.escalations = report.escalations
     deps.runtime.emit("validation", deps.actor, "submission accepted")
-    return ToolResult(payload={"accepted": True})
+    return ToolResult(payload={"accepted": True, "escalations": report.escalations})
 
 
 SPEC = ToolSpec(
     name="submit_forecast",
     description=(
-        "Submit the final forecast. This is the only way to finish the run. The harness validates: "
-        "coherent probabilities; every rating override within caps (confirmed single cause at most 50 Elo, "
-        "soft evidence at most 10 Elo total per team, rumours zero) and citing confirmed or probable ledger ids; "
-        "fixture offsets with ISO expiry dates; the England daily story, one rationale per R32 slot and the "
-        "travel memo, with no em-dashes; and justification text when you diverge from market or yesterday."
+        "Submit the final forecast by ARTIFACT REFERENCE: artifact_id names a computed mixture or "
+        "simulation artifact from this run (wq.scenario_mixture outputs register automatically); "
+        "typed probabilities are never accepted. Carry the named scenario weights with their ledger "
+        "citations, the England daily story, one rationale per R32 slot and the travel memo, no "
+        "em-dashes. Moves beyond the escalation threshold against the frozen baseline trigger one "
+        "steelman pass before acceptance; moves against the previous published forecast need "
+        "change_justification or an explicit inconsistency_note."
     ),
     args_model=ForecastSubmission,
     fn=_submit_forecast,

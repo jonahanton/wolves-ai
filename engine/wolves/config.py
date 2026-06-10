@@ -48,7 +48,6 @@ class Settings(BaseSettings):
     polymarket_leg_weight: float = 1.0
 
     agent_submit_retries: int = 3
-    agent_k_samples: int = 3
 
     graph_max_waves: int = 4
     graph_max_nodes: int = 12
@@ -68,11 +67,13 @@ class Settings(BaseSettings):
 
     market_movement_noise_floor_pp: float = 0.7
 
-    confirmed_delta_cap_elo: float = 50.0
-    soft_delta_cap_elo: float = 10.0
-    justification_threshold: float = 0.05
-    tripwire_threshold: float = 0.10
+    escalation_threshold_pp: float = 2.0
+    escalation_reference_p: float = 0.10
     governor_window: int = 20
+    governor_shrink_weight: float = 0.5
+    extremising_d: float = 1.0
+    scenario_lifecycle_enforcement: str = "soft"
+    agent_evening_debrief: bool = False
 
     agent_run_ceiling_usd: float = 0.25
     agent_run_ceiling_max_usd: float = 1.50

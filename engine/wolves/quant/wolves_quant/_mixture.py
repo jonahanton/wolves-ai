@@ -87,6 +87,15 @@ def scenario_mixture(
     result = {
         "name": name,
         "weights": {key: weight for key, weight, _ in worlds},
+        # World configurations make the published distribution reproducible:
+        # the harness re-simulates each world from these at publish time.
+        "worlds": {
+            key: {
+                "perturbations": [p.model_dump(mode="json") for s in parts for p in s.perturbations],
+                **({"probs": parts[0].probs} if parts[0].probs is not None else {}),
+            }
+            for key, _, parts in worlds
+        },
         "mixture": mixture,
         "conditionals": conditionals,
         "marginals": _marginals(blocks, worlds, conditionals),

@@ -7,11 +7,9 @@ from dataclasses import dataclass
 
 from pydantic_ai.models import Model
 
-from wolves.agent.consensus import median_overrides
-from wolves.agent.contracts import Disagreement, ForecastSubmission, OverrideSample, RatingOverride
+from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
 from wolves.agent.dossier import build_dossier
-from wolves.agent.validator import validate_submission
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import NodeKind, NodeOutcome, NodePatch
@@ -25,12 +23,6 @@ logger = logging.getLogger(__name__)
 _DEMAND_SUBMIT = (
     "Budget or wave limits are nearly exhausted. Stop researching and call submit_forecast now "
     "with your best current forecast; note the pressure in the justification text if it constrained you."
-)
-_EXTRACTION_SYSTEM = (
-    "You are re-deriving the final rating overrides for a World Cup forecast from a finished "
-    "research dossier. Read the ledger evidence and the draft submission, then return the rating "
-    "override set the evidence best supports. Respect the caps: confirmed single cause at most 50 Elo, "
-    "soft evidence at most 10 Elo total per team, rumours zero. Cite the same ledger ids."
 )
 
 
@@ -50,7 +42,7 @@ class GraphModels:
 @dataclass
 class GraphRunResult:
     submission: ForecastSubmission | None
-    disagreement: Disagreement | None
+    escalations: list[str] | None = None
     budget_exhausted: bool = False
     waves: int = 0
     validation_failures: int = 0
@@ -155,63 +147,10 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             outcome = await execute_brief(op, deps=deps, store=store, model=models.nodes["forecast"])
             board.merge([op], [outcome])
 
-        if submission_state.accepted is None:
-            return GraphRunResult(
-                submission=None,
-                disagreement=None,
-                budget_exhausted=budget_exhausted,
-                waves=board.wave,
-                validation_failures=submission_state.validation_failures,
-            )
-
-        submission, disagreement = await _k_sample(deps)
         return GraphRunResult(
-            submission=submission,
-            disagreement=disagreement,
+            submission=submission_state.accepted,
+            escalations=submission_state.escalations or None,
             budget_exhausted=budget_exhausted,
             waves=board.wave,
             validation_failures=submission_state.validation_failures,
         )
-
-
-async def _k_sample(deps: AgentDeps) -> tuple[ForecastSubmission, Disagreement]:
-    """Rerun only the final override extraction over the same dossier and take
-    the per-team median; the spread is the run's disagreement metric."""
-    accepted = deps.submission.accepted
-    assert accepted is not None
-    k = max(1, deps.settings.agent_k_samples)
-    samples: list[list[RatingOverride]] = [accepted.rating_overrides]
-    dossier = _dossier(deps, accepted)
-
-    for _ in range(k - 1):
-        try:
-            sample = await deps.llm.structured(
-                prompt_name="override_extraction",
-                actor="consensus",
-                response_model=OverrideSample,
-                user=dossier,
-                system=_EXTRACTION_SYSTEM,
-                max_tokens=1500,
-                temperature=0.5,
-            )
-        except CapExceeded:
-            logger.warning("k-sample stopped early by cap after %d sample(s)", len(samples))
-            break
-        samples.append(sample.rating_overrides)
-
-    medians, disagreement = median_overrides(samples)
-    candidate = accepted.model_copy(update={"rating_overrides": medians})
-    report = validate_submission(candidate, ledger=deps.ledger, limits=deps.limits)
-    if not report.ok:
-        logger.warning("median override set failed validation (%s); keeping accepted set", report.summary())
-        return accepted, disagreement
-    return candidate, disagreement
-
-
-def _dossier(deps: AgentDeps, accepted: ForecastSubmission) -> str:
-    entries = "\n".join(e.model_dump_json() for e in deps.ledger.all())
-    return (
-        f"Evidence ledger:\n{entries or '(empty)'}\n\n"
-        f"Draft submission:\n{accepted.model_dump_json(indent=1)}\n\n"
-        "Return the final rating override set."
-    )

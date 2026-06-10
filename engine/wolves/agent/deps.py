@@ -9,7 +9,6 @@ from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
 from wolves.agent.scenarios import ScenarioRegistry
-from wolves.agent.sim_runner import SimulationApi
 from wolves.agent.source_memory import SourceMemory
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FixturesClient
@@ -41,7 +40,8 @@ class SubmissionState:
 
     accepted: ForecastSubmission | None = None
     validation_failures: int = 0
-    tripwire_fired: bool = False
+    escalation_fired: bool = False
+    escalations: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -55,7 +55,6 @@ class AgentDeps:
     odds: OddsClient
     polymarket: PolymarketClient
     fixtures: FixturesClient
-    sim: SimulationApi
     ledger: EvidenceLedger
     memory: RunMemory
     quant: ObservedQuant

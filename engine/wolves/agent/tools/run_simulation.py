@@ -6,65 +6,59 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools._shared import reserve_or_refuse
+from wolves.agent.tools._shared import forecaster_or_refuse, reserve_or_refuse
 from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolError, ToolResult
+from wolves.agent_tools.result import ToolResult
+from wolves.forecast import Perturbation
 
 
 class RunSimulationArgs(BaseModel):
-    rating_overrides: dict[str, float] = Field(
-        default_factory=dict, description="team_id to Elo delta, e.g. {'england': 15.0}"
-    )
-    fixture_goal_offsets: dict[str, list[float]] = Field(
-        default_factory=dict, description="match number to [home_goals, away_goals] expected-goal offsets"
-    )
+    perturbations: list[Perturbation] = Field(default_factory=list)
     n_sims: int | None = None
-    seed: int | None = None
+    seed: int = 0
 
 
 async def _run_simulation(args: RunSimulationArgs, deps: AgentDeps) -> ToolResult[Any]:
-    refused = reserve_or_refuse(deps)
+    refused = reserve_or_refuse(deps) or forecaster_or_refuse(deps)
     if refused is not None:
         return refused
-    try:
-        offsets = {int(match): (values[0], values[1]) for match, values in args.fixture_goal_offsets.items()}
-    except (ValueError, IndexError):
-        return ToolResult(
-            ok=False,
-            payload=None,
-            error=ToolError(
-                type="invalid_arguments",
-                message="fixture_goal_offsets must map match numbers to [home, away] pairs",
-            ),
-        )
+    fc = deps.forecaster
+    assert fc is not None
     n_sims = args.n_sims or deps.settings.n_sims
     with deps.runtime.observe(
         kind="quant",
         actor=deps.actor,
         name="run_simulation",
-        input={"rating_overrides": args.rating_overrides, "n_sims": n_sims},
+        input={"perturbations": [p.model_dump(mode="json") for p in args.perturbations], "n_sims": n_sims},
     ) as rec:
         outputs = await asyncio.to_thread(
-            deps.sim.run_simulation,
-            args.rating_overrides,
-            offsets,
-            n_sims,
-            args.seed,
+            lambda: fc.sim_outputs(n_sims=n_sims, seed=args.seed, perturbations=tuple(args.perturbations))
         )
         rec.set_output({"n_sims": outputs.n_sims, "reach_probs": outputs.england.reach_probs})
         rec.note(
-            summary=f"sim {n_sims} runs, {len(args.rating_overrides)} override(s)",
+            summary=f"sim {n_sims} runs, {len(args.perturbations)} perturbation(s)",
             reach_probs=outputs.england.reach_probs,
         )
-    return ToolResult(payload=outputs.model_dump(mode="json"))
+    titles = {t.team_id: t.champion_prob for t in outputs.teams}
+    top = dict(sorted(titles.items(), key=lambda kv: kv[1], reverse=True)[:12])
+    return ToolResult(
+        payload={
+            "title_probs": top,
+            "england": outputs.england.reach_probs,
+            "n_sims": outputs.n_sims,
+            "seed": args.seed,
+        }
+    )
 
 
 SPEC = ToolSpec(
     name="run_simulation",
     description=(
-        "Run the Monte Carlo tournament simulation with your chosen rating overrides (Elo deltas per team) "
-        "and per-fixture expected-goal offsets. Returns England finish/reach probabilities, conditional paths "
-        "and all knockout slot candidate distributions. Run it as often as budget allows; reason with it."
+        "Run the full tournament simulation under typed perturbations (strength, tempo, home "
+        "advantage, per-match rates or outcomes; deltas may carry Normal(mean, sd) magnitude "
+        "uncertainty) and return the top title probabilities and England's reach. Common random "
+        "numbers by seed, so same-seed runs difference cleanly. For multi-world mixtures use "
+        "wq.scenario_mixture in run_python, which also persists a submit-ready artifact."
     ),
     args_model=RunSimulationArgs,
     fn=_run_simulation,

@@ -1,17 +1,15 @@
 """End-to-end offline proof of the graph: a scripted master plans a research
 wave then a forecast node; the validator rejects an invalid submission inside
-the node's own run, the tripwire injects an explain-or-revise turn, the valid
-resubmission passes, and the K-sample median plus event log all work."""
+the node's own run, the valid resubmission by artifact reference passes, and
+the run state (ledger, lessons, journal, events) all lands."""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-import pytest
-
 from tests.conftest import build_submission
-from tests.graph.conftest import build_graph_deps
+from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, NodePatch, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.runner import GraphModels, run_graph
@@ -22,12 +20,7 @@ INVALID = build_submission(
         update={"england_story": "England cruise — nothing to worry about.", "slot_rationales": {"73": "only one"}}
     )
 )
-VALID = build_submission(delta_vs_market=0.12, market_justification="Confirmed keeper news the books have not priced.")
-
-K_SAMPLES = [
-    {"rating_overrides": [{"team_id": "england", "delta_elo": 21.0, "cause": "keeper", "ledger_ids": ["led-0001"]}]},
-    {"rating_overrides": [{"team_id": "england", "delta_elo": 9.0, "cause": "keeper", "ledger_ids": ["led-0001"]}]},
-]
+VALID = build_submission(market_justification="Confirmed keeper news the books have not priced.")
 
 RESEARCH = scripted_model(
     [
@@ -53,19 +46,17 @@ RESEARCH = scripted_model(
 FORECAST = scripted_model(
     [
         [("ledger_query", {"team_id": "england"})],
-        [("run_simulation", {"rating_overrides": {"england": 15.0}, "n_sims": 300, "seed": 1})],
-        [("write_journal", {"text": "Checked keeper news, ran sim.", "lessons": "Anchor on odds before news."})],
+        [("write_journal", {"text": "Checked keeper news.", "lessons": "Anchor on odds before news."})],
         [("submit_forecast", INVALID.model_dump())],
         [("submit_forecast", VALID.model_dump())],
-        [("submit_forecast", VALID.model_dump())],
-        ForecastOutput(summary="Submitted after fixing the rationales and answering the tripwire."),
+        ForecastOutput(summary="Submitted by artifact reference after fixing the rationales."),
     ],
     model_name="forecast",
 )
 
 
 def _forecast_wave(prompt: str) -> GraphPatch:
-    artifact_ids = sorted(set(re.findall(r"evidence-[0-9a-f]{8}", prompt)))
+    artifact_ids = sorted(set(re.findall(r"(?:evidence|mixture)-\d{3}", prompt)))
     return GraphPatch(
         ops=[
             NodePatch(
@@ -80,7 +71,21 @@ def _forecast_wave(prompt: str) -> GraphPatch:
 
 
 async def test_full_graph_run(tmp_path: Path):
-    deps = build_graph_deps(tmp_path, structured=list(K_SAMPLES), run_id="e2e-run")
+    deps = build_graph_deps(tmp_path, run_id="e2e-run")
+    deps.artifacts = build_run_store(tmp_path, run_id="e2e-run")
+    deps.artifacts.add(
+        kind="mixture",
+        created_by="quant-saka",
+        summary="saka mixture",
+        payload={
+            "weights": {"plays": 0.6, "out": 0.4},
+            "worlds": {
+                "plays": {"perturbations": []},
+                "out": {"perturbations": [{"team": "england", "delta": -0.1, "reason": "saka out"}]},
+            },
+            "mixture": {"england": 0.066, "rest": 0.934},
+        },
+    )
     master = scripted_model(
         [
             GraphPatch(ops=[NodePatch(node_id="research-keeper", kind="research", objective="keeper", brief="...")]),
@@ -105,12 +110,7 @@ async def test_full_graph_run(tmp_path: Path):
     assert not result.budget_exhausted
     assert result.validation_failures == 1
     assert result.waves == 2
-
-    by_team = {o.team_id: o.delta_elo for o in result.submission.rating_overrides}
-    assert by_team == {"england": 15.0}
-    assert result.disagreement is not None
-    assert result.disagreement.k == 3
-    assert result.disagreement.max_spread == pytest.approx(12.0)
+    assert result.submission.artifact_id == "mixture-001"
 
     assert deps.ledger.get("led-0001") is not None
     assert "Anchor on odds" in deps.settings.lessons_path.read_text()
@@ -118,7 +118,7 @@ async def test_full_graph_run(tmp_path: Path):
 
     events = EventLog.read(deps.runtime.paths.events)
     kinds = {e.kind for e in events}
-    assert {"web_search", "quant", "ledger", "validation", "tripwire", "journal"} <= kinds
+    assert {"web_search", "ledger", "validation", "journal"} <= kinds
     summaries = [e.summary for e in events if e.kind == "validation"]
     assert any("rejected" in s for s in summaries)
     assert any("accepted" in s for s in summaries)
