@@ -1,0 +1,52 @@
+repos:
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.15.16
+  hooks:
+    - id: ruff-check
+      types_or: [python, pyi]
+      args: [--fix]
+    - id: ruff-format
+      types_or: [python, pyi]
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+    - id: check-added-large-files
+      args: ['--maxkb=1000']
+    - id: check-ast
+    - id: check-yaml
+
+- repo: https://github.com/Yelp/detect-secrets
+  rev: v1.5.0
+  hooks:
+    - id: detect-secrets
+      args:
+        - '--baseline'
+        - '.secrets.baseline'
+        # .env files are never committed; excluded so the scanner cannot
+        # print their contents into a baseline or hook failure message.
+        - '--exclude-files'
+        - '(^|/)\.env(\..*)?$'
+        # Machine-generated integrity hashes trip the high-entropy scanner.
+        - '--exclude-files'
+        - 'package-lock\.json$'
+
+- repo: https://github.com/PyCQA/bandit
+  rev: 1.8.3
+  hooks:
+    - id: bandit
+      # B101 assert is used for invariants and in tests; B311 random is
+      # retry jitter and Monte Carlo seeding, never key material.
+      args: ['--skip', 'B101,B311']
+      exclude: ^(engine|backend)/tests/
+
+- repo: local
+  hooks:
+    - id: npm-audit
+      name: npm audit (web)
+      entry: bash -c "cd web && npm audit --audit-level=high"
+      language: system
+      pass_filenames: false
+      # Scoped to web changes: the hook needs the npm registry, so it must not
+      # block offline commits that never touched the frontend.
+      files: ^web/

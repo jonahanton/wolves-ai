@@ -4,7 +4,7 @@ import socket
 
 import pytest
 
-from wolves.clients.fetch._ssrf import SSRFBlocked, check, check_url
+from wolves.connectors._ssrf import SSRFBlocked, check, check_url
 
 
 def _resolver(*ips: str):
@@ -27,14 +27,14 @@ def _resolver(*ips: str):
     ],
 )
 def test_rejects_hosts_resolving_to_blocked_addresses(ip, monkeypatch):
-    monkeypatch.setattr("wolves.clients.fetch._ssrf.socket.getaddrinfo", _resolver(ip))
+    monkeypatch.setattr("wolves.connectors._ssrf.socket.getaddrinfo", _resolver(ip))
     with pytest.raises(SSRFBlocked):
         check("https://h.example/x")
 
 
 def test_rejects_when_any_resolved_record_is_private(monkeypatch):
     monkeypatch.setattr(
-        "wolves.clients.fetch._ssrf.socket.getaddrinfo",
+        "wolves.connectors._ssrf.socket.getaddrinfo",
         _resolver("93.184.216.34", "10.0.0.1"),
     )
     with pytest.raises(SSRFBlocked):
@@ -59,7 +59,7 @@ def test_rejects_malformed_or_non_http_urls(url):
 
 @pytest.mark.parametrize("host", ["localhost", "printer.local"])
 def test_rejects_local_hostnames_before_dns(host, monkeypatch):
-    monkeypatch.setattr("wolves.clients.fetch._ssrf.socket.getaddrinfo", _resolver("93.184.216.34"))
+    monkeypatch.setattr("wolves.connectors._ssrf.socket.getaddrinfo", _resolver("93.184.216.34"))
     with pytest.raises(SSRFBlocked, match="local"):
         check(f"http://{host}/x")
 
@@ -68,6 +68,6 @@ def test_rejects_on_dns_failure(monkeypatch):
     def _raise(*_a, **_kw):
         raise socket.gaierror("nope")
 
-    monkeypatch.setattr("wolves.clients.fetch._ssrf.socket.getaddrinfo", _raise)
+    monkeypatch.setattr("wolves.connectors._ssrf.socket.getaddrinfo", _raise)
     with pytest.raises(SSRFBlocked):
         check("https://no-such-host.example/x")

@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 
 from pydantic import BaseModel
 
+_UNSAFE = re.compile(r"[^A-Za-z0-9_-]")
+
 
 def content_hash(data: bytes) -> str:
     return "sha256:" + hashlib.sha256(data).hexdigest()[:16]
+
+
+def _safe_dir_name(node_id: str) -> str:
+    """Node ids are LLM-authored; collapse them to a slug so no id can traverse
+    out of the quant root (e.g. ``..`` or an absolute path)."""
+    return _UNSAFE.sub("_", node_id) or "node"
 
 
 class WorkspaceArtifact(BaseModel):
@@ -27,8 +36,7 @@ class QuantWorkspace:
     """
 
     def __init__(self, quant_root: Path, node_id: str) -> None:
-        safe = node_id.replace("/", "_")
-        self.dir = quant_root / safe
+        self.dir = quant_root / _safe_dir_name(node_id)
         self.inputs = self.dir / "inputs"
         self.outputs = self.dir / "outputs"
         for d in (self.dir, self.inputs, self.outputs):

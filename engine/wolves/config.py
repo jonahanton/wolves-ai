@@ -28,10 +28,8 @@ class Settings(BaseSettings):
 
     odds_api_key: str = ""
     api_football_key: str = ""
-    football_data_api_key: str = ""
 
     data_dir: Path = REPO_ROOT / "data"
-    snapshot_dir: Path = REPO_ROOT / "runs"
     n_sims: int = 10_000
 
     aws_region: str = "eu-west-2"
@@ -45,7 +43,6 @@ class Settings(BaseSettings):
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
 
-    market_blend_lambda: float = 0.3
     bookmaker_leg_weight: float = 1.0
     polymarket_leg_weight: float = 1.0
 

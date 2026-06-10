@@ -68,8 +68,9 @@ resource "aws_ecs_task_definition" "daily" {
       environment = [
         { name = "AWS_REGION", value = var.region },
         { name = "SNAPSHOT_BUCKET", value = aws_s3_bucket.snapshots.bucket },
+        { name = "AGENT_STATE_BUCKET", value = aws_s3_bucket.snapshots.bucket },
         { name = "DYNAMO_TABLE", value = aws_dynamodb_table.forecaster.name },
-        { name = "SNAPSHOT_DIR", value = "/tmp/runs" },
+        { name = "RUNS_ROOT", value = "/tmp/runs" },
       ]
       logConfiguration = {
         logDriver = "awslogs"

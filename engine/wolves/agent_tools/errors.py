@@ -10,7 +10,3 @@ class ToolTimeoutError(AgentToolError):
         super().__init__(f"{tool_name} timed out after {timeout_seconds:.0f}s")
         self.tool_name = tool_name
         self.timeout_seconds = timeout_seconds
-
-
-class ToolDispatchError(AgentToolError):
-    pass

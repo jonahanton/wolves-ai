@@ -17,7 +17,7 @@ AS_OF = date(2026, 6, 17)
 
 
 def _settings(tmp_path, **overrides) -> Settings:
-    return Settings(snapshot_dir=tmp_path / "runs", aws_region=REGION, dynamo_table=TABLE, **overrides)
+    return Settings(runs_root=tmp_path / "runs", aws_region=REGION, dynamo_table=TABLE, **overrides)
 
 
 @mock_aws
