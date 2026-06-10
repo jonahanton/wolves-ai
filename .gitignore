@@ -23,5 +23,8 @@ out/
 # Run artefacts
 runs/
 
+# Purchased odds snapshots: local + S3 only, never git
+data/odds/
+
 # Docs
 docs/
