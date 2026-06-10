@@ -156,7 +156,7 @@ def _hessian(params: np.ndarray, data: _FitData) -> np.ndarray:
 
 
 class PoissonDecayModel:
-    """The v2 champion candidate behind the MatchModel contract."""
+    """Time-decayed one-strength Poisson behind the MatchModel contract."""
 
     model_id = MODEL_ID
     version = MODEL_VERSION

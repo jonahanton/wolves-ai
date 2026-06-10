@@ -72,4 +72,10 @@ def strengths_matching_outright(
         strengths = state.strengths.copy()
         strengths[param_idx] += offsets
         adjusted = replace(state, strengths=strengths)
+    else:
+        logger.warning(
+            "inverse simulation did not converge in %d iterations; max log gap %.3f",
+            iterations,
+            float(np.abs(gap).max()),
+        )
     return adjusted, {team.id: float(offsets[i]) for i, team in enumerate(fmt.teams)}

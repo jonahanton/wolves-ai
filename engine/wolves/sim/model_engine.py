@@ -43,7 +43,8 @@ class PoissonMatchEngine:
         mean = np.concatenate([state.strengths, [state.globals_["intercept"], state.globals_["home_adv"]]])
         n_params = mean.shape[0]
         if state.covariance is not None:
-            draws = rng.multivariate_normal(mean, state.covariance, size=self._draws, method="cholesky")
+            # svd tolerates the near-singular pinv covariance where cholesky would raise.
+            draws = rng.multivariate_normal(mean, state.covariance, size=self._draws, method="svd")
         else:
             draws = np.tile(mean, (self._draws, 1))
         world_draw = np.arange(n_sims) % self._draws
