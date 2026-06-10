@@ -20,6 +20,7 @@ def _fake_aws_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
     monkeypatch.setenv("AWS_DEFAULT_REGION", "eu-west-2")
     monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.setenv("STORAGE_MODE", "local")
 
 
 R32_MATCHES = [str(m) for m in range(73, 89)]
@@ -96,7 +97,7 @@ def fixture_dataset(tmp_path_factory) -> DatasetHandle:
     out_dir = tmp_path_factory.mktemp("dataset")
     write_dataset(
         out_dir,
-        version="test",
+        dataset_id="test",
         tables={
             "matches": pd.DataFrame(_round_robin_rows()),
             "teams": _frame([TeamRecord(team=t) for t in TEAMS], TeamRecord),
@@ -106,4 +107,4 @@ def fixture_dataset(tmp_path_factory) -> DatasetHandle:
         },
         hashes={},
     )
-    return DatasetHandle(path=out_dir / "wolves-data-test.duckdb", version="test")
+    return DatasetHandle(path=out_dir / "wolves-data-test.duckdb", dataset_id="test")

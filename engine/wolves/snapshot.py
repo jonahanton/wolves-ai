@@ -186,7 +186,7 @@ class ChampionBlock(BaseModel):
 
     id: str
     version: str
-    dataset_version: str
+    dataset_id: str
     half_life_days: float | None = None
     blend_weight: float = 0.0
 

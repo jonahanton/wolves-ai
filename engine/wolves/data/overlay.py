@@ -18,7 +18,7 @@ def overlay_results(dataset: DatasetHandle, records: list[MatchRecord], *, dest_
     if not records:
         return dataset
     dest_dir.mkdir(parents=True, exist_ok=True)
-    version = f"{dataset.version}+{len(records)}r"
+    version = f"{dataset.dataset_id}+{len(records)}r"
     dest = dest_dir / f"wolves-data-{version}.duckdb"
     shutil.copyfile(dataset.path, dest)
     connection = duckdb.connect(str(dest))
@@ -41,4 +41,4 @@ def overlay_results(dataset: DatasetHandle, records: list[MatchRecord], *, dest_
         )
     finally:
         connection.close()
-    return DatasetHandle(path=dest, version=version)
+    return DatasetHandle(path=dest, dataset_id=version)

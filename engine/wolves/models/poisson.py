@@ -268,7 +268,7 @@ class PoissonDecayModel:
         return FittedState(
             model_id=self.model_id,
             version=self.version,
-            dataset_version=dataset.version,
+            dataset_id=dataset.dataset_id,
             as_of=as_of,
             teams=data.teams,
             strengths=strengths,

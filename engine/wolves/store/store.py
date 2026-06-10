@@ -12,7 +12,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import BotoCoreError, ClientError
 
-from wolves.clients.s3 import S3Client
+from wolves.store.artifacts import ArtifactStore
 from wolves.store.records import RunRecord, RunStatus
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 RUN_PK = "RUN"
 CONTROL_PK = "CONTROL"
 RUN_ENABLED_SK = "run_enabled"
-LATEST_KEY = "latest.json"
+LATEST_KEY = "snapshots/latest.json"
 
 
 class RunIndexUnavailableError(Exception):
@@ -44,17 +44,18 @@ def snapshot_key(as_of: date, run_id: str) -> str:
 
 
 class SnapshotStore:
-    """Write snapshots to S3: an immutable dated key plus a latest.json pointer."""
+    """Write snapshots wherever storage is configured: an immutable dated key
+    plus the latest.json pointer."""
 
-    def __init__(self, *, bucket: str, region: str) -> None:
-        self._s3 = S3Client(bucket=bucket, region=region)
+    def __init__(self, artifacts: ArtifactStore) -> None:
+        self._artifacts = artifacts
 
     def put_snapshot(self, snapshot: Snapshot, *, as_of: date) -> str:
-        """Upload the snapshot and repoint latest.json; return the dated key."""
+        """Persist the snapshot and repoint latest.json; return the dated key."""
         key = snapshot_key(as_of, snapshot.run.run_id)
         body = snapshot.model_dump_json()
         for target in (key, LATEST_KEY):
-            self._s3.put_text(target, body, content_type="application/json")
+            self._artifacts.put_text(target, body)
         return key
 
 

@@ -29,7 +29,7 @@ def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapsh
     baseline: Snapshot | None = None
     if not snapshot_dir.exists():
         return None, None
-    for path in snapshot_dir.glob("*.json"):
+    for path in snapshot_dir.rglob("*.json"):
         if path.name == "latest.json":
             continue
         try:
@@ -95,7 +95,7 @@ def score_resolved_matches(
 def score_yesterday(settings: Settings, *, as_of: str, run_id: str) -> str:
     """Score forecasts that resolved since the previous run and append the
     scorecard to LESSONS.md; return the summary (empty when nothing scored)."""
-    previous, baseline = load_previous_snapshots(settings.runs_root, before=date.fromisoformat(as_of))
+    previous, baseline = load_previous_snapshots(settings.runs_root / "snapshots", before=date.fromisoformat(as_of))
     if previous is None:
         return ""
     ledger = CalibrationLedger(settings.calibration_path)

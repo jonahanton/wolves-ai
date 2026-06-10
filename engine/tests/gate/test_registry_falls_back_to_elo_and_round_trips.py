@@ -14,7 +14,7 @@ def test_promote_then_load_round_trips(tmp_path) -> None:
     record = ChampionRecord(
         model_id="poisson-decay",
         model_version="abc123",
-        dataset_version="v1",
+        dataset_id="v1",
         half_life_days=913.0,
         blend_weight=0.24,
         promoted_at="2026-06-10T12:00:00+00:00",

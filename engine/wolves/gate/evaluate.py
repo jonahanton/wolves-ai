@@ -51,8 +51,8 @@ def main() -> None:
     parser.add_argument("--promote", action="store_true", help="write the champion record on completion")
     args = parser.parse_args()
 
-    path, _ = DatasetStore(settings).fetch(version=settings.dataset_version)
-    dataset = DatasetHandle(path=path, version=settings.dataset_version)
+    path, manifest = DatasetStore(settings).fetch()
+    dataset = DatasetHandle(path=path, dataset_id=manifest.dataset_id)
     model = PoissonDecayModel()
     report = evaluate_poisson(dataset)
     logger.info("gate report: %s", report.model_dump_json(indent=2))
@@ -62,7 +62,7 @@ def main() -> None:
     record = ChampionRecord(
         model_id=model.model_id,
         model_version=model.version,
-        dataset_version=dataset.version,
+        dataset_id=dataset.dataset_id,
         half_life_days=model.half_life_days,
         blend_weight=report.blend_weight,
         promoted_at=datetime.now(UTC).isoformat(timespec="seconds"),

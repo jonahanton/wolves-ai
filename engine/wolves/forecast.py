@@ -136,8 +136,8 @@ class Forecaster:
     def dataset(self) -> DatasetHandle:
         """Resolved lazily so champion-free paths never touch the dataset store."""
         if self._dataset is None:
-            path, _ = DatasetStore(self._settings).fetch(version=self._settings.dataset_version)
-            self._dataset = DatasetHandle(path=path, version=self._settings.dataset_version)
+            path, manifest = DatasetStore(self._settings).fetch()
+            self._dataset = DatasetHandle(path=path, dataset_id=manifest.dataset_id)
         return self._dataset
 
     def fit(self, *, as_of: date | None = None, extra_results: list[MatchRecord] | None = None) -> FittedState:

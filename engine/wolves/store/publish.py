@@ -11,6 +11,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from wolves.store.artifacts import ArtifactStore
 from wolves.store.records import RunRecord, RunStatus
 from wolves.store.store import RunIndex, RunIndexUnavailableError, SnapshotStore
 
@@ -24,23 +25,15 @@ logger = logging.getLogger(__name__)
 
 
 def build_run_index(settings: Settings) -> RunIndex | None:
-    """Construct the run index when cloud config is present: a snapshot bucket
+    """Construct the run index when cloud config is present: cloud storage on
     (production) or an explicit local DynamoDB endpoint (dev stack)."""
-    if not settings.snapshot_bucket and not settings.dynamo_endpoint:
+    if settings.storage_mode == "local" and not settings.dynamo_endpoint:
         return None
     return RunIndex(
         table_name=settings.dynamo_table,
         region=settings.aws_region,
         endpoint_url=settings.dynamo_endpoint or None,
     )
-
-
-def write_local_snapshot(settings: Settings, snapshot: Snapshot) -> None:
-    """Write the dated snapshot file and repoint latest.json locally."""
-    payload = snapshot.model_dump_json(indent=1)
-    settings.runs_root.mkdir(parents=True, exist_ok=True)
-    (settings.runs_root / f"{snapshot.run.run_id}.json").write_text(payload)
-    (settings.runs_root / "latest.json").write_text(payload)
 
 
 class SnapshotPublisher:
@@ -60,12 +53,9 @@ class SnapshotPublisher:
             return True
 
     def publish(self, snapshot: Snapshot, *, as_of: date, started: float) -> str:
-        """Publish the snapshot everywhere configured; return the S3 key ('' locally)."""
-        write_local_snapshot(self._settings, snapshot)
-        s3_key = ""
-        if self._settings.snapshot_bucket:
-            store = SnapshotStore(bucket=self._settings.snapshot_bucket, region=self._settings.aws_region)
-            s3_key = store.put_snapshot(snapshot, as_of=as_of)
+        """Publish the snapshot everywhere configured; return the dated key."""
+        store = SnapshotStore(ArtifactStore(self._settings))
+        s3_key = store.put_snapshot(snapshot, as_of=as_of)
         self._record(
             run_id=snapshot.run.run_id,
             created_at=snapshot.run.created_at,

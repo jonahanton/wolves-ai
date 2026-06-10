@@ -34,7 +34,7 @@ def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, dict[str, float
     newest_agent: Snapshot | None = None
     if not snapshot_dir.exists():
         return None, {}
-    for path in snapshot_dir.glob("*.json"):
+    for path in snapshot_dir.rglob("*.json"):
         if path.name == "latest.json":
             continue
         try:
@@ -82,7 +82,7 @@ async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int
 
     fmt = load_format(settings.data_dir)
     overlay = results_from_fixtures(fmt, await fixtures.fixtures())
-    previous, overrides = scan_snapshots(settings.runs_root)
+    previous, overrides = scan_snapshots(settings.runs_root / "snapshots")
     pending = pending_results(
         overlay,
         file_results=load_results(settings.data_dir),

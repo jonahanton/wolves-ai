@@ -66,7 +66,7 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
         champion = ChampionBlock(
             id=forecaster.champion.model_id,
             version=forecaster.champion.model_version,
-            dataset_version=forecaster.champion.dataset_version,
+            dataset_id=forecaster.champion.dataset_id,
             half_life_days=forecaster.champion.half_life_days,
             blend_weight=forecaster.champion.blend_weight,
         )

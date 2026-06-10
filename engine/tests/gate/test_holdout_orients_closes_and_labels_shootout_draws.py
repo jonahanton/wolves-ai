@@ -85,11 +85,11 @@ def dataset(tmp_path) -> DatasetHandle:
     out = tmp_path
     write_dataset(
         out,
-        version="t",
+        dataset_id="t",
         tables={"matches": matches, "shootouts": shootouts, "market_closes": closes, "match_odds": match_odds},
         hashes={},
     )
-    return DatasetHandle(path=out / "wolves-data-t.duckdb", version="t")
+    return DatasetHandle(path=out / "wolves-data-t.duckdb", dataset_id="t")
 
 
 def test_flipped_closes_reorient_and_shootouts_label_as_draws(dataset) -> None:

@@ -1,10 +1,8 @@
-"""Build the versioned research dataset: one DuckDB file plus parquet mirrors,
-described by a manifest with source hashes so runs can pin exactly what they
-fitted on."""
+"""Build the research dataset: one DuckDB file plus parquet mirrors, named by
+a digest of its source hashes so runs pin exactly what they fitted on."""
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import hashlib
 import logging
@@ -23,6 +21,7 @@ from wolves.data.sources import elo_history, football_data, market_closes, martj
 from wolves.data.sources.elo_history import EloHistoryRecord
 from wolves.data.sources.market_closes import ClosingOddsRecord, OutrightCloseRecord
 from wolves.data.sources.registry import build_team_dimension
+from wolves.data.store import DatasetStore, dataset_filename, dataset_id_from_hashes
 from wolves.observability.logging import configure_cli_logging
 
 logger = logging.getLogger(__name__)
@@ -39,10 +38,6 @@ def latest_elo_tsv(ratings_dir: Path) -> Path:
     if not candidates:
         raise RatingsSnapshotMissingError(ratings_dir)
     return candidates[-1]
-
-
-def dataset_filename(version: str) -> str:
-    return f"wolves-data-{version}.duckdb"
 
 
 def _frame[T: BaseModel](records: list[T], model: type[T]) -> pd.DataFrame:
@@ -67,10 +62,11 @@ def _dir_sha256(directory: Path) -> str:
 
 
 def write_dataset(
-    out_dir: Path, *, version: str, tables: dict[str, pd.DataFrame], hashes: dict[str, str]
+    out_dir: Path, *, tables: dict[str, pd.DataFrame], hashes: dict[str, str], dataset_id: str | None = None
 ) -> DatasetManifest:
+    dataset_id = dataset_id or dataset_id_from_hashes(hashes)
     out_dir.mkdir(parents=True, exist_ok=True)
-    db_path = out_dir / dataset_filename(version)
+    db_path = out_dir / dataset_filename(dataset_id)
     db_path.unlink(missing_ok=True)
     parquet_dir = out_dir / "parquet"
     parquet_dir.mkdir(exist_ok=True)
@@ -86,19 +82,19 @@ def write_dataset(
         connection.close()
 
     manifest = DatasetManifest(
-        version=version,
+        dataset_id=dataset_id,
         built_at=datetime.now(UTC).isoformat(timespec="seconds"),
         engine_version=ENGINE_VERSION,
         tables={name: len(frame) for name, frame in tables.items()},
         source_hashes=hashes,
     )
-    (out_dir / f"{dataset_filename(version)}.manifest.json").write_text(
+    (out_dir / f"{dataset_filename(dataset_id)}.manifest.json").write_text(
         manifest.model_dump_json(indent=2), encoding="utf-8"
     )
     return manifest
 
 
-async def build_dataset(settings: Settings, *, version: str, out_dir: Path) -> DatasetManifest:
+async def build_dataset(settings: Settings, *, out_dir: Path) -> DatasetManifest:
     async with httpx.AsyncClient(timeout=60.0) as client:
         results_text = await martj42.fetch(martj42.RESULTS_URL, client=client)
         shootouts_text = await martj42.fetch(martj42.SHOOTOUTS_URL, client=client)
@@ -116,7 +112,6 @@ async def build_dataset(settings: Settings, *, version: str, out_dir: Path) -> D
 
     manifest = write_dataset(
         out_dir,
-        version=version,
         tables={
             "matches": _frame(matches, MatchRecord),
             "shootouts": _frame(shootouts, ShootoutRecord),
@@ -134,24 +129,17 @@ async def build_dataset(settings: Settings, *, version: str, out_dir: Path) -> D
             "market_closes": _dir_sha256(closes_dir),
         },
     )
-    logger.info("dataset %s built: %s", version, manifest.tables)
+    logger.info("dataset %s built: %s", manifest.dataset_id, manifest.tables)
     return manifest
 
 
 def main() -> None:
     configure_cli_logging()
     settings = Settings()
-    parser = argparse.ArgumentParser(description="Build the research dataset")
-    parser.add_argument("--publish", action="store_true", help="upload the built dataset to S3")
-    args = parser.parse_args()
     out_dir = settings.runs_root / "datasets"
-    manifest = asyncio.run(build_dataset(settings, version=settings.dataset_version, out_dir=out_dir))
+    manifest = asyncio.run(build_dataset(settings, out_dir=out_dir))
     logger.info("manifest: %s", manifest.model_dump_json())
-    if args.publish:
-        # Imported here because store depends on this module for the filename scheme.
-        from wolves.data.store import DatasetStore
-
-        DatasetStore(settings).publish(out_dir, version=settings.dataset_version)
+    DatasetStore(settings).publish(out_dir, manifest)
 
 
 if __name__ == "__main__":
