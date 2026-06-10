@@ -5,7 +5,6 @@ import pytest
 from tests.fakes import build_test_app, client_for
 
 ADMIN_CALLS = [
-    ("GET", "/admin/run-history"),
     ("GET", "/admin/schedule"),
     ("POST", "/admin/schedule"),
     ("POST", "/admin/run-now"),

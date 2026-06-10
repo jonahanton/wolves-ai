@@ -9,14 +9,15 @@ from typing import Any
 import httpx
 from botocore.exceptions import ClientError
 
+from wolves_backend.clients.bucket import Bucket
 from wolves_backend.clients.engine_tasks import EngineTasks
 from wolves_backend.clients.run_index import RunIndex
 from wolves_backend.clients.run_schedule import RunSchedule
-from wolves_backend.clients.snapshot_bucket import SnapshotBucket
 from wolves_backend.config import Settings
 from wolves_backend.deps import Deps
 from wolves_backend.main import create_app
 from wolves_backend.snapshots import SnapshotSource
+from wolves_backend.storage import Storage
 
 
 class FakeBody:
@@ -27,6 +28,14 @@ class FakeBody:
         return self._content.encode("utf-8")
 
 
+class FakePaginator:
+    def __init__(self, objects: dict[str, str]) -> None:
+        self._objects = objects
+
+    def paginate(self, *, Bucket: str, Prefix: str) -> Any:
+        yield {"Contents": [{"Key": key} for key in sorted(self._objects) if key.startswith(Prefix)]}
+
+
 class FakeS3Client:
     def __init__(self, objects: dict[str, str] | None = None) -> None:
         self.objects = objects or {}
@@ -35,6 +44,9 @@ class FakeS3Client:
         if Key not in self.objects:
             raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
         return {"Body": FakeBody(self.objects[Key])}
+
+    def get_paginator(self, name: str) -> FakePaginator:
+        return FakePaginator(self.objects)
 
 
 class FakeDynamoTable:
@@ -89,7 +101,7 @@ class FakeEcsClient:
 
 def build_test_app(
     *,
-    snapshot_dir: Path | None = None,
+    storage_dir: Path | None = None,
     s3: FakeS3Client | None = None,
     dynamo: FakeDynamoTable | None = None,
     scheduler: FakeSchedulerClient | None = None,
@@ -102,14 +114,16 @@ def build_test_app(
         environment=environment,
         admin_dev_bypass=admin_dev_bypass,
         bucket="test-bucket" if s3 is not None else "",
-        snapshot_dir=snapshot_dir or Path("/nonexistent"),
+        storage_dir=storage_dir or Path("/nonexistent"),
         ecs_subnets="subnet-1,subnet-2",
         ecs_security_group="sg-1",
         ecs_cluster_arn="arn:aws:ecs:eu-west-2:000000000000:cluster/wolves",
     )
-    bucket = SnapshotBucket(bucket="test-bucket", region="eu-west-2", client=s3) if s3 is not None else None
+    bucket = Bucket(bucket="test-bucket", region="eu-west-2", client=s3) if s3 is not None else None
+    storage = Storage(bucket=bucket, local_dir=settings.storage_dir)
     deps = Deps(
-        snapshots=SnapshotSource(bucket=bucket, local_dir=settings.snapshot_dir),
+        storage=storage,
+        snapshots=SnapshotSource(storage),
         run_index=RunIndex(table_name="t", region="eu-west-2", table=dynamo or FakeDynamoTable()),
         schedule=RunSchedule(
             schedule_name="wolves-daily-run", region="eu-west-2", client=scheduler or FakeSchedulerClient()

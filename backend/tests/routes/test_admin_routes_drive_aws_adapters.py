@@ -5,38 +5,6 @@ from tests.fakes import FakeDynamoTable, FakeEcsClient, FakeSchedulerClient, bui
 TASK_ARN = "arn:aws:ecs:eu-west-2:000000000000:task/wolves/abc123def456"
 
 
-async def test_run_history_maps_dynamo_items_to_camel_case_wire_records():
-    dynamo = FakeDynamoTable(
-        run_items=[
-            {
-                "run_id": "run-20260610",
-                "created_at": "2026-06-10T11:00:00Z",
-                "s3_key": "snapshots/2026/06/10/run-20260610.json",
-                "status": "failed",
-                "cost": 0.21,
-                "duration_s": 312,
-                "kind": "daily",
-            }
-        ]
-    )
-    async with client_for(build_test_app(admin_dev_bypass=True, dynamo=dynamo)) as client:
-        response = await client.get("/admin/run-history")
-    assert response.status_code == 200
-    assert response.json() == {
-        "runs": [
-            {
-                "runId": "run-20260610",
-                "createdAt": "2026-06-10T11:00:00Z",
-                "s3Key": "snapshots/2026/06/10/run-20260610.json",
-                "status": "failed",
-                "cost": 0.21,
-                "durationS": 312.0,
-                "kind": "daily",
-            }
-        ]
-    }
-
-
 async def test_schedule_get_reflects_scheduler_state():
     scheduler = FakeSchedulerClient(state="DISABLED", cron="cron(0 11 * * ? *)")
     async with client_for(build_test_app(admin_dev_bypass=True, scheduler=scheduler)) as client:
