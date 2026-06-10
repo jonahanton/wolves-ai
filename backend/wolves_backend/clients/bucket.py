@@ -12,8 +12,8 @@ from botocore.exceptions import BotoCoreError, ClientError
 from wolves_backend.errors import UpstreamError
 
 
-class SnapshotBucket:
-    """Read-only access to published snapshots in S3."""
+class Bucket:
+    """Read-only access to engine artifacts in S3."""
 
     def __init__(self, *, bucket: str, region: str, client: Any | None = None) -> None:
         self._bucket = bucket
@@ -30,3 +30,12 @@ class SnapshotBucket:
         except BotoCoreError as exc:
             raise UpstreamError("s3", str(exc)) from exc
         return response["Body"].read().decode("utf-8")
+
+    def list_keys(self, prefix: str) -> list[str]:
+        """List object keys under a prefix, sorted."""
+        try:
+            paginator = self._client.get_paginator("list_objects_v2")
+            pages = paginator.paginate(Bucket=self._bucket, Prefix=prefix)
+            return sorted(obj["Key"] for page in pages for obj in page.get("Contents", []))
+        except (ClientError, BotoCoreError) as exc:
+            raise UpstreamError("s3", str(exc)) from exc

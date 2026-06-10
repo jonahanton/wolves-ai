@@ -28,6 +28,55 @@ class RunHistory(WireModel):
     runs: list[RunRecord]
 
 
+class SnapshotRef(WireModel):
+    run_id: str
+    as_of: str
+    kind: str
+    key: str
+
+
+class SnapshotIndex(WireModel):
+    snapshots: list[SnapshotRef]
+
+
+class EventsSummary(WireModel):
+    count: int
+    kinds: dict[str, int]
+    first_ts: str | None
+    last_ts: str | None
+
+
+class ArtifactRecord(WireModel):
+    id: str
+    kind: str
+    summary: str
+    created_at: str
+    created_by: str
+
+
+class RunDetail(WireModel):
+    record: RunRecord | None
+    has_journal: bool
+    events: EventsSummary | None
+    artifacts: list[ArtifactRecord]
+
+
+class TeamHistoryPoint(WireModel):
+    run_id: str
+    as_of: str
+    champion_prob: float
+    reach_probs: dict[str, float]
+
+
+class TeamHistory(WireModel):
+    team_id: str
+    points: list[TeamHistoryPoint]
+
+
+class OddsDates(WireModel):
+    dates: list[str]
+
+
 class ScheduleState(WireModel):
     enabled: bool
     cron: str

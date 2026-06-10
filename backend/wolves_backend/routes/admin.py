@@ -3,23 +3,16 @@ from __future__ import annotations
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 
 from wolves_backend.auth import require_admin
 from wolves_backend.deps import Deps, get_deps
-from wolves_backend.models import RunHistory, RunStarted, ScheduleState, ScheduleUpdate, StopRequest, StopResult
+from wolves_backend.models import RunStarted, ScheduleState, ScheduleUpdate, StopRequest, StopResult
 from wolves_backend.schedule import set_schedule_enabled
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 
 DepsDep = Annotated[Deps, Depends(get_deps)]
-
-
-@router.get("/run-history")
-async def run_history(request: Request, deps: DepsDep) -> RunHistory:
-    limit = request.app.state.settings.run_history_limit
-    runs = await asyncio.to_thread(lambda: deps.run_index.list_runs(limit=limit))
-    return RunHistory(runs=runs)
 
 
 @router.get("/schedule")

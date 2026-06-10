@@ -1,5 +1,5 @@
 """FastAPI entry point. The app is a thin AWS-facing shim for the web app:
-snapshot reads (S3 or the local runs directory) plus admin control of the
+artifact reads (S3 or the local runs directory) plus admin control of the
 daily engine run. Credentials come from the boto3 default chain; locally the
 stack runs against DynamoDB local and the runs directory with no AWS at all.
 """
@@ -18,8 +18,12 @@ from wolves_backend.config import Settings, get_settings
 from wolves_backend.deps import Deps, build_deps
 from wolves_backend.errors import UpstreamError
 from wolves_backend.routes.admin import router as admin_router
+from wolves_backend.routes.agent_state import router as agent_state_router
 from wolves_backend.routes.health import router as health_router
+from wolves_backend.routes.odds import router as odds_router
+from wolves_backend.routes.runs import router as runs_router
 from wolves_backend.routes.snapshots import router as snapshots_router
+from wolves_backend.routes.teams import router as teams_router
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -59,6 +63,10 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
 
     app.include_router(health_router)
     app.include_router(snapshots_router)
+    app.include_router(runs_router)
+    app.include_router(teams_router)
+    app.include_router(agent_state_router)
+    app.include_router(odds_router)
     app.include_router(admin_router)
     return app
 

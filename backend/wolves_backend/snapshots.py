@@ -1,44 +1,51 @@
 from __future__ import annotations
 
-import asyncio
 import re
 from typing import TYPE_CHECKING
 
+from wolves_backend.models import SnapshotRef
+
 if TYPE_CHECKING:
-    from pathlib import Path
+    from wolves_backend.storage import Storage
 
-    from wolves_backend.clients.snapshot_bucket import SnapshotBucket
-
-RUN_ID_PATTERN = re.compile(r"^(?:run|live|agent)-(\d{4})(\d{2})(\d{2})(?:-\d{6})?$")
+RUN_ID_PATTERN = re.compile(r"^(run|live|agent)-(\d{4})(\d{2})(\d{2})(?:-\d{6})?$")
+SNAPSHOT_KEY_PATTERN = re.compile(r"^snapshots/(\d{4})/(\d{2})/(\d{2})/((run|live|agent)-\d{8}(?:-\d{6})?)\.json$")
 LATEST_KEY = "snapshots/latest.json"
+SNAPSHOTS_PREFIX = "snapshots/"
 
 
 def is_valid_run_id(run_id: str) -> bool:
     return RUN_ID_PATTERN.fullmatch(run_id) is not None
 
 
-class SnapshotSource:
-    """Serve snapshot JSON from S3 when a bucket is configured, otherwise the
-    local runs directory; both share one key space."""
+def snapshot_refs(keys: list[str]) -> list[SnapshotRef]:
+    """Parse listed snapshot keys into refs, newest first."""
+    refs = []
+    for key in keys:
+        match = SNAPSHOT_KEY_PATTERN.fullmatch(key)
+        if match is None:
+            continue
+        year, month, day, run_id, kind = match.groups()
+        refs.append(SnapshotRef(run_id=run_id, as_of=f"{year}-{month}-{day}", kind=kind, key=key))
+    refs.sort(key=lambda ref: (ref.as_of, ref.run_id), reverse=True)
+    return refs
 
-    def __init__(self, *, bucket: SnapshotBucket | None, local_dir: Path) -> None:
-        self._bucket = bucket
-        self._local_dir = local_dir
+
+class SnapshotSource:
+    """Published snapshot reads over the shared storage key space."""
+
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
     async def read(self, run_id: str) -> str | None:
         match = RUN_ID_PATTERN.fullmatch(run_id)
         if match is None:
             return None
-        year, month, day = match.groups()
-        return await self._read(f"snapshots/{year}/{month}/{day}/{run_id}.json")
+        _, year, month, day = match.groups()
+        return await self._storage.read(f"snapshots/{year}/{month}/{day}/{run_id}.json")
 
     async def read_latest(self) -> str | None:
-        return await self._read(LATEST_KEY)
+        return await self._storage.read(LATEST_KEY)
 
-    async def _read(self, key: str) -> str | None:
-        if self._bucket is not None:
-            return await asyncio.to_thread(self._bucket.get, key)
-        try:
-            return await asyncio.to_thread((self._local_dir / key).read_text, "utf-8")
-        except OSError:
-            return None
+    async def index(self) -> list[SnapshotRef]:
+        return snapshot_refs(await self._storage.list_keys(SNAPSHOTS_PREFIX))
