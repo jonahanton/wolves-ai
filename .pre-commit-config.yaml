@@ -47,4 +47,6 @@ repos:
       entry: bash -c "cd web && npm audit --audit-level=high"
       language: system
       pass_filenames: false
-      always_run: true
+      # Scoped to web changes: the hook needs the npm registry, so it must not
+      # block offline commits that never touched the frontend.
+      files: ^web/

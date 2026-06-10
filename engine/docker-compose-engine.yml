@@ -7,7 +7,7 @@ services:
       target: development
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-local}
-      - SNAPSHOT_DIR=/app/runs
+      - RUNS_ROOT=/app/runs
       - DYNAMO_ENDPOINT=http://db:8000
     volumes:
       - ..:/app
