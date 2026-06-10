@@ -3,14 +3,13 @@ export function roundPct(prob: number): number {
 }
 
 export function formatPct(prob: number): string {
-  const pct = roundPct(prob);
-  if (pct === 0 && prob > 0) return "<1%";
-  return `${pct}%`;
+  return `${formatPctBare(prob)}%`;
 }
 
 export function formatPctBare(prob: number): string {
   const pct = roundPct(prob);
   if (pct === 0 && prob > 0) return "<1";
+  if (pct === 100 && prob < 1) return ">99";
   return `${pct}`;
 }
 
@@ -45,6 +44,14 @@ export function formatKickoff(iso: string): string {
     weekday: "short",
     day: "numeric",
     month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: LONDON,
+  });
+}
+
+export function formatKickoffTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: LONDON,
