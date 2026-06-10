@@ -23,7 +23,7 @@ def build_dossier(deps: AgentDeps) -> str:
     """Baseline digest, gap table, noise-floored movement, fresh ledger and
     the calibration readback, as one prompt block."""
     sections: list[str] = []
-    for build in (_what_changed, _baseline, _gaps, _movement, _scenarios, _ledger, _calibration):
+    for build in (_what_changed, _baseline, _gaps, _movement, _matchday, _scenarios, _ledger, _calibration):
         try:
             section = build(deps)
         except Exception as exc:
@@ -51,6 +51,46 @@ def _what_changed(deps: AgentDeps) -> str:
         run_id=deps.runtime.run_id,
         as_of=deps.as_of,
     ).digest()
+
+
+def _matchday(deps: AgentDeps) -> str:
+    """Group-stage leverage for an imminent England fixture, plus evidence
+    expiring before kickoff; title pp alone hides group-stage action."""
+    from wolves.forecast import ScorelinePerturbation
+
+    fc = deps.forecaster
+    if fc is None or not deps.as_of:
+        return ""
+    today = date.fromisoformat(deps.as_of)
+    fixture = next(
+        (
+            m
+            for m in sorted(fc.fmt.group_matches, key=lambda m: m.date)
+            if "england" in (m.home, m.away) and 0 <= (date.fromisoformat(m.date[:10]) - today).days <= 1
+        ),
+        None,
+    )
+    if fixture is None:
+        return ""
+    home = fixture.home == "england"
+    outcomes = {"win": (2, 0) if home else (0, 2), "draw": (1, 1), "loss": (0, 1) if home else (1, 0)}
+    base = fc.title_probs(n_sims=_DOSSIER_SIMS, seed=0)["england"]
+    deltas = []
+    for label, (hg, ag) in outcomes.items():
+        pinned = ScorelinePerturbation(match=fixture.match, home_goals=hg, away_goals=ag, reason="leverage")
+        moved = fc.title_probs(n_sims=_DOSSIER_SIMS, seed=0, perturbations=(pinned,))["england"]
+        deltas.append(f"{label} {(moved - base) * 100:+.2f}pp")
+    expiring = [
+        e.id
+        for e in deps.ledger.all()
+        if e.expiry is not None and date.fromisoformat(e.expiry) <= date.fromisoformat(fixture.date[:10])
+    ]
+    expiry_note = f" Evidence expiring by kickoff: {', '.join(expiring)}." if expiring else ""
+    return (
+        f"Matchday: England play {fixture.away if home else fixture.home} ({fixture.date[:10]}, match "
+        f"{fixture.match}). Title leverage: {', '.join(deltas)}; read the move through group-win and "
+        f"qualification lenses, not title pp.{expiry_note}"
+    )
 
 
 def _scenarios(deps: AgentDeps) -> str:
