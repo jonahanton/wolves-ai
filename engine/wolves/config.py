@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     dynamo_endpoint: str = ""
     dynamo_table: str = "wolves-forecaster"
     snapshot_bucket: str = ""
+    agent_state_bucket: str = ""
+    agent_state_prefix: str = "agent-state"
 
     runs_root: Path = REPO_ROOT / "runs"
     tool_timeout_seconds: float = 30.0

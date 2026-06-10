@@ -62,6 +62,8 @@ from wolves.snapshot import (
     Snapshot,
     TeamInfo,
 )
+from wolves.store.agent_state import build_agent_state_store
+from wolves.store.publish import write_local_snapshot
 from wolves.tools._budget_gate import BudgetGate
 
 logger = logging.getLogger(__name__)
@@ -299,6 +301,9 @@ def _build_snapshot(
 async def _run(args: argparse.Namespace, settings: Settings) -> int:
     as_of = args.as_of or datetime.now(UTC).date().isoformat()
     run_id = datetime.now(UTC).strftime("agent-%Y%m%d-%H%M%S")
+    state = build_agent_state_store(settings)
+    if state is not None:
+        state.pull()
     fmt = load_format(settings.data_dir)
     tsv = sorted((settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
     ratings = load_elo_ratings(tsv, fmt)
@@ -364,6 +369,8 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             result.budget_exhausted,
             result.validation_failures,
         )
+        if state is not None:
+            state.push(run_id=run_id)
         return 1
 
     snapshot = _build_snapshot(
@@ -377,10 +384,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         seed=args.seed,
     )
     runtime.shutdown()
-    payload = snapshot.model_dump_json(indent=1)
-    settings.snapshot_dir.mkdir(parents=True, exist_ok=True)
-    (settings.snapshot_dir / f"{run_id}.json").write_text(payload)
-    (settings.snapshot_dir / "latest.json").write_text(payload)
+    write_local_snapshot(settings, snapshot)
+    if state is not None:
+        state.push(run_id=run_id)
     logger.info(
         "run %s complete in %d wave(s): %d override(s), disagreement max %.1f, cost $%.4f",
         run_id,
