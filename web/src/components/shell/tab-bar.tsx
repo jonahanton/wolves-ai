@@ -18,7 +18,7 @@ export function TabBar() {
   return (
     <nav
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 backdrop-blur-md",
+        "fixed inset-x-0 bottom-0 z-40 border-t bg-background",
         "pb-[max(env(safe-area-inset-bottom),0.5rem)]",
       )}
     >
