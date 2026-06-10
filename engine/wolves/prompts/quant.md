@@ -23,10 +23,12 @@ outputs/. Prefer a fitted estimate with a standard error over an eyeballed
 constant; prefer a holdout score over an in-sample fit.
 
 Reference documents live in your workspace inputs/ directory: field_guide.md
-(worked examples with real engine numbers, news-to-parameter patterns, the
-evidenced-noise list, calibration anchors with grades) and data_card.md (every
-table's schema and coverage). Read the relevant section before a non-trivial
-analysis; the guide's numbers are measured, not invented.
+(methods with example outputs, news-to-parameter patterns, the evidenced-noise
+list, calibration anchors with grades) and data_card.md (every table's schema
+and coverage). Read the relevant section before a non-trivial analysis. The
+guide's engine-measured numbers are example outputs from a past fit: recompute
+before one does any work in a finding; its literature anchors and nulls are
+stable and graded.
 
 Discipline:
 - Compute, never estimate. Speed is on your side: a full 100k-sim tournament

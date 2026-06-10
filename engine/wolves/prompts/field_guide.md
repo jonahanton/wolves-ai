@@ -1,77 +1,108 @@
 # Field guide: quantitative reasoning for the Wolves forecaster
 
-Reference material, not a syllabus. Every number below is the engine's own,
-measured on the live deterministic surface on 10 June 2026 (champion fit,
-dataset f6aae7630aae, 50k common-random-number sims unless stated). Use the
-patterns when they fit and compose freely when they do not; the only
-low-altitude rules are in the statistical honesty section. England in the
-worked examples is simply the team the numbers were measured on; every
-pattern applies unchanged to any team.
+Reference material, not a syllabus: methods with example outputs, not a table
+of current values. Two kinds of numbers live here and they age differently.
+Literature anchors and evidenced nulls are stable; they carry evidence grades
+and you may lean on them directly. Engine measurements are EXAMPLE OUTPUTS,
+captured once (10 June 2026, champion fit, dataset f6aae7630aae, 50k
+common-random-number sims unless stated) to show each method's shape and
+rough scale; the live surface drifts with every refit, so recompute before a
+measured number does any work in a finding. One wq call is cheaper than one
+stale anchor. England in the examples is simply the team the method was
+demonstrated on; every method applies unchanged to any team. The only
+low-altitude rules are in the statistical honesty section.
 
-## Worked examples with real numbers
+## Methods, each with an example output
 
 ### Elasticity, and its convexity
 
-England strength sweeps: +0.02 = +0.61pp title, +0.05 = +1.71, +0.10 = +4.26,
-+0.20 = +9.58, +0.30 = +17.30. Convex, not linear: the +0.30 effect is 4x the
-+0.10 effect. Longshots scale down brutally: Ghana +0.10 = +0.008pp (below
-the noise floor), +0.30 = +0.23pp. Know the slope before sizing a story.
+Method: before sizing any story, sweep the parameter through wq.impact and
+read the local slope; never extrapolate linearly from one point. Example
+output: England strength +0.02 = +0.61pp title, +0.05 = +1.71, +0.10 = +4.26,
++0.20 = +9.58, +0.30 = +17.30, so the +0.30 effect is 4x the +0.10 effect,
+and longshots scale down brutally (Ghana +0.10 = +0.008pp, below the noise
+floor; +0.30 = +0.23pp). The lesson is structural: the response is convex in
+strength and collapses with baseline title probability.
 
-### The two absence mechanisms, 8x apart
+### The two absence mechanisms, far apart
 
-A star missing England's GROUP GAMES ONLY (-0.20 xG per game via
-MatchRatePerturbation) costs -0.38pp title, because England qualify from the
-group regardless. The same star diminished for the WHOLE TOURNAMENT (-0.10
-strength) costs -3.03pp. Which mechanism a news story implies is the single
-most consequential modelling choice in availability analysis.
+Method: decide which mechanism the news implies before sizing it, because a
+match-scoped rate hit and a tournament-scoped strength hit price the same
+headline an order of magnitude apart. Example output: a star missing
+England's group games only (-0.20 xG per game via MatchRatePerturbation) cost
+-0.38pp title, because England qualify regardless; the same star diminished
+for the whole tournament (-0.10 strength) cost -3.03pp, 8x more. Which
+mechanism a story implies is the single most consequential modelling choice
+in availability analysis.
 
 ### Scenario mixtures and factor lattices
 
-The Saka morning, three worlds 0.55/0.33/0.12: conditionals 6.99/6.61/4.28pp
-England title, mixture 6.54 (-0.45pp vs baseline). Composed with a Dallas
-heat factor (0.70/0.30) the 6-world product lattice gives 6.68 vs baseline
-7.19. Per-factor marginals are the attribution AND the noise check: saka
-plays/misses/strain marginals 7.16/6.79/4.13 (the story), heat marginals
-6.67/6.69, INSIDE the paired-seed floor, so the artifact says heat does not
-move the headline. Magnitude uncertainty rides as Normal(mean, sd) deltas or
-MC draws: heat as Normal(-0.15, 0.05) over 20 draws gave 6.61 vs 6.68
-fixed-point with sd 0.04pp over draws; where the response is locally linear,
-the mean magnitude is adequate and the draw sd is the cheap materiality test.
+Method: express a story as a factor with weighted variants, compose factors
+into a lattice with wq.scenario_mixture, and read three things from the
+output: the mixture headline, the per-factor marginals (the attribution AND
+the noise check), and the noise floor. Ride magnitude uncertainty as
+Normal(mean, sd) deltas or MC draws; where the response is locally linear the
+mean magnitude is adequate and the draw sd is the cheap materiality test.
+Example output: a three-world fitness morning (0.55/0.33/0.12) gave
+conditionals 6.99/6.61/4.28pp England title, mixture 6.54 against baseline
+6.99; composed with a heat factor (0.70/0.30) the 6-world lattice gave 6.68
+vs 7.19; the heat marginals (6.67 vs 6.69) sat inside the paired-seed floor,
+so the artifact said heat does not move the headline, and an MC heat
+magnitude Normal(-0.15, 0.05) over 20 draws moved the answer by 0.07pp with
+draw sd 0.04pp: immaterial.
 
 ### Implied-delta inversion (what is the market pricing?)
 
-Market England 11.18 vs model 7.19: brentq inversion says the market prices
-England +0.099 strength above the model, one key-player-class upgrade. The
-France gap (-7.31pp) is the largest on the board: the market believes
-something the results model does not see. Every gap is a research question.
+Method: when the model and the market disagree, invert the gap (brentq on the
+strength delta that reproduces the market price) to translate pp into
+parameter units you can argue about. Example output: market England 11.18 vs
+model 7.19 inverted to +0.099 strength, one key-player-class upgrade; the
+France gap (-7.31pp) was the largest on the board. Every gap is a research
+question, not an error to be corrected.
 
 ### Triangulation
 
-The squad-value regression (corr 0.94 with fitted strengths, n=40) flags
-Colombia as most overrated vs its squad value (+0.22 residual); independently
-Colombia carries the largest positive model-vs-market gap (+2.89pp). Two
-instruments, same suspect: the canonical edge hunt. Squad value is the single
-best-evidenced non-market covariate (Peeters 2018, beats Elo and FIFA rank).
+Method: hunt edges where two INDEPENDENT instruments accuse the same team;
+one instrument alone is a hypothesis. Example output: the squad-value
+regression (corr 0.94 with fitted strengths, n=40) flagged Colombia as most
+overrated against its squad value (+0.22 residual) while Colombia also
+carried the largest positive model-vs-market gap (+2.89pp). Squad value is
+the single best-evidenced non-market covariate (Peeters 2018, beats Elo and
+FIFA rank).
 
 ### Group-stage effects read through group lenses
 
-England v Croatia: win 2-0 = +0.78pp title, draw -0.01, loss 0-1 = -1.40 (a
-loss costs nearly twice the win's gain). The Mexico altitude case moves group
-win 52.2 to 55.0 while title pp moves 0.04: title pp alone hides the action.
-Read group-stage stories through qualification and group-win probabilities.
+Method: read group-stage stories through qualification and group-win
+probabilities, not title pp, which hides most of the action for any
+favourite. Example output: England v Croatia win 2-0 = +0.78pp title, draw
+-0.01, loss 0-1 = -1.40 (the loss costs nearly twice the win's gain); the
+Mexico altitude case moved group win 52.2 to 55.0 while title pp moved 0.04.
 
 ### Two update channels, both material
 
-After a mocked matchday (England 2-0, Argentina upset): the bracket overlay
-alone moves England 6.99 to 7.79; refitting moves it further to 8.69. One
-group win is worth ~+0.8pp through the bracket and ~+0.9pp through
-strengths. The attribution report decomposes both; never re-add by hand what
-the refit already priced.
+Method: after results land, decompose the day's move into the bracket-overlay
+channel and the refit channel with the attribution report, and never re-add
+by hand what the refit already priced. Example output: after a mocked
+matchday (England 2-0, Argentina upset) the bracket overlay alone moved
+England 6.99 to 7.79 and the refit carried it to 8.69, roughly +0.8pp through
+the bracket and +0.9pp through strengths for one group win.
 
-### News-shock calibration table
+### The negative finding, submitted as the deliverable
 
-Backup keeper in (-0.03 strength) = -1.09pp. Mbappe out (-0.12) = France
--3.77pp, Spain +0.59. One-match tactical worry (-0.3 xG) = -0.20pp.
+Method: when the computation says the story does not move the forecast, the
+finding IS that null, stated with its evidence: the computed delta, the noise
+floor it sits under, and the citation if a published null applies. Example
+output: "Dallas heat does not move the England headline: marginals 6.67 vs
+6.69, inside the 0.17pp paired-seed floor; magnitude uncertainty tested by MC
+draws, sd 0.04pp" is a complete, submit-ready quant result. Do not pad a null
+into an adjustment to seem useful.
+
+### News-shock scale (example outputs, recompute to use)
+
+Backup keeper in (-0.03 strength) = -1.09pp. Star striker out (-0.12) =
+France -3.77pp, Spain +0.59. One-match tactical worry (-0.3 xG) = -0.20pp.
+These three points exist to stop order-of-magnitude errors, not to be reused
+as magnitudes.
 
 ## News-to-parameter patterns
 
