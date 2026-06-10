@@ -17,7 +17,7 @@ def build_what_if(
     finish_masks: dict[str, np.ndarray],
     finish_cities: dict[str, str],
 ) -> list[WhatIfFixture]:
-    """Conditional finish and R32 city tables for each of England's group fixtures."""
+    """Conditional finish and R32 city tables for each of the team's group fixtures."""
     fixtures = [m for m in fmt.group_matches if team_id in (m.home, m.away)]
     tables: list[WhatIfFixture] = []
     for m in sorted(fixtures, key=lambda m: m.date):

@@ -80,30 +80,30 @@ from wolves.snapshot import (
 logger = logging.getLogger(__name__)
 
 
-def _dev_submission(as_of: str) -> dict:
+def _dev_submission(as_of: str, focus: str) -> dict:
     return {
         "artifact_id": "mixture-001",
         "narrative": {
-            "england_story": (
-                "England's camp is calm: the keeper trained in full and the market still makes them "
+            "focus_story": (
+                f"The {focus} camp is calm: the keeper trained in full and the market still makes them "
                 "third favourites behind Spain and France."
             ),
             "slot_rationales": {str(m): f"Slot {m}: the rating gap favours the group winner." for m in range(73, 89)},
-            "travel_memo": "Win Group L and England stay on the east coast; finishing second buys a longer trip.",
+            "travel_memo": f"Win the group and {focus} stay on the east coast; finishing second buys a longer trip.",
         },
         "scenario_weights": [],
         "evidence_ids": ["led-0001"],
     }
 
 
-def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
+def _dev_models(runtime: ObservedRuntime, as_of: str, focus: str) -> GraphModels:
     """A canned full graph walk: research and quant waves, then a forecast
     node that cites the quant artifact and submits through the validator."""
     expiry = (datetime.fromisoformat(as_of) + timedelta(days=3)).date().isoformat()
 
     research = scripted_model(
         [
-            [("web_search", {"query": "England keeper fitness", "freshness": "pd"})],
+            [("web_search", {"query": f"{focus} keeper fitness", "freshness": "pd"})],
             ResearchOutput(
                 summary="Keeper trained in full; FA statement confirms availability.",
                 evidence=[
@@ -115,7 +115,7 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
                         mechanism="keeper returns to the XI",
                         proposed_delta=15.0,
                         expiry=expiry,
-                        team_id="england",
+                        team_id=focus,
                     )
                 ],
             ),
@@ -126,8 +126,8 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
     quant = scripted_model(
         [
             QuantOutput(
-                summary="Baseline digest computed: England title 7.2pp at 50k sims, market gap -4.0pp.",
-                findings=["England 7.2pp title; market 11.2pp; the gap inverts to +0.099 strength."],
+                summary=f"Baseline digest computed: {focus} title 7.2pp at 50k sims, market gap -4.0pp.",
+                findings=[f"{focus} 7.2pp title; market 11.2pp; the gap inverts to +0.099 strength."],
                 headline_value=0.072,
             )
         ],
@@ -136,7 +136,7 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
 
     forecast = scripted_model(
         [
-            [("ledger_query", {"team_id": "england"})],
+            [("ledger_query", {"team_id": focus})],
             [
                 (
                     "scenario_update",
@@ -147,8 +147,11 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
                         "reason": "monitor fitness into the next matchday",
                     },
                 ),
-                ("write_journal", {"text": "Keeper confirmed fit; sim and market agree England are third favourites."}),
-                ("submit_forecast", _dev_submission(as_of)),
+                (
+                    "write_journal",
+                    {"text": f"Keeper confirmed fit; sim and market agree {focus} are third favourites."},
+                ),
+                ("submit_forecast", _dev_submission(as_of, focus)),
             ],
             ForecastOutput(summary="Submitted the baseline-anchored forecast."),
         ],
@@ -177,14 +180,14 @@ def _dev_models(runtime: ObservedRuntime, as_of: str) -> GraphModels:
                     NodePatch(
                         node_id="research-keeper",
                         kind="research",
-                        objective="England keeper fitness",
+                        objective=f"{focus} keeper fitness",
                         brief="Confirm from primary sources whether the first-choice keeper is fit to start.",
                     ),
                     NodePatch(
                         node_id="quant-baseline",
                         kind="quant",
                         objective="Baseline digest",
-                        brief="Compute the baseline title table and the England market gap.",
+                        brief=f"Compute the baseline title table and the {focus} market gap.",
                     ),
                 ],
                 reason="Check the keeper story and the baseline before forecasting.",
@@ -343,7 +346,7 @@ def _build_snapshot(
             engine_version=ENGINE_VERSION,
             kind="agent",
         ),
-        england=outputs.england,
+        focus=outputs.focus,
         slots=outputs.slots,
         teams=outputs.teams,
         groups=outputs.groups,
@@ -420,10 +423,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         logger.info("LIVE run %s: model=%s, ceiling=$%.2f", run_id, settings.worker_model, ceiling)
     else:
         runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=Caps(), runs_root=settings.runs_root)
-        models = _dev_models(runtime, as_of)
+        models = _dev_models(runtime, as_of, settings.focus_team)
         sample = {
             "rating_overrides": [
-                {"team_id": "england", "delta_elo": 15.0, "cause": "keeper fit", "ledger_ids": ["led-0001"]}
+                {"team_id": settings.focus_team, "delta_elo": 15.0, "cause": "keeper fit", "ledger_ids": ["led-0001"]}
             ]
         }
         llm = ScriptedLLM(turns=[], structured=[sample, sample])
@@ -456,7 +459,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
                 "weights": {"keeper_fit": 0.8, "keeper_doubt": 0.2},
                 "worlds": {
                     "keeper_fit": {"perturbations": []},
-                    "keeper_doubt": {"perturbations": [{"team": "england", "delta": -0.03, "reason": "keeper doubt"}]},
+                    "keeper_doubt": {
+                        "perturbations": [{"team": settings.focus_team, "delta": -0.03, "reason": "keeper doubt"}]
+                    },
                 },
                 "mixture": {},
             },

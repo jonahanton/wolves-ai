@@ -60,31 +60,32 @@ def _what_changed(deps: AgentDeps, titles: dict[str, float] | None) -> str:
 
 
 def _matchday(deps: AgentDeps, titles: dict[str, float] | None) -> str:
-    """Group-stage leverage for an imminent England fixture, plus evidence
+    """Group-stage leverage for an imminent focus-team fixture, plus evidence
     expiring before kickoff; title pp alone hides group-stage action."""
     from wolves.forecast import ScorelinePerturbation
 
     fc = deps.forecaster
     if fc is None or not deps.as_of:
         return ""
+    focus = deps.settings.focus_team
     today = date.fromisoformat(deps.as_of)
     fixture = next(
         (
             m
             for m in sorted(fc.fmt.group_matches, key=lambda m: m.date)
-            if "england" in (m.home, m.away) and 0 <= (date.fromisoformat(m.date[:10]) - today).days <= 1
+            if focus in (m.home, m.away) and 0 <= (date.fromisoformat(m.date[:10]) - today).days <= 1
         ),
         None,
     )
     if fixture is None:
         return ""
-    home = fixture.home == "england"
+    home = fixture.home == focus
     outcomes = {"win": (2, 0) if home else (0, 2), "draw": (1, 1), "loss": (0, 1) if home else (1, 0)}
-    base = (titles or fc.title_probs(n_sims=_DOSSIER_SIMS, seed=0))["england"]
+    base = (titles or fc.title_probs(n_sims=_DOSSIER_SIMS, seed=0))[focus]
     deltas = []
     for label, (hg, ag) in outcomes.items():
         pinned = ScorelinePerturbation(match=fixture.match, home_goals=hg, away_goals=ag, reason="leverage")
-        moved = fc.title_probs(n_sims=_DOSSIER_SIMS, seed=0, perturbations=(pinned,))["england"]
+        moved = fc.title_probs(n_sims=_DOSSIER_SIMS, seed=0, perturbations=(pinned,))[focus]
         deltas.append(f"{label} {(moved - base) * 100:+.2f}pp")
     expiring = [
         e.id
@@ -93,7 +94,7 @@ def _matchday(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     ]
     expiry_note = f" Evidence expiring by kickoff: {', '.join(expiring)}." if expiring else ""
     return (
-        f"Matchday: England play {fixture.away if home else fixture.home} ({fixture.date[:10]}, match "
+        f"Matchday: {focus} play {fixture.away if home else fixture.home} ({fixture.date[:10]}, match "
         f"{fixture.match}). Title leverage: {', '.join(deltas)}; read the move through group-win and "
         f"qualification lenses, not title pp.{expiry_note}"
     )

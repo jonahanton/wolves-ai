@@ -19,7 +19,7 @@ def build_lock_dates(
     finish_masks: dict[str, np.ndarray],
     finish_cities: dict[str, str],
 ) -> list[LockDate]:
-    """Probability England's R32 city is mathematically certain after each group matchday.
+    """Probability the team's R32 city is mathematically certain after each group matchday.
 
     Before the group completes, the city can only lock by the team being
     unreachable at the top (a strict points lead beats any remaining result;

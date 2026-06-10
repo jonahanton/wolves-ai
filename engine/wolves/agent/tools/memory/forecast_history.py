@@ -35,8 +35,9 @@ async def _forecast_history(args: ForecastHistoryArgs, deps: AgentDeps) -> ToolR
                 "kind": snapshot.run.kind,
                 "p_title": team.champion_prob,
             }
-            if snapshot.agent is not None and snapshot.agent.narrative.england_story and args.team == "england":
-                point["story"] = snapshot.agent.narrative.england_story[:160]
+            agent = snapshot.agent
+            if agent is not None and agent.narrative.focus_story and args.team == snapshot.focus.team_id:
+                point["story"] = agent.narrative.focus_story[:160]
             series.append(point)
     series.sort(key=lambda p: p["created_at"])
     return ToolResult(payload={"team": args.team, "series": series[-args.window :]})

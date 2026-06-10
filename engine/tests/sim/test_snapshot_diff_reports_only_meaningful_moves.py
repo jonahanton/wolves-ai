@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from wolves.sim.diff import diff_snapshots
-from wolves.snapshot import Candidate, EnglandBlock, RunMeta, Slot, SlotSide, Snapshot, TeamInfo
+from wolves.snapshot import Candidate, FocusTeamBlock, RunMeta, Slot, SlotSide, Snapshot, TeamInfo
 
 
 def _snapshot(win_group: float, uzbekistan: float) -> Snapshot:
     return Snapshot(
         run=RunMeta(run_id="r", created_at="t", n_sims=1, engine_version="0.2.0", kind="sim_only"),
-        england=EnglandBlock(
+        focus=FocusTeamBlock(
             team_id="england",
             group="L",
             finish_probs={"win_group": win_group, "runner_up": 1.0 - win_group},

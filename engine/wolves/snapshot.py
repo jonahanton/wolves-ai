@@ -25,7 +25,7 @@ class Slot(BaseModel):
 
 
 class RoundOpponents(BaseModel):
-    """Opponent distribution for a later round, conditional on the group finish and England reaching it."""
+    """Opponent distribution for a later round, conditional on the group finish and the focus team reaching it."""
 
     round: str
     match: int
@@ -35,7 +35,7 @@ class RoundOpponents(BaseModel):
     opponents: list[Candidate]
 
 
-class EnglandPath(BaseModel):
+class FocusTeamPath(BaseModel):
     finish: str
     prob: float
     r32_match: int
@@ -60,7 +60,7 @@ class CityProb(BaseModel):
 
 
 class LockDate(BaseModel):
-    """How certain England's R32 city is once a group matchday completes; bookability signal."""
+    """How certain the focus team's R32 city is once a group matchday completes; bookability signal."""
 
     date: str
     prob_locked: float
@@ -82,12 +82,12 @@ class WhatIfFixture(BaseModel):
     outcomes: list[WhatIfOutcome]
 
 
-class EnglandBlock(BaseModel):
+class FocusTeamBlock(BaseModel):
     team_id: str
     group: str
     finish_probs: dict[str, float]
     reach_probs: dict[str, float]
-    paths: list[EnglandPath]
+    paths: list[FocusTeamPath]
     modal_path: list[ModalStep] = Field(default_factory=list)
     city_probs: dict[str, list[CityProb]] = Field(default_factory=dict)
     lock_dates: list[LockDate] = Field(default_factory=list)
@@ -139,7 +139,7 @@ def run_day(meta: RunMeta) -> str:
 
 
 class NarrativeBlock(BaseModel):
-    england_story: str
+    focus_story: str
     slot_rationales: dict[str, str] = Field(default_factory=dict)
     travel_memo: str
 
@@ -255,7 +255,7 @@ class Snapshot(BaseModel):
 
     schema_version: int = SCHEMA_VERSION
     run: RunMeta
-    england: EnglandBlock
+    focus: FocusTeamBlock
     slots: list[Slot]
     teams: list[TeamInfo]
     groups: list[GroupBlock] = Field(default_factory=list)

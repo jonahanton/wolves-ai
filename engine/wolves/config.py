@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     api_football_key: str = ""
 
     data_dir: Path = REPO_ROOT / "data"
+    focus_team: str = "england"
     n_sims: int = 10_000
 
     aws_region: str = "eu-west-2"

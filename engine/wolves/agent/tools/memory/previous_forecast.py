@@ -42,7 +42,7 @@ async def _previous_forecast(args: PreviousForecastArgs, deps: AgentDeps) -> Too
         "run_id": snapshot.run.run_id,
         "created_at": snapshot.run.created_at,
         "title_probs": {t.team_id: t.champion_prob for t in top},
-        "england_reach": snapshot.england.reach_probs if snapshot.england else None,
+        "focus_reach": snapshot.focus.reach_probs if snapshot.focus else None,
     }
     if snapshot.agent is not None:
         payload["narrative"] = snapshot.agent.narrative.model_dump(mode="json")

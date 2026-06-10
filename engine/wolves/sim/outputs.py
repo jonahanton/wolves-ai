@@ -9,8 +9,8 @@ from wolves.sim.whatif import build_what_if
 from wolves.snapshot import (
     Candidate,
     CityProb,
-    EnglandBlock,
-    EnglandPath,
+    FocusTeamBlock,
+    FocusTeamPath,
     GroupBlock,
     GroupTeamStanding,
     MatchProbs,
@@ -20,13 +20,9 @@ from wolves.snapshot import (
     SlotSide,
 )
 
-ENGLAND = "england"
-ENGLAND_GROUP = "L"
 TOP_CANDIDATES = 6
 ONWARD_ROUNDS = ("r16", "qf")
 KO_ROUNDS = ("r32", "r16", "qf", "sf", "final")
-
-FINISH_SLOTS = {"win_group": "1L", "runner_up": "2L", "third": "3"}
 
 
 def _candidates(fmt: FormatData, teams: np.ndarray) -> list[Candidate]:
@@ -148,20 +144,20 @@ def build_matches(fmt: FormatData, result: SimResult, *, played: set[int]) -> li
     return out
 
 
-def _england_r32_match(fmt: FormatData, finish: str) -> tuple[int, bool]:
-    """Return (match number, england_is_home) for England's R32 slot given a group finish."""
-    spec = FINISH_SLOTS[finish]
+def _r32_match(fmt: FormatData, group: str, finish: str) -> tuple[int, bool]:
+    """Return (match number, team_is_home) for the team's R32 slot given a group finish."""
+    spec = {"win_group": f"1{group}", "runner_up": f"2{group}", "third": "3"}[finish]
     for m in fmt.knockout:
         if m.stage != "r32":
             continue
         if finish == "third":
-            if m.away.startswith("3:") and ENGLAND_GROUP in m.away.removeprefix("3:"):
+            if m.away.startswith("3:") and group in m.away.removeprefix("3:"):
                 return m.match, False
         elif m.home == spec:
             return m.match, True
         elif m.away == spec:
             return m.match, False
-    raise LookupError(f"no R32 slot for England finish {finish!r}")
+    raise LookupError(f"no R32 slot for group {group} finish {finish!r}")
 
 
 def _bracket_path(fmt: FormatData, r32_match: int) -> dict[str, KnockoutMatch]:
@@ -184,10 +180,12 @@ def _opponents_in_match(result: SimResult, match: int, e: int, mask: np.ndarray)
     return other[mask]
 
 
-def _build_paths(fmt: FormatData, result: SimResult, e: int, path_masks: dict[str, np.ndarray]) -> list[EnglandPath]:
+def _build_paths(
+    fmt: FormatData, result: SimResult, e: int, group: str, path_masks: dict[str, np.ndarray]
+) -> list[FocusTeamPath]:
     paths = []
     for finish, mask in path_masks.items():
-        match, is_home = _england_r32_match(fmt, finish)
+        match, is_home = _r32_match(fmt, group, finish)
         ko = next(m for m in fmt.knockout if m.match == match)
         opponents = result.ko_away[match][mask] if is_home else result.ko_home[match][mask]
         bracket = _bracket_path(fmt, match)
@@ -207,7 +205,7 @@ def _build_paths(fmt: FormatData, result: SimResult, e: int, path_masks: dict[st
                 )
             )
         paths.append(
-            EnglandPath(
+            FocusTeamPath(
                 finish=finish,
                 prob=round(float(mask.mean()), 4),
                 r32_match=match,
@@ -220,10 +218,12 @@ def _build_paths(fmt: FormatData, result: SimResult, e: int, path_masks: dict[st
     return paths
 
 
-def _build_modal_path(fmt: FormatData, result: SimResult, e: int, path_masks: dict[str, np.ndarray]) -> list[ModalStep]:
+def _build_modal_path(
+    fmt: FormatData, result: SimResult, e: int, group: str, path_masks: dict[str, np.ndarray]
+) -> list[ModalStep]:
     finish = max(path_masks, key=lambda f: path_masks[f].sum())
     mask = path_masks[finish]
-    r32_match, _ = _england_r32_match(fmt, finish)
+    r32_match, _ = _r32_match(fmt, group, finish)
     bracket = _bracket_path(fmt, r32_match)
     rounds = [("r32", next(m for m in fmt.knockout if m.match == r32_match))]
     rounds += [(rnd, bracket[rnd]) for rnd in ("r16", "qf", "sf", "final")]
@@ -267,10 +267,11 @@ def _build_city_probs(fmt: FormatData, result: SimResult, e: int) -> dict[str, l
     return out
 
 
-def build_england(fmt: FormatData, result: SimResult) -> EnglandBlock:
+def build_focus_team(fmt: FormatData, result: SimResult, *, team_id: str) -> FocusTeamBlock:
     idx = fmt.team_index()
-    e = idx[ENGLAND]
-    group_i = GROUPS.index(ENGLAND_GROUP)
+    e = idx[team_id]
+    group = next(t.group for t in fmt.teams if t.id == team_id)
+    group_i = GROUPS.index(group)
     rank = result.rank_in_group[e]
     n = result.n_sims
 
@@ -308,20 +309,20 @@ def build_england(fmt: FormatData, result: SimResult) -> EnglandBlock:
         "third": finish_masks["third_qualified"],
     }
     finish_cities = {
-        f: next(m for m in fmt.knockout if m.match == _england_r32_match(fmt, p)[0]).city
+        f: next(m for m in fmt.knockout if m.match == _r32_match(fmt, group, p)[0]).city
         for f, p in (("win_group", "win_group"), ("runner_up", "runner_up"), ("third_qualified", "third"))
     }
 
-    return EnglandBlock(
-        team_id=ENGLAND,
-        group=ENGLAND_GROUP,
+    return FocusTeamBlock(
+        team_id=team_id,
+        group=group,
         finish_probs={k: round(v, 4) for k, v in finish_probs.items()},
         reach_probs={k: round(v, 4) for k, v in reach_probs.items()},
-        paths=_build_paths(fmt, result, e, path_masks),
-        modal_path=_build_modal_path(fmt, result, e, path_masks),
+        paths=_build_paths(fmt, result, e, group, path_masks),
+        modal_path=_build_modal_path(fmt, result, e, group, path_masks),
         city_probs=_build_city_probs(fmt, result, e),
         lock_dates=build_lock_dates(
-            fmt, result, team_id=ENGLAND, group=ENGLAND_GROUP, finish_masks=finish_masks, finish_cities=finish_cities
+            fmt, result, team_id=team_id, group=group, finish_masks=finish_masks, finish_cities=finish_cities
         ),
-        what_if=build_what_if(fmt, result, team_id=ENGLAND, finish_masks=finish_masks, finish_cities=finish_cities),
+        what_if=build_what_if(fmt, result, team_id=team_id, finish_masks=finish_masks, finish_cities=finish_cities),
     )

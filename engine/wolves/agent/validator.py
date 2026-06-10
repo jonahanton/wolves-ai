@@ -121,7 +121,7 @@ def _check_coherence(payload: dict) -> list[ValidationIssue]:
         total = sum(mixture.values())
         if not 0.97 <= total <= 1.03:
             issues.append(_issue("partition_incoherent", f"title probabilities sum to {total:.3f}, not 1"))
-    reach: dict[str, float] = payload.get("england_reach") or {}
+    reach: dict[str, float] = payload.get("focus_reach") or {}
     chain = [reach[s] for s in _REACH_ORDER if s in reach]
     if any(later > earlier + 1e-9 for earlier, later in itertools.pairwise(chain)):
         issues.append(_issue("probs_incoherent", "reach probabilities must not increase through rounds"))
@@ -169,8 +169,8 @@ def _check_weights(submission: ForecastSubmission, ledger: EvidenceLedger) -> li
 def _check_narrative(submission: ForecastSubmission) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     narrative = submission.narrative
-    if not narrative.england_story.strip():
-        issues.append(_issue("narrative_missing", "the England daily story is required"))
+    if not narrative.focus_story.strip():
+        issues.append(_issue("narrative_missing", "the focus team daily story is required"))
     if not narrative.travel_memo.strip():
         issues.append(_issue("narrative_missing", "the travel memo is required"))
     rationales = {k: v for k, v in narrative.slot_rationales.items() if v.strip()}

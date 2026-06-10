@@ -132,7 +132,7 @@ async def live_pass(
             engine_version=ENGINE_VERSION,
             kind="live",
         ),
-        england=outputs.england,
+        focus=outputs.focus,
         slots=outputs.slots,
         teams=outputs.teams,
         groups=outputs.groups,

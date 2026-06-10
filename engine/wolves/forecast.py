@@ -31,7 +31,7 @@ from wolves.sim.api import SimOutputs
 from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
 from wolves.sim.mc import MIN_GOAL_MEAN_AFTER_OFFSET, SimResult, run_tournament
 from wolves.sim.model_engine import PoissonMatchEngine
-from wolves.sim.outputs import build_england, build_groups, build_matches, build_slots, build_team_reach
+from wolves.sim.outputs import build_focus_team, build_groups, build_matches, build_slots, build_team_reach
 from wolves.sim.ratings import load_elo_ratings, load_squad_values
 from wolves.snapshot import TeamInfo
 
@@ -386,7 +386,7 @@ class Forecaster:
         return SimOutputs(
             n_sims=n_sims,
             seed=seed,
-            england=build_england(self.fmt, result),
+            focus=build_focus_team(self.fmt, result, team_id=self._settings.focus_team),
             slots=build_slots(self.fmt, result),
             teams=teams,
             groups=build_groups(self.fmt, result),

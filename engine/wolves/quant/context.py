@@ -58,6 +58,7 @@ class SandboxContext(BaseModel):
 
     as_of: str
     run_id: str
+    focus_team: str
     data_dir: str
     runs_root: str
     dataset_path: str | None = None
@@ -100,6 +101,7 @@ def build_sandbox_context(deps: AgentDeps) -> SandboxContext:
     return SandboxContext(
         as_of=deps.as_of,
         run_id=deps.runtime.run_id,
+        focus_team=settings.focus_team,
         data_dir=str(settings.data_dir),
         runs_root=str(settings.runs_root),
         dataset_path=dataset_path,

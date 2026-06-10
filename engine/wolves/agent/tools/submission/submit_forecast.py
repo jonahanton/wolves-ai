@@ -93,7 +93,7 @@ SPEC = ToolSpec(
         "Submit the final forecast by ARTIFACT REFERENCE: artifact_id names a computed mixture or "
         "simulation artifact from this run (wq.scenario_mixture outputs register automatically); "
         "typed probabilities are never accepted. Carry the named scenario weights with their ledger "
-        "citations, the England daily story, one rationale per R32 slot and the travel memo, no "
+        "citations, the focus team daily story, one rationale per R32 slot and the travel memo, no "
         "em-dashes. Moves beyond the escalation threshold against the frozen baseline trigger one "
         "steelman pass before acceptance; moves against the previous published forecast need "
         "change_justification or an explicit inconsistency_note."

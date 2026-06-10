@@ -53,7 +53,7 @@ def _validate(submission, store, ledger, **kwargs):
 
 def test_em_dash_anywhere_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
     story = "England look sharp — and the camp is calm."
-    submission = build_submission(narrative=build_narrative(england_story=story))
+    submission = build_submission(narrative=build_narrative(focus_story=story))
     assert "em_dash" in _codes(_validate(submission, store, ledger))
 
 

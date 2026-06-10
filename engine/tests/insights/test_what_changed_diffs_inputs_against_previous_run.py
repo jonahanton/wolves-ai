@@ -5,7 +5,7 @@ from pathlib import Path
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.source_memory import SourceMemory
 from wolves.insights.what_changed import what_changed
-from wolves.snapshot import EnglandBlock, RunMeta, Snapshot, TeamInfo
+from wolves.snapshot import FocusTeamBlock, RunMeta, Snapshot, TeamInfo
 
 
 def _snapshot() -> Snapshot:
@@ -13,7 +13,7 @@ def _snapshot() -> Snapshot:
         run=RunMeta(
             run_id="agent-d1", created_at="2026-06-09T08:00:00+00:00", n_sims=1000, engine_version="x", kind="agent"
         ),
-        england=EnglandBlock(team_id="england", group="L", finish_probs={}, reach_probs={"champion": 0.07}, paths=[]),
+        focus=FocusTeamBlock(team_id="england", group="L", finish_probs={}, reach_probs={"champion": 0.07}, paths=[]),
         slots=[],
         teams=[
             TeamInfo(team_id="england", name="England", group="L", elo=2000, champion_prob=0.07),

@@ -3,7 +3,7 @@
 The artifact carries world configurations (typed perturbations plus
 weights); the harness re-simulates each world and mixes every published
 probability by weight, so the snapshot is an integral over the agent's
-latent model, never a typed number. Path-narrative blocks (England paths,
+latent model, never a typed number. Path-narrative blocks (focus-team paths,
 slots, groups) come from the modal world: probabilities are linear in the
 mixture, bracket narratives are not, and the modal world is the honest
 single story to tell."""
@@ -82,10 +82,10 @@ def mixed_outputs(
     weights = {w.name: w.weight for w in worlds}
     mixed = per_world[modal.name].model_copy(deep=True)
 
-    for stage in mixed.england.finish_probs:
-        mixed.england.finish_probs[stage] = _mix(weights, per_world, lambda o, s=stage: o.england.finish_probs[s])
-    for stage in mixed.england.reach_probs:
-        mixed.england.reach_probs[stage] = _mix(weights, per_world, lambda o, s=stage: o.england.reach_probs[s])
+    for stage in mixed.focus.finish_probs:
+        mixed.focus.finish_probs[stage] = _mix(weights, per_world, lambda o, s=stage: o.focus.finish_probs[s])
+    for stage in mixed.focus.reach_probs:
+        mixed.focus.reach_probs[stage] = _mix(weights, per_world, lambda o, s=stage: o.focus.reach_probs[s])
     for i, team in enumerate(mixed.teams):
         team.champion_prob = _mix(weights, per_world, lambda o, j=i: o.teams[j].champion_prob)
         for stage in team.reach_probs:
@@ -125,12 +125,12 @@ def govern_outputs(outputs: SimOutputs, anchor: SimOutputs, *, d: float) -> None
         for stage, p in team.reach_probs.items():
             blended = blend_log_odds({stage: p}, {stage: anchor_reach.get(stage, p)}, d=d)
             team.reach_probs[stage] = round(blended[stage], 6)
-    for stage, p in outputs.england.reach_probs.items():
-        blended = blend_log_odds({stage: p}, {stage: anchor.england.reach_probs.get(stage, p)}, d=d)
-        outputs.england.reach_probs[stage] = round(blended[stage], 6)
-    for stage, p in outputs.england.finish_probs.items():
-        blended = blend_log_odds({stage: p}, {stage: anchor.england.finish_probs.get(stage, p)}, d=d)
-        outputs.england.finish_probs[stage] = round(blended[stage], 6)
+    for stage, p in outputs.focus.reach_probs.items():
+        blended = blend_log_odds({stage: p}, {stage: anchor.focus.reach_probs.get(stage, p)}, d=d)
+        outputs.focus.reach_probs[stage] = round(blended[stage], 6)
+    for stage, p in outputs.focus.finish_probs.items():
+        blended = blend_log_odds({stage: p}, {stage: anchor.focus.finish_probs.get(stage, p)}, d=d)
+        outputs.focus.finish_probs[stage] = round(blended[stage], 6)
 
 
 def _mix(weights: dict[str, float], per_world: dict[str, SimOutputs], pick) -> float:

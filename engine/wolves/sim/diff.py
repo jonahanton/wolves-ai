@@ -46,8 +46,8 @@ def diff_snapshots(before: Snapshot, after: Snapshot, *, min_delta: float = MIN_
                     slot_deltas.append(SlotDelta(match=slot.match, side=side, team_id=team_id, delta=delta))
 
     return SnapshotDiff(
-        finish_deltas=_delta_map(before.england.finish_probs, after.england.finish_probs),
-        reach_deltas=_delta_map(before.england.reach_probs, after.england.reach_probs),
+        finish_deltas=_delta_map(before.focus.finish_probs, after.focus.finish_probs),
+        reach_deltas=_delta_map(before.focus.reach_probs, after.focus.reach_probs),
         champion_deltas=champion_deltas,
         slot_deltas=slot_deltas,
     )

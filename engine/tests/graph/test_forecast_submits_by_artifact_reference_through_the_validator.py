@@ -17,7 +17,7 @@ from wolves.observability import EventLog
 
 INVALID = build_submission(
     narrative=build_submission().narrative.model_copy(
-        update={"england_story": "England cruise — nothing to worry about.", "slot_rationales": {"73": "only one"}}
+        update={"focus_story": "England cruise — nothing to worry about.", "slot_rationales": {"73": "only one"}}
     )
 )
 VALID = build_submission(market_justification="Confirmed keeper news the books have not priced.")

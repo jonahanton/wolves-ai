@@ -7,9 +7,9 @@ from wolves.config import get_settings
 from wolves.sim.engine import EloMatchEngine
 from wolves.sim.format import PlayedResult, load_format, load_results
 from wolves.sim.mc import run_tournament
-from wolves.sim.outputs import build_england, build_groups, build_matches, build_slots, build_team_reach
+from wolves.sim.outputs import build_focus_team, build_groups, build_matches, build_slots, build_team_reach
 from wolves.sim.ratings import blend_value_prior, load_elo_ratings, load_squad_values
-from wolves.snapshot import EnglandBlock, GroupBlock, MatchProbs, Slot, TeamInfo
+from wolves.snapshot import FocusTeamBlock, GroupBlock, MatchProbs, Slot, TeamInfo
 
 
 class UnknownTeamError(Exception):
@@ -30,7 +30,7 @@ class SimInputs(BaseModel):
 class SimOutputs(BaseModel):
     n_sims: int
     seed: int
-    england: EnglandBlock
+    focus: FocusTeamBlock
     slots: list[Slot]
     teams: list[TeamInfo]
     groups: list[GroupBlock]
@@ -54,7 +54,8 @@ def run_simulation(
         n_sims=n_sims,
         seed=seed,
     )
-    data_dir = get_settings().data_dir
+    settings = get_settings()
+    data_dir = settings.data_dir
     fmt = load_format(data_dir)
     results = load_results(data_dir) | (extra_results or {})
 
@@ -96,7 +97,7 @@ def run_simulation(
     return SimOutputs(
         n_sims=inputs.n_sims,
         seed=resolved_seed,
-        england=build_england(fmt, result),
+        focus=build_focus_team(fmt, result, team_id=settings.focus_team),
         slots=build_slots(fmt, result),
         teams=teams,
         groups=build_groups(fmt, result),

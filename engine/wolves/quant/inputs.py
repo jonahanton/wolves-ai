@@ -18,12 +18,14 @@ OVERLAY_FILENAME = "overlay.duckdb"
 DATA_CARD_FILENAME = "data_card.md"
 FIELD_GUIDE_FILENAME = "field_guide.md"
 
-_EXAMPLE_QUERIES = {
-    "matches": "SELECT date, home_team, away_team, home_goals, away_goals FROM matches "
-    "WHERE home_team = 'england' OR away_team = 'england' ORDER BY date DESC LIMIT 10",
-    "market_closes": "SELECT * FROM market_closes WHERE tournament = 'wc2022' LIMIT 5",
-    "elo_history": "SELECT * FROM elo_history WHERE team = 'england' ORDER BY year",
-}
+
+def _example_queries(focus_team: str) -> dict[str, str]:
+    return {
+        "matches": "SELECT date, home_team, away_team, home_goals, away_goals FROM matches "
+        f"WHERE home_team = '{focus_team}' OR away_team = '{focus_team}' ORDER BY date DESC LIMIT 10",
+        "market_closes": "SELECT * FROM market_closes WHERE tournament = 'wc2022' LIMIT 5",
+        "elo_history": f"SELECT * FROM elo_history WHERE team = '{focus_team}' ORDER BY year",
+    }
 
 
 def prepare_inputs(workspace: QuantWorkspace, context: SandboxContext) -> None:
@@ -73,6 +75,7 @@ def render_data_card(context: SandboxContext) -> str:
     import duckdb
 
     con = duckdb.connect(context.dataset_path, read_only=True)
+    examples = _example_queries(context.focus_team)
     try:
         lines = [
             "# Data card",
@@ -92,7 +95,7 @@ def render_data_card(context: SandboxContext) -> str:
             if table == "matches":
                 lo, hi = con.execute("SELECT min(date), max(date) FROM matches").fetchone()
                 lines.append(f"Coverage: {lo} to {hi}.")
-            example = _EXAMPLE_QUERIES.get(table)
+            example = examples.get(table)
             if example:
                 lines.append(f"Example: `{example}`")
             lines.append("")

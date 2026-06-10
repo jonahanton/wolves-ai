@@ -8,7 +8,7 @@ LedgerStatus = Literal["confirmed", "probable", "rumour"]
 
 
 class Narrative(BaseModel):
-    england_story: str
+    focus_story: str
     slot_rationales: dict[str, str] = Field(default_factory=dict)
     travel_memo: str
 

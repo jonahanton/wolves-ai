@@ -4,7 +4,9 @@ Reference material, not a syllabus. Every number below is the engine's own,
 measured on the live deterministic surface on 10 June 2026 (champion fit,
 dataset f6aae7630aae, 50k common-random-number sims unless stated). Use the
 patterns when they fit and compose freely when they do not; the only
-low-altitude rules are in the statistical honesty section.
+low-altitude rules are in the statistical honesty section. England in the
+worked examples is simply the team the numbers were measured on; every
+pattern applies unchanged to any team.
 
 ## Worked examples with real numbers
 

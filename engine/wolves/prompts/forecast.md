@@ -25,7 +25,7 @@ Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned
   scorelines are what-if instruments and never publish.
 - Scenario weights sum to 1 and cite confirmed or probable ledger ids.
-- The England daily story, one line of rationale per R32 bracket slot, and
+- The focus team daily story (focus_story), one line of rationale per R32 bracket slot, and
   the travel memo, with no em-dashes anywhere.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the

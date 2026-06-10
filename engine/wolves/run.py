@@ -88,7 +88,7 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
             engine_version=ENGINE_VERSION,
             kind="sim_only",
         ),
-        england=outputs.england,
+        focus=outputs.focus,
         slots=outputs.slots,
         teams=outputs.teams,
         groups=outputs.groups,
