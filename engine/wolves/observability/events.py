@@ -53,7 +53,9 @@ class EventLog:
             observation_id=observation_id,
             payload=payload or {},
         )
-        self._handle.write(event.model_dump_json() + "\n")
+        # Appends run inside `observe` cleanup; a non-serialisable payload value
+        # must degrade to its repr rather than mask the original exception.
+        self._handle.write(event.model_dump_json(fallback=repr) + "\n")
         self._handle.flush()
         return event
 

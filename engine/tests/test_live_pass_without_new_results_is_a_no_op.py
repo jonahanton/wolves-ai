@@ -20,7 +20,7 @@ def _finished_match_one() -> MatchFixture:
 
 
 async def test_second_pass_with_the_same_results_writes_nothing(tmp_path):
-    settings = Settings(snapshot_dir=tmp_path)
+    settings = Settings(runs_root=tmp_path)
     fixtures = FakeFixturesClient(matches=[_finished_match_one()])
 
     assert await live_pass(settings, fixtures=fixtures, n_sims=120, seed=2) is True
@@ -31,7 +31,7 @@ async def test_second_pass_with_the_same_results_writes_nothing(tmp_path):
 
 
 async def test_pass_with_no_finished_results_writes_nothing(tmp_path):
-    settings = Settings(snapshot_dir=tmp_path)
+    settings = Settings(runs_root=tmp_path)
     fixtures = FakeFixturesClient(matches=[])
 
     assert await live_pass(settings, fixtures=fixtures, n_sims=120, seed=2) is False

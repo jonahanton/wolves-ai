@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
 
@@ -29,7 +29,6 @@ class ToolSpec[ArgsT: BaseModel, ResultT]:
     description: str
     args_model: type[ArgsT]
     fn: ToolFn[ArgsT, ResultT]
-    extras: dict[str, Any] = field(default_factory=dict)
 
     @cached_property
     def json_schema(self) -> dict[str, Any]:

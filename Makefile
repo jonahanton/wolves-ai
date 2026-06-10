@@ -2,7 +2,7 @@
 -include .env.worktree
 export
 
-.PHONY: setup venv lint format test db/init release \
+.PHONY: setup venv lint format test precommit db/init release \
         app/up app/down app/restart app/logs \
         frontend/install frontend/dev frontend/build frontend/lint
 
@@ -25,6 +25,9 @@ format:
 test:
 	cd engine && .venv/bin/pytest tests/ -q
 	cd backend && .venv/bin/pytest tests/ -q
+
+precommit:
+	pre-commit run --all-files
 
 release:
 	@scripts/release.sh $(env)

@@ -38,9 +38,9 @@ def build_run_index(settings: Settings) -> RunIndex | None:
 def write_local_snapshot(settings: Settings, snapshot: Snapshot) -> None:
     """Write the dated snapshot file and repoint latest.json locally."""
     payload = snapshot.model_dump_json(indent=1)
-    settings.snapshot_dir.mkdir(parents=True, exist_ok=True)
-    (settings.snapshot_dir / f"{snapshot.run.run_id}.json").write_text(payload)
-    (settings.snapshot_dir / "latest.json").write_text(payload)
+    settings.runs_root.mkdir(parents=True, exist_ok=True)
+    (settings.runs_root / f"{snapshot.run.run_id}.json").write_text(payload)
+    (settings.runs_root / "latest.json").write_text(payload)
 
 
 class SnapshotPublisher:

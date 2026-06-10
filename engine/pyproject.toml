@@ -14,9 +14,6 @@ dependencies = [
     "logfire>=3.0.0",
     "boto3>=1.35.0",
     "tenacity>=9.0.0",
-    "trafilatura>=2.0.0",
-    "lxml>=5.0.0",
-    "pypdf>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -44,7 +41,7 @@ ignore = ["TC001", "TC002", "TC003"]
 
 [tool.ruff.lint.per-file-ignores]
 # N818: vendored exception names are part of the established API surface.
-"wolves/clients/fetch/_ssrf.py" = ["N818"]
+"wolves/connectors/_ssrf.py" = ["N818"]
 "wolves/observability/runtime.py" = ["N818", "A002"]
 # A002: `input` mirrors the tracer/observation vocabulary (input/output pairs).
 "wolves/observability/tracer.py" = ["A002"]
