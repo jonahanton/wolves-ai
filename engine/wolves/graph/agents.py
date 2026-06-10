@@ -6,7 +6,7 @@ from typing import Any
 from pydantic_ai import Agent, RunContext
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools.market import market_movement, model_vs_market
+from wolves.agent.tools.market import market_gaps, market_movement
 from wolves.agent.tools.memory import (
     forecast_history,
     ledger_query,
@@ -45,7 +45,7 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         run_simulation.SPEC,
         data_query.SPEC,
         model_explain.SPEC,
-        model_vs_market.SPEC,
+        market_gaps.SPEC,
         perturbation_impact.SPEC,
         *_FREE_SPECS,
     ],
@@ -57,7 +57,7 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         team_path_tree.SPEC,
         model_explain.SPEC,
         team_dossier.SPEC,
-        model_vs_market.SPEC,
+        market_gaps.SPEC,
         market_movement.SPEC,
         data_query.SPEC,
         calibration_readback.SPEC,
@@ -70,7 +70,7 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         submit_forecast.SPEC,
         *_FREE_SPECS,
     ],
-    "critic": [ledger_query.SPEC, model_vs_market.SPEC, run_scenario.SPEC, previous_forecast.SPEC, *_FREE_SPECS],
+    "critic": [ledger_query.SPEC, market_gaps.SPEC, run_scenario.SPEC, previous_forecast.SPEC, *_FREE_SPECS],
 }
 
 _NODE_OUTPUTS: dict[NodeKind, type] = {

@@ -14,7 +14,7 @@ from wolves.markets.series import load_series
 TOP_GAPS = 20
 
 
-class TeamComparison(BaseModel):
+class TeamGap(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     team: str
@@ -22,18 +22,24 @@ class TeamComparison(BaseModel):
     market_p_title: float | None
     polymarket_p_title: float | None
     blend_p_title: float | None
-    gap_pp: float
+    gap_pp: float | None
+    polymarket_gap_pp: float | None
+    legs_disagree_pp: float | None
 
 
-class ModelVsMarket(BaseModel):
+class MarketGaps(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     as_of: str
     model_weight: float
-    comparisons: list[TeamComparison]
+    gaps: list[TeamGap]
 
 
-def model_vs_market(forecaster: Forecaster, archive_dir: Path, *, n_sims: int = 50_000, seed: int = 0) -> ModelVsMarket:
+def _pp(a: float, b: float | None) -> float | None:
+    return round((a - b) * 100.0, 2) if b is not None else None
+
+
+def market_gaps(forecaster: Forecaster, archive_dir: Path, *, n_sims: int = 50_000, seed: int = 0) -> MarketGaps:
     model = forecaster.title_probs(n_sims=n_sims, seed=seed)
     series = load_series(archive_dir)
     latest = series[-1] if series else None
@@ -42,20 +48,22 @@ def model_vs_market(forecaster: Forecaster, archive_dir: Path, *, n_sims: int = 
     weight = forecaster.champion.blend_weight
     blend = blend_probabilities(model, market, model_weight=weight) if market else {}
 
-    comparisons = [
-        TeamComparison(
+    gaps = [
+        TeamGap(
             team=team,
             model_p_title=round(p_model, 4),
             market_p_title=market.get(team),
             polymarket_p_title=polymarket.get(team),
             blend_p_title=round(blend[team], 4) if team in blend else None,
-            gap_pp=round((p_model - market[team]) * 100.0, 2) if team in market else 0.0,
+            gap_pp=_pp(p_model, market.get(team)),
+            polymarket_gap_pp=_pp(p_model, polymarket.get(team)),
+            legs_disagree_pp=_pp(market[team], polymarket.get(team)) if team in market else None,
         )
         for team, p_model in model.items()
     ]
-    comparisons.sort(key=lambda c: -abs(c.gap_pp))
-    return ModelVsMarket(
+    gaps.sort(key=lambda g: -max(abs(g.gap_pp or 0.0), abs(g.polymarket_gap_pp or 0.0)))
+    return MarketGaps(
         as_of=latest.captured_at if latest else "no market snapshots held",
         model_weight=weight,
-        comparisons=comparisons[:TOP_GAPS],
+        gaps=gaps[:TOP_GAPS],
     )

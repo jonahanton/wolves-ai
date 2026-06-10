@@ -11,7 +11,7 @@ from datetime import date
 from wolves.agent.calibration import CalibrationLedger, summarise_scores
 from wolves.agent.deps import AgentDeps
 from wolves.insights.market import market_movement
-from wolves.insights.model_vs_market import model_vs_market
+from wolves.insights.market_gaps import market_gaps
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +123,8 @@ def _baseline(deps: AgentDeps, titles: dict[str, float] | None) -> str:
 def _gaps(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     if deps.forecaster is None:
         return ""
-    table = model_vs_market(deps.forecaster, deps.settings.runs_root / "odds-archive", n_sims=_DOSSIER_SIMS, seed=0)
-    priced = [c for c in table.comparisons if c.market_p_title is not None][:8]
+    table = market_gaps(deps.forecaster, deps.settings.runs_root / "odds-archive", n_sims=_DOSSIER_SIMS, seed=0)
+    priced = [c for c in table.gaps if c.market_p_title is not None][:8]
     rows = "; ".join(
         f"{c.team}: model {c.model_p_title * 100:.1f} vs market {c.market_p_title * 100:.1f} ({c.gap_pp:+.1f}pp)"
         for c in priced
