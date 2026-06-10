@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from wolves.models.contracts import ScorelineDistribution
 from wolves.sim.engine import MatchEngine
 from wolves.sim.format import GROUPS, FormatData, GroupMatch, PlayedResult
 from wolves.sim.tiebreaks import rank_group, rank_thirds
@@ -75,14 +76,19 @@ def run_tournament(
     seed: int = 0,
     results: dict[int, PlayedResult] | None = None,
     fixture_goal_offsets: dict[int, tuple[float, float]] | None = None,
+    live_distributions: dict[int, ScorelineDistribution] | None = None,
 ) -> SimResult:
-    """Vectorised Monte Carlo over the exact 2026 format; match maths live in the engine."""
+    """Vectorised Monte Carlo over the exact 2026 format; match maths live in the engine.
+
+    live_distributions inject in-progress matches: scorelines are drawn from the
+    in-match chain's conditional distribution instead of the engine."""
     rng = np.random.default_rng(seed)
     idx = fmt.team_index()
     members = fmt.group_members()
     n_teams = len(fmt.teams)
     played = results or {}
     offsets = fixture_goal_offsets or {}
+    live = live_distributions or {}
     sims = np.arange(n_sims)
 
     engine.begin(rng, n_sims)
@@ -110,6 +116,9 @@ def run_tournament(
             r = played[m.match]
             hg = np.full(n_sims, r.home_goals, dtype=np.int16)
             ag = np.full(n_sims, r.away_goals, dtype=np.int16)
+        elif m.match in live:
+            hg_raw, ag_raw = live[m.match].sample(rng, n_sims)
+            hg, ag = hg_raw.astype(np.int16), ag_raw.astype(np.int16)
         else:
             hg_raw, ag_raw = engine.simulate_goals(rng, lam_h, lam_a)
             hg, ag = hg_raw.astype(np.int16), ag_raw.astype(np.int16)
@@ -224,7 +233,11 @@ def run_tournament(
             ag = np.full(n_sims, r.away_goals, dtype=np.int16)
             home_wins = (h == idx[r.winner]) if r.winner is not None else np.repeat(hg[0] > ag[0], n_sims)
         else:
-            hg_raw, ag_raw = engine.simulate_goals(rng, lam_h, lam_a)
+            if m.match in live:
+                # The chain's 90-minute distribution; level draws resolve through the engine's ET.
+                hg_raw, ag_raw = live[m.match].sample(rng, n_sims)
+            else:
+                hg_raw, ag_raw = engine.simulate_goals(rng, lam_h, lam_a)
             hg, ag = hg_raw.astype(np.int16), ag_raw.astype(np.int16)
             home_wins = engine.knockout_home_wins(rng, h, a, hg, ag, city=m.city)
             ko_stats[m.match] = tie_stats(h, a, hg, ag, home_wins)
