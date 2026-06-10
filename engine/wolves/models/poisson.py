@@ -165,7 +165,7 @@ def _hessian(params: np.ndarray, data: _FitData, prior_weight: np.ndarray | None
 
 
 def load_elo_covariate(dataset: DatasetHandle, *, as_of: date) -> dict[str, float]:
-    """Year-end Elo from the last year strictly before as_of; empty when none held."""
+    """Load the year-end Elo snapshot preceding as_of."""
     connection = duckdb.connect(str(dataset.path), read_only=True)
     try:
         if "elo_history" not in {row[0] for row in connection.execute("show tables").fetchall()}:

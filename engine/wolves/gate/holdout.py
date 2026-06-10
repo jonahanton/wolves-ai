@@ -57,9 +57,12 @@ def load_holdout(dataset: DatasetHandle) -> list[HoldoutMatch]:
     connection = duckdb.connect(str(dataset.path), read_only=True)
     try:
         workbook_rows = connection.execute(
-            "select competition, date, home_team, away_team, home_goals, away_goals,"
+            "select competition, date, home_team, away_team,"
             " list(row(home_price, draw_price, away_price))"
-            " from match_odds group by 1, 2, 3, 4, 5, 6"
+            " from match_odds where bookmaker != 'market-max' group by 1, 2, 3, 4"
+        ).fetchall()
+        all_results = connection.execute(
+            "select date, home_team, away_team, home_goals, away_goals from matches where date >= '2014-01-01'"
         ).fetchall()
         close_rows = connection.execute(
             "select tournament, home_team, away_team, cast(commence_at as date),"
@@ -81,12 +84,26 @@ def load_holdout(dataset: DatasetHandle) -> list[HoldoutMatch]:
     finally:
         connection.close()
 
+    # Workbook full-time scores encode shootout winners as one-goal wins, so
+    # outcome labels come from the results backbone, never from the workbook.
+    results_index: dict[frozenset[str], list[tuple[date, str, int, int]]] = {}
+    for played, home, away, home_goals, away_goals in all_results:
+        results_index.setdefault(frozenset((home, away)), []).append((played, home, home_goals, away_goals))
+
     matches: list[HoldoutMatch] = []
     workbook_folds = dict(WORKBOOK_FOLDS)
-    for competition, played, home, away, home_goals, away_goals, trios in workbook_rows:
+    for competition, played, home, away, trios in workbook_rows:
         if competition not in workbook_folds:
             continue
-        # football-data scores are 90-minute full time, so no shootout correction.
+        candidates = results_index.get(frozenset((home, away)), [])
+        if not candidates:
+            continue
+        result_date, result_home, home_goals, away_goals = min(candidates, key=lambda c: abs((c[0] - played).days))
+        if abs((result_date - played).days) > 1:
+            continue
+        if result_home != home:
+            home_goals, away_goals = away_goals, home_goals
+        went_to_shootout = (result_date, frozenset((home, away))) in shootouts
         matches.append(
             HoldoutMatch(
                 fold=competition,
@@ -95,7 +112,7 @@ def load_holdout(dataset: DatasetHandle) -> list[HoldoutMatch]:
                 home_team=home,
                 away_team=away,
                 neutral=True,
-                outcome=_outcome(home_goals, away_goals, went_to_shootout=False),
+                outcome=_outcome(home_goals, away_goals, went_to_shootout=went_to_shootout),
                 market=_consensus(trios),
             )
         )

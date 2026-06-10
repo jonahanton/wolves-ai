@@ -18,6 +18,12 @@ from wolves.data.teams import canonical_team_key
 logger = logging.getLogger(__name__)
 
 CLOSING_WINDOW = timedelta(minutes=30)
+# The Odds API labelled Zambia's AFCON 2023 group games as Gambia; correct on load.
+_SOURCE_CORRECTIONS: dict[tuple[str, frozenset[str]], dict[str, str]] = {
+    ("afcon2023", frozenset({"Gambia", "DR Congo"})): {"Gambia": "Zambia"},
+    ("afcon2023", frozenset({"Gambia", "Tanzania"})): {"Gambia": "Zambia"},
+    ("afcon2023", frozenset({"Gambia", "Morocco"})): {"Gambia": "Zambia"},
+}
 
 
 class ClosingOddsRecord(BaseModel):
@@ -48,6 +54,8 @@ def _h2h_records(tournament: str, snapshot: dict[str, Any]) -> list[ClosingOddsR
         if not timedelta(0) <= commence_at - snapshot_at <= CLOSING_WINDOW:
             continue
         home, away = event["home_team"], event["away_team"]
+        # Price outcomes carry the source's (possibly wrong) names; correct keys only.
+        correction = _SOURCE_CORRECTIONS.get((tournament, frozenset({home, away})), {})
         for bookmaker in event["bookmakers"]:
             markets = {market["key"]: market for market in bookmaker["markets"]}
             if "h2h" not in markets:
@@ -67,8 +75,8 @@ def _h2h_records(tournament: str, snapshot: dict[str, Any]) -> list[ClosingOddsR
                     tournament=tournament,
                     snapshot_at=snapshot_at,
                     commence_at=commence_at,
-                    home_team=canonical_team_key(home),
-                    away_team=canonical_team_key(away),
+                    home_team=canonical_team_key(correction.get(home, home)),
+                    away_team=canonical_team_key(correction.get(away, away)),
                     bookmaker=bookmaker["key"],
                     home_price=prices[home],
                     draw_price=prices["Draw"],
@@ -98,8 +106,7 @@ def _outright_records(tournament: str, snapshot: dict[str, Any]) -> list[Outrigh
 
 
 def load_closes(odds_root: Path) -> tuple[list[ClosingOddsRecord], list[OutrightCloseRecord]]:
-    """Parse every pulled snapshot under odds_root/<tournament>/; an absent
-    root means no closes on this machine."""
+    """Parse every pulled snapshot under odds_root/<tournament>/."""
     if not odds_root.exists():
         logger.warning("%s absent; market close tables will be empty", odds_root)
         return [], []

@@ -65,7 +65,12 @@ async def pull_snapshot(
     )
     response.raise_for_status()
     out_path.write_text(json.dumps(response.json()), encoding="utf-8")
-    logger.info("pulled %s/%s (credits remaining %s)", out_path.parent.name, out_path.name, response.headers.get("x-requests-remaining"))
+    logger.info(
+        "pulled %s/%s (credits remaining %s)",
+        out_path.parent.name,
+        out_path.name,
+        response.headers.get("x-requests-remaining"),
+    )
     return True
 
 

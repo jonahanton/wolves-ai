@@ -66,6 +66,8 @@ def _step(grid: np.ndarray, p_home: np.ndarray, p_away: np.ndarray) -> np.ndarra
     # The top row/column absorbs: goals beyond the cap stay at the cap.
     advanced[-1, :] += grid[-1, :] * p_home[-1, :] * (1.0 - p_away[-1, :])
     advanced[:, -1] += grid[:, -1] * p_away[:, -1] * (1.0 - p_home[:, -1])
+    advanced[-1, 1:] += grid[-1, :-1] * p_home[-1, :-1] * p_away[-1, :-1]
+    advanced[1:, -1] += grid[:-1, -1] * p_home[:-1, -1] * p_away[:-1, -1]
     advanced[-1, -1] += grid[-1, -1] * p_home[-1, -1] * p_away[-1, -1]
     return stay + advanced
 
@@ -87,12 +89,17 @@ def _rate_grids(
     return p_home, p_away
 
 
-# The profile must integrate to one over a full effective match, so the
-# pre-match lambda is preserved when summed across all minutes.
-_FULL_MATCH = [float(m) for m in np.arange(0.0, H1_MINUTES + H1_STOPPAGE)] + [
-    float(m) for m in np.arange(H1_MINUTES, H1_MINUTES + H2_MINUTES + H2_STOPPAGE_CLOSE)
-]
-_NORMALISER = sum(_profile(min(m, 90.0)) for m in _FULL_MATCH) / 90.0
+def _timeline(*, h2_stoppage: float) -> list[float]:
+    """Profile minutes for a full match: every core minute once, H1 stoppage
+    at the half-time intensity, H2 stoppage at the final-minute intensity."""
+    core_h1 = [float(m) for m in np.arange(0.0, H1_MINUTES)]
+    core_h2 = [float(m) for m in np.arange(H1_MINUTES, H1_MINUTES + H2_MINUTES)]
+    return core_h1 + [45.0] * int(H1_STOPPAGE) + core_h2 + [90.0] * int(h2_stoppage)
+
+
+# Normalised on the close-game schedule so pre-match lambda is preserved there;
+# settled games play one fewer stoppage minute and score accordingly less.
+_NORMALISER = sum(_profile(m) for m in _timeline(h2_stoppage=H2_STOPPAGE_CLOSE)) / 90.0
 
 
 def final_score_distribution(lam_home: float, lam_away: float, state: MatchState) -> ScorelineDistribution:
@@ -108,19 +115,17 @@ def final_score_distribution(lam_home: float, lam_away: float, state: MatchState
 
 
 def _remaining_minutes(state: MatchState) -> list[float]:
-    """Effective minutes left under the post-2022 stoppage regime."""
+    """Effective minutes left. Live feeds report elapsed clock minutes with
+    the first half capped at 45 and the second starting at 46, so minute <= 45
+    indexes into the first half and anything later into the second."""
     margin = abs(state.home_goals - state.away_goals)
-    h2_stoppage = H2_STOPPAGE_CLOSE if margin <= 1 else H2_STOPPAGE_SETTLED
-    minutes: list[float] = []
-    if state.minute < H1_MINUTES + H1_STOPPAGE:
-        first_half_end = H1_MINUTES + H1_STOPPAGE
-        minutes.extend(np.arange(state.minute, first_half_end))
-        minutes.extend(np.arange(H1_MINUTES, H1_MINUTES + H2_MINUTES + h2_stoppage))
+    timeline = _timeline(h2_stoppage=H2_STOPPAGE_CLOSE if margin <= 1 else H2_STOPPAGE_SETTLED)
+    if state.minute <= H1_MINUTES:
+        start = int(state.minute)
     else:
-        # Mid second half: clock minutes past 45 map onto the H2 profile directly.
-        second_half_end = H1_MINUTES + H2_MINUTES + h2_stoppage
-        minutes.extend(np.arange(state.minute, second_half_end))
-    return [float(m) for m in minutes]
+        played_h2 = min(max(state.minute - (H1_MINUTES + 1.0), 0.0), H2_MINUTES - 1.0)
+        start = int(H1_MINUTES + H1_STOPPAGE + played_h2)
+    return timeline[start:]
 
 
 def extra_time_distribution(lam_home: float, lam_away: float, state: MatchState) -> ScorelineDistribution:

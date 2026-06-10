@@ -1,7 +1,8 @@
 """The deterministic engine behind one facade: fit, query, perturb, simulate.
-The backend, the live loop and the agent tools all import this and nothing
-deeper. Perturbations are typed and quantified: every strength delta can
-report its output-space impact before anyone acts on it."""
+The backend, the live loop and the agent tools import this and nothing deeper
+(the gate and inverse simulation deliberately reach past it: they evaluate and
+calibrate the parts the facade composes). Perturbations are typed and
+quantified: every strength delta reports its output-space impact."""
 
 from __future__ import annotations
 
@@ -17,7 +18,13 @@ from wolves.data.contracts import MatchRecord
 from wolves.data.overlay import overlay_results
 from wolves.data.teams import registry_team_key
 from wolves.gate.registry import ChampionRegistry
-from wolves.models.contracts import DatasetHandle, FittedState, Fixture, ScorelineDistribution
+from wolves.models.contracts import (
+    DatasetHandle,
+    FittedState,
+    Fixture,
+    ScorelineDistribution,
+    UnknownModelTeamError,
+)
 from wolves.models.inmatch import MatchState, final_score_distribution, live_win_probabilities
 from wolves.models.poisson import PoissonDecayModel
 from wolves.sim.format import FormatData, PlayedResult, load_format
@@ -68,8 +75,7 @@ class Forecaster:
     @property
     def state(self) -> FittedState:
         if self._state is None:
-            self.fit()
-        assert self._state is not None
+            return self.fit()
         return self._state
 
     def _perturbed(self, perturbations: tuple[StrengthPerturbation, ...]) -> FittedState:
@@ -80,7 +86,10 @@ class Forecaster:
         strengths = state.strengths.copy()
         index = {team: i for i, team in enumerate(state.teams)}
         for perturbation in active:
-            strengths[index[registry_team_key(perturbation.team)]] += perturbation.delta
+            key = registry_team_key(perturbation.team)
+            if key not in index:
+                raise UnknownModelTeamError(perturbation.team, state.model_id)
+            strengths[index[key]] += perturbation.delta
         return replace(state, strengths=strengths)
 
     def score_grid(
