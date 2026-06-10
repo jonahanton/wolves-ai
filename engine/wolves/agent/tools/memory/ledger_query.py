@@ -7,8 +7,8 @@ from pydantic import BaseModel
 
 from wolves.agent.contracts import LedgerStatus
 from wolves.agent.deps import AgentDeps
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolError, ToolResult
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolError, ToolResult
 
 
 class LedgerQueryArgs(BaseModel):

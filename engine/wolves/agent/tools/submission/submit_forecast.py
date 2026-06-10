@@ -5,8 +5,8 @@ from typing import Any
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
 from wolves.agent.validator import validate_submission
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolError, ToolResult
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolError, ToolResult
 
 _BASELINE_SIMS = 50_000
 

@@ -5,9 +5,9 @@ from typing import Any
 from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolResult
 from wolves.insights.market import market_movement
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolResult
 
 
 class MarketMovementArgs(BaseModel):

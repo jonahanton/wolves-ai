@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.sources import source_tier
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolError, ToolResult
 from wolves.prompts import prompt
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolError, ToolResult
 
 
 class Candidate(BaseModel):

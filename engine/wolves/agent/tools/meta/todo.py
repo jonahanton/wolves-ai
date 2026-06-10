@@ -5,8 +5,8 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from wolves.agent.deps import AgentDeps, TodoItem
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolResult
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolResult
 
 
 class TodoWriteArgs(BaseModel):

@@ -6,9 +6,9 @@ from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools._shared import forecaster_or_refuse, reserve_or_refuse
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolResult
 from wolves.insights.dossier import team_dossier
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolResult
 
 
 class TeamDossierArgs(BaseModel):

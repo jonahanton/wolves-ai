@@ -6,9 +6,9 @@ from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools._shared import reserve_or_refuse
-from wolves.agent_tools._timeout import run_with_timeout
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolResult
+from wolves.toolkit._timeout import run_with_timeout
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolResult
 
 
 class GetResultsAndFixturesArgs(BaseModel):

@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from wolves.agent_tools.result import ToolResult
+from wolves.toolkit.result import ToolResult
 
 type ToolFn[ArgsT: BaseModel, ResultT] = Callable[[ArgsT, Any], Awaitable[ToolResult[ResultT]]]
 

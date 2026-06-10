@@ -6,8 +6,8 @@ from pydantic import BaseModel, Field
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.scenarios import UnknownScenarioError
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolError, ToolResult
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolError, ToolResult
 
 
 class ScenarioUpdateArgs(BaseModel):

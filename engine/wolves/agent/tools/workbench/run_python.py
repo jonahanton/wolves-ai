@@ -6,10 +6,10 @@ from typing import Any
 from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolResult
 from wolves.quant.context import build_sandbox_context
 from wolves.quant.inputs import prepare_inputs
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolResult
 
 _RESULT_CAP_CHARS = 8_000
 _STDOUT_CAP_CHARS = 2_000

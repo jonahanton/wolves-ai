@@ -5,11 +5,11 @@ from typing import Any
 from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolError, ToolResult
 from wolves.data.query import DatasetQuery
 from wolves.data.store import DatasetStore
 from wolves.models.contracts import DatasetHandle
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolError, ToolResult
 
 _MAX_ROWS = 200
 

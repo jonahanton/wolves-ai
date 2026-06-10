@@ -11,7 +11,6 @@ from wolves.agent.memory import RunMemory
 from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.source_memory import SourceMemory
 from wolves.agent.validator import ValidatorLimits
-from wolves.agent_tools._budget_gate import BudgetGate
 from wolves.clients.api_football import FixturesClient
 from wolves.clients.odds import OddsClient, PolymarketClient
 from wolves.config import Settings
@@ -19,6 +18,7 @@ from wolves.connectors.observed import ObservedWeb
 from wolves.llm.observed import ObservedLLM
 from wolves.observability.runtime import ObservedRuntime
 from wolves.quant.observed import ObservedQuant
+from wolves.toolkit._budget_gate import BudgetGate
 
 if TYPE_CHECKING:
     from wolves.forecast import Forecaster

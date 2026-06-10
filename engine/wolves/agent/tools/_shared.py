@@ -8,8 +8,8 @@ from __future__ import annotations
 from typing import Any
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent_tools._budget_gate import budget_exhausted_message
-from wolves.agent_tools.result import ToolError, ToolResult
+from wolves.toolkit._budget_gate import budget_exhausted_message
+from wolves.toolkit.result import ToolError, ToolResult
 
 
 def reserve_or_refuse(deps: AgentDeps) -> ToolResult[Any] | None:

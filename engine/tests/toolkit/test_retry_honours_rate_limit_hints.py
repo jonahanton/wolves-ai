@@ -5,8 +5,8 @@ import datetime as dt
 import httpx
 import pytest
 
-from wolves.agent_tools import _retry
-from wolves.agent_tools._retry import (
+from wolves.toolkit import _retry
+from wolves.toolkit._retry import (
     _parse_rate_limit_reset,
     _parse_retry_after,
     request_with_retry,

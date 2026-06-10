@@ -7,11 +7,11 @@ from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent_tools._budget_gate import BudgetGate
 from wolves.config import Settings
 from wolves.graph.agents import node_agent
 from wolves.graph.artifacts import ArtifactKind, RunArtifactStore
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
+from wolves.toolkit._budget_gate import BudgetGate
 
 _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
     "research": "evidence",

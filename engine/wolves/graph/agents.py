@@ -22,12 +22,12 @@ from wolves.agent.tools.retrieval import get_odds, get_results_and_fixtures, ran
 from wolves.agent.tools.simulation import perturbation_impact, run_scenario, run_simulation, team_path_tree
 from wolves.agent.tools.submission import submit_forecast
 from wolves.agent.tools.workbench import data_query, run_python, team_dossier
-from wolves.agent_tools._truncation import truncate_result
-from wolves.agent_tools.adapters.pydantic_ai import build_toolset
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolResult
 from wolves.graph.contracts import CritiqueOutput, ForecastOutput, GraphPatch, NodeKind, QuantOutput, ResearchOutput
 from wolves.prompts import prompt
+from wolves.toolkit._truncation import truncate_result
+from wolves.toolkit.adapters.pydantic_ai import build_toolset
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolResult
 
 _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
 

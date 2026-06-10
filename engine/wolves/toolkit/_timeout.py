@@ -15,8 +15,8 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable
 
-from wolves.agent_tools.errors import ToolTimeoutError
 from wolves.config import get_settings
+from wolves.toolkit.errors import ToolTimeoutError
 
 
 async def run_with_timeout[T](

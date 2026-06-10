@@ -27,7 +27,6 @@ from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.source_memory import SourceMemory
 from wolves.agent.validator import ValidatorLimits
-from wolves.agent_tools._budget_gate import BudgetGate
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
 from wolves.clients.odds import (
     FakeOddsClient,
@@ -76,6 +75,7 @@ from wolves.snapshot import (
     WorldOut,
     run_day,
 )
+from wolves.toolkit._budget_gate import BudgetGate
 
 logger = logging.getLogger(__name__)
 

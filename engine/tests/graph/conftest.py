@@ -7,7 +7,6 @@ from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
 from wolves.agent.validator import ValidatorLimits
-from wolves.agent_tools._budget_gate import BudgetGate
 from wolves.clients.api_football import FakeFixturesClient
 from wolves.clients.odds import FakeOddsClient, FakePolymarketClient
 from wolves.config import Settings
@@ -17,6 +16,7 @@ from wolves.llm.observed import ObservedLLM
 from wolves.observability import Caps, InMemoryTracer, build_runtime
 from wolves.quant.observed import ObservedQuant
 from wolves.s3.artifacts import ArtifactStore
+from wolves.toolkit._budget_gate import BudgetGate
 
 
 def build_run_store(tmp_path: Path, *, run_id: str = "graph-run") -> RunArtifactStore:

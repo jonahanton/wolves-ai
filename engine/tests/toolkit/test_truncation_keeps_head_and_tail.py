@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from wolves.agent_tools._truncation import truncate_result
+from wolves.toolkit._truncation import truncate_result
 
 
 def test_short_text_returned_unchanged():

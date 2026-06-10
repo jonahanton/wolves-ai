@@ -7,11 +7,11 @@ from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.scoring import load_previous_snapshots
-from wolves.agent_tools.core import ToolSpec
-from wolves.agent_tools.result import ToolError, ToolResult
 from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
 from wolves.s3.artifacts import ArtifactStore
 from wolves.snapshot import Snapshot
+from wolves.toolkit.core import ToolSpec
+from wolves.toolkit.result import ToolError, ToolResult
 
 
 class PreviousForecastArgs(BaseModel):
