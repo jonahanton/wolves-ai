@@ -23,6 +23,7 @@ from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
+from wolves.agent.relevance_feedback import append_feedback, relevance_feedback
 from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.source_memory import SourceMemory
@@ -60,7 +61,7 @@ from wolves.s3.agent_state import build_agent_state_store
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
-from wolves.s3.layout import SCENARIOS, SOURCES_SEEN, run_dir
+from wolves.s3.layout import RELEVANCE_FEEDBACK, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
 from wolves.snapshot import (
     AgentBlock,
@@ -497,6 +498,11 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
         return 1
 
+    if deps.artifacts is not None:
+        append_feedback(
+            settings.runs_root / RELEVANCE_FEEDBACK.key(),
+            relevance_feedback(deps.artifacts, deps.ledger, run_id=run_id),
+        )
     snapshot = _build_snapshot(
         settings=settings,
         deps=deps,

@@ -51,7 +51,7 @@ async def _rank_relevance(args: RankRelevanceArgs, deps: AgentDeps) -> ToolResul
     for c in args.candidates:
         record = memory.seen(c.url) if memory is not None else None
         seen[c.url] = record.last_seen_run if record is not None else None
-    user = f"Sub-question: {args.sub_question}\n\nCandidates:\n\n" + "\n\n".join(
+    user = f"Sub-question: {args.sub_question}\nAs of: {deps.as_of}\n\nCandidates:\n\n" + "\n\n".join(
         _candidate_block(c, seen.get(c.url)) for c in args.candidates
     )
     try:

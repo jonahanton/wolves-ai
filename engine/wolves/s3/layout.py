@@ -149,6 +149,13 @@ SOURCES_SEEN = ArtifactSpec(
     mutable=True,
     description="Cross-run memory of sources already fetched, for dedupe and what_changed.",
 )
+RELEVANCE_FEEDBACK = ArtifactSpec(
+    name="relevance-feedback",
+    pattern="agent-state/relevance_feedback.jsonl",
+    content_type=NDJSON,
+    mutable=True,
+    description="Relevance scores joined with eventual ledger citation, for tier calibration.",
+)
 CALIBRATION = ArtifactSpec(
     name="calibration",
     pattern="agent-state/calibration.jsonl",
@@ -175,6 +182,7 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     LESSONS,
     SCENARIOS,
     SOURCES_SEEN,
+    RELEVANCE_FEEDBACK,
     CALIBRATION,
 )
 
