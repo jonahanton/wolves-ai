@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import math
 from datetime import date, datetime
 
 import httpx
@@ -11,6 +10,7 @@ import pandas as pd
 
 from wolves.connectors._http import _raise_for_status, async_retrying
 from wolves.data.contracts import MatchOddsRecord
+from wolves.data.prices import valid_price
 from wolves.data.teams import team_key
 
 WORKBOOK_URL = "https://www.football-data.co.uk/internationals.xlsx"
@@ -33,9 +33,7 @@ def _bookmaker_trios(columns: list[str]) -> list[tuple[str, str, str, str]]:
     Most sheets repeat the bookmaker name across three columns, which pandas
     deduplicates to name/.1/.2; the 2018 sheet names its trios explicitly."""
     trios = [
-        (name, name, f"{name}.1", f"{name}.2")
-        for name in columns
-        if f"{name}.1" in columns and f"{name}.2" in columns
+        (name, name, f"{name}.1", f"{name}.2") for name in columns if f"{name}.1" in columns and f"{name}.2" in columns
     ]
     named = [
         ("Pinnacle", "Pinny-H", "Pinny-D", "Pinny-A"),
@@ -44,14 +42,6 @@ def _bookmaker_trios(columns: list[str]) -> list[tuple[str, str, str, str]]:
     ]
     trios.extend(trio for trio in named if all(column in columns for column in trio[1:]))
     return trios
-
-
-def _as_price(value: object) -> float | None:
-    try:
-        price = float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return None
-    return price if math.isfinite(price) and price > 1.0 else None
 
 
 def _as_date(value: object) -> date | None:
@@ -78,9 +68,9 @@ def parse_workbook(content: bytes) -> list[MatchOddsRecord]:
             if played is None or pd.isna(row_map["HGFT"]) or pd.isna(row_map["AGFT"]):
                 continue
             for bookmaker, home_col, draw_col, away_col in bookmakers:
-                home = _as_price(row_map[home_col])
-                draw = _as_price(row_map[draw_col])
-                away = _as_price(row_map[away_col])
+                home = valid_price(row_map[home_col])
+                draw = valid_price(row_map[draw_col])
+                away = valid_price(row_map[away_col])
                 if home is None or draw is None or away is None:
                     continue
                 records.append(

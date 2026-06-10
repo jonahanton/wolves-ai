@@ -13,6 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from wolves.data.prices import valid_price
 from wolves.data.teams import team_key
 
 logger = logging.getLogger(__name__)
@@ -50,8 +51,15 @@ def _h2h_records(snapshot: dict[str, Any]) -> list[ClosingOddsRecord]:
             markets = {market["key"]: market for market in bookmaker["markets"]}
             if "h2h" not in markets:
                 continue
-            prices = {outcome["name"]: float(outcome["price"]) for outcome in markets["h2h"]["outcomes"]}
+            prices = {
+                outcome["name"]: price
+                for outcome in markets["h2h"]["outcomes"]
+                if (price := valid_price(outcome["price"])) is not None
+            }
             if not {home, away, "Draw"} <= prices.keys():
+                logger.warning(
+                    "dropping incomplete or invalid h2h trio from %s for %s v %s", bookmaker["key"], home, away
+                )
                 continue
             records.append(
                 ClosingOddsRecord(
@@ -75,13 +83,14 @@ def _outright_records(snapshot: dict[str, Any]) -> list[OutrightCloseRecord]:
             snapshot_at=snapshot_at,
             bookmaker=bookmaker["key"],
             team=team_key(outcome["name"]),
-            price=float(outcome["price"]),
+            price=price,
         )
         for event in snapshot["data"]
         for bookmaker in event["bookmakers"]
         for market in bookmaker["markets"]
         if market["key"] == "outrights"
         for outcome in market["outcomes"]
+        if (price := valid_price(outcome["price"])) is not None
     ]
 
 
