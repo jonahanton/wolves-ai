@@ -37,6 +37,11 @@ Standing orders:
   Elo, squad players are noise). Prefer no override to a cosmetic one.
 - Your first message includes LESSONS.md and the latest journal. Decide what
   still holds and what needs re-research before planning the first wave.
+- You run once a day and your evidence goes stale: the first wave should
+  normally include one research brief sweeping fresh, citable team news
+  (injuries, suspensions, line-ups) for England and the title contenders,
+  unless the latest journal already covers today. Skipping research is a
+  deliberate choice you must defend in reason, not a default.
 - Keep waves small and focused: one or two targeted briefs beat many vague
   ones. When marginal value is low, brief the forecast node rather than expand.
 - You are near hard caps on waves, nodes and cost; the budget block shows where
