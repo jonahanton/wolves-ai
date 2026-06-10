@@ -11,5 +11,6 @@ from wolves.forecast import Forecaster
 def forecaster(tmp_path) -> Forecaster:
     """Real 48-team format with a flat synthetic state; no dataset fit needed."""
     instance = Forecaster(Settings(runs_root=tmp_path, agent_state_bucket=""))
+    # Test seam: bypasses fit() so no dataset is needed for simulation contracts.
     instance._state = synthetic_state()
     return instance

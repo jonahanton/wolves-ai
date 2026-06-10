@@ -89,7 +89,8 @@ def point_from_snapshot(snapshot: dict[str, Any], fmt: FormatData) -> SeriesPoin
 
 
 def point_path(raw_path: Path) -> Path:
-    return raw_path.with_suffix(SERIES_SUFFIX)
+    # with_suffix rejects compound suffixes on older Pythons; compose by name.
+    return raw_path.with_name(raw_path.stem + SERIES_SUFFIX)
 
 
 def write_point(raw_path: Path, point: SeriesPoint) -> Path:

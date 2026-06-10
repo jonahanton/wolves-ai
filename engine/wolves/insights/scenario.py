@@ -70,7 +70,7 @@ def run_scenario(
     return ScenarioResult(
         n_sims=n_sims,
         seed=seed,
-        perturbations=[repr(p) for p in perturbations],
+        perturbations=[f"{type(p).__name__} {p.model_dump_json()}" for p in perturbations],
         title_movers=_movers(base, perturbed, "champion"),
         r32_movers=_movers(base, perturbed, "r32"),
     )

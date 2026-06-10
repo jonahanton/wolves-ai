@@ -74,10 +74,12 @@ def model_explain(forecaster: Forecaster, team: str) -> StrengthExplanation:
     record = {"w": 0.0, "d": 0.0, "l": 0.0, "gf": 0.0, "ga": 0.0, "n": 0}
     for i in range(data.weights.shape[0]):
         if data.home_idx[i] == team_pos:
-            opponent, at_home = data.teams[data.away_idx[i]], data.at_home[i] > 0
+            opponent = data.teams[data.away_idx[i]]
+            venue = "home" if data.at_home[i] > 0 else "neutral"
             gf, ga, ef, ea = data.home_goals[i], data.away_goals[i], lam_home[i], lam_away[i]
         elif data.away_idx[i] == team_pos:
-            opponent, at_home = data.teams[data.home_idx[i]], False
+            opponent = data.teams[data.home_idx[i]]
+            venue = "away" if data.at_home[i] > 0 else "neutral"
             gf, ga, ef, ea = data.away_goals[i], data.home_goals[i], lam_away[i], lam_home[i]
         else:
             continue
@@ -87,7 +89,7 @@ def model_explain(forecaster: Forecaster, team: str) -> StrengthExplanation:
             MatchInfluence(
                 date=data.dates[i],
                 opponent=opponent,
-                venue="home" if at_home else "neutral or away",
+                venue=venue,
                 score=f"{int(gf)}-{int(ga)}",
                 tournament=data.tournaments[i],
                 importance=float(data.importance[i]),
