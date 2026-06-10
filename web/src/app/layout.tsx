@@ -1,11 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Funnel_Display, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { TabBar } from "@/components/shell/tab-bar";
 import { ThemeProvider, themeInitScript } from "@/components/theme-provider";
 import "./globals.css";
 
-const sans = Geist({
+// Switzer and Funnel Display both carry uniform-width digits, which the global
+// tabular-nums rule depends on; swap fonts only for faces that keep that true.
+const sans = localFont({
+  src: "../fonts/Switzer-Variable.woff2",
   variable: "--font-sans",
+  weight: "100 900",
+  display: "swap",
+});
+
+const display = Funnel_Display({
+  variable: "--font-display",
   subsets: ["latin"],
 });
 
@@ -33,7 +43,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`${sans.variable} ${display.variable} ${mono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

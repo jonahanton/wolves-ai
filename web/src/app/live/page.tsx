@@ -19,7 +19,7 @@ export default async function LivePage() {
   const first = fixtures[0];
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-5 p-4">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
       <PageHeader title="Live" subtitle="Matchday tracking and what-ifs" />
       <LiveBoard
         preTournament={preTournament}

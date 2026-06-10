@@ -25,7 +25,7 @@ export function RoundRows({ rounds, onSelect }: RoundRowsProps) {
                 key={slot.match}
                 type="button"
                 onClick={() => onSelect(slot)}
-                className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm"
+                className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm"
               >
                 <span className="truncate">
                   {sideSummary(slot.home)} <span className="text-muted-foreground">v</span>{" "}

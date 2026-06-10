@@ -27,6 +27,12 @@
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
 
+  --color-heat: var(--heat);
+  --color-delta-up: var(--delta-up);
+  --color-delta-up-bg: var(--delta-up-bg);
+  --color-delta-down: var(--delta-down);
+  --color-delta-down-bg: var(--delta-down-bg);
+
   --color-state-working: var(--state-working);
   --color-state-working-bg: var(--state-working-bg);
   --color-state-complete: var(--state-complete);
@@ -36,22 +42,19 @@
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+  --font-display: var(--font-display);
 
+  /* Anti-slop gate: nothing in the app exceeds a 12px radius. */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-xl: 0.75rem;
+  --radius-2xl: 0.75rem;
 }
 
 :root {
   --background: oklch(0.985 0.002 90);
-  --bg-secondary: oklch(0.965 0.003 90);
-  --bg-elevated: oklch(1 0 0);
-
   --foreground: oklch(0.16 0.005 90);
-  --fg-secondary: oklch(0.45 0.005 90);
-  --fg-tertiary: oklch(0.6 0.005 90);
 
   --border: oklch(0.91 0.003 90);
   --border-strong: oklch(0.78 0.003 90);
@@ -83,45 +86,47 @@
   --state-error: oklch(0.55 0.18 25);
   --state-error-bg: oklch(0.96 0.02 25);
 
+  --heat: oklch(0.55 0.1 250);
+  --delta-up: oklch(0.52 0.09 155);
+  --delta-up-bg: oklch(0.52 0.09 155 / 12%);
+  --delta-down: oklch(0.52 0.1 25);
+  --delta-down-bg: oklch(0.52 0.1 25 / 12%);
+
+  --card-shadow: 0 1px 3px oklch(0 0 0 / 10%);
+
   --radius: 0.625rem;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-snap: cubic-bezier(0.2, 0, 0, 1);
-  --dur-micro: 110ms;
-  --dur-view: 220ms;
-  --dur-enter: 300ms;
 }
 
+/* Dark elevation is four luminance steps (base, card, nested, overlay); depth comes
+   from surfaces getting lighter, never from shadows. Hairlines are alpha white and
+   the text ramp tops out off-white, never #FFF. */
 .dark {
-  --background: oklch(0.17 0.008 90);
-  --bg-secondary: oklch(0.2 0.008 90);
-  --bg-elevated: oklch(0.23 0.008 90);
+  --background: #0b0b0d;
+  --foreground: #ececef;
 
-  --foreground: oklch(0.93 0.005 90);
-  --fg-secondary: oklch(0.7 0.005 90);
-  --fg-tertiary: oklch(0.56 0.005 90);
+  --border: rgb(255 255 255 / 8%);
+  --border-strong: rgb(255 255 255 / 16%);
 
-  --border: oklch(1 0 0 / 8%);
-  --border-strong: oklch(1 0 0 / 16%);
-
-  --primary: oklch(0.93 0.005 90);
-  --primary-foreground: oklch(0.17 0.008 90);
+  --primary: #ececef;
+  --primary-foreground: #0b0b0d;
 
   --gold: oklch(0.78 0.13 85);
   --gold-foreground: oklch(0.17 0.02 85);
 
-  --card: oklch(0.23 0.008 90);
-  --card-foreground: oklch(0.93 0.005 90);
-  --popover: oklch(0.23 0.008 90);
-  --popover-foreground: oklch(0.93 0.005 90);
-  --secondary: oklch(0.26 0.008 90);
-  --secondary-foreground: oklch(0.93 0.005 90);
-  --muted: oklch(0.26 0.008 90);
-  --muted-foreground: oklch(0.7 0.005 90);
-  --accent: oklch(0.26 0.008 90);
-  --accent-foreground: oklch(0.93 0.005 90);
+  --card: #141417;
+  --card-foreground: #ececef;
+  --popover: #26262c;
+  --popover-foreground: #ececef;
+  --secondary: #1c1c21;
+  --secondary-foreground: #ececef;
+  --muted: #1c1c21;
+  --muted-foreground: rgb(236 236 239 / 60%);
+  --accent: #1c1c21;
+  --accent-foreground: #ececef;
   --destructive: oklch(0.68 0.15 22);
-  --input: oklch(1 0 0 / 14%);
+  --input: rgb(255 255 255 / 14%);
   --ring: oklch(0.78 0.13 85);
 
   --state-working: oklch(0.68 0.1 250);
@@ -130,6 +135,14 @@
   --state-complete-bg: oklch(0.29 0.025 155);
   --state-error: oklch(0.69 0.13 25);
   --state-error-bg: oklch(0.29 0.025 25);
+
+  --heat: oklch(0.7 0.1 250);
+  --delta-up: oklch(0.72 0.09 155);
+  --delta-up-bg: oklch(0.72 0.09 155 / 14%);
+  --delta-down: oklch(0.7 0.1 25);
+  --delta-down-bg: oklch(0.7 0.1 25 / 14%);
+
+  --card-shadow: none;
 }
 
 @layer base {
@@ -141,30 +154,8 @@
   }
   html {
     @apply font-sans;
+    font-variant-numeric: tabular-nums;
   }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.shimmer-text {
-  background: linear-gradient(
-    90deg,
-    var(--fg-tertiary) 0%,
-    var(--foreground) 50%,
-    var(--fg-tertiary) 100%
-  );
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: shimmer 3s ease-in-out infinite;
 }
 
 .sticker {
@@ -172,7 +163,7 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-strong);
   background: var(--card);
-  box-shadow: 0 1px 3px oklch(0 0 0 / 10%);
+  box-shadow: var(--card-shadow);
 }
 
 .sticker::before {
@@ -185,21 +176,24 @@
 }
 
 @keyframes foil-sweep {
-  0%,
-  55% {
+  from {
     background-position: 160% 0;
   }
-  100% {
+  to {
     background-position: -60% 0;
   }
 }
 
-.foil {
+/* The foil gradient is the single sanctioned gradient. It sits still everywhere;
+   only .foil-once (the Today hero, first visit per session) plays the sweep. */
+.foil,
+.foil-once {
   position: relative;
   overflow: hidden;
 }
 
-.foil::after {
+.foil::after,
+.foil-once::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -214,7 +208,11 @@
   );
   background-size: 300% 100%;
   background-repeat: no-repeat;
-  animation: foil-sweep 7s ease-in-out infinite;
+  background-position: 30% 0;
+}
+
+.foil-once::after {
+  animation: foil-sweep 1.3s var(--ease-out) 0.4s both;
 }
 
 /* Wolf mascot: one canonical wolf, action variants scoped by .v-* classes on the svg.
@@ -429,7 +427,7 @@
   .wolf {
     --wolf-anim: none;
   }
-  .foil::after {
+  .foil-once::after {
     animation: none;
   }
 }

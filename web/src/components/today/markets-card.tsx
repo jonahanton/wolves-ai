@@ -7,7 +7,7 @@ interface MarketsCardProps {
 
 export function MarketsCard({ view }: MarketsCardProps) {
   return (
-    <section className="rounded-xl border bg-card p-4" aria-label="Model versus market">
+    <section className="rounded-xl border bg-card p-3" aria-label="Model versus market">
       <h2 className="font-semibold">Model v market</h2>
       <div className="mt-3 grid grid-cols-[1fr_auto_auto_auto] gap-x-4 gap-y-1.5 text-sm">
         <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Team</span>

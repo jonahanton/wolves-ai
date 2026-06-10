@@ -10,7 +10,13 @@ function SideDistribution({ side }: { side: SideView }) {
       </h3>
       <div className="space-y-1.5">
         {side.candidates.map((candidate, i) => (
-          <ProbBar key={candidate.teamId} label={candidate.name} prob={candidate.prob} highlight={i === 0} />
+          <ProbBar
+            key={candidate.teamId}
+            label={candidate.name}
+            prob={candidate.prob}
+            highlight={i === 0}
+            gold={candidate.teamId === "england"}
+          />
         ))}
       </div>
     </section>

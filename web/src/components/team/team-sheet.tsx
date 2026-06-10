@@ -68,9 +68,7 @@ export function TeamSheet({ view, onClose }: TeamSheetProps) {
               : `Market says ${formatPct(view.marketProb)} for the title; the model says ${formatPct(view.championProb)}.`}
           </p>
           <section className="mt-4">
-            <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Reach probability by round
-            </h3>
+            <h3 className="text-sm font-medium">How often they reach each round (%)</h3>
             <ReachCurve reach={view.reach} highlight={view.isEngland} />
           </section>
           <section className="mt-4">

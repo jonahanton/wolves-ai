@@ -22,7 +22,7 @@ export function BracketBoard({ view }: BracketBoardProps) {
   const slots = half === "left" ? view.left : view.right;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <Segmented
         options={[
           { value: "canvas", label: "Canvas" },
@@ -48,7 +48,7 @@ export function BracketBoard({ view }: BracketBoardProps) {
                 className="w-36"
               />
             </div>
-            <div key={half} className="mt-3 flex flex-col gap-3 animate-[fade-up_260ms_var(--ease-out)]">
+            <div key={half} className="mt-3 flex flex-col gap-3 animate-[fade-up_150ms_var(--ease-out)]">
               {slots.map((slot) => (
                 <SlotCard key={slot.match} slot={slot} onSelect={setSelected} />
               ))}

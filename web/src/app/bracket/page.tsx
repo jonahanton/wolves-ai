@@ -13,7 +13,7 @@ export default async function BracketPage() {
   const names = teamNames(snapshot);
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-5 p-4">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
       <TournamentBoard
         bracket={buildBracketView(snapshot, names)}
         odds={buildOddsView(snapshot, names)}

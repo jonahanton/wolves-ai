@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Maximize, Minus, Plus } from "lucide-react";
 import { usePanZoom } from "@/hooks/use-pan-zoom";
 import { buildCanvasLayout, edgePath, NODE_H, NODE_W, type CanvasNode } from "@/lib/bracket-canvas";
 import { formatPct } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { BracketViewModel, SlotView } from "@/lib/bracket-view";
 
 const NAME_CHARS = 15;
@@ -13,7 +14,7 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function TieNode({ node, onSelect, wasDrag }: TieNodeProps) {
+function TieNode({ node, onSelect, wasDrag, dimmed }: TieNodeProps) {
   const { slot } = node;
   const england = slot.englandProb > 0;
   const home = slot.home.candidates[0];
@@ -23,6 +24,8 @@ function TieNode({ node, onSelect, wasDrag }: TieNodeProps) {
     <g
       transform={`translate(${node.x}, ${node.y})`}
       style={{ cursor: "pointer" }}
+      opacity={dimmed ? 0.25 : 1}
+      className="transition-opacity duration-150"
       onClick={() => {
         if (!wasDrag()) onSelect(slot);
       }}
@@ -76,6 +79,7 @@ interface TieNodeProps {
   node: CanvasNode;
   onSelect: (slot: SlotView) => void;
   wasDrag: () => boolean;
+  dimmed: boolean;
 }
 
 interface BracketCanvasProps {
@@ -85,16 +89,24 @@ interface BracketCanvasProps {
 
 export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
   const layout = useMemo(() => buildCanvasLayout(view), [view]);
+  const [followEngland, setFollowEngland] = useState(false);
   const { containerRef, contentRef, focusOn, fit, zoomBy, wasDrag } = usePanZoom({
     contentWidth: layout.width,
     contentHeight: layout.height,
   });
 
-  useEffect(() => {
+  const englandMatches = useMemo(
+    () => new Set(layout.nodes.filter((node) => node.slot.englandProb > 0).map((node) => node.slot.match)),
+    [layout],
+  );
+
+  const focusEngland = useCallback(() => {
     const england = layout.nodes.find((node) => node.slot.match === layout.englandMatch);
     if (england) focusOn(england.x + NODE_W / 2, england.y + NODE_H / 2, 1);
     else fit();
   }, [layout, focusOn, fit]);
+
+  useEffect(() => focusEngland(), [focusEngland]);
 
   const controls = [
     { label: "Zoom in", icon: Plus, action: () => zoomBy(1.4) },
@@ -134,6 +146,7 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
             ))}
             {layout.edges.map((edge) => {
               const d = edgePath(layout, edge);
+              const offPath = !englandMatches.has(edge.fromMatch) || !englandMatches.has(edge.toMatch);
               return d ? (
                 <path
                   key={`${edge.fromMatch}-${edge.toMatch}`}
@@ -141,11 +154,19 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
                   fill="none"
                   stroke="var(--border-strong)"
                   strokeWidth={1}
+                  opacity={followEngland && offPath ? 0.25 : 1}
+                  className="transition-opacity duration-150"
                 />
               ) : null;
             })}
             {layout.nodes.map((node) => (
-              <TieNode key={node.slot.match} node={node} onSelect={onSelect} wasDrag={wasDrag} />
+              <TieNode
+                key={node.slot.match}
+                node={node}
+                onSelect={onSelect}
+                wasDrag={wasDrag}
+                dimmed={followEngland && !englandMatches.has(node.slot.match)}
+              />
             ))}
           </svg>
         </div>
@@ -156,12 +177,27 @@ export function BracketCanvas({ view, onSelect }: BracketCanvasProps) {
               type="button"
               aria-label={label}
               onClick={action}
-              className="rounded-full border bg-background/90 p-2 text-muted-foreground shadow-sm backdrop-blur-sm active:scale-95"
+              className="rounded-lg border bg-card p-2 text-muted-foreground active:scale-95"
             >
               <Icon size={15} />
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          aria-pressed={followEngland}
+          onClick={() => {
+            const next = !followEngland;
+            setFollowEngland(next);
+            if (next) focusEngland();
+          }}
+          className={cn(
+            "absolute top-2.5 left-2.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors duration-150",
+            followEngland ? "border-gold/60 bg-card text-gold" : "bg-card text-muted-foreground",
+          )}
+        >
+          Follow England
+        </button>
       </div>
       <p className="mt-2 text-center text-xs text-muted-foreground">
         Drag to pan &middot; pinch or double-tap to zoom &middot; tap a tie for the full picture

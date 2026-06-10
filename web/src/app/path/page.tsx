@@ -13,7 +13,7 @@ export default async function PathPage() {
   const views = buildSpineViews(snapshot, teamNames(snapshot));
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-5 p-4">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
       <PageHeader title="Path" subtitle="England's route through the knockouts" />
       <TravelForkCard england={snapshot.england} memo={travelMemo(snapshot)} />
       <PathSpine views={views} />
