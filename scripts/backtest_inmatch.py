@@ -45,7 +45,7 @@ def event_minutes(df: pd.DataFrame) -> tuple[tuple[float, bool], ...]:
     for row in df.itertuples():
         minute = float(row.minute)
         if row.minute_stoppage > 0:
-            minute = 45.5 if minute <= 45 else 90.5
+            minute = 45.5 if minute <= 45 else 90.0
         events.append((minute, bool(row.home_team)))
     return tuple(sorted(events))
 
@@ -91,7 +91,7 @@ def phase_scores(replays: list[MatchReplay], params: HazardParams) -> np.ndarray
     totals = np.zeros(len(PHASES))
     counts = np.zeros(len(PHASES))
     for replay in replays:
-        for minute in range(90):
+        for minute in range(91):
             dist = final_score_distribution(replay.lam_home, replay.lam_away, state_at(replay, minute), params=params)
             phase = min(minute // 15, len(PHASES) - 1)
             totals[phase] += rps((dist.p_home, dist.p_draw, dist.p_away), replay.outcome)
