@@ -10,6 +10,7 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent.tools import (
     calibration_readback,
     data_query,
+    forecast_history,
     get_odds,
     get_results_and_fixtures,
     ledger_query,
@@ -17,12 +18,14 @@ from wolves.agent.tools import (
     model_explain,
     model_vs_market,
     perturbation_impact,
+    previous_forecast,
     rank_relevance,
     read_artifact,
     read_journal,
     run_python,
     run_scenario,
     run_simulation,
+    scenario_update,
     submit_forecast,
     team_dossier,
     team_path_tree,
@@ -30,6 +33,7 @@ from wolves.agent.tools import (
     todo,
     web_fetch,
     web_search,
+    what_changed,
     write_journal,
 )
 from wolves.agent_tools.adapters.pydantic_ai import build_toolset
@@ -72,12 +76,16 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         market_movement.SPEC,
         data_query.SPEC,
         calibration_readback.SPEC,
+        previous_forecast.SPEC,
+        forecast_history.SPEC,
+        what_changed.SPEC,
+        scenario_update.SPEC,
         read_journal.SPEC,
         write_journal.SPEC,
         submit_forecast.SPEC,
         *_FREE_SPECS,
     ],
-    "critic": [ledger_query.SPEC, model_vs_market.SPEC, run_scenario.SPEC, *_FREE_SPECS],
+    "critic": [ledger_query.SPEC, model_vs_market.SPEC, run_scenario.SPEC, previous_forecast.SPEC, *_FREE_SPECS],
 }
 
 _NODE_OUTPUTS: dict[NodeKind, type] = {

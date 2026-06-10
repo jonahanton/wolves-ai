@@ -23,7 +23,7 @@ def build_dossier(deps: AgentDeps) -> str:
     """Baseline digest, gap table, noise-floored movement, fresh ledger and
     the calibration readback, as one prompt block."""
     sections: list[str] = []
-    for build in (_baseline, _gaps, _movement, _ledger, _calibration):
+    for build in (_what_changed, _baseline, _gaps, _movement, _scenarios, _ledger, _calibration):
         try:
             section = build(deps)
         except Exception as exc:
@@ -32,6 +32,38 @@ def build_dossier(deps: AgentDeps) -> str:
         if section:
             sections.append(section)
     return "\n\n".join(sections)
+
+
+def _what_changed(deps: AgentDeps) -> str:
+    from datetime import date as _date
+
+    from wolves.insights.what_changed import load_latest_snapshot, what_changed
+
+    if not deps.as_of:
+        return ""
+    previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of))
+    titles = deps.forecaster.title_probs(n_sims=_DOSSIER_SIMS, seed=0) if deps.forecaster is not None else None
+    return what_changed(
+        previous=previous,
+        current_titles=titles,
+        ledger=deps.ledger,
+        source_memory=deps.source_memory,
+        run_id=deps.runtime.run_id,
+        as_of=deps.as_of,
+    ).digest()
+
+
+def _scenarios(deps: AgentDeps) -> str:
+    if deps.scenarios is None:
+        return ""
+    open_states = deps.scenarios.open_scenarios()
+    if not open_states:
+        return ""
+    rows = "; ".join(f"{s.scenario_id} {s.name} (w={s.weight:.2f}, {s.status})" for s in open_states)
+    return (
+        f"Open scenarios you must resolve today (collapse, reweight, carry or expire each "
+        f"with scenario_update): {rows}."
+    )
 
 
 def _baseline(deps: AgentDeps) -> str:

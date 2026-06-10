@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
+from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.sim_runner import SimulationApi
 from wolves.agent.source_memory import SourceMemory
 from wolves.agent.validator import ValidatorLimits
@@ -67,5 +68,6 @@ class AgentDeps:
     artifacts: RunArtifactStore | None = None
     forecaster: Forecaster | None = None
     source_memory: SourceMemory | None = None
+    scenarios: ScenarioRegistry | None = None
     todos: list[TodoItem] = field(default_factory=list)
     python_calls: int = 0
