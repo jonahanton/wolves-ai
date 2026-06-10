@@ -77,13 +77,17 @@ class GammaPolymarketClient(PolymarketClient):
         self._client = client or httpx.AsyncClient(timeout=timeout)
 
     async def winner_markets(self) -> list[PolymarketMarket]:
+        markets = markets_from_events(await self.winner_events())
+        logger.info("polymarket %s: %d market(s)", WINNER_SLUG, len(markets))
+        return markets
+
+    async def winner_events(self) -> list[dict[str, Any]]:
+        """Verbatim Gamma event payload, as stored by the odds archive."""
         async for attempt in async_retrying():
             with attempt:
                 response = await self._client.get(f"{_BASE_URL}/events", params={"slug": WINNER_SLUG})
                 _raise_for_status(response)
-                markets = markets_from_events(response.json())
-                logger.info("polymarket %s: %d market(s)", WINNER_SLUG, len(markets))
-                return markets
+                return response.json()
         return []
 
     async def aclose(self) -> None:
