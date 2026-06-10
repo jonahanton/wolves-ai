@@ -32,7 +32,7 @@ export function ProbBar({ label, prob, highlight = false, gold = false }: ProbBa
             "h-full transition-[width] duration-300 ease-[var(--ease-out)]",
             gold ? "bg-gold" : highlight ? "bg-foreground/70" : "bg-foreground/30",
           )}
-          style={{ width: `${Math.max(pct, 1)}%` }}
+          style={{ width: prob === 0 ? "0%" : `${Math.max(pct, 1)}%` }}
         />
       </div>
     </div>

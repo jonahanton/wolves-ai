@@ -33,7 +33,7 @@ export function TabBar() {
               className={cn(
                 "flex flex-1 flex-col items-center gap-0.5 pt-2 pb-1 text-[11px] font-medium",
                 "transition-colors duration-150",
-                active ? "text-gold" : "text-muted-foreground hover:text-foreground",
+                active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Icon size={20} strokeWidth={active ? 2.4 : 2} />
