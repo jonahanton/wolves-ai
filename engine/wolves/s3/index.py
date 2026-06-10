@@ -1,10 +1,7 @@
-"""Snapshot persistence adapters. boto3 is synchronous by deliberate choice:
-store calls bracket a run (one read at start, two writes at the end) and never
-sit inside the agent loop, so an async client buys nothing."""
+"""DynamoDB index of runs and the run_enabled kill switch."""
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
@@ -12,21 +9,14 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import BotoCoreError, ClientError
 
-from wolves.clients.s3 import S3Client
-from wolves.store.records import RunRecord, RunStatus
+from wolves.s3.records import RunRecord, RunStatus
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from datetime import date
-
-    from wolves.snapshot import Snapshot
-
-logger = logging.getLogger(__name__)
 
 RUN_PK = "RUN"
 CONTROL_PK = "CONTROL"
 RUN_ENABLED_SK = "run_enabled"
-LATEST_KEY = "latest.json"
 
 
 class RunIndexUnavailableError(Exception):
@@ -38,28 +28,8 @@ class RunIndexUnavailableError(Exception):
         super().__init__(f"run index table {table_name!r} unavailable (endpoint={endpoint or 'aws'})")
 
 
-def snapshot_key(as_of: date, run_id: str) -> str:
-    """Build the immutable S3 key for a snapshot."""
-    return f"snapshots/{as_of:%Y/%m/%d}/{run_id}.json"
-
-
-class SnapshotStore:
-    """Write snapshots to S3: an immutable dated key plus a latest.json pointer."""
-
-    def __init__(self, *, bucket: str, region: str) -> None:
-        self._s3 = S3Client(bucket=bucket, region=region)
-
-    def put_snapshot(self, snapshot: Snapshot, *, as_of: date) -> str:
-        """Upload the snapshot and repoint latest.json; return the dated key."""
-        key = snapshot_key(as_of, snapshot.run.run_id)
-        body = snapshot.model_dump_json()
-        for target in (key, LATEST_KEY):
-            self._s3.put_text(target, body, content_type="application/json")
-        return key
-
-
 class RunIndex:
-    """DynamoDB single-table index of runs plus the run_enabled control item."""
+    """Single-table index of runs plus the run_enabled control item."""
 
     def __init__(self, *, table_name: str, region: str, endpoint_url: str | None = None) -> None:
         self._table_name = table_name

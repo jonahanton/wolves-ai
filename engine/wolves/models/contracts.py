@@ -30,10 +30,10 @@ class UnknownModelTeamError(Exception):
 
 @dataclass(frozen=True)
 class DatasetHandle:
-    """A built dataset on local disk, pinned by version."""
+    """A built dataset on local disk, pinned by content id."""
 
     path: Path
-    version: str
+    dataset_id: str
 
 
 @dataclass(frozen=True)
@@ -105,7 +105,7 @@ class FittedState:
 
     model_id: str
     version: str
-    dataset_version: str
+    dataset_id: str
     as_of: date
     teams: tuple[str, ...]
     strengths: np.ndarray

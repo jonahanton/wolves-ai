@@ -29,7 +29,7 @@ def test_overlay_appends_results_without_mutating_the_source(fixture_dataset, tm
             fresh.sql("select count(*) n from matches")[0]["n"]
             == source.sql("select count(*) n from matches")[0]["n"] + 1
         )
-    assert overlaid.version != fixture_dataset.version
+    assert overlaid.dataset_id != fixture_dataset.dataset_id
 
 
 def test_overlaid_results_move_the_refit(fixture_dataset, tmp_path) -> None:

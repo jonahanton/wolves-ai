@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from moto import mock_aws
 
-from wolves.store.init import ensure_table
+from wolves.s3.init import ensure_table
 
 
 @mock_aws

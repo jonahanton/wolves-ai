@@ -1,10 +1,5 @@
-"""Score yesterday's match forecasts against newly landed results.
-
-Runs at the start of every agent run, before the governor reads the
-calibration ledger, so today's delta caps already reflect yesterday's P&L.
-The frozen no-agent baseline is the latest sim-only snapshot, which the
-daily sim task writes alongside the agent snapshots.
-"""
+"""Score yesterday's forecasts before the governor reads the ledger, so
+today's delta caps already reflect yesterday's P&L."""
 
 from __future__ import annotations
 
@@ -29,7 +24,7 @@ def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapsh
     baseline: Snapshot | None = None
     if not snapshot_dir.exists():
         return None, None
-    for path in snapshot_dir.glob("*.json"):
+    for path in snapshot_dir.rglob("*.json"):
         if path.name == "latest.json":
             continue
         try:
@@ -93,9 +88,9 @@ def score_resolved_matches(
 
 
 def score_yesterday(settings: Settings, *, as_of: str, run_id: str) -> str:
-    """Score forecasts that resolved since the previous run and append the
-    scorecard to LESSONS.md; return the summary (empty when nothing scored)."""
-    previous, baseline = load_previous_snapshots(settings.runs_root, before=date.fromisoformat(as_of))
+    """Score forecasts that resolved since the previous run and record the
+    scorecard as a lesson; return the summary (empty when nothing scored)."""
+    previous, baseline = load_previous_snapshots(settings.runs_root / "snapshots", before=date.fromisoformat(as_of))
     if previous is None:
         return ""
     ledger = CalibrationLedger(settings.calibration_path)

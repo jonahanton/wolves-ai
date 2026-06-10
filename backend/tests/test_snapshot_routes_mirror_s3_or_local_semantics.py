@@ -4,7 +4,8 @@ from tests.fakes import FakeS3Client, build_test_app, client_for
 
 
 async def test_latest_served_from_local_runs_dir(tmp_path):
-    (tmp_path / "latest.json").write_text('{"run": "local"}', encoding="utf-8")
+    (tmp_path / "snapshots").mkdir()
+    (tmp_path / "snapshots" / "latest.json").write_text('{"run": "local"}', encoding="utf-8")
     async with client_for(build_test_app(snapshot_dir=tmp_path)) as client:
         response = await client.get("/snapshots/latest")
     assert response.status_code == 200
@@ -27,7 +28,8 @@ async def test_by_id_reads_dated_s3_key(tmp_path):
 
 
 async def test_configured_bucket_wins_over_local_files(tmp_path):
-    (tmp_path / "latest.json").write_text('{"run": "local"}', encoding="utf-8")
+    (tmp_path / "snapshots").mkdir()
+    (tmp_path / "snapshots" / "latest.json").write_text('{"run": "local"}', encoding="utf-8")
     async with client_for(build_test_app(snapshot_dir=tmp_path, s3=FakeS3Client())) as client:
         response = await client.get("/snapshots/latest")
     assert response.status_code == 404

@@ -1,6 +1,4 @@
-"""Market movement digests over the stored series: bookmaker outrights,
-Polymarket and per-match h2h as time series with deltas. Output is capped at
-source so a full tournament of snapshots stays a small digest."""
+"""Market movement digests over the stored series, capped at source."""
 
 from __future__ import annotations
 
@@ -8,9 +6,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from wolves.clients.s3.client import S3Client
-from wolves.config import Settings
-from wolves.markets.series import SERIES_SUFFIX, SeriesPoint, load_series, rebuild_series
+from wolves.markets.series import SeriesPoint, load_series, rebuild_series
 from wolves.sim.format import FormatData
 
 TOP_TEAMS = 20
@@ -101,25 +97,3 @@ def market_movement(archive_dir: Path, fmt: FormatData, *, history_points: int =
         outright_polymarket=_movements(series, "outright_polymarket", history_points=history_points),
         matches=_match_movements(series),
     )
-
-
-def sync_series_from_s3(settings: Settings, archive_dir: Path) -> int:
-    """Download series points a fresh container does not have; returns new files."""
-    if not settings.agent_state_bucket:
-        return 0
-    s3 = S3Client(bucket=settings.agent_state_bucket, region=settings.aws_region)
-    downloaded = 0
-    for key in s3.list_keys(prefix="odds-archive/"):
-        if not key.endswith(SERIES_SUFFIX):
-            continue
-        relative = Path(key).relative_to("odds-archive")
-        destination = archive_dir / relative
-        if destination.exists():
-            continue
-        body = s3.get_text(key)
-        if body is None:
-            continue
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(body, encoding="utf-8")
-        downloaded += 1
-    return downloaded

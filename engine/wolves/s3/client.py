@@ -1,8 +1,4 @@
-"""Typed S3 adapter for one bucket. boto3 is synchronous by deliberate
-choice: S3 calls bracket a run (state pull at start, snapshot and state
-pushes at the end) and never sit inside the agent loop. Retries use
-botocore's standard mode so throttling and transient faults are handled at
-the transport layer."""
+"""Typed synchronous S3 adapter; calls bracket runs, so async buys nothing."""
 
 from __future__ import annotations
 

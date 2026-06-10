@@ -50,7 +50,7 @@ class TeamRecord(BaseModel):
 
 
 class DatasetManifest(BaseModel):
-    version: str
+    dataset_id: str
     built_at: str
     engine_version: str
     tables: dict[str, int]

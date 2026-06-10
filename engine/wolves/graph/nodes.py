@@ -10,7 +10,7 @@ from pydantic_ai.usage import UsageLimits
 from wolves.agent.deps import AgentDeps
 from wolves.config import Settings
 from wolves.graph.agents import node_agent
-from wolves.graph.artifacts import ArtifactKind, ArtifactStore
+from wolves.graph.artifacts import ArtifactKind, NodeArtifactStore
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
 from wolves.tools._budget_gate import BudgetGate
 
@@ -22,7 +22,7 @@ _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
 }
 
 
-def _kickoff(brief: Brief, store: ArtifactStore) -> str:
+def _kickoff(brief: Brief, store: NodeArtifactStore) -> str:
     parts = [f"Objective: {brief.objective}", "", brief.brief]
     for artifact_id in brief.input_artifact_ids:
         artifact = store.get(artifact_id)
@@ -45,7 +45,7 @@ def _request_limit(kind: NodeKind, settings: Settings) -> int:
     }[kind]
 
 
-async def execute_brief(brief: Brief, *, deps: AgentDeps, store: ArtifactStore, model: Model) -> NodeOutcome:
+async def execute_brief(brief: Brief, *, deps: AgentDeps, store: NodeArtifactStore, model: Model) -> NodeOutcome:
     """Run one worker node to a typed artifact. Total: every failure, including
     CapExceeded surfacing in whatever shape pydantic-ai wraps it, degrades to a
     failed outcome so the wave and the run carry on."""

@@ -50,8 +50,9 @@ def settings(tmp_path) -> Settings:
     (tmp_path / "data" / "results.json").write_text(
         json.dumps({"results": [{"match": 1, "homeGoals": 2, "awayGoals": 0}]})
     )
-    snapshot_dir = tmp_path / "runs"
-    snapshot_dir.mkdir()
+    runs_root = tmp_path / "runs"
+    snapshot_dir = runs_root / "snapshots" / "2026" / "06" / "08"
+    snapshot_dir.mkdir(parents=True)
 
     baseline = _snapshot(
         run_id="run-20260608",
@@ -87,14 +88,9 @@ def settings(tmp_path) -> Settings:
     )
     (snapshot_dir / "run-20260608.json").write_text(baseline.model_dump_json())
     (snapshot_dir / "agent-20260608-120000.json").write_text(previous.model_dump_json())
-    (snapshot_dir / "latest.json").write_text(previous.model_dump_json())
+    (runs_root / "snapshots" / "latest.json").write_text(previous.model_dump_json())
 
-    return Settings(
-        data_dir=tmp_path / "data",
-        runs_root=snapshot_dir,
-        calibration_path=tmp_path / "runs" / "calibration.jsonl",
-        lessons_path=tmp_path / "runs" / "LESSONS.md",
-    )
+    return Settings(data_dir=tmp_path / "data", runs_root=runs_root)
 
 
 def test_resolved_group_match_is_scored_against_all_baselines(settings):

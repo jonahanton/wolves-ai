@@ -14,7 +14,7 @@ from wolves.observability import Caps
 
 
 def _settings(tmp_path: Path, **overrides: object) -> Settings:
-    return Settings(_env_file=None, runs_root=tmp_path, lessons_path=tmp_path / "LESSONS.md", **overrides)
+    return Settings(_env_file=None, runs_root=tmp_path, **overrides)
 
 
 def _research_plan(node_id: str) -> WavePlan:

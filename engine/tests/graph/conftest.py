@@ -29,7 +29,6 @@ def build_graph_deps(
     settings = settings or Settings(
         _env_file=None,
         runs_root=tmp_path,
-        lessons_path=tmp_path / "LESSONS.md",
         n_sims=300,
     )
     runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=caps or Caps(), runs_root=tmp_path)

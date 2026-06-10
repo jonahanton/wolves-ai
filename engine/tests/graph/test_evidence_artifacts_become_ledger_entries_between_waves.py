@@ -3,14 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from tests.graph.conftest import build_graph_deps
-from wolves.graph.artifacts import ArtifactStore
+from wolves.graph.artifacts import NodeArtifactStore
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import Brief, LedgerEvidence, NodeOutcome, ResearchOutput
 
 
 def test_merge_converts_evidence_serially(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
-    store = ArtifactStore(tmp_path / "artifacts")
+    store = NodeArtifactStore(tmp_path / "artifacts")
     board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
 
     output = ResearchOutput(

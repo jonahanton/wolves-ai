@@ -33,8 +33,9 @@ def _write_agent_snapshot(settings: Settings) -> None:
         rating_overrides=[RatingOverrideOut(team_id="england", delta_elo=DELTA, cause="keeper fit")],
     )
     snapshot = base.model_copy(update={"run": base.run.model_copy(update={"kind": "agent"}), "agent": agent})
-    settings.runs_root.mkdir(parents=True, exist_ok=True)
-    (settings.runs_root / "agent-20260611-090000.json").write_text(snapshot.model_dump_json())
+    snapshot_dir = settings.runs_root / "snapshots" / "2026" / "06" / "11"
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    (snapshot_dir / "agent-20260611-090000.json").write_text(snapshot.model_dump_json())
 
 
 async def test_live_pass_overlays_the_result_and_applies_the_agent_override(tmp_path):
@@ -44,7 +45,7 @@ async def test_live_pass_overlays_the_result_and_applies_the_agent_override(tmp_
 
     assert await live_pass(settings, fixtures=fixtures, n_sims=150, seed=5) is True
 
-    latest = Snapshot.model_validate_json((tmp_path / "latest.json").read_text())
+    latest = Snapshot.model_validate_json((tmp_path / "snapshots" / "latest.json").read_text())
     assert latest.run.kind == "live"
     assert latest.run.run_id.startswith("live-")
     assert 1 not in {entry.match for entry in latest.matches}

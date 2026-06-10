@@ -1,7 +1,4 @@
-"""The market time series: each raw archive snapshot parsed once into a small
-point file beside it (idempotent and safe on stateless infrastructure, where a
-local append would not survive between runs). Consumers combine the points;
-raw payloads stay the source of truth and a rebuild regenerates every point."""
+"""Market series points, one per raw snapshot; raw payloads stay the source of truth."""
 
 from __future__ import annotations
 

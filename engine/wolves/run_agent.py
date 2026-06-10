@@ -1,10 +1,4 @@
-"""Agent-mode runner.
-
-``python -m wolves.run_agent --dev`` runs the full graph offline: scripted
-models, fixture-backed clients, in-memory tracer, $0 spend. ``--live``
-refuses to run unless ANTHROPIC_API_KEY is set and ``--confirm-spend`` is
-passed with a per-run dollar ceiling, enforced as a hard cap in the runtime.
-"""
+"""Agent runner: --dev is offline and $0; --live meters real APIs behind --confirm-spend."""
 
 from __future__ import annotations
 
@@ -39,7 +33,6 @@ from wolves.clients.odds import (
     PolymarketClient,
     TheOddsApiClient,
 )
-from wolves.clients.s3 import S3UnavailableError
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
 from wolves.graph.contracts import Brief, ForecastOutput, LedgerEvidence, ResearchOutput, WavePlan
@@ -58,6 +51,11 @@ from wolves.observability import (
     configure_cli_logging,
 )
 from wolves.quant.observed import ObservedQuant
+from wolves.s3.agent_state import build_agent_state_store
+from wolves.s3.cli import add_storage_argument, apply_storage_choice
+from wolves.s3.client import S3UnavailableError
+from wolves.s3.layout import run_dir
+from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import FormatData, load_format
 from wolves.sim.ratings import load_elo_ratings
 from wolves.snapshot import (
@@ -71,8 +69,6 @@ from wolves.snapshot import (
     Snapshot,
     TeamInfo,
 )
-from wolves.store.agent_state import build_agent_state_store
-from wolves.store.publish import SnapshotPublisher
 from wolves.tools._budget_gate import BudgetGate
 
 logger = logging.getLogger(__name__)
@@ -215,7 +211,7 @@ def _build_deps(
         polymarket=polymarket,
         fixtures=fixtures,
         sim=EngineSimulation(),
-        ledger=EvidenceLedger(settings.runs_root / run_id / "ledger.jsonl"),
+        ledger=EvidenceLedger(run_dir(settings.runs_root, run_id) / "ledger.jsonl"),
         memory=RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path),
         quant=ObservedQuant(runtime),
         gate=BudgetGate(),
@@ -339,8 +335,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
         llm: LLMClient = build_llm(settings, model=settings.worker_model)
         provider = AnthropicProvider(api_key=settings.anthropic_api_key)
-        # Five Haiku-master dry runs planned inconsistently; the planner gets the
-        # stronger model while workers stay on the cheap one.
+        # Wave planning needs the stronger model; workers stay on the cheap one.
         worker = ObservedModel(AnthropicModel(settings.worker_model, provider=provider), runtime=runtime)
         master = ObservedModel(AnthropicModel(settings.fast_model, provider=provider), runtime=runtime)
         models = GraphModels(
@@ -446,7 +441,9 @@ def main() -> None:
     parser.add_argument("--sims", type=int, default=settings.n_sims)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--as-of", type=str, default=None)
+    add_storage_argument(parser)
     args = parser.parse_args()
+    settings = apply_storage_choice(settings, args.storage)
 
     if args.live:
         if not settings.anthropic_api_key:

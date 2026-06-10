@@ -19,7 +19,7 @@ def synthetic_state(strength_overrides: dict[str, float] | None = None) -> Fitte
     return FittedState(
         model_id="test",
         version="0",
-        dataset_version="test",
+        dataset_id="test",
         as_of=date(2026, 6, 10),
         teams=keys,
         strengths=strengths,

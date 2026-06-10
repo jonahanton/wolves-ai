@@ -17,7 +17,7 @@ class Artifact(BaseModel):
     payload: dict[str, Any]
 
 
-class ArtifactStore:
+class NodeArtifactStore:
     """In-memory artifact index persisted to the run directory on creation.
 
     ``add`` is safe under concurrent node execution only because the

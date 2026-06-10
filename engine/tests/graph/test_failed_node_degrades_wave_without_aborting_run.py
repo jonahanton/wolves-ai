@@ -6,7 +6,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 from tests.graph.conftest import build_graph_deps
-from wolves.graph.artifacts import ArtifactStore
+from wolves.graph.artifacts import NodeArtifactStore
 from wolves.graph.contracts import Brief, ForecastOutput, ResearchOutput, WavePlan
 from wolves.graph.fakes import scripted_model
 from wolves.graph.nodes import execute_brief
@@ -27,7 +27,7 @@ def _flaky_research() -> FunctionModel:
 
 async def test_execute_brief_is_total(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
-    store = ArtifactStore(tmp_path / "artifacts")
+    store = NodeArtifactStore(tmp_path / "artifacts")
     brief = Brief(node_id="research-bad", kind="research", objective="FAIL", brief="FAIL")
 
     with deps.runtime.run_trace():

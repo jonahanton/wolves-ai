@@ -1,9 +1,4 @@
-"""Snapshot publication shared by the scheduled entrypoints: local files for
-dev parity, S3 for the site, the run index for ops. Defence in depth on the
-kill switch: the EventBridge schedule state is the primary switch and the
-run_enabled control item is re-checked here so an in-flight schedule change
-still stops the run. An unreachable table must not block local dev, so it
-downgrades to a warning."""
+"""Snapshot publication, re-checking the kill switch; an unreachable index degrades to a warning."""
 
 from __future__ import annotations
 
@@ -11,8 +6,10 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from wolves.store.records import RunRecord, RunStatus
-from wolves.store.store import RunIndex, RunIndexUnavailableError, SnapshotStore
+from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.index import RunIndex, RunIndexUnavailableError
+from wolves.s3.records import RunRecord, RunStatus
+from wolves.s3.snapshots import SnapshotStore
 
 if TYPE_CHECKING:
     from datetime import date
@@ -24,23 +21,15 @@ logger = logging.getLogger(__name__)
 
 
 def build_run_index(settings: Settings) -> RunIndex | None:
-    """Construct the run index when cloud config is present: a snapshot bucket
+    """Construct the run index when cloud config is present: cloud storage on
     (production) or an explicit local DynamoDB endpoint (dev stack)."""
-    if not settings.snapshot_bucket and not settings.dynamo_endpoint:
+    if settings.storage_mode == "local" and not settings.dynamo_endpoint:
         return None
     return RunIndex(
         table_name=settings.dynamo_table,
         region=settings.aws_region,
         endpoint_url=settings.dynamo_endpoint or None,
     )
-
-
-def write_local_snapshot(settings: Settings, snapshot: Snapshot) -> None:
-    """Write the dated snapshot file and repoint latest.json locally."""
-    payload = snapshot.model_dump_json(indent=1)
-    settings.runs_root.mkdir(parents=True, exist_ok=True)
-    (settings.runs_root / f"{snapshot.run.run_id}.json").write_text(payload)
-    (settings.runs_root / "latest.json").write_text(payload)
 
 
 class SnapshotPublisher:
@@ -60,12 +49,9 @@ class SnapshotPublisher:
             return True
 
     def publish(self, snapshot: Snapshot, *, as_of: date, started: float) -> str:
-        """Publish the snapshot everywhere configured; return the S3 key ('' locally)."""
-        write_local_snapshot(self._settings, snapshot)
-        s3_key = ""
-        if self._settings.snapshot_bucket:
-            store = SnapshotStore(bucket=self._settings.snapshot_bucket, region=self._settings.aws_region)
-            s3_key = store.put_snapshot(snapshot, as_of=as_of)
+        """Publish the snapshot everywhere configured; return the dated key."""
+        store = SnapshotStore(ArtifactStore(self._settings))
+        s3_key = store.put_snapshot(snapshot, as_of=as_of)
         self._record(
             run_id=snapshot.run.run_id,
             created_at=snapshot.run.created_at,

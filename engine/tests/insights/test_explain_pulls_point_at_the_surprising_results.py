@@ -23,7 +23,7 @@ def test_an_upset_thrashing_is_the_strongest_upward_pull(fixture_dataset, tmp_pa
         )
     ]
     overlaid = overlay_results(fixture_dataset, upsets, dest_dir=tmp_path)
-    forecaster = Forecaster(Settings(runs_root=tmp_path, agent_state_bucket=""), dataset=overlaid)
+    forecaster = Forecaster(Settings(runs_root=tmp_path, storage_mode="local"), dataset=overlaid)
     forecaster.fit(as_of=date(2026, 2, 1))
 
     explanation = model_explain(forecaster, "delta")

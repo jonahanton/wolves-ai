@@ -5,7 +5,7 @@ import json
 from pydantic import BaseModel
 
 from wolves.agent.ledger import EvidenceLedger
-from wolves.graph.artifacts import ArtifactStore
+from wolves.graph.artifacts import NodeArtifactStore
 from wolves.graph.contracts import Brief, NodeOutcome, ResearchOutput
 from wolves.observability.runtime import ObservedRuntime
 
@@ -25,7 +25,7 @@ class Blackboard:
     evidence ledger's len-based ids and append-mode writes are not
     concurrency-safe, so evidence reaches it only through ``merge``."""
 
-    def __init__(self, *, artifacts: ArtifactStore, ledger: EvidenceLedger, runtime: ObservedRuntime) -> None:
+    def __init__(self, *, artifacts: NodeArtifactStore, ledger: EvidenceLedger, runtime: ObservedRuntime) -> None:
         self.artifacts = artifacts
         self.ledger = ledger
         self._runtime = runtime

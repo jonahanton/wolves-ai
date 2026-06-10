@@ -1,5 +1,4 @@
-"""Run the gate: leak-free per-fold fits, encompassing test against the
-de-vigged market, and (with --promote) a champion record write."""
+"""Gate evaluation: leak-free fits and the encompassing test against the market."""
 
 from __future__ import annotations
 
@@ -17,6 +16,7 @@ from wolves.gate.registry import ChampionRecord, ChampionRegistry
 from wolves.models.contracts import DatasetHandle, Fixture, UnknownModelTeamError
 from wolves.models.poisson import PoissonDecayModel
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.cli import add_storage_argument, apply_storage_choice
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +49,12 @@ def main() -> None:
     settings = Settings()
     parser = argparse.ArgumentParser(description="Evaluate the Poisson challenger against the market")
     parser.add_argument("--promote", action="store_true", help="write the champion record on completion")
+    add_storage_argument(parser)
     args = parser.parse_args()
+    settings = apply_storage_choice(settings, args.storage)
 
-    path, _ = DatasetStore(settings).fetch(version=settings.dataset_version)
-    dataset = DatasetHandle(path=path, version=settings.dataset_version)
+    path, manifest = DatasetStore(settings).fetch()
+    dataset = DatasetHandle(path=path, dataset_id=manifest.dataset_id)
     model = PoissonDecayModel()
     report = evaluate_poisson(dataset)
     logger.info("gate report: %s", report.model_dump_json(indent=2))
@@ -62,7 +64,7 @@ def main() -> None:
     record = ChampionRecord(
         model_id=model.model_id,
         model_version=model.version,
-        dataset_version=dataset.version,
+        dataset_id=dataset.dataset_id,
         half_life_days=model.half_life_days,
         blend_weight=report.blend_weight,
         promoted_at=datetime.now(UTC).isoformat(timespec="seconds"),

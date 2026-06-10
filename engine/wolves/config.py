@@ -5,6 +5,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from wolves.s3.layout import BUCKET_DEV, CALIBRATION, LESSONS, StorageMode
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -30,15 +32,13 @@ class Settings(BaseSettings):
     api_football_key: str = ""
 
     data_dir: Path = REPO_ROOT / "data"
-    dataset_version: str = "v1"
     n_sims: int = 10_000
 
     aws_region: str = "eu-west-2"
     dynamo_endpoint: str = ""
     dynamo_table: str = "wolves-forecaster"
-    snapshot_bucket: str = ""
-    agent_state_bucket: str = ""
-    agent_state_prefix: str = "agent-state"
+    bucket: str = BUCKET_DEV
+    storage_mode: StorageMode = "both"
 
     runs_root: Path = REPO_ROOT / "runs"
     tool_timeout_seconds: float = 30.0
@@ -65,11 +65,16 @@ class Settings(BaseSettings):
     tripwire_threshold: float = 0.10
     governor_window: int = 20
 
-    lessons_path: Path = REPO_ROOT / "runs" / "LESSONS.md"
-    calibration_path: Path = REPO_ROOT / "runs" / "calibration.jsonl"
-
     agent_run_ceiling_usd: float = 0.25
     agent_run_ceiling_max_usd: float = 1.50
+
+    @property
+    def lessons_path(self) -> Path:
+        return self.runs_root / LESSONS.key()
+
+    @property
+    def calibration_path(self) -> Path:
+        return self.runs_root / CALIBRATION.key()
 
 
 @lru_cache

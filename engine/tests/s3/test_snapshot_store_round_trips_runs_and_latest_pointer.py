@@ -9,9 +9,11 @@ from moto import mock_aws
 
 from wolves.config import Settings
 from wolves.run import generate_snapshot
-from wolves.store.init import ensure_table
-from wolves.store.records import RunRecord
-from wolves.store.store import RunIndex, SnapshotStore
+from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.index import RunIndex
+from wolves.s3.init import ensure_table
+from wolves.s3.records import RunRecord
+from wolves.s3.snapshots import SnapshotStore
 
 REGION = "eu-west-2"
 TABLE = "wolves-forecaster"
@@ -19,8 +21,9 @@ AS_OF = date(2026, 6, 17)
 
 
 @pytest.fixture(scope="module")
-def snapshot():
-    return generate_snapshot(Settings(), n_sims=200, seed=7, run_id="run-20260617")
+def snapshot(tmp_path_factory):
+    settings = Settings(runs_root=tmp_path_factory.mktemp("fresh-runs"), storage_mode="local")
+    return generate_snapshot(settings, n_sims=200, seed=7, run_id="run-20260617")
 
 
 def _record(created_at: str, *, status: str = "completed") -> RunRecord:
@@ -36,18 +39,21 @@ def _record(created_at: str, *, status: str = "completed") -> RunRecord:
 
 
 @mock_aws
-def test_snapshot_lands_on_dated_key_and_latest_pointer(snapshot):
+def test_snapshot_lands_on_dated_key_latest_pointer_and_local_mirror(snapshot, tmp_path):
     s3 = boto3.client("s3", region_name=REGION)
     s3.create_bucket(Bucket="snaps", CreateBucketConfiguration={"LocationConstraint": REGION})
-    store = SnapshotStore(bucket="snaps", region=REGION)
+    settings = Settings(bucket="snaps", storage_mode="both", runs_root=tmp_path)
+    store = SnapshotStore(ArtifactStore(settings))
 
     key = store.put_snapshot(snapshot, as_of=AS_OF)
 
     assert key == "snapshots/2026/06/17/run-20260617.json"
     dated = json.loads(s3.get_object(Bucket="snaps", Key=key)["Body"].read())
-    latest = json.loads(s3.get_object(Bucket="snaps", Key="latest.json")["Body"].read())
+    latest = json.loads(s3.get_object(Bucket="snaps", Key="snapshots/latest.json")["Body"].read())
     assert dated == latest
     assert dated["run"]["run_id"] == "run-20260617"
+    assert json.loads((tmp_path / key).read_text()) == dated
+    assert (tmp_path / "snapshots" / "latest.json").exists()
 
 
 @mock_aws

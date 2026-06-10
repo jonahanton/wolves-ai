@@ -6,13 +6,14 @@ from typing import Any
 
 import pytest
 
-import wolves.archive
+import wolves.s3.artifacts
 from wolves.archive import AllSourcesFailedError, archive_pass
 from wolves.clients.odds.contracts import CreditUsage, RawOddsResponse
-from wolves.clients.s3.client import S3UnavailableError
 from wolves.config import Settings
+from wolves.s3.client import S3UnavailableError
 
 NOW = datetime(2026, 6, 11, 14, 30, tzinfo=UTC)
+RAW_KEY = "odds-archive/2026-06-11/143000.json"
 
 
 class StubOdds:
@@ -44,12 +45,12 @@ class StubPolymarket:
 
 
 async def test_failed_source_is_recorded_without_losing_the_others(tmp_path):
-    settings = Settings(runs_root=tmp_path, agent_state_bucket="")
+    settings = Settings(runs_root=tmp_path, storage_mode="local")
 
     key = await archive_pass(settings, odds=StubOdds(fail=True), polymarket=StubPolymarket(), now=NOW)
 
-    assert key == "2026-06-11/143000.json"
-    written = json.loads((tmp_path / "odds-archive" / key).read_text(encoding="utf-8"))
+    assert key == RAW_KEY
+    written = json.loads((tmp_path / RAW_KEY).read_text(encoding="utf-8"))
     assert written["sources"]["odds_outrights"]["error"].startswith("ConnectionError")
     assert written["sources"]["odds_outrights"]["payload"] is None
     assert written["sources"]["polymarket"]["error"] is None
@@ -57,7 +58,7 @@ async def test_failed_source_is_recorded_without_losing_the_others(tmp_path):
 
 
 async def test_all_sources_failing_aborts_and_writes_nothing(tmp_path):
-    settings = Settings(runs_root=tmp_path, agent_state_bucket="")
+    settings = Settings(runs_root=tmp_path, storage_mode="local")
 
     with pytest.raises(AllSourcesFailedError) as exc_info:
         await archive_pass(settings, odds=StubOdds(fail=True), polymarket=StubPolymarket(fail=True), now=NOW)
@@ -74,10 +75,10 @@ async def test_s3_outage_is_loud_but_the_local_snapshot_survives(tmp_path, monke
         def put_text(self, key: str, body: str, *, content_type: str = "text/plain") -> None:
             raise S3UnavailableError(self._bucket, "put_object")
 
-    monkeypatch.setattr(wolves.archive, "S3Client", FailingS3)
-    settings = Settings(runs_root=tmp_path, agent_state_bucket="archive-bucket")
+    monkeypatch.setattr(wolves.s3.artifacts, "S3Client", FailingS3)
+    settings = Settings(runs_root=tmp_path, storage_mode="both", bucket="archive-bucket")
 
     with pytest.raises(S3UnavailableError):
         await archive_pass(settings, odds=StubOdds(), polymarket=StubPolymarket(), now=NOW)
 
-    assert (tmp_path / "odds-archive" / "2026-06-11" / "143000.json").exists()
+    assert (tmp_path / RAW_KEY).exists()
