@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from wolves.agent.ledger import EvidenceLedger
 from wolves.graph.artifacts import RunArtifactStore
@@ -18,6 +18,7 @@ class NodeRecord(BaseModel):
     error: str | None = None
     requests: int = 0
     replaced_by: str | None = None
+    flags: list[str] = Field(default_factory=list)
 
 
 class Blackboard:
@@ -54,6 +55,7 @@ class Blackboard:
                     ok=outcome.ok,
                     error=outcome.error,
                     requests=outcome.requests,
+                    flags=outcome.flags,
                 )
             )
             for artifact_id in outcome.artifact_ids:
@@ -106,6 +108,7 @@ class Blackboard:
                     "requests": n.requests,
                     **({"error": n.error[:120]} if n.error else {}),
                     **({"replaced_by": n.replaced_by} if n.replaced_by else {}),
+                    **({"flags": n.flags} if n.flags else {}),
                 }
                 for n in self.nodes
             ],

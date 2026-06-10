@@ -75,11 +75,20 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
     except Exception as exc:
         return NodeOutcome(node_id=brief.node_id, kind=brief.kind, ok=False, error=f"{type(exc).__name__}: {exc}")
     output = result.output
+    workspace_prefix: str | None = None
+    flags: list[str] = []
+    if brief.kind == "quant":
+        workspace = deps.quant.workspace(brief.node_id)
+        workspace_prefix = f"runs/{store.run_id}/workspace/quant/{workspace.dir.name}"
+        usage = workspace.read_usage()
+        if sum(usage.values()) == 0:
+            flags.append("quant_no_computation")
     artifact = store.add(
         kind=_ARTIFACT_KINDS[brief.kind],
         created_by=brief.node_id,
         summary=output.summary,
         payload=output.model_dump(mode="json"),
+        workspace_prefix=workspace_prefix,
     )
     return NodeOutcome(
         node_id=brief.node_id,
@@ -87,4 +96,5 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         ok=True,
         artifact_ids=[artifact.id],
         requests=result.usage.requests,
+        flags=flags,
     )

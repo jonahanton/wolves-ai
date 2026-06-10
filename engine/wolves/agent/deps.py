@@ -60,6 +60,7 @@ class AgentDeps:
     settings: Settings
     limits: ValidatorLimits
     actor: str = "master"
+    as_of: str = ""
     submission: SubmissionState = field(default_factory=SubmissionState)
     artifacts: RunArtifactStore | None = None
     todos: list[TodoItem] = field(default_factory=list)

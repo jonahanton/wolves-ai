@@ -12,10 +12,10 @@ class Caps(BaseModel):
     max_search_calls: int = 20
     max_fetch_calls: int = 24
     max_data_fetches: int = 24
-    max_quant_executions: int = 6
+    max_quant_executions: int = 12
     max_quant_rows: int = 200_000
     max_quant_bytes: int = 20_000_000
-    max_quant_runtime_seconds: int = 60
+    max_quant_runtime_seconds: int = 180
     # 0 disables the dollar ceiling; runners always set an explicit one.
     max_cost_micros: int = 1_500_000
 

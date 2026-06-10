@@ -26,10 +26,10 @@ from wolves.models.contracts import (
     UnknownModelTeamError,
 )
 from wolves.models.inmatch import MatchState, final_score_distribution, live_win_probabilities
-from wolves.models.poisson import PoissonDecayModel
+from wolves.models.poisson import PoissonDecayModel, poisson_grid
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
-from wolves.sim.mc import SimResult, run_tournament
+from wolves.sim.mc import MIN_GOAL_MEAN_AFTER_OFFSET, SimResult, run_tournament
 from wolves.sim.model_engine import PoissonMatchEngine
 from wolves.sim.outputs import build_england, build_groups, build_matches, build_slots, build_team_reach
 from wolves.sim.ratings import load_elo_ratings, load_squad_values
@@ -118,6 +118,18 @@ class UnknownMatchError(Exception):
     def __init__(self, match: int) -> None:
         self.match = match
         super().__init__(f"match {match} is not a fixture in the tournament format")
+
+
+class UnboundMatchPerturbationError(Exception):
+    """Match-keyed perturbations cannot bind to a fixture given only team
+    names; refusing loudly beats silently pricing the unperturbed match."""
+
+    def __init__(self, matches: list[int]) -> None:
+        self.matches = matches
+        super().__init__(
+            f"perturbations are keyed to match(es) {matches}; pass match=<id> so they bind, "
+            "or drop them from this fixture-level call"
+        )
 
 
 class Forecaster:
@@ -209,16 +221,42 @@ class Forecaster:
         return perturbed, offsets, grids
 
     def score_grid(
-        self, home: str, away: str, *, neutral: bool = True, perturbations: tuple[Perturbation, ...] = ()
+        self,
+        home: str,
+        away: str,
+        *,
+        neutral: bool = True,
+        perturbations: tuple[Perturbation, ...] = (),
+        match: int | None = None,
     ) -> ScorelineDistribution:
+        """Scoreline grid for one fixture; match binds match-keyed perturbations."""
         fixture = Fixture(home=registry_team_key(home), away=registry_team_key(away), neutral=neutral)
-        state, _, _ = self._perturbed(perturbations)
-        return self.model.score_distribution(fixture, state)
+        state, offsets, grids = self._perturbed(perturbations)
+        if match is None:
+            keyed = sorted(set(offsets) | set(grids))
+            if keyed:
+                raise UnboundMatchPerturbationError(keyed)
+            return self.model.score_distribution(fixture, state)
+        if match in grids:
+            return grids[match]
+        lam_home, lam_away = self.model.rates(fixture, state)
+        off_home, off_away = offsets.get(match, (0.0, 0.0))
+        return poisson_grid(
+            max(lam_home + off_home, MIN_GOAL_MEAN_AFTER_OFFSET),
+            max(lam_away + off_away, MIN_GOAL_MEAN_AFTER_OFFSET),
+            rho=state.globals_.get("rho", 0.0),
+        )
 
     def match_probs(
-        self, home: str, away: str, *, neutral: bool = True, perturbations: tuple[Perturbation, ...] = ()
+        self,
+        home: str,
+        away: str,
+        *,
+        neutral: bool = True,
+        perturbations: tuple[Perturbation, ...] = (),
+        match: int | None = None,
     ) -> dict[str, float]:
-        grid = self.score_grid(home, away, neutral=neutral, perturbations=perturbations)
+        grid = self.score_grid(home, away, neutral=neutral, perturbations=perturbations, match=match)
         return {"home": grid.p_home, "draw": grid.p_draw, "away": grid.p_away}
 
     def match_rates(self, home: str, away: str, *, neutral: bool = True) -> tuple[float, float]:

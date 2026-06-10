@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -42,9 +43,15 @@ class QuantWorkspace:
         for d in (self.dir, self.inputs, self.outputs):
             d.mkdir(parents=True, exist_ok=True)
 
-    @property
-    def analysis_path(self) -> Path:
-        return self.dir / "analysis.py"
+    def next_analysis_name(self) -> str:
+        """Sequential script names so one node's calls share the workspace."""
+        return f"analysis_{len(sorted(self.dir.glob('analysis_*.py'))) + 1:03d}.py"
+
+    def read_usage(self) -> dict[str, int]:
+        path = self.outputs / "_usage.json"
+        if not path.exists():
+            return {}
+        return {k: int(v) for k, v in json.loads(path.read_text(encoding="utf-8")).items()}
 
     def write(self, filename: str, content: str | bytes, *, in_inputs: bool = False) -> WorkspaceArtifact:
         data = content.encode("utf-8") if isinstance(content, str) else content

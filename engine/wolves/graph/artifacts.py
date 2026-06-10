@@ -151,6 +151,13 @@ class RunArtifactStore:
             return None
         return str(self._store.local_path(record.workspace_prefix))
 
+    def payload_path(self, artifact_id: str) -> str | None:
+        """Absolute local path of the artifact's payload blob, if on disk."""
+        if artifact_id not in self._records:
+            return None
+        path = self._store.local_path(RUN_ARTIFACT.key(run_id=self.run_id, artifact_id=artifact_id))
+        return str(path) if path.exists() else None
+
     def _write_local(self, key: str, body: str) -> None:
         path = self._store.local_path(key)
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -68,7 +68,9 @@ A failed node is not a dead end: its error is on the blackboard. Re-brief it
 once with a tighter, smaller ask (fewer inputs, one question), setting
 replaces to the failed node's id and using a fresh node id (research-news-2,
 not research-news); a duplicate id is dropped at admission and the drop
-reason appears on the blackboard.
+reason appears on the blackboard. A quant node flagged quant_no_computation
+reported numbers without loading data or running the simulator: re-brief it
+once with a sharper computational question naming the expected output.
 
 Stop only after the forecast node reports an accepted submission, or when the
 budget makes further work pointless; say why in reason. A stop patch may

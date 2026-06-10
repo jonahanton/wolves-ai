@@ -74,3 +74,4 @@ class NodeOutcome(BaseModel):
     artifact_ids: list[str] = Field(default_factory=list)
     error: str | None = None
     requests: int = 0
+    flags: list[str] = Field(default_factory=list)

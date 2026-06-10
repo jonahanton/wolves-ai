@@ -2,13 +2,21 @@ from __future__ import annotations
 
 import importlib.metadata
 import importlib.util
-from typing import Any
+import logging
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
-from wolves.observability.budget import Caps
+from wolves.data.store import DatasetStore
+
+if TYPE_CHECKING:
+    from wolves.agent.deps import AgentDeps
+
+logger = logging.getLogger(__name__)
 
 # Approved scientific stack the quant agent may use: (import name, distribution).
+# Everything listed is a real engine dependency; the sandbox never advertises
+# an instrument that fails on import.
 APPROVED_PACKAGES: list[tuple[str, str]] = [
     ("duckdb", "duckdb"),
     ("polars", "polars"),
@@ -18,10 +26,6 @@ APPROVED_PACKAGES: list[tuple[str, str]] = [
     ("statsmodels", "statsmodels"),
     ("sklearn", "scikit-learn"),
     ("matplotlib", "matplotlib"),
-    ("plotly", "plotly"),
-    ("lifelines", "lifelines"),
-    ("pymc", "pymc"),
-    ("arviz", "arviz"),
 ]
 
 
@@ -37,96 +41,73 @@ def available_packages() -> dict[str, str]:
     return found
 
 
-class QuantArtifact(BaseModel):
-    """The slice of a run artifact the quant prompt needs: identity plus payload."""
+class ContextArtifact(BaseModel):
+    """One run artifact as the sandbox sees it: metadata plus local paths."""
 
     id: str
     kind: str
-    summary: str = ""
-    file_paths: list[str] = Field(default_factory=list)
-    payload: dict[str, Any] = Field(default_factory=dict)
+    created_by: str
+    summary: str
+    payload_path: str
+    workspace_path: str | None = None
 
 
-class QuantContext(BaseModel):
-    query_title: str
-    ask: str
+class SandboxContext(BaseModel):
+    """Everything `wq` needs to rebuild the run's deterministic surface
+    inside the sandbox, written to inputs/context.json once per node."""
+
     as_of: str
-    workspace_dir: str
-    available_packages: dict[str, str] = Field(default_factory=dict)
-    input_artifacts: list[dict] = Field(default_factory=list)
-    # Resource budget (rows is soft guidance; bytes/runtime enforced by the executor).
-    max_rows: int = 0
-    max_output_bytes: int = 0
-    max_runtime_seconds: int = 0
+    run_id: str
+    data_dir: str
+    runs_root: str
+    dataset_path: str | None = None
+    dataset_id: str | None = None
+    ledger_path: str | None = None
+    calibration_path: str | None = None
+    archive_dir: str | None = None
+    artifacts: dict[str, ContextArtifact] = Field(default_factory=dict)
+    default_n_sims: int = 50_000
+    packages: dict[str, str] = Field(default_factory=dict)
 
 
-# Cap how many dataset artefacts carry a full schema+sample into the prompt;
-# build_quant_context includes every dataset, so a multi-source run would
-# otherwise blow the prompt budget. Beyond this, datasets are schema-only.
-_MAX_SAMPLED_DATASETS = 4
-_MAX_SAMPLE_ROWS = 5
-
-
-def build_quant_context(
-    *,
-    query_title: str,
-    ask: str,
-    as_of: str,
-    workspace_dir: str,
-    artifacts: list[QuantArtifact],
-    caps: Caps,
-) -> QuantContext:
-    relevant_artifacts = [
-        a for a in artifacts if a.kind in ("source", "evidence", "dataset", "model_card", "data_quality")
-    ]
-    sampled = {a.id for a in [a for a in relevant_artifacts if a.kind == "dataset"][:_MAX_SAMPLED_DATASETS]}
-    relevant = [
-        {
-            "id": a.id,
-            "kind": a.kind,
-            "summary": a.summary,
-            "file_paths": a.file_paths,
-            "payload": _trim_payload(a, with_sample=a.id in sampled),
-        }
-        for a in relevant_artifacts
-    ]
-    return QuantContext(
-        query_title=query_title,
-        ask=ask,
-        as_of=as_of,
-        workspace_dir=workspace_dir,
-        available_packages=available_packages(),
-        input_artifacts=relevant,
-        max_rows=caps.max_quant_rows,
-        max_output_bytes=caps.max_quant_bytes,
-        max_runtime_seconds=caps.max_quant_runtime_seconds,
+def build_sandbox_context(deps: AgentDeps) -> SandboxContext:
+    """Assemble the sandbox context from run state; missing pieces stay None
+    so a dev run without a dataset still gets a working workbench."""
+    settings = deps.settings
+    dataset_path: str | None = None
+    dataset_id: str | None = None
+    try:
+        path, manifest = DatasetStore(settings).fetch()
+        dataset_path, dataset_id = str(path), manifest.dataset_id
+    except Exception as exc:
+        logger.warning("sandbox context has no dataset: %s", exc)
+    artifacts: dict[str, ContextArtifact] = {}
+    if deps.artifacts is not None:
+        for record in deps.artifacts.all():
+            payload_path = deps.artifacts.payload_path(record.id)
+            if payload_path is None:
+                continue
+            artifacts[record.id] = ContextArtifact(
+                id=record.id,
+                kind=record.kind,
+                created_by=record.created_by,
+                summary=record.summary,
+                payload_path=payload_path,
+                workspace_path=deps.artifacts.workspace_path(record.id),
+            )
+    calibration = settings.calibration_path
+    archive = settings.runs_root / "odds-archive"
+    return SandboxContext(
+        as_of=deps.as_of,
+        run_id=deps.runtime.run_id,
+        data_dir=str(settings.data_dir),
+        runs_root=str(settings.runs_root),
+        dataset_path=dataset_path,
+        dataset_id=dataset_id,
+        ledger_path=str(deps.ledger.path) if deps.ledger.path.exists() else None,
+        calibration_path=str(calibration) if calibration.exists() else None,
+        archive_dir=str(archive) if archive.exists() else None,
+        artifacts=artifacts,
+        default_n_sims=settings.n_sims,
+        packages=available_packages(),
     )
-
-
-def _trim_payload(artifact: QuantArtifact, *, with_sample: bool = False) -> dict:
-    """Keep the small, useful bits of an artifact payload for the agent prompt.
-    For dataset artefacts, thread the real schema (and, when budget allows, a
-    short row sample) so quant writes the exact column names rather than guessing."""
-    keep = (
-        "url",
-        "title",
-        "claim",
-        "value",
-        "as_of",
-        "published_at",
-        "snippet",
-        "cache_key",
-        "resolved",
-        "row_count",
-        "columns",
-        "schema",
-    )
-    out = {k: v for k, v in artifact.payload.items() if k in keep}
-    if with_sample:
-        sample = artifact.payload.get("sample")
-        if isinstance(sample, list) and sample:
-            out["sample"] = sample[:_MAX_SAMPLE_ROWS]
-    text = artifact.payload.get("text")
-    if isinstance(text, str):
-        out["text"] = text[:800]
-    return out
