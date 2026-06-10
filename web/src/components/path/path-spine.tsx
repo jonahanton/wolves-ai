@@ -32,7 +32,7 @@ export function PathSpine({ views }: PathSpineProps) {
       </p>
       <ol
         key={view.finish}
-        className="mt-4 ml-2 space-y-4 border-l border-dashed border-[var(--border-strong)] pl-4 animate-[fade-up_260ms_var(--ease-out)]"
+        className="mt-4 ml-2 space-y-4 border-l border-dashed border-[var(--border-strong)] pl-4 animate-[fade-up_150ms_var(--ease-out)]"
       >
         {view.stages.map((stage, i) => (
           <li key={stage.stage} className="relative">

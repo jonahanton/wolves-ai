@@ -21,7 +21,7 @@ export default async function TodayPage() {
   const mood = (snapshot.england.finish_probs.win_group ?? 0) >= 0.5 ? "happy" : "neutral";
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-5 p-4">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
       <RunHeader run={snapshot.run} mood={mood} />
       <TodayBoard summary={summariseSnapshot(snapshot)} heroProb={snapshot.england.reach_probs.r32 ?? 0} />
       {fixture && <NextFixtureCard fixture={fixture} names={names} />}

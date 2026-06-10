@@ -33,7 +33,7 @@ export function SlotCard({ slot, onSelect }: SlotCardProps) {
       type="button"
       onClick={() => onSelect(slot)}
       className={cn(
-        "sticker w-full p-3.5 text-left transition-transform duration-150 active:scale-[0.99]",
+        "sticker w-full p-3 text-left transition-transform duration-150 active:scale-[0.99]",
         england && "foil border-gold/60",
       )}
     >

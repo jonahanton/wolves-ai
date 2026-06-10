@@ -31,10 +31,10 @@ export function ReachCurve({ reach, highlight = false }: ReachCurveProps) {
       {points.map((point) => (
         <g key={point.label}>
           <circle cx={point.x} cy={point.y} r="2.4" fill={stroke} />
-          <text x={point.x} y={point.y - 6} textAnchor="middle" fontSize="9" fill="var(--muted-foreground)">
+          <text x={point.x} y={point.y - 6} textAnchor="middle" fontSize="10" fill="var(--muted-foreground)">
             {formatPctBare(point.prob)}
           </text>
-          <text x={point.x} y={HEIGHT - 5} textAnchor="middle" fontSize="9" fill="var(--muted-foreground)">
+          <text x={point.x} y={HEIGHT - 4} textAnchor="middle" fontSize="11" fill="var(--muted-foreground)">
             {point.label}
           </text>
         </g>

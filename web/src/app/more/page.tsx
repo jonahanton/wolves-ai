@@ -11,17 +11,17 @@ export default async function MorePage() {
   const snapshot = await loadLatestSnapshot();
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-5 p-4">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
       <PageHeader title="More" subtitle="Settings and the small print" />
 
-      <section className="rounded-xl border bg-card p-4" aria-label="Settings">
+      <section className="rounded-xl border bg-card p-3" aria-label="Settings">
         <h2 className="font-semibold">Appearance</h2>
         <div className="mt-3">
           <ThemeToggle />
         </div>
       </section>
 
-      <section className="rounded-xl border bg-card p-4" aria-label="About">
+      <section className="rounded-xl border bg-card p-3" aria-label="About">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-semibold">About</h2>
@@ -44,7 +44,7 @@ export default async function MorePage() {
       </section>
 
       {isAdmin ? (
-        <section className="rounded-xl border bg-card p-4" aria-label="Admin">
+        <section className="rounded-xl border bg-card p-3" aria-label="Admin">
           <h2 className="font-semibold">Admin</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
             Run controls, kill switch and spend tracking land with the runner.

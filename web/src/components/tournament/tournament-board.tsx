@@ -33,7 +33,7 @@ export function TournamentBoard({ bracket, odds, groups, teamSheets }: Tournamen
   const header = HEADERS[view];
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <PageHeader title={header.title} subtitle={header.subtitle} />
       <Segmented
         options={[

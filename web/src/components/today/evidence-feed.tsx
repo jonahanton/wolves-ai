@@ -30,11 +30,11 @@ export function EvidenceFeed({ entries }: EvidenceFeedProps) {
         {entries.map((entry) => {
           const host = sourceHost(entry.source_url);
           return (
-            <article key={entry.id} className="px-3.5 py-2.5">
+            <article key={entry.id} className="px-3 py-2.5">
               <p className="text-sm">{entry.claim}</p>
               <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium capitalize ${
+                  className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium capitalize ${
                     STATUS_STYLES[entry.status] ?? STATUS_STYLES.rumour
                   }`}
                 >
