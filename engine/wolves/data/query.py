@@ -67,6 +67,17 @@ class DatasetQuery:
             [team, team],
         )
 
+    def elo_trajectory(self, team: str) -> list[dict[str, Any]]:
+        """Year-end Elo ratings for the team, oldest first."""
+        return self.sql("select year, elo from elo_history where team = ? order by year", [team])
+
+    def outright_history(self, team: str) -> list[dict[str, Any]]:
+        """Pre-tournament title prices for the team across archived tournaments."""
+        return self.sql(
+            "select tournament, bookmaker, price from outright_closes where team = ? order by tournament, bookmaker",
+            [team],
+        )
+
     def covariates(self, team: str) -> dict[str, Any]:
         rows = self.sql("select * from teams where team = ?", [team])
         return rows[0] if rows else {}

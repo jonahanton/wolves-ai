@@ -38,18 +38,77 @@ from wolves.snapshot import TeamInfo
 DEFAULT_SIMS = 20_000
 
 
-class StrengthPerturbation(BaseModel):
-    """A bounded, evidence-backed shift to one team's ability, in strength
-    units (log goal-rate scale). The harness quantifies it; it never carries
-    probabilities."""
+class _Perturbation(BaseModel):
+    """Evidence-backed, typed and bounded; the harness quantifies every one in
+    output space. Perturbations never carry tournament probabilities."""
 
-    team: str
-    delta: float
     reason: str
     expires: date | None = None
 
     def active(self, *, on: date) -> bool:
         return self.expires is None or on <= self.expires
+
+
+class StrengthPerturbation(_Perturbation):
+    """Shift one team's ability, in strength units (log goal-rate scale)."""
+
+    team: str
+    delta: float
+
+
+class TempoPerturbation(_Perturbation):
+    """Shift the tournament-wide scoring intercept (log goals per side)."""
+
+    delta: float
+
+
+class HomeAdvantagePerturbation(_Perturbation):
+    """Shift the host home-advantage term."""
+
+    delta: float
+
+
+class MatchRatePerturbation(_Perturbation):
+    """Additive expected-goal offsets for one fixture (e.g. a tactical read)."""
+
+    match: int
+    home_goals_delta: float = 0.0
+    away_goals_delta: float = 0.0
+
+
+class MatchOutcomePerturbation(_Perturbation):
+    """Reweight one group fixture's W/D/L mass; scorelines stay model-shaped
+    within each outcome. Knockout pairings are sim-dependent, so this applies
+    to group matches only."""
+
+    match: int
+    p_home: float
+    p_draw: float
+    p_away: float
+
+
+class ScorelinePerturbation(_Perturbation):
+    """Pin one fixture to an exact scoreline (a what-if, not a forecast)."""
+
+    match: int
+    home_goals: int
+    away_goals: int
+
+
+Perturbation = (
+    StrengthPerturbation
+    | TempoPerturbation
+    | HomeAdvantagePerturbation
+    | MatchRatePerturbation
+    | MatchOutcomePerturbation
+    | ScorelinePerturbation
+)
+
+
+class UnknownMatchError(Exception):
+    def __init__(self, match: int) -> None:
+        self.match = match
+        super().__init__(f"match {match} is not a fixture in the tournament format")
 
 
 class Forecaster:
@@ -82,28 +141,68 @@ class Forecaster:
             return self.fit()
         return self._state
 
-    def _perturbed(self, perturbations: tuple[StrengthPerturbation, ...]) -> FittedState:
+    def _match_ids(self) -> tuple[set[int], set[int]]:
+        group = {m.match for m in self.fmt.group_matches}
+        knockout = {m.match for m in self.fmt.knockout}
+        return group, knockout
+
+    def _group_fixture(self, match: int) -> Fixture:
+        spec = next(m for m in self.fmt.group_matches if m.match == match)
+        return Fixture(home=registry_team_key(spec.home), away=registry_team_key(spec.away), neutral=True)
+
+    def _perturbed(
+        self, perturbations: tuple[Perturbation, ...]
+    ) -> tuple[FittedState, dict[int, tuple[float, float]], dict[int, ScorelineDistribution]]:
+        """Apply every active perturbation: parameter shifts land on the fitted
+        state, fixture-level ones become goal offsets or injected distributions."""
         state = self.state
         active = [p for p in perturbations if p.active(on=state.as_of)]
-        if not active:
-            return state
+        group_ids, knockout_ids = self._match_ids()
+
         strengths = state.strengths.copy()
+        globals_ = dict(state.globals_)
+        offsets: dict[int, tuple[float, float]] = {}
         index = {team: i for i, team in enumerate(state.teams)}
-        for perturbation in active:
-            key = registry_team_key(perturbation.team)
-            if key not in index:
-                raise UnknownModelTeamError(perturbation.team, state.model_id)
-            strengths[index[key]] += perturbation.delta
-        return replace(state, strengths=strengths)
+        for p in active:
+            if isinstance(p, StrengthPerturbation):
+                key = registry_team_key(p.team)
+                if key not in index:
+                    raise UnknownModelTeamError(p.team, state.model_id)
+                strengths[index[key]] += p.delta
+            elif isinstance(p, TempoPerturbation):
+                globals_["intercept"] += p.delta
+            elif isinstance(p, HomeAdvantagePerturbation):
+                globals_["home_adv"] += p.delta
+            elif isinstance(p, MatchRatePerturbation):
+                if p.match not in group_ids | knockout_ids:
+                    raise UnknownMatchError(p.match)
+                current = offsets.get(p.match, (0.0, 0.0))
+                offsets[p.match] = (current[0] + p.home_goals_delta, current[1] + p.away_goals_delta)
+        perturbed = replace(state, strengths=strengths, globals_=globals_)
+
+        grids: dict[int, ScorelineDistribution] = {}
+        for p in active:
+            if isinstance(p, ScorelinePerturbation):
+                if p.match not in group_ids | knockout_ids:
+                    raise UnknownMatchError(p.match)
+                grids[p.match] = ScorelineDistribution.single(p.home_goals, p.away_goals)
+            elif isinstance(p, MatchOutcomePerturbation):
+                # Knockout pairings vary per sim world, so only group fixtures reweight.
+                if p.match not in group_ids:
+                    raise UnknownMatchError(p.match)
+                base = self.model.score_distribution(self._group_fixture(p.match), perturbed)
+                grids[p.match] = base.reweighted(p_home=p.p_home, p_draw=p.p_draw, p_away=p.p_away)
+        return perturbed, offsets, grids
 
     def score_grid(
-        self, home: str, away: str, *, neutral: bool = True, perturbations: tuple[StrengthPerturbation, ...] = ()
+        self, home: str, away: str, *, neutral: bool = True, perturbations: tuple[Perturbation, ...] = ()
     ) -> ScorelineDistribution:
         fixture = Fixture(home=registry_team_key(home), away=registry_team_key(away), neutral=neutral)
-        return self.model.score_distribution(fixture, self._perturbed(perturbations))
+        state, _, _ = self._perturbed(perturbations)
+        return self.model.score_distribution(fixture, state)
 
     def match_probs(
-        self, home: str, away: str, *, neutral: bool = True, perturbations: tuple[StrengthPerturbation, ...] = ()
+        self, home: str, away: str, *, neutral: bool = True, perturbations: tuple[Perturbation, ...] = ()
     ) -> dict[str, float]:
         grid = self.score_grid(home, away, neutral=neutral, perturbations=perturbations)
         return {"home": grid.p_home, "draw": grid.p_draw, "away": grid.p_away}
@@ -125,17 +224,25 @@ class Forecaster:
         *,
         n_sims: int = DEFAULT_SIMS,
         seed: int = 0,
-        perturbations: tuple[StrengthPerturbation, ...] = (),
+        perturbations: tuple[Perturbation, ...] = (),
         results: dict[int, PlayedResult] | None = None,
         live_distributions: dict[int, ScorelineDistribution] | None = None,
         parameter_uncertainty: bool = True,
     ) -> SimResult:
-        state = self._perturbed(perturbations)
+        state, offsets, grids = self._perturbed(perturbations)
         if not parameter_uncertainty:
             state = replace(state, covariance=None)
+        # Live in-progress states outrank what-if injections for the same match.
+        injected = {**grids, **(live_distributions or {})}
         engine = PoissonMatchEngine(self.fmt, state)
         return run_tournament(
-            self.fmt, engine, n_sims=n_sims, seed=seed, results=results, live_distributions=live_distributions
+            self.fmt,
+            engine,
+            n_sims=n_sims,
+            seed=seed,
+            results=results,
+            fixture_goal_offsets=offsets or None,
+            live_distributions=injected or None,
         )
 
     def title_probs(
@@ -143,7 +250,7 @@ class Forecaster:
         *,
         n_sims: int = DEFAULT_SIMS,
         seed: int = 0,
-        perturbations: tuple[StrengthPerturbation, ...] = (),
+        perturbations: tuple[Perturbation, ...] = (),
         results: dict[int, PlayedResult] | None = None,
         live_distributions: dict[int, ScorelineDistribution] | None = None,
     ) -> dict[str, float]:
@@ -197,7 +304,7 @@ class Forecaster:
         )
 
     def perturbation_impact(
-        self, perturbation: StrengthPerturbation, *, n_sims: int = DEFAULT_SIMS, seed: int = 0
+        self, perturbation: Perturbation, *, n_sims: int = DEFAULT_SIMS, seed: int = 0
     ) -> dict[str, float]:
         """Output-space effect: percentage-point title-probability moves, the
         number every cap and every evidence ledger entry is denominated in."""
