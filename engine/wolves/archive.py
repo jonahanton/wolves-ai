@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
@@ -61,7 +62,7 @@ def archive_key(now: datetime) -> str:
 async def capture_sources(*, odds: RawOddsSource, polymarket: RawEventsSource, now: datetime) -> ArchiveSnapshot:
     """Fetch every source, recording failures per source; raise only when all fail."""
 
-    async def odds_capture(fetch: Any) -> SourceCapture:
+    async def odds_capture(fetch: Callable[[], Awaitable[RawOddsResponse]]) -> SourceCapture:
         raw = await fetch()
         return SourceCapture(payload=raw.payload, credits=raw.credits)
 
