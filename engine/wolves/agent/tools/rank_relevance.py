@@ -96,7 +96,8 @@ async def _rank_relevance(args: RankRelevanceArgs, deps: AgentDeps) -> ToolResul
     rankings.sort(key=lambda r: (r["score"] is not None, r["score"] or 0.0), reverse=True)
     if memory is not None:
         for c in args.candidates:
-            memory.record(c.url, run_id=deps.runtime.run_id, disposition="ranked")
+            if c.url in by_url:
+                memory.record(c.url, run_id=deps.runtime.run_id, disposition="ranked")
     if deps.artifacts is not None:
         deps.artifacts.add(
             kind="retrieval",

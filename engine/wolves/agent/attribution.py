@@ -41,10 +41,13 @@ def decompose(
     forecaster.fit(as_of=as_of)
     today = forecaster.title_probs(n_sims=n_sims, seed=seed, results=results)
     forecaster.fit(as_of=previous_as_of)
-    yesterday = forecaster.title_probs(n_sims=n_sims, seed=seed)
-    overlaid = forecaster.title_probs(n_sims=n_sims, seed=seed, results=results) if results else yesterday
-    # Leave the forecaster on today's state; refits are deterministic and cheap.
-    forecaster.fit(as_of=as_of)
+    try:
+        yesterday = forecaster.title_probs(n_sims=n_sims, seed=seed)
+        overlaid = forecaster.title_probs(n_sims=n_sims, seed=seed, results=results) if results else yesterday
+    finally:
+        # The forecaster is shared run state; it must leave on today's fit
+        # even when a sim raises.
+        forecaster.fit(as_of=as_of)
 
     def diff(a: dict[str, float], b: dict[str, float]) -> dict[str, float]:
         deltas = {t: round((a.get(t, 0.0) - b.get(t, 0.0)) * 100, 2) for t in a}

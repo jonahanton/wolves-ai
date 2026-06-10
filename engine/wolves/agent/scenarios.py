@@ -48,7 +48,8 @@ class ScenarioRegistry:
                     self._events.append(ScenarioEvent.model_validate_json(line))
 
     def open(self, *, name: str, run_id: str, weight: float, reason: str) -> ScenarioState:
-        scenario_id = f"scn-{len({e.scenario_id for e in self._events}) + 1:03d}"
+        taken = {int(e.scenario_id.removeprefix("scn-")) for e in self._events if e.scenario_id.startswith("scn-")}
+        scenario_id = f"scn-{max(taken, default=0) + 1:03d}"
         self._append(
             ScenarioEvent(
                 scenario_id=scenario_id,

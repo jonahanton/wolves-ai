@@ -57,7 +57,7 @@ def main() -> None:
         print(f"== {day} ==")
         run_day(day)
 
-    snapshots = sorted(REPLAY_ROOT.glob("snapshots/2026/*/*/agent-*.json"))
+    snapshots = sorted(REPLAY_ROOT.glob("snapshots/*/*/*/agent-*.json"))
     check(f"{args.days} snapshots published", len(snapshots) == args.days)
 
     first = json.loads(snapshots[0].read_text())
