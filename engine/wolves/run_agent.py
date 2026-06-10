@@ -335,8 +335,11 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         # Five Haiku-master dry runs planned inconsistently; the planner gets the
         # stronger model while workers stay on the cheap one.
         worker = ObservedModel(AnthropicModel(settings.worker_model, provider=provider), runtime=runtime)
-        models = GraphModels.uniform(worker)
-        models.master = ObservedModel(AnthropicModel(settings.fast_model, provider=provider), runtime=runtime)
+        master = ObservedModel(AnthropicModel(settings.fast_model, provider=provider), runtime=runtime)
+        models = GraphModels(
+            master=master,
+            nodes={"research": worker, "quant": worker, "forecast": worker, "critic": worker},
+        )
         web = build_web(settings, runtime)
         odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
         polymarket: PolymarketClient = GammaPolymarketClient()
