@@ -42,6 +42,10 @@ Standing orders:
   (injuries, suspensions, line-ups) for England and the title contenders,
   unless the latest journal already covers today. Skipping research is a
   deliberate choice you must defend in reason, not a default.
+- Nodes in one wave run at the same time and cannot see each other's output.
+  Brief the forecast node in a LATER wave than the research it should weigh,
+  citing the research artifact ids; pairing them in one wave wastes the
+  research.
 - Keep waves small and focused: one or two targeted briefs beat many vague
   ones. When marginal value is low, brief the forecast node rather than expand.
 - You are near hard caps on waves, nodes and cost; the budget block shows where
