@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from wolves.config import Settings
+from wolves.sim.engine import EloMatchEngine
 from wolves.sim.format import PlayedResult, load_format
 from wolves.sim.mc import run_tournament
 from wolves.sim.outputs import build_england
@@ -16,7 +17,7 @@ def fmt():
 
 def _england_locks(fmt, results):
     base = np.full(48, 1800.0)
-    result = run_tournament(fmt, base, n_sims=400, seed=5, results=results)
+    result = run_tournament(fmt, EloMatchEngine(fmt, base), n_sims=400, seed=5, results=results)
     return build_england(fmt, result).lock_dates
 
 

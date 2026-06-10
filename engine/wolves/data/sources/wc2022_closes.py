@@ -14,7 +14,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from wolves.data.prices import valid_price
-from wolves.data.teams import team_key
+from wolves.data.teams import canonical_team_key
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +65,8 @@ def _h2h_records(snapshot: dict[str, Any]) -> list[ClosingOddsRecord]:
                 ClosingOddsRecord(
                     snapshot_at=snapshot_at,
                     commence_at=commence_at,
-                    home_team=team_key(home),
-                    away_team=team_key(away),
+                    home_team=canonical_team_key(home),
+                    away_team=canonical_team_key(away),
                     bookmaker=bookmaker["key"],
                     home_price=prices[home],
                     draw_price=prices["Draw"],
@@ -82,7 +82,7 @@ def _outright_records(snapshot: dict[str, Any]) -> list[OutrightCloseRecord]:
         OutrightCloseRecord(
             snapshot_at=snapshot_at,
             bookmaker=bookmaker["key"],
-            team=team_key(outcome["name"]),
+            team=canonical_team_key(outcome["name"]),
             price=price,
         )
         for event in snapshot["data"]

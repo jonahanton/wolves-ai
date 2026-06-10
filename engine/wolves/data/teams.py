@@ -31,6 +31,16 @@ def team_key(name: str) -> str:
     return "-".join(cleaned.split())
 
 
+# Odds feeds whose slugs differ from the martj42 backbone key.
+_SOURCE_ALIASES: dict[str, str] = {"usa": "united-states"}
+
+
+def canonical_team_key(name: str) -> str:
+    """team_key plus cross-source aliasing, so every table joins on one key."""
+    key = team_key(name)
+    return _SOURCE_ALIASES.get(key, key)
+
+
 def registry_team_key(app_team_id: str) -> str:
     """Dataset key for a 2026 registry id, honouring naming aliases."""
     alias = _REGISTRY_ALIASES.get(app_team_id)

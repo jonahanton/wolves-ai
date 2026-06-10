@@ -8,7 +8,8 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent.tools._shared import reserve_or_refuse
 from wolves.agent_tools.core import ToolSpec
 from wolves.agent_tools.result import ToolResult
-from wolves.clients.odds import OddsEvent, event_consensus, team_id_for_name, weighted_consensus, winner_probabilities
+from wolves.clients.odds import OddsEvent, event_consensus, team_id_for_name, winner_probabilities
+from wolves.markets.devig import weighted_consensus
 from wolves.sim.format import Team, load_format
 from wolves.tools._timeout import run_with_timeout
 

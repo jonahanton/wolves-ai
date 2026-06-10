@@ -47,6 +47,30 @@ def power_devig(prices: list[float], *, tol: float = 1e-10, max_iter: int = 200)
     return [p / total for p in probs]
 
 
+def shin_devig(prices: list[float], *, tol: float = 1e-10, max_iter: int = 200) -> list[float]:
+    """Shin's insider-trading de-vig, kept as a comparator to the power method."""
+    if not prices or any(p <= 1.0 for p in prices):
+        raise DevigError(prices)
+    implied = [1.0 / p for p in prices]
+    total = sum(implied)
+
+    def probs_for(z: float) -> list[float]:
+        return [(math.sqrt(z**2 + 4.0 * (1.0 - z) * q**2 / total) - z) / (2.0 * (1.0 - z)) for q in implied]
+
+    lo, hi = 0.0, 0.999999
+    for _ in range(max_iter):
+        mid = (lo + hi) / 2.0
+        if sum(probs_for(mid)) > 1.0:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < tol:
+            break
+    probs = probs_for((lo + hi) / 2.0)
+    norm = sum(probs)
+    return [p / norm for p in probs]
+
+
 def _logit(p: float) -> float:
     p = min(max(p, 1e-9), 1.0 - 1e-9)
     return math.log(p / (1.0 - p))

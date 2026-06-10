@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from wolves.clients.odds import DevigError, consensus_probabilities, power_devig
+from wolves.markets.devig import DevigError, consensus_probabilities, power_devig
 
 
 def test_devigged_probabilities_sum_to_one():

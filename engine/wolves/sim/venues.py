@@ -27,3 +27,19 @@ def team_venue_bonus(team_id: str, venue: Venue) -> float:
 def venue_bonus_table(fmt: FormatData) -> dict[str, np.ndarray]:
     """Per-city vector of rating bonuses aligned with fmt.teams."""
     return {v.city: np.array([team_venue_bonus(t.id, v) for t in fmt.teams], dtype=np.float64) for v in fmt.venues}
+
+
+def host_at_home_table(fmt: FormatData) -> dict[str, np.ndarray]:
+    """Per-city boolean vector: is each team the host nation at this venue."""
+    return {v.city: np.array([HOST_COUNTRY.get(t.id) == v.country for t in fmt.teams], dtype=bool) for v in fmt.venues}
+
+
+def altitude_bonus_table(fmt: FormatData) -> dict[str, np.ndarray]:
+    """Per-city vector of the altitude component only, in rating points."""
+
+    def altitude(team_id: str, venue: Venue) -> float:
+        if team_id not in ALTITUDE_ACCLIMATISED:
+            return 0.0
+        return ALTITUDE_ELO_PER_KM * max(0.0, venue.altitude_m - ALTITUDE_FLOOR_M) / 1000.0
+
+    return {v.city: np.array([altitude(t.id, v) for t in fmt.teams], dtype=np.float64) for v in fmt.venues}
