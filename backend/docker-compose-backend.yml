@@ -1,0 +1,25 @@
+services:
+  backend:
+    container_name: "backend-${WORKSPACE_NAME:-wolves-ai}"
+    restart: unless-stopped
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      target: development
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+      - SNAPSHOT_DIR=/app/runs
+      - DYNAMO_ENDPOINT=http://db:8000
+    volumes:
+      - ..:/app
+      - /app/backend/.venv
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s

@@ -9,18 +9,22 @@ export
 setup: venv frontend/install
 
 venv:
-	rm -rf engine/.venv || true
+	rm -rf engine/.venv backend/.venv || true
 	cd engine && uv venv && uv pip install -e ".[dev]"
+	cd backend && uv venv && uv pip install -e ".[dev]"
 	@echo "Done. Activate with: source engine/.venv/bin/activate"
 
 lint:
 	cd engine && .venv/bin/ruff check .
+	cd backend && .venv/bin/ruff check .
 
 format:
 	cd engine && .venv/bin/ruff format . && .venv/bin/ruff check . --fix
+	cd backend && .venv/bin/ruff format . && .venv/bin/ruff check . --fix
 
 test:
 	cd engine && .venv/bin/pytest tests/ -q
+	cd backend && .venv/bin/pytest tests/ -q
 
 release:
 	@scripts/release.sh $(env)

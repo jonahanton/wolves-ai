@@ -49,6 +49,28 @@ variable "engine_memory" {
   default = 2048
 }
 
+variable "backend_image_tag" {
+  description = "Backend image tag the task definition points at."
+  type        = string
+  default     = "latest"
+}
+
+variable "backend_cpu" {
+  type    = number
+  default = 256
+}
+
+variable "backend_memory" {
+  type    = number
+  default = 512
+}
+
+variable "backend_desired_count" {
+  description = "Backend API task count; 0 parks the service without destroying it."
+  type        = number
+  default     = 1
+}
+
 variable "monthly_budget_usd" {
   description = "Hard monthly cap; the budget action disables the daily run at 100 percent."
   type        = number

@@ -5,12 +5,14 @@ Next.js App Router, TypeScript strict, Tailwind 4. Mobile-first at 390px; five b
 ## Data flow
 
 ```
-snapshot JSON (S3 in prod, ../runs locally, bundled fixture fallback)
-  -> lib/load-snapshot.ts (server-only read, fixture fallback)
+snapshot JSON (S3 in prod, ../runs locally; served by the Python backend in backend/)
+  -> lib/load-snapshot.ts (server-side fetch of BACKEND_URL/snapshots/latest, bundled fixture fallback)
   -> lib/*-view.ts pure derive modules (bracket-view, spine-view, markets, derive)
   -> RSC pages (src/app/*/page.tsx) build view models server-side
   -> client islands receive plain props ("use client" only where interaction demands it)
 ```
+
+All AWS access lives in the Python backend (`backend/`). The web app never touches AWS: browser calls go to `/api/*`, which `src/app/api/[...slug]/route.ts` forwards verbatim to `BACKEND_URL` (snapshots, admin run-history/schedule/run-now/stop).
 
 - `lib/snapshot.ts` mirrors the engine's frozen snapshot schema (engine/wolves/snapshot.py). Do not edit casually; it is a cross-language contract pinned by Python parity tests.
 - Optional agent fields (`agent.narrative`, `agent.ledger_entries`, future `markets`) are read ONLY through the tolerant accessors in `lib/agent-fields.ts` and `lib/markets.ts`; every surface renders a quiet honest placeholder when they are absent.
@@ -18,9 +20,8 @@ snapshot JSON (S3 in prod, ../runs locally, bundled fixture fallback)
 
 ## What lives where
 
-- `src/app/` - one RSC page per tab plus `api/` route handlers. Pages only load the snapshot, call derive functions and compose components.
+- `src/app/` - one RSC page per tab plus the single `api/[...slug]` proxy route. Pages only load the snapshot, call derive functions and compose components.
 - `src/lib/` - pure modules, no React: bracket graph maths (`bracket.ts`), view-model builders (`bracket-view.ts`, `spine-view.ts`), canvas layout (`bracket-canvas.ts`), formatting (`format.ts`), delta computation (`derive.ts`).
-- `src/lib/server/` - the only code that touches AWS or the filesystem (S3/DynamoDB/ECS/Scheduler clients, snapshot source, admin auth). Route handlers stay thin and delegate here.
 - `src/hooks/` - focused client hooks; `use-pan-zoom.ts` is the hand-rolled pan/zoom controller (refs + rAF, transform-only updates, no React re-render per frame).
 - `src/components/` - grouped by tab (`today/`, `path/`, `bracket/`, `live/`, `more/`) plus `shell/`, `charts/`, `mascot/`, `ui/`. Leaves are pure functions of props.
 - `src/components/ui/` - only primitives actually in use (`segmented`, `sheet` on Base UI). Add primitives when a consumer exists, never speculatively.
@@ -40,4 +41,4 @@ Larry-the-chat cat-loader architecture: one canonical wolf SVG (`components/masc
 
 ## Verification
 
-No frontend test files. Gates: `npm run lint`, `npx tsc --noEmit`, `npm run build`, browser verification at 390px (canvas also at 430px). Dev server: `npm run dev -- -p <port>`; point `SNAPSHOT_DIR` at a directory with `latest.json` to preview a specific snapshot.
+No frontend test files. Gates: `npm run lint`, `npx tsc --noEmit`, `npm run build`, browser verification at 390px (canvas also at 430px). Dev server: `npm run dev -- -p <port>`; point `BACKEND_URL` at a running backend (which reads `SNAPSHOT_DIR`) to preview a specific snapshot, or rely on the bundled fixture.

@@ -13,11 +13,23 @@ services:
       db:
         condition: service_started
 
+  backend:
+    extends:
+      file: ./backend/docker-compose-backend.yml
+      service: backend
+    <<: *common-config
+    depends_on:
+      db:
+        condition: service_started
+
   web:
     extends:
       file: ./web/docker-compose-web.yml
       service: web
     <<: *common-config
+    depends_on:
+      backend:
+        condition: service_healthy
 
   db:
     extends:
