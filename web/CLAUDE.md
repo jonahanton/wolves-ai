@@ -29,9 +29,13 @@ All AWS access lives in the Python backend (`backend/`). The web app never touch
 ## Conventions
 
 - Kebab-case files, one main component each, local `interface XxxProps` above the component, never `React.FC`, casts via `unknown`, no barrels, direct `@/` imports.
-- State lives in the page-level orchestrator (`bracket-board.tsx`, `path-spine.tsx`) and flows down; logic extracted to `lib/`.
-- Charts are hand-rolled inline SVG (`prob-bar`, `sparkline`, the bracket canvas); no chart library.
-- Sticker aesthetic comes from surface, border and the `.foil` shine only; card rotation is banned.
+- State lives in the page-level orchestrator (`bracket-board.tsx`, `path-spine.tsx`, `today-board.tsx`) and flows down; logic extracted to `lib/`.
+- Charts are hand-rolled inline SVG (`prob-bar`, `sparkline`, the bracket canvas); no chart library. 1.5px strokes, 11px axis labels, a plain-English sentence above each chart.
+- Type: Funnel Display (`font-display`, via next/font/google) for page titles and headline numbers; Switzer (self-hosted in `src/fonts/`) for UI text. Both have uniform-width digits and `html` sets `font-variant-numeric: tabular-nums`; only swap fonts for faces that keep that true.
+- Dark theme is a four-step luminance scale (`--background` #0b0b0d, `--card` #141417, `--secondary`/`--muted` #1c1c21, `--popover` #26262c), alpha-white hairlines, off-white text ramp; no shadows or blur on dark surfaces, no radius above 12px (`--radius-xl` is the cap).
+- Probabilities render as whole numbers clamped to `<1%`/`>99%` (`format.ts`), with `PctValue` for big numerals and `ProbBar` thin underlines; table cells heat-fill via `lib/heat.ts` (one hue, gold ramp only for England rows).
+- Motion budget: the Today hero digit roll (`use-rolling-value`), one `.foil-once` shimmer per session, 150ms fades elsewhere; `prefers-reduced-motion` switches each off. The `.foil` sheen is static and is the only gradient allowed.
+- Run-over-run movement comes from `lib/snapshot-history.ts` (localStorage, last 12 run summaries) via `use-snapshot-history`; delta badges use the desaturated `--delta-up`/`--delta-down` pair, never gold.
 - Gold is spent on England and the headline number, nothing else.
 - British English, no em-dashes, in code, copy and comments alike.
 
