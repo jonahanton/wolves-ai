@@ -8,16 +8,7 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent.sources import source_tier
 from wolves.agent_tools.core import ToolSpec
 from wolves.agent_tools.result import ToolError, ToolResult
-
-_RUBRIC = (
-    "You are ranking retrieval candidates for a football forecasting research question. "
-    "Score each candidate 0 to 1 for how much reading it would advance THIS sub-question, "
-    "with a one-line reason. Weigh holistically: direct evidence over context over tangential; "
-    "source reliability (tier 1 official/wire, tier 2 quality press, tier 3 aggregator, "
-    "untiered unknown); staleness relative to the question's tempo; penalise speculation and "
-    "engagement-bait. The weighing is judgement, not arithmetic: a three-day-old club statement "
-    "can outrank a fresh aggregator rumour, or not, depending on the question."
-)
+from wolves.prompts import prompt
 
 
 class Candidate(BaseModel):
@@ -69,7 +60,7 @@ async def _rank_relevance(args: RankRelevanceArgs, deps: AgentDeps) -> ToolResul
             actor=deps.actor,
             response_model=_Rankings,
             user=user,
-            system=_RUBRIC,
+            system=prompt("rank_relevance"),
             max_tokens=1500,
         )
     except Exception as exc:

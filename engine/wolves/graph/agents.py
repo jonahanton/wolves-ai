@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import cache
-from pathlib import Path
 from typing import Any
 
 from pydantic_ai import Agent, RunContext
@@ -40,9 +39,8 @@ from wolves.agent_tools.adapters.pydantic_ai import build_toolset
 from wolves.agent_tools.core import ToolSpec
 from wolves.agent_tools.result import ToolResult
 from wolves.graph.contracts import CritiqueOutput, ForecastOutput, GraphPatch, NodeKind, QuantOutput, ResearchOutput
+from wolves.prompts import prompt
 from wolves.tools._truncation import truncate_result
-
-_PROMPTS = Path(__file__).parent / "prompts"
 
 _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
 
@@ -96,10 +94,6 @@ _NODE_OUTPUTS: dict[NodeKind, type] = {
 }
 
 
-def _prompt(name: str) -> str:
-    return (_PROMPTS / f"{name}.md").read_text(encoding="utf-8")
-
-
 async def _truncated(spec: ToolSpec, args: Any, ctx: RunContext[AgentDeps], result: ToolResult) -> str:
     return truncate_result(result.model_dump_json(), ctx.deps.settings.tool_result_max_chars)
 
@@ -110,7 +104,7 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
     return Agent(
         deps_type=AgentDeps,
         output_type=_NODE_OUTPUTS[kind],
-        system_prompt=_prompt(kind),
+        system_prompt=prompt(kind),
         toolsets=[build_toolset(_NODE_SPECS[kind], after_result=_truncated)],
     )
 
@@ -118,4 +112,4 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
 @cache
 def master_agent() -> Agent[None, GraphPatch]:
     """The planner: pure structured output over the blackboard summary, no tools."""
-    return Agent(output_type=GraphPatch, system_prompt=_prompt("master"))
+    return Agent(output_type=GraphPatch, system_prompt=prompt("master"))

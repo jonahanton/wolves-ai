@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from wolves.prompts import prompt
 from wolves.quant.context import SandboxContext
 from wolves.quant.workspace import QuantWorkspace
 
@@ -16,7 +17,6 @@ logger = logging.getLogger(__name__)
 OVERLAY_FILENAME = "overlay.duckdb"
 DATA_CARD_FILENAME = "data_card.md"
 FIELD_GUIDE_FILENAME = "field_guide.md"
-_FIELD_GUIDE_SOURCE = Path(__file__).resolve().parents[1] / "agent" / "guides" / "field_guide.md"
 
 _EXAMPLE_QUERIES = {
     "matches": "SELECT date, home_team, away_team, home_goals, away_goals FROM matches "
@@ -36,7 +36,7 @@ def prepare_inputs(workspace: QuantWorkspace, context: SandboxContext) -> None:
         workspace.write(DATA_CARD_FILENAME, render_data_card(context), in_inputs=True)
     guide = workspace.inputs / FIELD_GUIDE_FILENAME
     if not guide.exists():
-        workspace.write(FIELD_GUIDE_FILENAME, _FIELD_GUIDE_SOURCE.read_text(encoding="utf-8"), in_inputs=True)
+        workspace.write(FIELD_GUIDE_FILENAME, prompt("field_guide"), in_inputs=True)
 
 
 def _build_overlay(destination: Path, context: SandboxContext) -> None:
