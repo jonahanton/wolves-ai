@@ -17,7 +17,7 @@ class ToolSpec[ArgsT: BaseModel, ResultT]:
     """A framework-agnostic tool definition.
 
     A tool is `(name, description, args_model, fn)`. Adapters render it
-    out: ``adapters/anthropic`` produces a ``ToolParam`` + dispatch.
+    out: ``adapters/pydantic_ai`` mounts it on an ``Agent`` toolset.
 
     ``fn`` is an async callable with the signature ``(args, deps) ->
     ToolResult``. ``deps`` is whatever the host provides; the spec is

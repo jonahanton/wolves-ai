@@ -22,7 +22,7 @@ def _tripwire(submission: ForecastSubmission, deps: AgentDeps) -> str | None:
 async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
     report = validate_submission(args, ledger=deps.ledger, limits=deps.limits)
     if not report.ok:
-        deps.validation_failures += 1
+        deps.submission.validation_failures += 1
         deps.runtime.emit("validation", deps.actor, f"submission rejected: {report.summary()[:200]}")
         return ToolResult(
             ok=False,
@@ -32,9 +32,9 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
             ),
         )
 
-    tripped = None if deps.tripwire_fired else _tripwire(args, deps)
+    tripped = None if deps.submission.tripwire_fired else _tripwire(args, deps)
     if tripped is not None:
-        deps.tripwire_fired = True
+        deps.submission.tripwire_fired = True
         deps.runtime.emit("tripwire", deps.actor, f"tripwire: {tripped}")
         return ToolResult(
             payload={
@@ -47,7 +47,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
             }
         )
 
-    deps.accepted = args
+    deps.submission.accepted = args
     deps.runtime.emit("validation", deps.actor, "submission accepted")
     return ToolResult(payload={"accepted": True})
 

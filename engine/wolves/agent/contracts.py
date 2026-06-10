@@ -48,19 +48,6 @@ class EvidenceItem(BaseModel):
     stance: str = ""
 
 
-class ResearchBrief(BaseModel):
-    objective: str
-    brief: str
-    input_artifact_ids: list[str] = Field(default_factory=list)
-
-
-class WorkerResult(BaseModel):
-    objective: str
-    summary: str
-    evidence: list[EvidenceItem] = Field(default_factory=list)
-    signals: list[str] = Field(default_factory=list)
-
-
 class OverrideSample(BaseModel):
     """One re-extraction of the final rating overrides from the same dossier."""
 

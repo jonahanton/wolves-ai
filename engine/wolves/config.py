@@ -47,13 +47,14 @@ class Settings(BaseSettings):
     bookmaker_leg_weight: float = 1.0
     polymarket_leg_weight: float = 1.0
 
-    agent_max_turns: int = 40
-    agent_tool_budget: int = 60
     agent_submit_retries: int = 3
     agent_k_samples: int = 3
-    researcher_tool_budget: int = 8
-    researcher_max_turns: int = 8
-    researcher_timeout_seconds: float = 300.0
+
+    graph_max_waves: int = 4
+    graph_max_nodes: int = 12
+    graph_max_wave_workers: int = 4
+    graph_node_timeout_s: int = 240
+    graph_node_request_limit: int = 8
 
     confirmed_delta_cap_elo: float = 50.0
     soft_delta_cap_elo: float = 10.0
