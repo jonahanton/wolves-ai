@@ -60,7 +60,7 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
     """Run one worker node to a typed artifact. Total: every failure, including
     CapExceeded surfacing in whatever shape pydantic-ai wraps it, degrades to a
     failed outcome so the wave and the run carry on."""
-    node_deps = dataclasses.replace(deps, actor=brief.node_id, gate=BudgetGate(), python_calls=0)
+    node_deps = dataclasses.replace(deps, actor=brief.node_id, gate=BudgetGate(), todos=[], python_calls=0)
     settings = deps.settings
     try:
         result = await asyncio.wait_for(

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+
+from pydantic import BaseModel
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.ledger import EvidenceLedger
@@ -19,6 +21,14 @@ from wolves.tools._budget_gate import BudgetGate
 
 if TYPE_CHECKING:
     from wolves.graph.artifacts import RunArtifactStore
+
+
+TodoStatus = Literal["pending", "in_progress", "completed"]
+
+
+class TodoItem(BaseModel):
+    content: str
+    status: TodoStatus = "pending"
 
 
 @dataclass
@@ -52,4 +62,5 @@ class AgentDeps:
     actor: str = "master"
     submission: SubmissionState = field(default_factory=SubmissionState)
     artifacts: RunArtifactStore | None = None
+    todos: list[TodoItem] = field(default_factory=list)
     python_calls: int = 0
