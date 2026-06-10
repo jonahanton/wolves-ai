@@ -5,6 +5,7 @@ import logging
 import boto3
 
 from wolves.config import Settings
+from wolves.observability.logging import configure_cli_logging
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def ensure_table(*, table_name: str, region: str, endpoint_url: str | None = Non
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    configure_cli_logging()
     settings = Settings()
     created = ensure_table(
         table_name=settings.dynamo_table,

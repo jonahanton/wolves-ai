@@ -49,7 +49,14 @@ from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
 from wolves.llm.anthropic import build_llm
 from wolves.llm.client import LLMClient
 from wolves.llm.observed import ObservedLLM
-from wolves.observability import Caps, InMemoryTracer, ObservedRuntime, build_logfire_tracer, build_runtime
+from wolves.observability import (
+    Caps,
+    InMemoryTracer,
+    ObservedRuntime,
+    build_logfire_tracer,
+    build_runtime,
+    configure_cli_logging,
+)
 from wolves.quant.observed import ObservedQuant
 from wolves.sim.format import FormatData, load_format
 from wolves.sim.ratings import load_elo_ratings
@@ -428,7 +435,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    configure_cli_logging()
     settings = Settings()
     parser = argparse.ArgumentParser(description="Run the forecast agent")
     mode = parser.add_mutually_exclusive_group(required=True)
