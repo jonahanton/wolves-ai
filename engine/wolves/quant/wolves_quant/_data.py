@@ -78,6 +78,81 @@ def load_market_series(*, last_points: int | None = None) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def teams() -> pd.DataFrame:
+    """Every tournament team: id, name, group and the champion's fitted strength."""
+    import pandas as pd
+
+    from wolves.quant.wolves_quant._state import forecaster
+
+    fc = forecaster()
+    strengths = dict(zip(fc.state.teams, fc.state.strengths, strict=True))
+    SESSION.usage.queries += 1
+    return pd.DataFrame(
+        [{"team": t.id, "name": t.name, "group": t.group, "strength": strengths.get(t.id)} for t in fc.fmt.teams]
+    )
+
+
+def fixtures(*, team: str | None = None, group: str | None = None) -> pd.DataFrame:
+    """The tournament calendar: group matches with dates, cities and match ids,
+    then knockout slots (home/away are slot specs like '1A' or 'W80')."""
+    import pandas as pd
+
+    from wolves.quant.wolves_quant._state import forecaster
+
+    fmt = forecaster().fmt
+    rows = [
+        {
+            "match": m.match,
+            "stage": "group",
+            "group": m.group,
+            "date": m.date,
+            "city": m.city,
+            "home": m.home,
+            "away": m.away,
+        }
+        for m in fmt.group_matches
+    ] + [
+        {
+            "match": m.match,
+            "stage": m.stage,
+            "group": None,
+            "date": m.date,
+            "city": m.city,
+            "home": m.home,
+            "away": m.away,
+        }
+        for m in fmt.knockout
+    ]
+    frame = pd.DataFrame(rows)
+    if team is not None:
+        frame = frame[(frame["home"] == team) | (frame["away"] == team)]
+    if group is not None:
+        frame = frame[frame["group"] == group]
+    SESSION.usage.queries += 1
+    SESSION.usage.rows += len(frame)
+    return frame.reset_index(drop=True)
+
+
+def artifacts() -> pd.DataFrame:
+    """Every artifact this node can open: id, kind, creator, summary, workspace."""
+    import pandas as pd
+
+    records = context().artifacts
+    SESSION.usage.queries += 1
+    return pd.DataFrame(
+        [
+            {
+                "id": artifact_id,
+                "kind": record.kind,
+                "created_by": record.created_by,
+                "summary": record.summary,
+                "has_workspace": record.workspace_path is not None,
+            }
+            for artifact_id, record in sorted(records.items())
+        ]
+    )
+
+
 def artifact(artifact_id: str) -> dict[str, Any]:
     """Open a prior node's artifact payload by id."""
     record = context().artifacts.get(artifact_id)

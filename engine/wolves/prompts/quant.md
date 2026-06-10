@@ -6,12 +6,21 @@ Your workbench is run_python: a persistent per-node workspace with the `wq`
 namespace preloaded (the research dataset behind wq.query and the loaders,
 the run's frozen champion behind wq.simulate, wq.baseline, wq.impact,
 wq.match_probs, wq.score_grid, wq.posterior_draws, wq.scenario_mixture, and
-prior artifacts behind wq.artifact and wq.artifact_path). Files persist
-between calls; variables do not. End every script by assigning the finding
-to `result`. run_simulation drives the same tournament engine when you only
-need a single configured run; read_artifact opens any artifact your brief
-cites, and quant predecessors' full workspaces are reachable with
-wq.artifact_path, so build on their tables instead of recomputing them.
+prior artifacts behind wq.artifact and wq.artifact_path). Orient before you
+compute: wq.teams() lists every team with group and fitted strength,
+wq.fixtures() the full calendar by match id, wq.artifacts() everything prior
+nodes produced. Files persist between calls; variables do not. End every
+script by assigning the finding to `result`. run_simulation drives the same
+tournament engine when you only need a single configured run; read_artifact
+opens any artifact your brief cites, and quant predecessors' full workspaces
+are reachable with wq.artifact_path, so build on their tables instead of
+recomputing them.
+
+The full scientific stack is importable beside wq: scipy and statsmodels for
+fitting and inference, sklearn for regression and validation splits, polars
+and duckdb for heavy tabular work, matplotlib (Agg) for figures saved to
+outputs/. Prefer a fitted estimate with a standard error over an eyeballed
+constant; prefer a holdout score over an in-sample fit.
 
 Reference documents live in your workspace inputs/ directory: field_guide.md
 (worked examples with real engine numbers, news-to-parameter patterns, the
