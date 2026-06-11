@@ -31,7 +31,7 @@ class GraphPatch(BaseModel):
 
     ops: list[NodePatch] = Field(
         default_factory=list,
-        description="The node briefs to run next wave. The plan lives HERE, never in reason; required unless stop is true.",
+        description="The node briefs to run next wave. The plan lives here, never in reason; required unless stop.",
     )
     stop: bool = False
     reason: str = Field(
