@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 from itertools import pairwise
+from typing import Literal
 
 import numpy as np
 
@@ -93,6 +94,7 @@ class MatchState:
     away_goals: int
     home_reds: int = 0
     away_reds: int = 0
+    period: Literal["regulation", "extra_time", "shootout"] = "regulation"
 
 
 def _red_multipliers(home_reds: int, away_reds: int, params: HazardParams) -> tuple[float, float]:
@@ -164,7 +166,11 @@ def _normaliser(params: HazardParams) -> float:
 def final_score_distribution(
     lam_home: float, lam_away: float, state: MatchState, *, params: HazardParams = FITTED
 ) -> ScorelineDistribution:
-    """Distribution over the 90-minute final score from the current state."""
+    """Final score of the current period: regulation to 90, ET states to the ET final, shootouts fixed."""
+    if state.period == "shootout":
+        return ScorelineDistribution.single(state.home_goals, state.away_goals)
+    if state.period == "extra_time":
+        return extra_time_distribution(lam_home, lam_away, state, params=params, minutes=_remaining_et_minutes(state))
     side = MAX_GOALS + 1
     grid = np.zeros((side, side))
     grid[min(state.home_goals, MAX_GOALS), min(state.away_goals, MAX_GOALS)] = 1.0
@@ -174,6 +180,12 @@ def final_score_distribution(
         p_home, p_away = _rate_grids(lam_home, lam_away, state, params, intensity=intensity / norm)
         grid = _step(grid, p_home, p_away)
     return ScorelineDistribution(grid=grid / grid.sum())
+
+
+def _remaining_et_minutes(state: MatchState) -> int:
+    """ET_MINUTES includes stoppage, so minute 120 still carries the stoppage allowance."""
+    played = min(max(state.minute - 90.0, 0.0), 30.0)
+    return max(round(ET_MINUTES - played), 0)
 
 
 def _remaining_intensities(state: MatchState, params: HazardParams) -> list[float]:
@@ -193,15 +205,15 @@ def _remaining_intensities(state: MatchState, params: HazardParams) -> list[floa
 
 
 def extra_time_distribution(
-    lam_home: float, lam_away: float, state: MatchState, *, params: HazardParams = FITTED
+    lam_home: float, lam_away: float, state: MatchState, *, params: HazardParams = FITTED, minutes: int | None = None
 ) -> ScorelineDistribution:
-    """Flat-rate extra time from a level state; rates do not ramp (evidence:
-    ET scoring sits at the match average, not the late-regulation peak)."""
+    """Flat-rate extra time; rates do not ramp (evidence: ET scoring sits at
+    the match average, not the late-regulation peak)."""
     side = MAX_GOALS + 1
     grid = np.zeros((side, side))
     grid[min(state.home_goals, MAX_GOALS), min(state.away_goals, MAX_GOALS)] = 1.0
     p_home, p_away = _rate_grids(lam_home, lam_away, state, params, intensity=1.0 / _normaliser(params))
-    for _ in range(int(ET_MINUTES)):
+    for _ in range(int(ET_MINUTES) if minutes is None else minutes):
         grid = _step(grid, p_home, p_away)
     return ScorelineDistribution(grid=grid / grid.sum())
 
@@ -211,6 +223,13 @@ def live_win_probabilities(
 ) -> dict[str, float]:
     """Outcome probabilities from here. For knockouts the draw mass resolves
     through flat extra time and a 50/50 shootout into win probabilities."""
+    if state.period == "shootout":
+        return {"home": 0.5, "draw": 0.0, "away": 0.5}
+    if state.period == "extra_time":
+        et = final_score_distribution(lam_home, lam_away, state, params=params)
+        if not knockout:
+            return {"home": et.p_home, "draw": et.p_draw, "away": et.p_away}
+        return {"home": float(et.p_home + 0.5 * et.p_draw), "draw": 0.0, "away": float(et.p_away + 0.5 * et.p_draw)}
     regulation = final_score_distribution(lam_home, lam_away, state, params=params)
     if not knockout:
         return {"home": regulation.p_home, "draw": regulation.p_draw, "away": regulation.p_away}
