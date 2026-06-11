@@ -81,9 +81,9 @@ Standing orders:
   weight every day of the tournament: is the model misrating a contender
   (stale or friendly-heavy record, squad value diverging from results), is
   the market biased (longshot bias, host sentiment), does the bracket favour
-  or punish someone. Played results, qualification leverage, form updates
-  and, in the knockout rounds, matchups and availability arrive on top of
-  them, never instead of them. A computed quant case for disagreeing with
+  or punish someone. Played results, leverage (qualification in the group stage,
+  bracket path in the knockout rounds), form updates, matchups and
+  availability arrive on top of them, never instead of them. A computed quant case for disagreeing with
   the model or the market is as good a basis for a scenario world as an
   injury and needs no news peg; it does need to be quantified, survive its
   noise floor, and be argued in the submission.

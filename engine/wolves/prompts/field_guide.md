@@ -43,6 +43,8 @@ output: the mixture headline, the per-factor marginals (the attribution AND
 the noise check), and the noise floor. Ride magnitude uncertainty as
 Normal(mean, sd) deltas or MC draws; where the response is locally linear the
 mean magnitude is adequate and the draw sd is the cheap materiality test.
+The same factor structure applies all tournament; scope each scenario to
+the fixtures actually remaining, never to games already played.
 Example output: a three-world fitness morning (0.55/0.33/0.12) gave
 conditionals 6.99/6.61/4.28pp England title, mixture 6.54 against baseline
 6.99; composed with a heat factor (0.70/0.30) the 6-world lattice gave 6.68
@@ -70,19 +72,25 @@ carried the largest positive model-vs-market gap (+2.89pp). Squad value is
 the single best-evidenced non-market covariate (Peeters 2018, beats Elo and
 FIFA rank).
 
-### Group-stage effects read through group lenses
+### Fixture effects read through the phase's lens
 
-Method: read group-stage stories through qualification and group-win
-probabilities, not title pp, which hides most of the action for any
-favourite. Example output: England v Croatia win 2-0 = +0.78pp title, draw
--0.01, loss 0-1 = -1.40 (the loss costs nearly twice the win's gain); the
-Mexico altitude case moved group win 52.2 to 55.0 while title pp moved 0.04.
+Method: read fixture stories through the lens the tournament phase makes
+relevant, never title pp alone, which hides most of the action for any
+favourite: during group play, qualification and group-win probabilities;
+in the knockout rounds, per-round reach (wq.reach) and path difficulty,
+since group columns no longer exist. Example output (group phase): England
+v Croatia win 2-0 = +0.78pp title, draw -0.01, loss 0-1 = -1.40 (the loss
+costs nearly twice the win's gain); the Mexico altitude case moved group
+win 52.2 to 55.0 while title pp moved 0.04.
 
 ### Two update channels, both material
 
 Method: after results land, decompose the day's move into the bracket-overlay
 channel and the refit channel with the attribution report, and never re-add
-by hand what the refit already priced. Example output: after a mocked
+by hand what the refit already priced. On days with no ingested results both
+channels are zero by construction and this method is a no-op; in the
+knockout rounds the bracket channel reflects elimination rather than
+qualification, and the same decomposition applies. Example output: after a mocked
 matchday (England 2-0, Argentina upset) the bracket overlay alone moved
 England 6.99 to 7.79 and the refit carried it to 8.69, roughly +0.8pp through
 the bracket and +0.9pp through strengths for one group win.
@@ -172,7 +180,11 @@ beating Croatia +0.018; an expected win under +0.01. Information is
 asymmetric (surprises carry 3-5x), scorelines roughly double a bare W/D/L,
 and the posterior sd barely moves (0.121 vs prior 0.123): no single match
 justifies a large update. Cap single-match form perturbations at |0.05|,
-typical |0.02|.
+typical |0.02|. Distinct instrument for a different question:
+MatchOutcomePerturbation and ScorelinePerturbation pin a result into the
+sim path (what does this fixture outcome do to the bracket), while
+update_from_result moves the fitted strength (what does this result say
+about the team); mid-tournament analyses usually need both, never summed.
 
 ### News-shock scale (example outputs, recompute to use)
 
@@ -183,9 +195,10 @@ as magnitudes.
 
 ## News-to-parameter patterns
 
-Each pattern is mechanism -> magnitude (anchored or computed) -> uncertainty
-(scenario split or distribution) -> market cross-check (inversion) -> output
-impact. Compose and overrule with stated reasons.
+Each pattern names the mechanism, the calibration anchor or computation
+path for its magnitude, the key uncertainty, and the market cross-check.
+They are prompts for the analysis, not steps that must all be taken;
+compose and overrule with stated reasons.
 
 - INJURY / AVAILABILITY. Mechanism first (the 8x lesson above). Magnitude
   from the anchors: an all-time great absent is 5 to 10pp win probability
@@ -230,7 +243,7 @@ re-priced after the news landed, the information is in the price; adjusting
 the model again double-counts it. The edge, if any, is where your mechanism
 disagrees with the size or direction of the market's move, and that
 disagreement is the finding to write up, not a reason to re-add the news.
-It's also possible that the market has priced something in a way which you
+It is also possible that the market has priced something in a direction you
 disagree with, which is more than valid. Given that we only see the output
 univariates from the market, and not the reasoning, it can be hard to know
 what caused the changes in market numbers.
@@ -283,8 +296,9 @@ Decline briefs built on these; the citation is the finding:
 - Single-result form update: cap |0.05| strength, typical |0.02|
   (engine-measured via the posterior grid; recompute with
   wq.update_from_result).
-- elo_history year Y is END-of-year rating: pre-tournament priors must use
-  year-1 or they leak the tournament itself (data trap, strong).
+- elo_history year Y is END-of-year rating. When querying elo_history
+  directly, year-1 is the pre-tournament prior; using year Y leaks the
+  tournament itself (data trap, strong).
 - Paired-seed noise floor at 50k sims: ~0.2pp for favourites (England
   seed-pair delta 0.17pp), ~0.35pp at 100k for Spain-sized favourites.
   Cross-team deltas below the floor are fiction; wq.impact reports it.

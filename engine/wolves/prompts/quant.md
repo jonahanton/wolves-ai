@@ -24,6 +24,8 @@ discovering them:
   reach probabilities, rows teams, columns r32 to champion.
 - wq.impact(perturbation, n_sims=, seed=) -> {"deltas_pp": {team: pp},
   "noise_floor_pp": float}. The standard move for pricing one evidence item.
+  wq.noise_floor(n_sims=, seed=) -> float gives the paired-seed floor
+  directly, without a perturbation.
 - The disagreement chain, one call each: wq.implied_delta(team, target_p)
   inverts a model-vs-market gap into strength units; wq.title_uncertainty()
   -> DataFrame [mean, p10, p50, p90] per team under the model's own
@@ -46,10 +48,14 @@ discovering them:
   route with per-stage advance probabilities and likely opponents;
   wq.market_gaps() -> DataFrame of model vs de-vigged market vs published
   blend per team; wq.market_movement() -> DataFrame of bookmaker moves
-  across archived snapshots.
+  across archived snapshots. (team_path_tree in the quick-look list is the
+  direct tool; inside run_python the same surface is wq.path_tree.)
 - Perturbation classes sit beside them: wq.StrengthPerturbation(team=,
-  delta=, reason=), wq.MatchRatePerturbation, wq.TempoPerturbation and the
-  rest; team ids are lowercase keys from wq.teams().
+  delta=, reason=), wq.MatchRatePerturbation, wq.TempoPerturbation,
+  wq.MatchOutcomePerturbation and wq.ScorelinePerturbation (pin a specific
+  result into the sim path: the what-if instruments for fixture questions,
+  complementary to update_from_result which moves the fitted strength);
+  team ids are lowercase keys from wq.teams().
 
 Files persist between calls; variables do not. End every script by assigning
 the finding to `result`, including pure orientation scripts: a print is
