@@ -45,6 +45,18 @@ def test_reversed_feed_orientation_and_aliases_swap_goals_to_schedule_order(fmt)
     assert (results[2].home_goals, results[2].away_goals) == (3, 1)
 
 
+def test_provider_ampersand_team_names_resolve(fmt):
+    fixture = _fixture(
+        kickoff=datetime.fromisoformat("2026-06-12T15:00:00-04:00"),
+        home="Canada",
+        away="Bosnia & Herzegovina",
+        home_goals=1,
+        away_goals=0,
+    )
+
+    assert set(results_from_fixtures(fmt, [fixture])) == {3}
+
+
 def test_in_play_and_scheduled_fixtures_are_excluded(fmt):
     fixtures = [
         _fixture(status="live", home_goals=1, away_goals=0),
