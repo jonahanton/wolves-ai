@@ -43,6 +43,26 @@ class ArticleCache:
         except ValueError:
             return None
 
+    def recent(self, *, max_age_hours: float, limit: int = 12) -> list[CachedArticle]:
+        """Newest-first cached articles still inside the freshness window."""
+        articles: list[CachedArticle] = []
+        seen: set[str] = set()
+        if not self.root.exists():
+            return articles
+        for path in self.root.glob("*.json"):
+            try:
+                article = CachedArticle.model_validate_json(path.read_text(encoding="utf-8"))
+            except ValueError:
+                continue
+            # put() writes the same article under url and final_url.
+            if article.final_url in seen:
+                continue
+            seen.add(article.final_url)
+            if article.age_hours() <= max_age_hours:
+                articles.append(article)
+        articles.sort(key=lambda a: a.retrieved_at, reverse=True)
+        return articles[:limit]
+
     def put(self, *, url: str, final_url: str, title: str | None, text: str, run_id: str) -> CachedArticle:
         article = CachedArticle(
             url=url,

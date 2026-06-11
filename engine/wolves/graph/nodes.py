@@ -22,7 +22,7 @@ _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
 }
 
 
-def _kickoff(brief: Brief, store: RunArtifactStore, *, tool_budget: int) -> str:
+def _kickoff(brief: Brief, store: RunArtifactStore, *, tool_budget: int, retrievals: str = "") -> str:
     # References only: payloads stay out of the kickoff so an arbitrarily
     # large dossier cannot blow the node's context; read_artifact pulls them.
     parts = [f"Objective: {brief.objective}", "", brief.brief]
@@ -32,12 +32,33 @@ def _kickoff(brief: Brief, store: RunArtifactStore, *, tool_budget: int) -> str:
         parts.append("Input artifacts (open any with read_artifact):")
         for record in records:
             parts.append(f"- {record.id} ({record.kind}, by {record.created_by}): {record.summary}")
+    if retrievals:
+        parts.append("")
+        parts.append(retrievals)
     parts.append("")
     parts.append(
         f"Budget: {tool_budget} budgeted tool calls for this node; think, todo_write, read_artifact "
         "and run_python are free and do not count. Pace your external calls accordingly."
     )
     return "\n".join(parts)
+
+
+def _retrievals_digest(deps: AgentDeps) -> str:
+    """What recent runs already fetched and judged, so a research node spends
+    its searches on what is genuinely uncovered."""
+    if deps.articles is None:
+        return ""
+    cached = deps.articles.recent(max_age_hours=deps.settings.article_cache_max_age_hours)
+    if not cached:
+        return ""
+    lines = ["Already retrieved by recent runs (web_fetch serves these from cache; search for what is NOT here):"]
+    for article in cached:
+        prior = deps.relevance_memory.latest(article.final_url) if deps.relevance_memory is not None else None
+        judged = f"; judged {prior.score:.2f}: {prior.reason[:80]}" if prior is not None else ""
+        lines.append(
+            f"- {article.title or article.final_url} ({article.final_url}, {article.age_hours():.0f}h ago{judged})"
+        )
+    return "\n".join(lines)
 
 
 def _request_limit(kind: NodeKind, settings: Settings) -> int:
@@ -89,9 +110,10 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         hold_back = 0 if brief.kind == "forecast" else int(settings.graph_forecast_reserve_usd * 1_000_000)
         model = ObservedModel(model.wrapped, runtime=deps.runtime, actor=brief.node_id, hold_back_micros=hold_back)
     try:
+        retrievals = _retrievals_digest(node_deps) if brief.kind == "research" else ""
         result = await asyncio.wait_for(
             node_agent(brief.kind).run(
-                _kickoff(brief, store, tool_budget=_tool_budget(brief.kind, settings)),
+                _kickoff(brief, store, tool_budget=_tool_budget(brief.kind, settings), retrievals=retrievals),
                 deps=node_deps,
                 model=model,
                 model_settings=CACHE_SETTINGS,
