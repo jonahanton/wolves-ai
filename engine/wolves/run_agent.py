@@ -15,6 +15,7 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 
 from wolves import ENGINE_VERSION
+from wolves.agent.article_cache import ArticleCache
 from wolves.agent.attribution import decompose
 from wolves.agent.calibration import CalibrationLedger
 from wolves.agent.consensus import publish_scale
@@ -24,6 +25,7 @@ from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, worlds
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
 from wolves.agent.relevance_feedback import append_feedback, relevance_feedback
+from wolves.agent.relevance_memory import RelevanceMemory
 from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.source_memory import SourceMemory
@@ -63,7 +65,7 @@ from wolves.s3.agent_state import build_agent_state_store
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
-from wolves.s3.layout import RELEVANCE_FEEDBACK, SCENARIOS, SOURCES_SEEN, run_dir
+from wolves.s3.layout import ARTICLE, RELEVANCE_FEEDBACK, RELEVANCE_MEMORY, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.results_store import persisted_results, played_match_records, stored_fixtures
 from wolves.snapshot import (
@@ -248,6 +250,8 @@ def _build_deps(
         ledger=EvidenceLedger(run_dir(settings.runs_root, run_id) / "ledger.jsonl"),
         memory=RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path),
         source_memory=SourceMemory(settings.runs_root / SOURCES_SEEN.key()),
+        articles=ArticleCache(settings.runs_root / ARTICLE.prefix),
+        relevance_memory=RelevanceMemory(settings.runs_root / RELEVANCE_MEMORY.key()),
         scenarios=ScenarioRegistry(settings.runs_root / SCENARIOS.key()),
         quant=ObservedQuant(runtime),
         gate=BudgetGate(),

@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     runs_root: Path = REPO_ROOT / "runs"
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
+    article_cache_max_age_hours: float = 48.0
 
     bookmaker_leg_weight: float = 1.0
     polymarket_leg_weight: float = 1.0

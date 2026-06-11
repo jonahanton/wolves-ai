@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from wolves.agent.deps import AgentDeps
+from wolves.agent.relevance_memory import RankedSource
 from wolves.agent.sources import source_tier
 from wolves.prompts import prompt
 from wolves.toolkit.core import ToolSpec
@@ -33,7 +34,7 @@ class _Rankings(BaseModel):
     rankings: list[_Ranking]
 
 
-def _candidate_block(c: Candidate, seen_run: str | None) -> str:
+def _candidate_block(c: Candidate, seen_run: str | None, prior: RankedSource | None) -> str:
     tier = source_tier(c.url)
     parts = [
         f"url: {c.url}",
@@ -45,6 +46,11 @@ def _candidate_block(c: Candidate, seen_run: str | None) -> str:
         parts.append(f"snippet: {c.snippet[:300]}")
     if seen_run:
         parts.append(f"already seen in run {seen_run}")
+    if prior is not None:
+        parts.append(
+            f"previously ranked {prior.score:.2f} at {prior.ranked_at} for: {prior.sub_question[:80]} "
+            f"({prior.reason[:120]})"
+        )
     return "\n".join(parts)
 
 
@@ -54,8 +60,9 @@ async def _rank_relevance(args: RankRelevanceArgs, deps: AgentDeps) -> ToolResul
     for c in args.candidates:
         record = memory.seen(c.url) if memory is not None else None
         seen[c.url] = record.last_seen_run if record is not None else None
+    priors = {c.url: deps.relevance_memory.latest(c.url) for c in args.candidates} if deps.relevance_memory else {}
     user = f"Sub-question: {args.sub_question}\nAs of: {deps.as_of}\n\nCandidates:\n\n" + "\n\n".join(
-        _candidate_block(c, seen.get(c.url)) for c in args.candidates
+        _candidate_block(c, seen.get(c.url), priors.get(c.url)) for c in args.candidates
     )
     try:
         ranked = await deps.llm.structured(
@@ -88,10 +95,19 @@ async def _rank_relevance(args: RankRelevanceArgs, deps: AgentDeps) -> ToolResul
         for c in args.candidates
     ]
     rankings.sort(key=lambda r: (r["score"] is not None, r["score"] or 0.0), reverse=True)
-    if memory is not None:
-        for c in args.candidates:
-            if c.url in by_url:
-                memory.record(c.url, run_id=deps.runtime.run_id, disposition="ranked")
+    for c in args.candidates:
+        if c.url not in by_url:
+            continue
+        if memory is not None:
+            memory.record(c.url, run_id=deps.runtime.run_id, disposition="ranked")
+        if deps.relevance_memory is not None:
+            deps.relevance_memory.record(
+                url=c.url,
+                sub_question=args.sub_question,
+                score=by_url[c.url].score,
+                reason=by_url[c.url].reason,
+                run_id=deps.runtime.run_id,
+            )
     if deps.artifacts is not None:
         deps.artifacts.add(
             kind="retrieval",
@@ -106,8 +122,9 @@ SPEC = ToolSpec(
     name="rank_relevance",
     description=(
         "Rank search candidates against your sub-question in one batched call: each gets a "
-        "holistic 0-1 score with a one-line reason, its source tier and whether a previous run "
-        "already saw it. The default research move is broad search, rank, fetch the top few; "
+        "holistic 0-1 score with a one-line reason, its source tier, whether a previous run "
+        "already saw it and any prior ranking with its timestamp, so judgements are not redone. "
+        "The default research move is broad search, rank, fetch the top few; "
         "you stay free to overrule a ranking with your own stated reason. Costs no fetch budget."
     ),
     args_model=RankRelevanceArgs,

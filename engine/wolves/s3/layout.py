@@ -155,6 +155,19 @@ SOURCES_SEEN = ArtifactSpec(
     mutable=True,
     description="Cross-run memory of sources already fetched, for dedupe and what_changed.",
 )
+ARTICLE = ArtifactSpec(
+    name="article",
+    pattern="agent-state/articles/{url_sha}.json",
+    mutable=True,
+    description="Cross-run cache of one fetched article's text with its retrieval timestamp.",
+)
+RELEVANCE_MEMORY = ArtifactSpec(
+    name="relevance-memory",
+    pattern="agent-state/relevance_memory.jsonl",
+    content_type=NDJSON,
+    mutable=True,
+    description="Cross-run relevance judgements per source, so rankings are not redone from scratch.",
+)
 RELEVANCE_FEEDBACK = ArtifactSpec(
     name="relevance-feedback",
     pattern="agent-state/relevance_feedback.jsonl",
@@ -189,6 +202,8 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     LESSONS,
     SCENARIOS,
     SOURCES_SEEN,
+    ARTICLE,
+    RELEVANCE_MEMORY,
     RELEVANCE_FEEDBACK,
     CALIBRATION,
 )

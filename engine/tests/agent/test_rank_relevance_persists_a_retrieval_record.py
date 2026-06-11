@@ -4,6 +4,7 @@ import dataclasses
 from pathlib import Path
 
 from tests.graph.conftest import build_graph_deps, build_run_store
+from wolves.agent.relevance_memory import RelevanceMemory
 from wolves.agent.source_memory import SourceMemory
 from wolves.agent.tools.retrieval.rank_relevance import Candidate, RankRelevanceArgs, _rank_relevance
 
@@ -17,10 +18,12 @@ async def test_ranking_records_artifact_memory_and_tiers(tmp_path: Path):
     }
     memory = SourceMemory(tmp_path / "agent-state" / "sources_seen.jsonl")
     memory.record("https://www.goal.com/b", run_id="agent-yesterday", disposition="fetched")
+    relevance = RelevanceMemory(tmp_path / "agent-state" / "relevance_memory.jsonl")
     deps = dataclasses.replace(
         build_graph_deps(tmp_path, structured=[rankings]),
         artifacts=build_run_store(tmp_path),
         source_memory=memory,
+        relevance_memory=relevance,
         actor="research-keeper",
     )
 
@@ -49,6 +52,8 @@ async def test_ranking_records_artifact_memory_and_tiers(tmp_path: Path):
     assert artifact.payload["sub_question"].startswith("is the keeper fit")
 
     assert memory.seen("https://www.reuters.com/a") is not None
+    prior = relevance.latest("https://www.goal.com/b")
+    assert prior is not None and prior.score == 0.2 and prior.ranked_at
     deps.runtime.shutdown()
 
 
