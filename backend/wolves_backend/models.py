@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints
+from pydantic import BaseModel, ConfigDict, StrictBool, StringConstraints, field_validator
 from pydantic.alias_generators import to_camel
 
 TASK_ARN_PATTERN = r"^arn:aws:ecs:[a-z0-9-]+:\d{12}:task/[A-Za-z0-9_-]+/[a-f0-9]+$"
+
+CRON_FIELD_PATTERN = re.compile(r"^[A-Za-z0-9*?,/#LW-]+$")
 
 
 class WireModel(BaseModel):
@@ -84,10 +87,35 @@ class ScheduleState(WireModel):
 
 class ScheduleUpdate(WireModel):
     enabled: StrictBool
+    cron: str | None = None
+
+    @field_validator("cron")
+    @classmethod
+    def _validate_cron(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        fields = value.split()
+        if len(fields) != 6 or not all(CRON_FIELD_PATTERN.fullmatch(field) for field in fields):
+            raise ValueError("must be six space-separated EventBridge cron fields")
+        return " ".join(fields)
+
+
+class RunNowRequest(WireModel):
+    force: StrictBool = False
 
 
 class RunStarted(WireModel):
     task_arn: str
+
+
+class ActiveRun(WireModel):
+    task_arn: str
+    last_status: str
+    started_at: str | None
+
+
+class ActiveRuns(WireModel):
+    tasks: list[ActiveRun]
 
 
 class StopRequest(WireModel):

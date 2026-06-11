@@ -43,6 +43,12 @@ class RunIndex:
         except (ClientError, BotoCoreError) as exc:
             raise UpstreamError("dynamodb", str(exc)) from exc
 
+    def put_audit(self, item: dict[str, Any]) -> None:
+        try:
+            self._table.put_item(Item=item)
+        except (ClientError, BotoCoreError) as exc:
+            raise UpstreamError("dynamodb", str(exc)) from exc
+
 
 def _to_record(item: dict[str, Any]) -> RunRecord:
     return RunRecord(

@@ -6,6 +6,7 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 from wolves_backend.errors import UpstreamError
+from wolves_backend.models import ActiveRun
 
 
 class EngineTasks:
@@ -51,6 +52,28 @@ class EngineTasks:
             reason = failures[0].get("reason") if failures else None
             raise UpstreamError("ecs", reason or "RunTask returned no task")
         return tasks[0]["taskArn"]
+
+    def list_active(self) -> list[ActiveRun]:
+        """Return engine tasks not yet stopped; desiredStatus RUNNING also
+        matches tasks still provisioning."""
+        try:
+            listed = self._client.list_tasks(
+                cluster=self._cluster_arn, family=self._task_definition, desiredStatus="RUNNING"
+            )
+            arns = listed.get("taskArns") or []
+            if not arns:
+                return []
+            described = self._client.describe_tasks(cluster=self._cluster_arn, tasks=arns)
+        except (ClientError, BotoCoreError) as exc:
+            raise UpstreamError("ecs", str(exc)) from exc
+        return [
+            ActiveRun(
+                task_arn=task["taskArn"],
+                last_status=task.get("lastStatus", ""),
+                started_at=task["startedAt"].isoformat() if task.get("startedAt") else None,
+            )
+            for task in described.get("tasks") or []
+        ]
 
     def stop(self, task_arn: str) -> None:
         try:
