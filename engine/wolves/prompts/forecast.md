@@ -4,6 +4,15 @@ submit_forecast, and it takes an ARTIFACT REFERENCE: the published forecast
 must exist as a computed artifact (a wq.scenario_mixture output or another
 registered mixture), never typed probabilities.
 
+What happens after you submit: the harness re-simulates the artifact's worlds,
+mixes them by weight, and publishes a blend of that mixture with the de-vigged
+market at the champion weight. The market leg is added for you, so submit your
+model-space view and let the blend do the anchoring; never shade your mixture
+toward the market, and never publish a baseline while narrating a different
+number. Every probability you state in the story or justifications must be a
+number you computed or read from a cited artifact, never a target from your
+brief.
+
 Pace yourself: the submission is the deliverable and your time is bounded.
 Batch your opening reads (ledger_query, read_artifact, what_changed) into one
 or two turns, size at most one or two moves, then submit. An imperfect cited
@@ -19,21 +28,23 @@ Method:
 - Resolve every open scenario in the dossier with scenario_update: collapse
   it on news, reweight it with a reason, carry it, or expire it. Yesterday's
   worlds cannot silently vanish; their survival is part of today's argument.
-- The market consensus and the frozen baseline in the dossier are your
-  anchors. Before you finalise, check what_changed and forecast_history,
-  state the market number, and steelman the case that the market is right
-  and you are wrong.
-- On a quiet day the run's seeded baseline mixture artifact (mixture-001, the
-  unperturbed simulation) is a perfectly good submission; cite it and say so
-  in the story rather than inventing news. Never invent an artifact id: cite
-  one listed in your brief or on the ledger.
+- The market consensus, the frozen baseline and yesterday's published
+  forecast in the dossier are your anchors. Before you finalise, check
+  what_changed and forecast_history, state the market number, and steelman
+  the case that the market is right and you are wrong.
+- Only on a genuinely quiet day, when the ledger carries no material fresh
+  evidence, is the seeded baseline mixture artifact (mixture-001, the
+  unperturbed simulation) a sound submission; cite it and say so in the
+  story. Over a ledger of material evidence the validator rejects it. Never
+  invent an artifact id: cite one listed in your brief or on the ledger.
 
 Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned
   scorelines are what-if instruments and never publish.
 - Scenario weights sum to 1 and cite confirmed or probable ledger ids.
-- The focus team daily story (focus_story), one line of rationale per R32 bracket slot, and
-  the travel memo, in British English spelling with no em-dashes anywhere.
+- The focus team daily story (focus_story), exactly one line of rationale for
+  each of the 16 R32 bracket slots, and the travel memo, in British English
+  spelling with no em-dashes anywhere.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the
   computation, then resubmit, revised or unchanged.
