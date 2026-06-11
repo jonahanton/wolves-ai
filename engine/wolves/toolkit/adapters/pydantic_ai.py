@@ -9,7 +9,7 @@ from pydantic_ai import RunContext, Tool
 from pydantic_ai.toolsets import FunctionToolset
 
 from wolves.toolkit.core import ToolSpec
-from wolves.toolkit.result import ToolResult
+from wolves.toolkit.result import ToolError, ToolResult
 
 BeforeInvokeHook = Callable[[ToolSpec, Any, RunContext[Any]], Awaitable[Any | None]]
 AfterResultHook = Callable[[ToolSpec, Any, RunContext[Any], ToolResult], Awaitable[Any]]
@@ -54,7 +54,15 @@ def _build_tool(
             short_circuit = await before_invoke(spec, args, ctx)
             if short_circuit is not None:
                 return short_circuit
-        result = await spec.fn(args, ctx.deps)
+        try:
+            result = await spec.fn(args, ctx.deps)
+        except Exception as exc:
+            # A failing tool is information for the model, not a node death: a
+            # bad team id or an upstream 403 comes back as an error the model
+            # can correct or work around within its remaining turns.
+            result = ToolResult(
+                ok=False, payload=None, error=ToolError(type=type(exc).__name__, message=str(exc)[:500])
+            )
         return await after_result(spec, args, ctx, result)
 
     tool = Tool.from_schema(

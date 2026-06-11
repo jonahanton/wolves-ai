@@ -10,13 +10,13 @@ from dataclasses import replace
 from datetime import UTC, date, datetime
 
 import numpy as np
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from wolves.config import Settings
 from wolves.data.contracts import MatchRecord
 from wolves.data.overlay import overlay_results
 from wolves.data.store import DatasetStore
-from wolves.data.teams import registry_team_key
+from wolves.data.teams import canonical_team_key, registry_team_key
 from wolves.gate.registry import ChampionRegistry
 from wolves.models.contracts import (
     DatasetHandle,
@@ -75,6 +75,13 @@ class StrengthPerturbation(_Perturbation):
 
     team: str
     delta: float | DeltaDistribution
+
+    @field_validator("team")
+    @classmethod
+    def _canonical(cls, value: str) -> str:
+        # Agent-written payloads arrive display-cased ("England"); every
+        # internal table joins on the canonical slug.
+        return canonical_team_key(value)
 
 
 class TempoPerturbation(_Perturbation):
