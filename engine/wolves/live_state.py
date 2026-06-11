@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from wolves.clients.api_football import MatchFixture, MatchStatus
-from wolves.models.contracts import ScorelineDistribution
+from wolves.data.contracts import MatchRecord
+from wolves.models.contracts import FittedState, ScorelineDistribution
 from wolves.models.inmatch import MatchState
 from wolves.s3.artifacts import ArtifactStore
+from wolves.s3.client import S3UnavailableError
 from wolves.s3.layout import LIVE_STATE, LIVE_STATE_POINT
 from wolves.sim.format import FormatData, PlayedResult
 from wolves.sim.overlay import FixtureResolution, resolve_fixture
@@ -16,6 +18,9 @@ from wolves.snapshot import Snapshot
 
 PollStatus = Literal["ok", "failed"]
 ForecastSource = Literal["pre_match", "in_match", "settled"]
+
+# Title moves below a hundredth of a percentage point are simulation noise.
+_DELTA_FLOOR = 0.0001
 
 
 class LiveForecast(BaseModel):
@@ -59,8 +64,15 @@ class LiveState(BaseModel):
     title_deltas_pp: dict[str, float] = Field(default_factory=dict)
 
 
-class _LiveForecaster(Protocol):
+class LiveForecaster(Protocol):
     fmt: FormatData
+
+    @property
+    def is_fitted(self) -> bool:
+        ...
+
+    def fit(self, *, as_of: date | None = None, extra_results: list[MatchRecord] | None = None) -> FittedState:
+        ...
 
     def match_probs(self, home: str, away: str, *, neutral: bool = True, match: int | None = None) -> dict[str, float]:
         ...
@@ -98,6 +110,9 @@ class LiveStateStore:
     def put(self, state: LiveState) -> None:
         body = state.model_dump_json()
         self._artifacts.put(LIVE_STATE, body)
+        if state.poll_status == "failed":
+            # An outage at poll cadence would mint thousands of identical history points.
+            return
         generated = datetime.fromisoformat(state.generated_at)
         self._artifacts.put(
             LIVE_STATE_POINT,
@@ -108,24 +123,29 @@ class LiveStateStore:
 
     def record_failure(self, *, message: str, now: datetime | None = None) -> LiveState:
         now = now or datetime.now(UTC)
-        previous = self.load()
-        state = LiveState(
-            generated_at=_stamp(now),
-            fetched_at=previous.fetched_at if previous else _stamp(now),
-            stale_after=previous.stale_after if previous else _stamp(now),
-            poll_status="failed",
-            message=message,
-            live_match_count=previous.live_match_count if previous else 0,
-            fixtures=previous.fixtures if previous else [],
-            title_probs=previous.title_probs if previous else {},
-            title_deltas_pp=previous.title_deltas_pp if previous else {},
-        )
+        # Failure handling must survive a torn file or an S3 outage itself.
+        try:
+            previous = self.load()
+        except (ValidationError, S3UnavailableError):
+            previous = None
+        if previous is not None:
+            state = previous.model_copy(
+                update={"generated_at": _stamp(now), "poll_status": "failed", "message": message}
+            )
+        else:
+            state = LiveState(
+                generated_at=_stamp(now),
+                fetched_at=_stamp(now),
+                stale_after=_stamp(now),
+                poll_status="failed",
+                message=message,
+            )
         self.put(state)
         return state
 
 
 def build_live_state(
-    forecaster: _LiveForecaster,
+    forecaster: LiveForecaster,
     fixtures: list[MatchFixture],
     *,
     fetched_at: datetime,
@@ -139,15 +159,13 @@ def build_live_state(
     rendered = []
     for fixture in sorted(fixtures, key=lambda f: (f.kickoff, f.fixture_id)):
         resolved = resolve_fixture(forecaster.fmt, fixture)
+        distribution: ScorelineDistribution | None = None
         if fixture.status == "live" and resolved is not None:
             state = _match_state(fixture, resolved)
             if state is not None:
-                live_distributions[resolved.match] = forecaster.live_distribution(
-                    resolved.home_id,
-                    resolved.away_id,
-                    state,
-                )
-        rendered.append(_fixture_state(forecaster, fixture, resolved))
+                distribution = forecaster.live_distribution(resolved.home_id, resolved.away_id, state)
+                live_distributions[resolved.match] = distribution
+        rendered.append(_fixture_state(forecaster, fixture, resolved, distribution))
 
     title_probs = _title_probs(
         forecaster,
@@ -168,11 +186,12 @@ def build_live_state(
 
 
 def _fixture_state(
-    forecaster: _LiveForecaster,
+    forecaster: LiveForecaster,
     fixture: MatchFixture,
     resolved: FixtureResolution | None,
+    distribution: ScorelineDistribution | None,
 ) -> LiveFixture:
-    forecast = _forecast(forecaster, fixture, resolved)
+    forecast = _forecast(forecaster, fixture, resolved, distribution)
     home_name = _team_name(forecaster.fmt, resolved.home_id) if resolved else fixture.home
     away_name = _team_name(forecaster.fmt, resolved.away_id) if resolved else fixture.away
     return LiveFixture(
@@ -196,9 +215,10 @@ def _fixture_state(
 
 
 def _forecast(
-    forecaster: _LiveForecaster,
+    forecaster: LiveForecaster,
     fixture: MatchFixture,
     resolved: FixtureResolution | None,
+    distribution: ScorelineDistribution | None,
 ) -> LiveForecast | None:
     if resolved is None:
         return None
@@ -210,11 +230,10 @@ def _forecast(
         return _settled_forecast(fixture, resolved)
     if fixture.status == "live":
         state = _match_state(fixture, resolved)
-        if state is None:
+        if state is None or distribution is None:
             return None
         probs = forecaster.live_match(resolved.home_id, resolved.away_id, state, knockout=resolved.knockout)
-        dist = forecaster.live_distribution(resolved.home_id, resolved.away_id, state)
-        return _forecast_from_probs("in_match", probs, dist)
+        return _forecast_from_probs("in_match", probs, distribution)
     probs = forecaster.match_probs(resolved.home_id, resolved.away_id, match=resolved.match)
     dist = forecaster.score_grid(resolved.home_id, resolved.away_id, match=resolved.match)
     return _forecast_from_probs("pre_match", probs, dist)
@@ -229,6 +248,7 @@ def _match_state(fixture: MatchFixture, resolved: FixtureResolution) -> MatchSta
         away_goals=resolved.away_goals,
         home_reds=resolved.home_reds,
         away_reds=resolved.away_reds,
+        period=fixture.period,
     )
 
 
@@ -242,13 +262,16 @@ def _forecast_from_probs(source: ForecastSource, probs: dict[str, float], dist: 
     )
 
 
-def _settled_forecast(fixture: MatchFixture, resolved: FixtureResolution) -> LiveForecast:
+def _settled_forecast(fixture: MatchFixture, resolved: FixtureResolution) -> LiveForecast | None:
     home_win = resolved.home_goals > resolved.away_goals or (
         resolved.knockout and resolved.home_goals == resolved.away_goals and fixture.winner == "home"
     )
     away_win = resolved.away_goals > resolved.home_goals or (
         resolved.knockout and resolved.home_goals == resolved.away_goals and fixture.winner == "away"
     )
+    if resolved.knockout and not home_win and not away_win:
+        # Level knockout score without a provider winner: unsettled feed, not a result.
+        return None
     return LiveForecast(
         source="settled",
         p_home=1.0 if home_win else 0.0,
@@ -265,7 +288,7 @@ def _modal_score(dist: ScorelineDistribution) -> str:
 
 
 def _title_probs(
-    forecaster: _LiveForecaster,
+    forecaster: LiveForecaster,
     *,
     results: dict[int, PlayedResult],
     live_distributions: dict[int, ScorelineDistribution],
@@ -290,7 +313,7 @@ def _title_deltas(title_probs: dict[str, float], previous: Snapshot | None) -> d
     return {
         team: round((prob - baseline[team]) * 100.0, 2)
         for team, prob in title_probs.items()
-        if team in baseline and abs(prob - baseline[team]) >= 0.0001
+        if team in baseline and abs(prob - baseline[team]) >= _DELTA_FLOOR
     }
 
 
@@ -301,6 +324,8 @@ def _message(fixture: MatchFixture, resolved: FixtureResolution | None, forecast
         return "fixture is not active"
     if fixture.status == "live" and forecast is None:
         return "live score is not available yet"
+    if fixture.status == "finished" and forecast is None:
+        return "result is not settled yet"
     return None
 
 

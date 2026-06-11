@@ -9,11 +9,17 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
 from pydantic import ValidationError
 
 from wolves import ENGINE_VERSION
 from wolves.agent.forecast_artifact import PublishedWorld, mixed_outputs, worlds_from_payload
-from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
+from wolves.clients.api_football import (
+    ApiFootballClient,
+    ApiFootballPayloadError,
+    FakeFixturesClient,
+    FixturesClient,
+)
 from wolves.config import Settings
 from wolves.forecast import Forecaster
 from wolves.live_state import LiveStateStore, build_live_state
@@ -96,7 +102,7 @@ async def live_pass(
     live_states = LiveStateStore(artifacts)
     try:
         polled = await fixtures.fixtures()
-    except Exception as exc:
+    except (httpx.HTTPError, ApiFootballPayloadError) as exc:
         live_states.record_failure(message=str(exc))
         logger.warning("live poll failed; keeping the previous live state: %s", exc)
         return False
@@ -119,7 +125,7 @@ async def live_pass(
     merged = store.record(overlay, fixtures=finished)
     if forecaster is None:
         forecaster = Forecaster(settings)
-    if not getattr(forecaster, "is_fitted", False):
+    if not forecaster.is_fitted:
         forecaster.fit(extra_results=played_match_records(settings))
     live_states.put(
         build_live_state(
@@ -130,6 +136,7 @@ async def live_pass(
             previous=previous,
             n_sims=n_sims,
             seed=seed,
+            stale_after_s=settings.live_stale_after_s,
         )
     )
     if not pending:
@@ -187,11 +194,24 @@ def build_fixtures_client(settings: Settings) -> FixturesClient:
 
 async def _run(args: argparse.Namespace, settings: Settings) -> None:
     fixtures = build_fixtures_client(settings)
+    forecaster = Forecaster(settings)
     try:
         while True:
-            await live_pass(settings, fixtures=fixtures, n_sims=args.sims, seed=args.seed)
+            try:
+                published = await live_pass(
+                    settings, fixtures=fixtures, n_sims=args.sims, seed=args.seed, forecaster=forecaster
+                )
+            except Exception:
+                if not args.loop:
+                    raise
+                # One bad pass must not end the match-day task.
+                logger.exception("live pass failed; continuing the loop")
+                published = False
             if not args.loop:
                 return
+            if published:
+                # A publish means a result landed; refit next pass or the loop's ratings drift.
+                forecaster = Forecaster(settings)
             await asyncio.sleep(args.interval)
     finally:
         await fixtures.aclose()
@@ -203,8 +223,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run a live results update pass")
     parser.add_argument("--sims", type=int, default=settings.n_sims)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--loop", action="store_true", help="poll repeatedly; local dev only")
-    parser.add_argument("--interval", type=float, default=60.0, help="seconds between --loop passes")
+    parser.add_argument("--loop", action="store_true", help="poll repeatedly for the match-day task")
+    parser.add_argument(
+        "--interval", type=float, default=settings.live_poll_interval_s, help="seconds between --loop passes"
+    )
     add_storage_argument(parser)
     args = parser.parse_args()
     asyncio.run(_run(args, apply_storage_choice(settings, args.storage)))

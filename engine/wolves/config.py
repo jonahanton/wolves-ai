@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     storage_mode: StorageMode = "both"
 
     runs_root: Path = REPO_ROOT / "runs"
+    live_poll_interval_s: float = 60.0
+    # Two missed polls plus jitter before consumers treat the state as stale.
+    live_stale_after_s: int = 150
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
     article_cache_max_age_hours: float = 48.0
