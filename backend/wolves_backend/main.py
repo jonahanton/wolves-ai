@@ -7,6 +7,7 @@ stack runs against DynamoDB local and the runs directory with no AWS at all.
 from __future__ import annotations
 
 import logging
+import sys
 import time
 from typing import TYPE_CHECKING
 
@@ -14,6 +15,8 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from wolves_backend.access_log import access_log_line
+from wolves_backend.auth import is_admin
 from wolves_backend.config import Settings, get_settings
 from wolves_backend.deps import Deps, build_deps
 from wolves_backend.errors import UpstreamError
@@ -28,7 +31,8 @@ from wolves_backend.routes.teams import router as teams_router
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
-request_logger = logging.getLogger("wolves_backend.access")
+logger = logging.getLogger(__name__)
+access_logger = logging.getLogger("wolves_backend.access")
 
 
 def create_app(settings: Settings | None = None, *, deps: Deps | None = None) -> FastAPI:
@@ -41,8 +45,19 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
     async def log_requests(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         start = time.monotonic()
         response = await call_next(request)
-        duration_ms = (time.monotonic() - start) * 1000
-        request_logger.info("%s %s %d %.1fms", request.method, request.url.path, response.status_code, duration_ms)
+        if request.url.path == "/healthz":
+            return response
+        access_logger.info(
+            access_log_line(
+                method=request.method,
+                path=request.url.path,
+                status=response.status_code,
+                duration_ms=(time.monotonic() - start) * 1000,
+                client_ip=request.client.host if request.client else "",
+                user_agent=request.headers.get("user-agent", ""),
+                admin=is_admin(settings, request),
+            )
+        )
         return response
 
     @app.exception_handler(HTTPException)
@@ -58,7 +73,7 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
 
     @app.exception_handler(UpstreamError)
     async def upstream_error(request: Request, exc: UpstreamError) -> JSONResponse:
-        request_logger.warning("Upstream %s failure on %s: %s", exc.service, request.url.path, exc.detail)
+        logger.warning("Upstream %s failure on %s: %s", exc.service, request.url.path, exc.detail)
         return JSONResponse(status_code=502, content={"error": exc.detail})
 
     app.include_router(health_router)
@@ -77,4 +92,8 @@ def build() -> FastAPI:
     # Uvicorn does not configure app loggers; without basicConfig, INFO falls
     # through to lastResort at WARNING.
     logging.basicConfig(level=settings.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # Access lines are already structured JSON, so they go to stdout bare
+    # rather than through the prefixed stderr handler.
+    access_logger.addHandler(logging.StreamHandler(sys.stdout))
+    access_logger.propagate = False
     return create_app(settings)
