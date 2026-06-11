@@ -38,7 +38,7 @@ def test_live_refuses_ceiling_above_absolute_max():
         "--live",
         "--confirm-spend",
         "--ceiling",
-        "5.00",
+        "9.00",
         env_overrides={"ANTHROPIC_API_KEY": "dummy"},
     )
     assert result.returncode == 2
