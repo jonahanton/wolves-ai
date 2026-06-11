@@ -13,6 +13,7 @@ env:
   AWS_REGION: eu-west-2
   ECR_REPOSITORY: wolves-engine
   TASK_FAMILY: wolves-engine-daily
+  ARCHIVE_TASK_FAMILY: wolves-engine-archive
   BACKEND_ECR_REPOSITORY: wolves-backend
   ECS_CLUSTER: wolves
   BACKEND_SERVICE: wolves-backend
@@ -47,21 +48,23 @@ jobs:
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.ref_name }}
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
 
-      # The schedule targets the family without a revision, so registering a
-      # new revision is the whole deployment.
+      # Schedules target families without revisions, so registering new
+      # revisions is the whole engine deployment.
       - name: Register task definition revision pinned to this tag
         env:
           IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.ref_name }}
         run: |
-          aws ecs describe-task-definition --task-definition "$TASK_FAMILY" \
-            --query taskDefinition > taskdef.json
-          jq --arg image "$IMAGE" '
-            .containerDefinitions[0].image = $image
-            | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
-                  .compatibilities, .registeredAt, .registeredBy)
-          ' taskdef.json > new-taskdef.json
-          aws ecs register-task-definition --cli-input-json file://new-taskdef.json \
-            --query 'taskDefinition.{family: family, revision: revision}'
+          for family in "$TASK_FAMILY" "$ARCHIVE_TASK_FAMILY"; do
+            aws ecs describe-task-definition --task-definition "$family" \
+              --query taskDefinition > taskdef.json
+            jq --arg image "$IMAGE" '
+              .containerDefinitions[0].image = $image
+              | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+                    .compatibilities, .registeredAt, .registeredBy)
+            ' taskdef.json > new-taskdef.json
+            aws ecs register-task-definition --cli-input-json file://new-taskdef.json \
+              --query 'taskDefinition.{family: family, revision: revision}'
+          done
 
   deploy-backend:
     runs-on: ubuntu-latest

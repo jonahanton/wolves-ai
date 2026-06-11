@@ -14,6 +14,14 @@ output "task_definition_family" {
   value = aws_ecs_task_definition.daily.family
 }
 
+output "archive_task_definition_arn" {
+  value = aws_ecs_task_definition.archive.arn
+}
+
+output "archive_task_definition_family" {
+  value = aws_ecs_task_definition.archive.family
+}
+
 output "task_role_arn" {
   value = aws_iam_role.task.arn
 }

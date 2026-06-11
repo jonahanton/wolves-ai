@@ -95,6 +95,17 @@ data "aws_iam_policy_document" "backend_task" {
       values   = ["ecs-tasks.amazonaws.com"]
     }
   }
+
+  statement {
+    actions   = ["iam:PassRole"]
+    resources = [var.scheduler_role_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["scheduler.amazonaws.com"]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "backend_task" {

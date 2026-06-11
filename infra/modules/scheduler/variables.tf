@@ -22,6 +22,14 @@ variable "task_definition_family" {
   type = string
 }
 
+variable "archive_task_definition_arn" {
+  type = string
+}
+
+variable "archive_task_definition_family" {
+  type = string
+}
+
 variable "task_role_arn" {
   type = string
 }
@@ -45,5 +53,15 @@ variable "initial_state" {
 
 variable "initial_cron" {
   description = "Creation-time cron; runtime edits go through UpdateSchedule and are never reconciled."
+  type        = string
+}
+
+variable "archive_initial_state" {
+  description = "Creation-time archive schedule state."
+  type        = string
+}
+
+variable "archive_initial_cron" {
+  description = "Creation-time odds archive cron."
   type        = string
 }

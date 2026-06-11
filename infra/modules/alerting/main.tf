@@ -51,9 +51,12 @@ resource "aws_cloudwatch_event_rule" "engine_task_failed" {
     source      = ["aws.ecs"]
     detail-type = ["ECS Task State Change"]
     detail = {
-      clusterArn        = [var.cluster_arn]
-      lastStatus        = ["STOPPED"]
-      taskDefinitionArn = [{ prefix = "arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.engine_task_definition_family}" }]
+      clusterArn = [var.cluster_arn]
+      lastStatus = ["STOPPED"]
+      taskDefinitionArn = [
+        { prefix = "arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.engine_task_definition_family}" },
+        { prefix = "arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.archive_task_definition_family}" },
+      ]
       "$or" = [
         { containers = { exitCode = [{ anything-but = [0] }] } },
         { stopCode = ["TaskFailedToStart"] },
@@ -130,7 +133,7 @@ resource "aws_iam_role" "budget_action" {
 data "aws_iam_policy_document" "budget_action" {
   statement {
     actions   = ["iam:AttachRolePolicy", "iam:DetachRolePolicy"]
-    resources = [var.scheduler_role_arn]
+    resources = [var.scheduler_role_arn, var.backend_run_role_arn, var.github_ops_role_arn]
   }
 
   statement {
@@ -160,7 +163,7 @@ resource "aws_budgets_budget_action" "kill_switch" {
   definition {
     iam_action_definition {
       policy_arn = aws_iam_policy.deny_run_task.arn
-      roles      = [var.scheduler_role_name]
+      roles      = [var.scheduler_role_name, var.backend_run_role_name, var.github_ops_role_name]
     }
   }
 

@@ -17,3 +17,7 @@ output "service_arn" {
 output "task_role_arn" {
   value = aws_iam_role.backend_task.arn
 }
+
+output "task_role_name" {
+  value = aws_iam_role.backend_task.name
+}

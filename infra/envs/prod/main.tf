@@ -75,6 +75,11 @@ resource "aws_dynamodb_table" "forecaster" {
     name = "SK"
     type = "S"
   }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
 }
 
 resource "aws_sesv2_email_identity" "sender" {
@@ -102,18 +107,22 @@ module "engine" {
 module "scheduler" {
   source = "../../modules/scheduler"
 
-  project                 = var.project
-  region                  = var.region
-  account_id              = data.aws_caller_identity.current.account_id
-  cluster_arn             = aws_ecs_cluster.this.arn
-  task_definition_arn     = module.engine.task_definition_arn
-  task_definition_family  = module.engine.task_definition_family
-  task_role_arn           = module.engine.task_role_arn
-  task_execution_role_arn = module.engine.task_execution_role_arn
-  subnets                 = data.aws_subnets.default.ids
-  security_group_id       = module.engine.security_group_id
-  initial_state           = var.schedule_state
-  initial_cron            = var.schedule_cron
+  project                        = var.project
+  region                         = var.region
+  account_id                     = data.aws_caller_identity.current.account_id
+  cluster_arn                    = aws_ecs_cluster.this.arn
+  task_definition_arn            = module.engine.task_definition_arn
+  task_definition_family         = module.engine.task_definition_family
+  archive_task_definition_arn    = module.engine.archive_task_definition_arn
+  archive_task_definition_family = module.engine.archive_task_definition_family
+  task_role_arn                  = module.engine.task_role_arn
+  task_execution_role_arn        = module.engine.task_execution_role_arn
+  subnets                        = data.aws_subnets.default.ids
+  security_group_id              = module.engine.security_group_id
+  initial_state                  = var.schedule_state
+  initial_cron                   = var.schedule_cron
+  archive_initial_state          = var.archive_schedule_state
+  archive_initial_cron           = var.archive_schedule_cron
 }
 
 module "backend_api" {
@@ -133,6 +142,7 @@ module "backend_api" {
   dynamo_table_arn              = aws_dynamodb_table.forecaster.arn
   schedule_name                 = module.scheduler.schedule_name
   schedule_arn                  = module.scheduler.schedule_arn
+  scheduler_role_arn            = module.scheduler.scheduler_role_arn
   engine_task_definition_family = module.engine.task_definition_family
   engine_task_role_arn          = module.engine.task_role_arn
   engine_security_group_id      = module.engine.security_group_id
@@ -148,15 +158,20 @@ module "backend_api" {
 module "alerting" {
   source = "../../modules/alerting"
 
-  project                       = var.project
-  region                        = var.region
-  account_id                    = data.aws_caller_identity.current.account_id
-  monthly_budget_usd            = var.monthly_budget_usd
-  alert_email                   = var.alert_email
-  scheduler_role_arn            = module.scheduler.scheduler_role_arn
-  scheduler_role_name           = module.scheduler.scheduler_role_name
-  cluster_arn                   = aws_ecs_cluster.this.arn
-  engine_task_definition_family = module.engine.task_definition_family
+  project                        = var.project
+  region                         = var.region
+  account_id                     = data.aws_caller_identity.current.account_id
+  monthly_budget_usd             = var.monthly_budget_usd
+  alert_email                    = var.alert_email
+  scheduler_role_arn             = module.scheduler.scheduler_role_arn
+  scheduler_role_name            = module.scheduler.scheduler_role_name
+  backend_run_role_arn           = module.backend_api.task_role_arn
+  backend_run_role_name          = module.backend_api.task_role_name
+  github_ops_role_arn            = module.release_oidc.ops_role_arn
+  github_ops_role_name           = module.release_oidc.ops_role_name
+  cluster_arn                    = aws_ecs_cluster.this.arn
+  engine_task_definition_family  = module.engine.task_definition_family
+  archive_task_definition_family = module.engine.archive_task_definition_family
 }
 
 module "release_oidc" {

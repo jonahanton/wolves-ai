@@ -33,6 +33,23 @@ variable "schedule_cron" {
   default     = "cron(0 11 * * ? *)"
 }
 
+variable "archive_schedule_state" {
+  description = "Creation-time archive schedule state."
+  type        = string
+  default     = "ENABLED"
+
+  validation {
+    condition     = contains(["ENABLED", "DISABLED"], var.archive_schedule_state)
+    error_message = "archive_schedule_state must be ENABLED or DISABLED."
+  }
+}
+
+variable "archive_schedule_cron" {
+  description = "Creation-time odds archive cron (UTC)."
+  type        = string
+  default     = "cron(0 8,14,18,22 * * ? *)"
+}
+
 variable "engine_image_tag" {
   description = "Engine image tag the task definition points at."
   type        = string
