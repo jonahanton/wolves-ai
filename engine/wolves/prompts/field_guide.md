@@ -72,7 +72,11 @@ England's group games only (-0.20 xG per game via MatchRatePerturbation) cost
 -0.38pp title, because England qualify regardless; the same star diminished
 for the whole tournament (-0.10 strength) cost -3.03pp, 8x more. Which
 mechanism a story implies is the single most consequential modelling choice
-in availability analysis.
+in availability analysis. The second most consequential is certainty:
+"doubtful", "racing to be fit" and "managed in training" are weighted splits
+across plays-diminished and misses-matches worlds (managed load sits near
+-0.03 strength, a true tournament-ending loss near -0.10), never the worst
+case at weight 1.0. Reserve certainty weighting for a confirmed ruling-out.
 
 ### Scenario mixtures and factor lattices
 

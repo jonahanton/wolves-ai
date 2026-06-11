@@ -69,6 +69,9 @@ def scenario_mixture(
     joint overrides the independence product with explicit world weights
     keyed "variantA|variantB". Returns mixture, per-world conditionals,
     per-factor marginals and the noise floor; writes outputs/<name>.json."""
+    # The submission candidate prices at publish fidelity, never the cheap
+    # exploration default.
+    n_sims = n_sims or max(context().default_n_sims, 50_000)
     blocks = _factor_blocks(scenarios, factors)
     worlds = _worlds(blocks, joint)
     total = sum(w for _, w, _ in worlds)
@@ -101,7 +104,7 @@ def scenario_mixture(
         "marginals": _marginals(blocks, worlds, conditionals),
         "baseline": base,
         "noise_floor_pp": noise_floor(n_sims=n_sims, seed=seed),
-        "n_sims": n_sims or context().default_n_sims,
+        "n_sims": n_sims,
         "seed": seed,
     }
     out = SESSION.root / "outputs" / f"{name}.json"

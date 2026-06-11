@@ -61,7 +61,16 @@ def _build_tool(
     prepare_for: PrepareFor | None,
 ) -> Tool:
     async def _runner(ctx: RunContext[Any], **kwargs: Any) -> Any:
-        args = spec.args_model(**kwargs)
+        try:
+            args = spec.args_model(**kwargs)
+        except Exception as exc:
+            # Bad arguments are information too; raising here would burn the
+            # tool's retry budget and can abort the whole node.
+            result = ToolResult(
+                ok=False, payload=None, error=ToolError(type="invalid_arguments", message=str(exc)[:500])
+            )
+            _emit_tool_call(ctx.deps, spec.name, result)
+            return await after_result(spec, None, ctx, result)
         if before_invoke is not None:
             short_circuit = await before_invoke(spec, args, ctx)
             if short_circuit is not None:
@@ -85,6 +94,9 @@ def _build_tool(
         json_schema=spec.json_schema,
         takes_ctx=True,
     )
+    # Schema-level mismatches retry inside pydantic-ai; one strike killing a
+    # node mid-analysis costs far more than a few correction round-trips.
+    tool.max_retries = 3
     if prepare_for is not None:
         tool.prepare = prepare_for(spec)
     return tool

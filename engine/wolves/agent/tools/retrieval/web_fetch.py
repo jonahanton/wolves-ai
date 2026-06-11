@@ -8,11 +8,24 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent.tools._shared import reserve_or_refuse
 from wolves.toolkit._timeout import run_with_timeout
 from wolves.toolkit.core import ToolSpec
-from wolves.toolkit.result import SourceRef, ToolResult
+from wolves.toolkit.result import SourceRef, ToolError, ToolResult
+
+_MIN_READABLE_CHARS = 80
 
 
 class WebFetchArgs(BaseModel):
     url: str
+
+
+def _empty_page(url: str, chars: int) -> ToolResult[Any]:
+    return ToolResult(
+        ok=False,
+        payload=None,
+        error=ToolError(
+            type="empty_page",
+            message=f"{url} returned no readable text ({chars} chars); do not refetch it, try another source",
+        ),
+    )
 
 
 async def _web_fetch(args: WebFetchArgs, deps: AgentDeps) -> ToolResult[Any]:
@@ -21,23 +34,29 @@ async def _web_fetch(args: WebFetchArgs, deps: AgentDeps) -> ToolResult[Any]:
         return refused
     if deps.source_memory is not None:
         seen = deps.source_memory.seen(args.url)
-        if seen is not None and seen.last_seen_run == deps.runtime.run_id and seen.disposition == "fetched":
-            return ToolResult(
-                payload={
-                    "url": args.url,
-                    "notice": "already fetched this run; its evidence is on the ledger or in a sibling artifact",
-                }
-            )
+        if seen is not None and seen.last_seen_run == deps.runtime.run_id:
+            if seen.disposition == "empty":
+                return _empty_page(args.url, 0)
+            if seen.disposition == "fetched":
+                return ToolResult(
+                    payload={
+                        "url": args.url,
+                        "notice": "already fetched this run; its evidence is on the ledger or in a sibling artifact",
+                    }
+                )
     page = await run_with_timeout(
         deps.web.fetch(actor=deps.actor, url=args.url),
         tool_name="web_fetch",
         timeout_seconds=deps.settings.tool_timeout_seconds,
     )
+    disposition = "fetched" if len(page.text.strip()) >= _MIN_READABLE_CHARS else "empty"
     if deps.source_memory is not None:
-        deps.source_memory.record(page.final_url, run_id=deps.runtime.run_id, disposition="fetched")
+        deps.source_memory.record(page.final_url, run_id=deps.runtime.run_id, disposition=disposition)
         if page.final_url != args.url:
             # The requested URL is what siblings will cite; the dedupe check must see it too.
-            deps.source_memory.record(args.url, run_id=deps.runtime.run_id, disposition="fetched")
+            deps.source_memory.record(args.url, run_id=deps.runtime.run_id, disposition=disposition)
+    if disposition == "empty":
+        return _empty_page(page.final_url, len(page.text.strip()))
     return ToolResult(
         payload={"url": page.final_url, "title": page.title, "text": page.text},
         sources=[SourceRef(url=page.final_url, title=page.title or page.final_url, source_type="web")],
@@ -48,7 +67,8 @@ SPEC = ToolSpec(
     name="web_fetch",
     description=(
         "Fetch a URL and return its readable text. Use after rank_relevance has triaged your search "
-        "results; fetch only the top-ranked few. Only fetched pages can back a confirmed claim."
+        "results; fetch only the top-ranked few. Only fetched pages can back a confirmed claim. A page "
+        "that yields no readable text fails; move to another source rather than retrying it."
     ),
     args_model=WebFetchArgs,
     fn=_web_fetch,

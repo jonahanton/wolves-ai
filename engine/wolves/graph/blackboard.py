@@ -82,7 +82,7 @@ class Blackboard:
                 if artifact is None:
                     continue
                 if artifact.kind == "evidence":
-                    appended = self._ledger_entries(artifact.payload)
+                    appended = self._ledger_entries(artifact.id, artifact.payload)
                     if appended:
                         self._runtime.emit(
                             "ledger",
@@ -105,10 +105,11 @@ class Blackboard:
         seen = self._source_memory.seen(url)
         return seen is not None and seen.last_seen_run == self._runtime.run_id and seen.disposition == "fetched"
 
-    def _ledger_entries(self, payload: dict) -> int:
+    def _ledger_entries(self, artifact_id: str, payload: dict) -> int:
         output = ResearchOutput.model_validate(payload)
         existing = {(e.claim.strip().lower(), e.source_url) for e in self.ledger.all()}
         appended = 0
+        demoted = 0
         for item in output.evidence:
             if (item.claim.strip().lower(), item.source_url) in existing:
                 continue
@@ -117,6 +118,8 @@ class Blackboard:
                 # A confirmed claim must be backed by a page the run actually
                 # read; a snippet-only citation is at best probable.
                 status = "probable"
+                item.status = "probable"
+                demoted += 1
                 self._runtime.emit(
                     "evidence_demoted",
                     "blackboard",
@@ -135,6 +138,10 @@ class Blackboard:
             )
             existing.add((item.claim.strip().lower(), item.source_url))
             appended += 1
+        if demoted:
+            # The artifact must agree with the ledger, or later readers cite
+            # a confidence the run already withdrew.
+            self.artifacts.amend_payload(artifact_id, output.model_dump(mode="json"))
         return appended
 
     def summary(self) -> str:

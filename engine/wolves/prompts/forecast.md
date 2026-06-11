@@ -50,9 +50,10 @@ Submission rules (the validator enforces these):
   ledger ids; analysis-driven worlds may carry no ledger ids, but the quant
   artifact that computed the case must be named in market_justification or
   change_justification.
-- The focus team daily story (focus_story), exactly one line of rationale for
-  each of the 16 R32 bracket slots, and the travel memo, in British English
-  spelling with no em-dashes anywhere.
+- The focus team daily story (focus_story) opens with the focus team in its
+  first sentence; other teams are supporting cast. Exactly one line of
+  rationale for each of the 16 R32 bracket slots, and the travel memo, in
+  British English spelling with no em-dashes anywhere.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the
   computation, then resubmit, revised or unchanged.

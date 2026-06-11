@@ -39,4 +39,8 @@ def test_confirmed_needs_a_page_fetched_this_run(tmp_path: Path):
     assert statuses["backed only by a snippet"] == "probable"
     assert statuses["internal tool output"] == "confirmed"
     assert statuses["first-party odds tool output"] == "confirmed"
+
+    amended = {e["claim"]: e["status"] for e in store.get(artifact.id).payload["evidence"]}
+    assert amended["backed only by a snippet"] == "probable"
+    assert amended["backed by a fetched page"] == "confirmed"
     deps.runtime.shutdown()

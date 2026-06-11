@@ -109,6 +109,19 @@ class RunArtifactStore:
         self._write_local(RUN_ARTIFACT_INDEX.key(run_id=self.run_id), self.index().model_dump_json(indent=1))
         return artifact
 
+    def amend_payload(self, artifact_id: str, payload: dict[str, Any]) -> None:
+        """Rewrite an artifact's payload in place; later readers must see the
+        corrected record, not the one its node originally asserted."""
+        if self._readonly:
+            raise ReadOnlyRunError(self.run_id)
+        artifact = self.get(artifact_id)
+        if artifact is None:
+            return
+        artifact = artifact.model_copy(update={"payload": payload})
+        key = RUN_ARTIFACT.key(run_id=self.run_id, artifact_id=artifact_id)
+        self._write_local(key, artifact.model_dump_json(indent=1))
+        self._cache[artifact_id] = artifact
+
     def get(self, artifact_id: str) -> Artifact | None:
         cached = self._cache.get(artifact_id)
         if cached is not None:

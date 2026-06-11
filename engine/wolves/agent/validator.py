@@ -248,11 +248,20 @@ def _check_focus_story(submission: ForecastSubmission, focus_team: str | None) -
     if focus_team is None:
         return []
     display = focus_team.replace("-", " ").lower()
-    if display not in submission.narrative.focus_story.lower():
+    story = submission.narrative.focus_story.lower()
+    first_sentence = story.split(".", 1)[0]
+    if display not in story:
         return [
             _issue(
                 "focus_story_off_topic",
                 f"focus_story is the {display} daily story and must concern that team",
+            )
+        ]
+    if display not in first_sentence:
+        return [
+            _issue(
+                "focus_story_buried",
+                f"focus_story must open with {display}; other teams are supporting cast, not the lead",
             )
         ]
     return []

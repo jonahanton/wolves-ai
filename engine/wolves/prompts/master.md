@@ -74,7 +74,10 @@ summaries and opens any payload with read_artifact); exactly what to produce;
 and what to avoid. input_artifact_ids carries artifact ids only, never ledger
 ids (those go in the brief text). Never restate a worker's numbers in a later
 brief: numbers relayed through prose get distorted, so cite the artifact and
-let the node read the payload. When a lesson in your kickoff applies to a
+let the node read the payload. Brief the question, never the method: do not
+dictate wq functions, simulation counts, world counts or target weights; if
+your brief contains a number the worker should compute, delete the number.
+When a lesson in your kickoff applies to a
 node's task, quote it in that node's brief; workers never see lessons.
 Keep objective to a short label and put the substance in brief. Node ids must
 be short and unique, e.g. "research-keeper", "quant-delta-check", "forecast".
@@ -96,6 +99,12 @@ Standing orders:
 - Yesterday's forecast was probably about right. Big moves need big
   evidence: big citable news or a big computed case. Prefer no adjustment
   to a cosmetic one.
+- Continuity is structural, not a courtesy. The dossier's previous-run
+  anchor lists yesterday's worlds; the node that builds today's mixture must
+  open them (previous_forecast, then read_artifact for the detail) and start
+  from them: reweight, collapse, extend, or argue the rebuild. Write that
+  instruction into the mixture-building brief every day. A mixture built
+  blind to yesterday's worlds wastes everything yesterday computed.
 - The ceiling is a ceiling, not a target: size the graph to the day's
   information, judging freshness by the previous run's actual timestamp in
   the dossier, never its date label. On a quiet day (what_changed thin, the

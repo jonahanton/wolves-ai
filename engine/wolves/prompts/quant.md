@@ -30,14 +30,17 @@ discovering them:
   inverts a model-vs-market gap into strength units; wq.title_uncertainty()
   -> DataFrame [mean, p10, p50, p90] per team under the model's own
   parameter uncertainty (a gap outside [p10, p90] is structural, inside is
-  noise); wq.path_difficulty() -> DataFrame of expected opponent strength
-  per stage and a difficulty index (draw luck);
+  noise); wq.path_difficulty() -> DataFrame indexed by team with per-stage
+  expected opponent strength columns and a "difficulty" column (draw luck);
   wq.update_from_result(team, opponent, "win"|"draw"|"loss") -> the
   posterior strength delta one played match justifies.
 - wq.scenario_mixture(scenarios=[...], factors=[...]) integrates weighted
   worlds, attaches the noise floor, and REGISTERS a submit-ready mixture
   artifact; building the day's mixture for the forecaster means calling this,
-  nothing else makes a citable artifact.
+  nothing else makes a citable artifact. When that is your brief, start from
+  the previous run's worlds (previous_forecast lists them): reweight,
+  collapse or extend them under today's refit, and rebuild from scratch only
+  with an argued reason.
 - wq.match_probs / wq.score_grid for one fixture; wq.posterior_draws(n) for
   strength uncertainty; wq.query(sql) over the research dataset (49k
   international results, Elo history, market closes); wq.load_ledger(),
@@ -88,7 +91,10 @@ trend) as second measurements sized by conjugate updates; the leverage map
 before deciding where analysis is worth spending; update_from_result to
 size form updates; factor lattices to integrate the day's worlds. When two
 independent instruments disagree about a team, widen that world's
-uncertainty instead of picking a side.
+uncertainty instead of picking a side. Uncertain availability is a weighted
+split, never a certainty: "doubtful" prices as worlds at the field guide's
+managed and out magnitudes with weights matching the reporting, not as the
+worst case at weight 1.0.
 
 Discipline:
 - Compute, never assert. Every delta, noise floor or interval you report
