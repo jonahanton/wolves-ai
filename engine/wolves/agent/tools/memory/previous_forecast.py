@@ -19,6 +19,22 @@ class PreviousForecastArgs(BaseModel):
     on: str | None = None
 
 
+def _recent_runs(deps: AgentDeps, limit: int = 10) -> list[dict[str, str]]:
+    runs: list[dict[str, str]] = []
+    snapshot_dir = deps.settings.runs_root / "snapshots"
+    if not snapshot_dir.exists():
+        return runs
+    for path in snapshot_dir.rglob("*.json"):
+        if path.name == "latest.json":
+            continue
+        try:
+            snapshot = Snapshot.model_validate_json(path.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        runs.append({"run_id": snapshot.run.run_id, "created_at": snapshot.run.created_at, "kind": snapshot.run.kind})
+    return sorted(runs, key=lambda r: r["created_at"], reverse=True)[:limit]
+
+
 def _find_snapshot(deps: AgentDeps, args: PreviousForecastArgs) -> Snapshot | None:
     before = date.fromisoformat(args.on) + timedelta(days=1) if args.on else date.fromisoformat(deps.as_of)
     latest, _ = load_previous_snapshots(deps.settings.runs_root / "snapshots", before=before)
@@ -43,6 +59,7 @@ async def _previous_forecast(args: PreviousForecastArgs, deps: AgentDeps) -> Too
         "created_at": snapshot.run.created_at,
         "title_probs": {t.team_id: t.champion_prob for t in top},
         "focus_reach": snapshot.focus.reach_probs if snapshot.focus else None,
+        "recent_runs": _recent_runs(deps),
     }
     if snapshot.agent is not None:
         payload["narrative"] = snapshot.agent.narrative.model_dump(mode="json")
@@ -62,9 +79,10 @@ SPEC = ToolSpec(
     name="previous_forecast",
     description=(
         "A previous run's published forecast: its top title probabilities, narrative, evidence, "
-        "artifact index and journal extract. Defaults to the run before today; pass run_id or an "
-        "ISO date to reach further back. Open its artifacts with read_artifact via the listed ids "
-        "only when that run is today's; older payloads arrive inline here."
+        "artifact index, journal extract and an index of recent runs with exact timestamps. "
+        "Defaults to the run before today; pass run_id or an ISO date for any older run. Open a "
+        "listed artifact with read_artifact(artifact_id, run_id=...), including past quant "
+        "workspaces file by file."
     ),
     args_model=PreviousForecastArgs,
     fn=_previous_forecast,
