@@ -4,6 +4,7 @@ moves escalate to a steelman, never to a cap on conclusions."""
 from __future__ import annotations
 
 import itertools
+import re
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
@@ -75,6 +76,7 @@ def validate_submission(
     issues += _check_weights(submission, ledger)
     issues += _check_narrative(submission)
     issues += _check_em_dashes(submission)
+    issues += _check_british_english(submission)
     return ValidationReport(ok=not issues, issues=issues, escalations=escalations)
 
 
@@ -187,4 +189,20 @@ def _check_narrative(submission: ForecastSubmission) -> list[ValidationIssue]:
 def _check_em_dashes(submission: ForecastSubmission) -> list[ValidationIssue]:
     if EM_DASH in submission.model_dump_json():
         return [_issue("em_dash", "em-dashes are not allowed anywhere in the submission")]
+    return []
+
+
+# High-frequency Americanisms only: the published copy is British English and
+# these are the spellings models actually produce in football narrative.
+_AMERICANISMS = re.compile(
+    r"\b(favorable|favorite[sd]?|color(s|ed|ful)?|center(s|ed)?|defense[s]?|offense[s]?|"
+    r"organiz\w+|analyz\w+|capitaliz\w+|honor(s|ed)?|behavior[s]?|soccer)\b",
+    re.IGNORECASE,
+)
+
+
+def _check_british_english(submission: ForecastSubmission) -> list[ValidationIssue]:
+    found = sorted({m.group(0).lower() for m in _AMERICANISMS.finditer(submission.model_dump_json())})
+    if found:
+        return [_issue("american_spelling", f"use British English; replace: {', '.join(found)}")]
     return []

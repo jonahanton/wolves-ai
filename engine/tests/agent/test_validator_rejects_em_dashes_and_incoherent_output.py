@@ -57,6 +57,12 @@ def test_em_dash_anywhere_rejects(store: RunArtifactStore, ledger: EvidenceLedge
     assert "em_dash" in _codes(_validate(submission, store, ledger))
 
 
+def test_american_spelling_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
+    story = "England's favorable draw and organized defense set up a calm opener."
+    submission = build_submission(narrative=build_narrative(focus_story=story))
+    assert "american_spelling" in _codes(_validate(submission, store, ledger))
+
+
 def test_missing_slot_rationales_reject(store: RunArtifactStore, ledger: EvidenceLedger):
     narrative = build_narrative(slot_rationales={"73": "favourite advances"})
     submission = build_submission(narrative=narrative)
