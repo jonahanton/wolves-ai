@@ -227,7 +227,7 @@
   {
    "match": 29,
    "group": "C",
-   "date": "2026-06-20T01:00:00Z",
+   "date": "2026-06-20T00:30:00Z",
    "city": "Philadelphia",
    "home": "brazil",
    "away": "haiti"
@@ -243,7 +243,7 @@
   {
    "match": 31,
    "group": "D",
-   "date": "2026-06-20T04:00:00Z",
+   "date": "2026-06-20T03:00:00Z",
    "city": "San Francisco Bay Area",
    "home": "turkiye",
    "away": "paraguay"
