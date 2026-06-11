@@ -50,17 +50,26 @@ def _group_concludes(fmt: FormatData, on: date) -> bool:
 
 
 def _games_day_policy(settings: Settings, fmt: FormatData, big: frozenset[str], on: date) -> DayPolicy:
-    knockout_stages = {m.stage for m in fmt.knockout if m.date[:10] == on.isoformat()}
+    knockout_games = [m for m in fmt.knockout if m.date[:10] == on.isoformat()]
+    knockout_stages = {m.stage for m in knockout_games}
     group_games = _group_games_on(fmt, on)
     playing = {m.home for m in group_games} | {m.away for m in group_games}
     big_playing = tuple(sorted(playing & big))
+    # Semis and final are exempt: their single game is the whole stake.
+    single_knockout = (
+        len(knockout_games) + len(group_games) == 1 and not knockout_stages & {"sf", "final"}
+    )
 
     if knockout_stages & _LATE_STAGES:
         phase: Phase = "qf_final"
         ceiling = settings.agent_ceiling_qf_final_usd
+        if single_knockout:
+            ceiling -= settings.agent_ceiling_single_game_discount_usd
     elif knockout_stages:
         phase = "r32_r16"
         ceiling = settings.agent_ceiling_r32_r16_usd
+        if single_knockout:
+            ceiling -= settings.agent_ceiling_single_game_discount_usd
     elif not group_games:
         phase = "rest"
         ceiling = settings.agent_ceiling_rest_usd
@@ -73,7 +82,7 @@ def _games_day_policy(settings: Settings, fmt: FormatData, big: frozenset[str], 
     else:
         phase = "group"
         ceiling = settings.agent_ceiling_group_usd
-    capped = min(ceiling, settings.agent_run_ceiling_max_usd)
+    capped = min(max(ceiling, settings.agent_ceiling_rest_usd), settings.agent_run_ceiling_max_usd)
     return DayPolicy(on, phase, round(capped, 2), big_playing)
 
 

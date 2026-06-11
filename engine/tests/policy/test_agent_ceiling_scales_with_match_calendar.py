@@ -56,6 +56,15 @@ def test_phase_ceilings_follow_the_settings_table() -> None:
     assert day_policy(SETTINGS, FMT, on=date(2026, 7, 17)).ceiling_usd == SETTINGS.agent_ceiling_rest_usd
 
 
+def test_single_game_knockout_days_are_discounted_except_semis_and_final() -> None:
+    quarter = day_policy(SETTINGS, FMT, on=date(2026, 7, 10)).ceiling_usd
+    semi = day_policy(SETTINGS, FMT, on=date(2026, 7, 15)).ceiling_usd
+    final = day_policy(SETTINGS, FMT, on=date(2026, 7, 19)).ceiling_usd
+
+    assert quarter == SETTINGS.agent_ceiling_qf_final_usd - SETTINGS.agent_ceiling_single_game_discount_usd
+    assert semi == final == SETTINGS.agent_ceiling_qf_final_usd
+
+
 def test_ceiling_clamps_to_the_absolute_max() -> None:
     greedy = SETTINGS.model_copy(update={"agent_ceiling_qf_final_usd": 50.0})
 
