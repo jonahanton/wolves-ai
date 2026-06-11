@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from wolves.clients.odds.team_names import team_id_for_name
@@ -97,13 +97,34 @@ def _group_match(fmt: FormatData, home_id: str, away_id: str) -> GroupMatch | No
     return by_pair.get((home_id, away_id)) or by_pair.get((away_id, home_id))
 
 
+# Schedule host regions vs provider stadium municipalities; used only by the rescheduled-kickoff fallback.
+_PROVIDER_CITY_ALIASES = {
+    "east rutherford": "new york/new jersey",
+    "new jersey": "new york/new jersey",
+    "new york": "new york/new jersey",
+    "santa clara": "san francisco bay area",
+    "san francisco": "san francisco bay area",
+    "inglewood": "los angeles",
+    "arlington": "dallas",
+    "foxborough": "boston",
+    "foxboro": "boston",
+    "guadalupe": "monterrey",
+    "miami gardens": "miami",
+    "zapopan": "guadalajara",
+}
+
+
 def _knockout_match(fmt: FormatData, fixture: MatchFixture) -> KnockoutMatch | None:
-    kickoff_date = fixture.kickoff.astimezone(UTC).date().isoformat()
-    candidates = [m for m in fmt.knockout if m.date[:10] == kickoff_date]
+    kickoff = fixture.kickoff.astimezone(UTC)
+    exact = [m for m in fmt.knockout if datetime.fromisoformat(m.date) == kickoff]
+    if len(exact) == 1:
+        return exact[0]
+    candidates = [m for m in fmt.knockout if m.date[:10] == kickoff.date().isoformat()]
     if len(candidates) == 1:
         return candidates[0]
     if fixture.city:
         city = fixture.city.casefold()
+        city = _PROVIDER_CITY_ALIASES.get(city, city)
         narrowed = [m for m in candidates if city in m.city.casefold() or m.city.casefold() in city]
         if len(narrowed) == 1:
             return narrowed[0]

@@ -100,9 +100,9 @@ def test_knockout_draw_without_a_winner_flag_is_skipped(fmt):
     assert results_from_fixtures(fmt, [fixture]) == {}
 
 
-def test_knockout_on_a_shared_date_without_a_city_is_skipped(fmt):
+def test_knockout_with_an_unrecognised_kickoff_and_no_city_is_skipped(fmt):
     fixture = _fixture(
-        kickoff=datetime.fromisoformat("2026-06-30T17:00:00-04:00"),
+        kickoff=datetime.fromisoformat("2026-06-30T17:30:00-04:00"),
         home="England",
         away="France",
         home_goals=2,
@@ -111,3 +111,29 @@ def test_knockout_on_a_shared_date_without_a_city_is_skipped(fmt):
     )
 
     assert results_from_fixtures(fmt, [fixture]) == {}
+
+
+def test_knockout_resolves_by_exact_kickoff_despite_a_municipal_venue_city(fmt):
+    fixture = _fixture(
+        kickoff=datetime.fromisoformat("2026-06-30T17:00:00-04:00"),
+        home="England",
+        away="France",
+        home_goals=2,
+        away_goals=1,
+        city="East Rutherford",
+    )
+
+    assert set(results_from_fixtures(fmt, [fixture])) == {77}
+
+
+def test_rescheduled_knockout_kickoff_falls_back_to_the_city_alias(fmt):
+    fixture = _fixture(
+        kickoff=datetime.fromisoformat("2026-06-30T18:30:00-04:00"),
+        home="England",
+        away="France",
+        home_goals=2,
+        away_goals=1,
+        city="East Rutherford",
+    )
+
+    assert set(results_from_fixtures(fmt, [fixture])) == {77}
