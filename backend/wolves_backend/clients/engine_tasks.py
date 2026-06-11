@@ -17,6 +17,7 @@ class EngineTasks:
         *,
         cluster_arn: str,
         task_definition: str,
+        archive_task_definition: str = "",
         subnets: list[str],
         security_group: str,
         region: str,
@@ -24,6 +25,7 @@ class EngineTasks:
     ) -> None:
         self._cluster_arn = cluster_arn
         self._task_definition = task_definition
+        self._families = [task_definition] + ([archive_task_definition] if archive_task_definition else [])
         self._subnets = subnets
         self._security_group = security_group
         self._client = client or boto3.client("ecs", region_name=region)
@@ -31,22 +33,22 @@ class EngineTasks:
     def run_now(self, *, command: list[str] | None = None, environment: dict[str, str] | None = None) -> str:
         """Launch one engine task and return its ARN."""
         overrides = _container_overrides(command=command, environment=environment)
+        kwargs: dict[str, Any] = {
+            "cluster": self._cluster_arn,
+            "taskDefinition": self._task_definition,
+            "launchType": "FARGATE",
+            "count": 1,
+            "networkConfiguration": {
+                "awsvpcConfiguration": {
+                    "subnets": self._subnets,
+                    "securityGroups": [self._security_group] if self._security_group else [],
+                    "assignPublicIp": "ENABLED",
+                }
+            },
+        }
+        if overrides:
+            kwargs["overrides"] = overrides
         try:
-            kwargs = {
-                "cluster": self._cluster_arn,
-                "taskDefinition": self._task_definition,
-                "launchType": "FARGATE",
-                "count": 1,
-                "networkConfiguration": {
-                    "awsvpcConfiguration": {
-                        "subnets": self._subnets,
-                        "securityGroups": [self._security_group] if self._security_group else [],
-                        "assignPublicIp": "ENABLED",
-                    }
-                },
-            }
-            if overrides:
-                kwargs["overrides"] = overrides
             result = self._client.run_task(**kwargs)
         except (ClientError, BotoCoreError) as exc:
             raise UpstreamError("ecs", str(exc)) from exc
@@ -61,10 +63,10 @@ class EngineTasks:
         """Return engine tasks not yet stopped; desiredStatus RUNNING also
         matches tasks still provisioning."""
         try:
-            listed = self._client.list_tasks(
-                cluster=self._cluster_arn, family=self._task_definition, desiredStatus="RUNNING"
-            )
-            arns = listed.get("taskArns") or []
+            arns: list[str] = []
+            for family in self._families:
+                listed = self._client.list_tasks(cluster=self._cluster_arn, family=family, desiredStatus="RUNNING")
+                arns.extend(listed.get("taskArns") or [])
             if not arns:
                 return []
             described = self._client.describe_tasks(cluster=self._cluster_arn, tasks=arns)

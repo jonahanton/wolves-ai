@@ -67,7 +67,7 @@ async def run_now(request: Request, deps: DepsDep, body: RunNowRequest | None = 
         else None
     )
     task_arn = await asyncio.to_thread(
-        lambda: deps.engine_tasks.run_now(command=RUN_COMMANDS[body.mode], environment=environment)
+        deps.engine_tasks.run_now, command=RUN_COMMANDS[body.mode], environment=environment
     )
     await _audit(
         deps,

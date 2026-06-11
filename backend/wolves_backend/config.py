@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     ecs_cluster_arn: str = ""
     ecs_task_definition: str = "wolves-engine-daily"
+    ecs_archive_task_definition: str = ""
     ecs_subnets: str = ""
     ecs_security_group: str = ""
 
