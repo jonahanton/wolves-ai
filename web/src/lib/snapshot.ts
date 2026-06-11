@@ -158,12 +158,21 @@ export interface ScenarioWeightOut {
   weight: number;
   scenario_id: string | null;
   ledger_ids: string[];
+  rationale?: string;
 }
 
 export interface WorldOut {
   name: string;
   weight: number;
   perturbations: Record<string, unknown>[];
+  title_probs?: Record<string, number>;
+}
+
+export interface QuantFindingOut {
+  node_id: string;
+  summary: string;
+  headline_value: number | null;
+  findings: string[];
 }
 
 export interface GovernorOut {
@@ -191,6 +200,7 @@ export interface AgentBlock {
   ledger_entries: LedgerEntryOut[];
   scenario_weights: ScenarioWeightOut[];
   worlds: WorldOut[];
+  quant_findings?: QuantFindingOut[];
   escalations: string[];
   market_justification: string;
   change_justification: string;

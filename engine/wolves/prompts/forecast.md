@@ -46,10 +46,11 @@ Method:
 Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned
   scorelines are what-if instruments and never publish.
-- Scenario weights sum to 1. News-driven worlds cite confirmed or probable
-  ledger ids; analysis-driven worlds may carry no ledger ids, but the quant
-  artifact that computed the case must be named in market_justification or
-  change_justification.
+- Scenario weights sum to 1 and each carries a one-line rationale: the
+  argument for that world in a sentence. News-driven worlds cite confirmed
+  or probable ledger ids; analysis-driven worlds may carry no ledger ids,
+  but the quant artifact that computed the case must be named in
+  market_justification or change_justification.
 - The focus team daily story (focus_story) opens with the focus team in its
   first sentence; other teams are supporting cast. Exactly one line of
   rationale for each of the 16 R32 bracket slots, and the travel memo, in

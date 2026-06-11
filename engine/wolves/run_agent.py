@@ -76,6 +76,7 @@ from wolves.snapshot import (
     LedgerEntryOut,
     MarketsBlock,
     NarrativeBlock,
+    QuantFindingOut,
     RunMeta,
     ScenarioWeightOut,
     Snapshot,
@@ -319,6 +320,32 @@ def _markets_block(deps: AgentDeps, outputs, market: dict[str, float]) -> Market
     )
 
 
+def _top_probs(probs: dict[str, float], *, limit: int = 8) -> dict[str, float]:
+    top = sorted(probs.items(), key=lambda kv: kv[1], reverse=True)[:limit]
+    return {team: round(p, 4) for team, p in top}
+
+
+def _quant_findings(deps: AgentDeps) -> list[QuantFindingOut]:
+    if deps.artifacts is None:
+        return []
+    findings: list[QuantFindingOut] = []
+    for record in deps.artifacts.all():
+        if record.kind != "quant":
+            continue
+        artifact = deps.artifacts.get(record.id)
+        if artifact is None:
+            continue
+        findings.append(
+            QuantFindingOut(
+                node_id=artifact.created_by,
+                summary=str(artifact.payload.get("summary", ""))[:300],
+                headline_value=artifact.payload.get("headline_value"),
+                findings=[str(f)[:300] for f in (artifact.payload.get("findings") or [])[:5]],
+            )
+        )
+    return findings
+
+
 def _build_snapshot(
     *,
     settings: Settings,
@@ -354,6 +381,7 @@ def _build_snapshot(
         logger.warning("run %s: governor active, publishing at d=%.2f", run_id, effective_d)
 
     attribution = _attribution_block(deps, outputs)
+    conditionals = artifact.payload.get("conditionals") or {}
     agent_block = AgentBlock(
         narrative=NarrativeBlock(**submission.narrative.model_dump()),
         artifact_id=submission.artifact_id,
@@ -367,9 +395,11 @@ def _build_snapshot(
                 name=w.name,
                 weight=w.weight,
                 perturbations=[pert.model_dump(mode="json") for pert in w.perturbations],
+                title_probs=_top_probs(conditionals.get(w.name) or {}),
             )
             for w in worlds
         ],
+        quant_findings=_quant_findings(deps),
         escalations=result.escalations or [],
         market_justification=submission.market_justification,
         change_justification=submission.change_justification,

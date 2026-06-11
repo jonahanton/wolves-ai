@@ -20,6 +20,7 @@ class ScenarioWeight(BaseModel):
     weight: float = Field(ge=0.0, le=1.0)
     scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
+    rationale: str = ""
 
 
 class ForecastSubmission(BaseModel):

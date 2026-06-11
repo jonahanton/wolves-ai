@@ -197,6 +197,8 @@ def _check_weights(submission: ForecastSubmission, ledger: EvidenceLedger) -> li
         if not 0.99 <= total <= 1.01:
             issues.append(_issue("weights_incoherent", f"scenario weights sum to {total:.3f}, not 1"))
     for weight in submission.scenario_weights:
+        if not weight.rationale.strip():
+            issues.append(_issue("weight_unargued", f"scenario weight {weight.name!r} needs a one-line rationale"))
         for ledger_id in weight.ledger_ids:
             entry = ledger.get(ledger_id)
             if entry is None:

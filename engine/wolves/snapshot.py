@@ -165,6 +165,7 @@ class ScenarioWeightOut(BaseModel):
     weight: float
     scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
+    rationale: str = ""
 
 
 class WorldOut(BaseModel):
@@ -174,6 +175,16 @@ class WorldOut(BaseModel):
     name: str
     weight: float
     perturbations: list[dict] = Field(default_factory=list)
+    title_probs: dict[str, float] = Field(default_factory=dict)
+
+
+class QuantFindingOut(BaseModel):
+    """One quant node's headline, surfaced so the run page can show the analysis."""
+
+    node_id: str
+    summary: str
+    headline_value: float | None = None
+    findings: list[str] = Field(default_factory=list)
 
 
 class GovernorOut(BaseModel):
@@ -203,6 +214,7 @@ class AgentBlock(BaseModel):
     ledger_entries: list[LedgerEntryOut] = Field(default_factory=list)
     scenario_weights: list[ScenarioWeightOut] = Field(default_factory=list)
     worlds: list[WorldOut] = Field(default_factory=list)
+    quant_findings: list[QuantFindingOut] = Field(default_factory=list)
     escalations: list[str] = Field(default_factory=list)
     market_justification: str = ""
     change_justification: str = ""
