@@ -19,6 +19,9 @@ from wolves_backend.main import create_app
 from wolves_backend.snapshots import SnapshotSource
 from wolves_backend.storage import Storage
 
+ADMIN_TOKEN = "test-admin-token"
+ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
+
 
 class FakeBody:
     def __init__(self, content: str) -> None:
@@ -83,11 +86,19 @@ class FakeSchedulerClient:
 
 
 class FakeEcsClient:
-    def __init__(self, *, task_arn: str | None = None, failure_reason: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        task_arn: str | None = None,
+        failure_reason: str | None = None,
+        active_tasks: list[dict[str, Any]] | None = None,
+    ) -> None:
         self.task_arn = task_arn
         self.failure_reason = failure_reason
+        self.active_tasks = active_tasks or []
         self.run_calls: list[dict[str, Any]] = []
         self.stop_calls: list[dict[str, Any]] = []
+        self.list_calls: list[dict[str, Any]] = []
 
     def run_task(self, **kwargs: Any) -> dict[str, Any]:
         self.run_calls.append(kwargs)
@@ -98,6 +109,13 @@ class FakeEcsClient:
     def stop_task(self, **kwargs: Any) -> None:
         self.stop_calls.append(kwargs)
 
+    def list_tasks(self, **kwargs: Any) -> dict[str, Any]:
+        self.list_calls.append(kwargs)
+        return {"taskArns": [task["taskArn"] for task in self.active_tasks]}
+
+    def describe_tasks(self, **kwargs: Any) -> dict[str, Any]:
+        return {"tasks": [dict(task) for task in self.active_tasks]}
+
 
 def build_test_app(
     *,
@@ -107,12 +125,12 @@ def build_test_app(
     scheduler: FakeSchedulerClient | None = None,
     ecs: FakeEcsClient | None = None,
     environment: str = "local",
-    admin_dev_bypass: bool = False,
+    admin_token: str = ADMIN_TOKEN,
 ) -> Any:
     settings = Settings(
         _env_file=None,
         environment=environment,
-        admin_dev_bypass=admin_dev_bypass,
+        admin_token=admin_token,
         bucket="test-bucket" if s3 is not None else "",
         storage_dir=storage_dir or Path("/nonexistent"),
         ecs_subnets="subnet-1,subnet-2",
@@ -140,5 +158,5 @@ def build_test_app(
     return create_app(settings, deps=deps)
 
 
-def client_for(app: Any) -> httpx.AsyncClient:
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+def client_for(app: Any, *, headers: dict[str, str] | None = None) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers=headers)

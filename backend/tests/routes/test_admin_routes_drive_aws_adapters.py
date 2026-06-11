@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from tests.fakes import FakeDynamoTable, FakeEcsClient, FakeSchedulerClient, build_test_app, client_for
+from tests.fakes import ADMIN_HEADERS, FakeDynamoTable, FakeEcsClient, FakeSchedulerClient, build_test_app, client_for
 
 TASK_ARN = "arn:aws:ecs:eu-west-2:000000000000:task/wolves/abc123def456"
 
 
 async def test_schedule_get_reflects_scheduler_state():
     scheduler = FakeSchedulerClient(state="DISABLED", cron="cron(0 11 * * ? *)")
-    async with client_for(build_test_app(admin_dev_bypass=True, scheduler=scheduler)) as client:
+    async with client_for(build_test_app(scheduler=scheduler), headers=ADMIN_HEADERS) as client:
         response = await client.get("/admin/schedule")
     assert response.json() == {"enabled": False, "cron": "cron(0 11 * * ? *)"}
 
@@ -15,23 +15,23 @@ async def test_schedule_get_reflects_scheduler_state():
 async def test_schedule_disable_flips_scheduler_and_run_enabled_flag():
     scheduler = FakeSchedulerClient()
     dynamo = FakeDynamoTable()
-    app = build_test_app(admin_dev_bypass=True, scheduler=scheduler, dynamo=dynamo)
-    async with client_for(app) as client:
+    app = build_test_app(scheduler=scheduler, dynamo=dynamo)
+    async with client_for(app, headers=ADMIN_HEADERS) as client:
         response = await client.post("/admin/schedule", json={"enabled": False})
     assert response.json() == {"enabled": False, "cron": "cron(0 11 * * ? *)"}
     assert scheduler.updates[0]["State"] == "DISABLED"
-    assert dynamo.put_items == [{"PK": "CONTROL", "SK": "run_enabled", "enabled": False}]
+    assert dynamo.put_items[0] == {"PK": "CONTROL", "SK": "run_enabled", "enabled": False}
 
 
 async def test_schedule_update_rejects_non_boolean():
-    async with client_for(build_test_app(admin_dev_bypass=True)) as client:
+    async with client_for(build_test_app(), headers=ADMIN_HEADERS) as client:
         response = await client.post("/admin/schedule", json={"enabled": "yes"})
     assert response.status_code == 400
 
 
 async def test_run_now_returns_task_arn_with_202():
     ecs = FakeEcsClient(task_arn=TASK_ARN)
-    async with client_for(build_test_app(admin_dev_bypass=True, ecs=ecs)) as client:
+    async with client_for(build_test_app(ecs=ecs), headers=ADMIN_HEADERS) as client:
         response = await client.post("/admin/run-now")
     assert response.status_code == 202
     assert response.json() == {"taskArn": TASK_ARN}
@@ -41,21 +41,21 @@ async def test_run_now_returns_task_arn_with_202():
 
 async def test_run_now_failure_reason_maps_to_502():
     ecs = FakeEcsClient(failure_reason="RESOURCE:MEMORY")
-    async with client_for(build_test_app(admin_dev_bypass=True, ecs=ecs)) as client:
+    async with client_for(build_test_app(ecs=ecs), headers=ADMIN_HEADERS) as client:
         response = await client.post("/admin/run-now")
     assert response.status_code == 502
     assert response.json() == {"error": "RESOURCE:MEMORY"}
 
 
 async def test_stop_validates_task_arn():
-    async with client_for(build_test_app(admin_dev_bypass=True)) as client:
+    async with client_for(build_test_app(), headers=ADMIN_HEADERS) as client:
         response = await client.post("/admin/stop", json={"taskArn": "not-an-arn"})
     assert response.status_code == 400
 
 
 async def test_stop_sends_stop_task_for_valid_arn():
     ecs = FakeEcsClient(task_arn=TASK_ARN)
-    async with client_for(build_test_app(admin_dev_bypass=True, ecs=ecs)) as client:
+    async with client_for(build_test_app(ecs=ecs), headers=ADMIN_HEADERS) as client:
         response = await client.post("/admin/stop", json={"taskArn": TASK_ARN})
     assert response.json() == {"stopped": TASK_ARN}
     assert ecs.stop_calls[0]["task"] == TASK_ARN

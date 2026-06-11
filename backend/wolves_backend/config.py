@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     ecs_subnets: str = ""
     ecs_security_group: str = ""
 
-    admin_dev_bypass: bool = False
+    admin_token: str = ""
     run_history_limit: int = 50
 
     @property
