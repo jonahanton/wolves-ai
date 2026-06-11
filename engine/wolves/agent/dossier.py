@@ -30,7 +30,7 @@ def build_dossier(deps: AgentDeps) -> str:
         except Exception as exc:
             logger.warning("dossier baseline skipped: %s", exc)
     sections: list[str] = []
-    for build in (_what_changed, _baseline, _gaps, _movement, _matchday, _scenarios, _ledger, _calibration):
+    for build in (_what_changed, _baseline, _gaps, _published, _movement, _matchday, _scenarios, _ledger, _calibration):
         try:
             section = build(deps, titles)
         except Exception as exc:
@@ -145,11 +145,35 @@ def _gaps(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     table = market_gaps(deps.forecaster, deps.settings.runs_root / "odds-archive", n_sims=_DOSSIER_SIMS, seed=0)
     priced = [c for c in table.gaps if c.market_p_title is not None][:8]
     rows = "; ".join(
-        f"{c.team}: model {c.model_p_title * 100:.1f} vs market {c.market_p_title * 100:.1f} ({c.gap_pp:+.1f}pp)"
+        f"{c.team}: model {c.model_p_title * 100:.1f} vs market {c.market_p_title * 100:.1f} ({c.gap_pp:+.1f}pp"
+        + (f", blend {c.blend_p_title * 100:.1f}" if c.blend_p_title is not None else "")
+        + ")"
         for c in priced
     )
     freshness = _price_freshness(table.prices_updated_oldest, table.prices_updated_newest)
-    return f"Model vs market, largest gaps: {rows}.{freshness}" if rows else ""
+    if not rows:
+        return ""
+    return (
+        f"Model vs market, largest gaps: {rows}. The published number blends the submitted mixture with the "
+        f"de-vigged market at model weight {table.model_weight:.2f}; the graph owns the model leg only."
+        f"{freshness}"
+    )
+
+
+def _published(deps: AgentDeps, titles: dict[str, float] | None) -> str:
+    from wolves.insights.what_changed import load_latest_snapshot
+
+    if not deps.as_of:
+        return ""
+    previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=date.fromisoformat(deps.as_of))
+    if previous is None:
+        return ""
+    top = sorted(previous.teams, key=lambda t: t.champion_prob, reverse=True)[:_TOP_TEAMS]
+    rows = ", ".join(f"{t.team_id} {t.champion_prob * 100:.1f}" for t in top)
+    return (
+        f"Yesterday's published forecast ({previous.run.run_id}, {previous.run.kind}): {rows}. "
+        "This is the anchor your run moves from; unexplained drift against it is rejected at submission."
+    )
 
 
 def _movement(deps: AgentDeps, titles: dict[str, float] | None) -> str:

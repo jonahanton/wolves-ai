@@ -48,6 +48,8 @@ from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
 from wolves.llm.anthropic import build_llm
 from wolves.llm.client import LLMClient
 from wolves.llm.observed import ObservedLLM
+from wolves.markets.blend import blend_probabilities
+from wolves.markets.outright import outright_consensus
 from wolves.observability import (
     Caps,
     InMemoryTracer,
@@ -70,6 +72,7 @@ from wolves.snapshot import (
     CalibrationSummary,
     GovernorOut,
     LedgerEntryOut,
+    MarketsBlock,
     NarrativeBlock,
     RunMeta,
     ScenarioWeightOut,
@@ -299,6 +302,19 @@ async def _publish_fallback(
         logger.error("deterministic fallback publish failed", exc_info=True)
 
 
+def _markets_block(deps: AgentDeps, outputs, market: dict[str, float]) -> MarketsBlock | None:
+    if not market or deps.forecaster is None:
+        return None
+    model_probs = {t.team_id: t.champion_prob for t in outputs.teams}
+    weight = deps.forecaster.champion.blend_weight
+    return MarketsBlock(
+        model_probs={k: round(v, 4) for k, v in model_probs.items()},
+        market_probs={k: round(v, 4) for k, v in market.items()},
+        blend_probs={k: round(v, 4) for k, v in blend_probabilities(model_probs, market, model_weight=weight).items()},
+        model_weight=weight,
+    )
+
+
 def _build_snapshot(
     *,
     settings: Settings,
@@ -307,6 +323,7 @@ def _build_snapshot(
     run_id: str,
     n_sims: int,
     seed: int,
+    market: dict[str, float],
 ) -> Snapshot | None:
     submission = result.submission
     assert submission is not None
@@ -371,6 +388,7 @@ def _build_snapshot(
         teams=outputs.teams,
         groups=outputs.groups,
         matches=outputs.matches,
+        markets=_markets_block(deps, outputs, market),
         agent=agent_block,
     )
 
@@ -424,7 +442,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         ceiling = args.ceiling if args.ceiling is not None else settings.agent_run_ceiling_usd
         # The dollar ceiling is the budget; the call cap is only a runaway
         # backstop, sized so cheap-tier nodes cannot exhaust it first.
-        caps = Caps(max_cost_micros=int(ceiling * 1_000_000), max_llm_calls=160)
+        caps = Caps(max_cost_micros=int(ceiling * 1_000_000), max_llm_calls=240, max_quant_executions=40)
         tracer = build_logfire_tracer(settings) if settings.logfire_token else InMemoryTracer()
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
         llm: LLMClient = build_llm(settings, model=settings.worker_model)
@@ -510,8 +528,16 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             },
         )
     deps.artifacts = store
+    market: dict[str, float] = {}
     try:
         result = await run_graph(deps, as_of=as_of, models=models)
+        if result.submission is not None and deps.forecaster is not None:
+            # Fetched before the clients close: the published number ensembles
+            # the agent's mixture with the de-vigged market, like the daily run.
+            try:
+                market = await outright_consensus(settings, deps.forecaster.fmt, odds=odds, polymarket=polymarket)
+            except Exception:
+                logger.warning("markets fetch failed; agent snapshot publishes without the blend", exc_info=True)
     except Exception:
         publisher.record_failure(
             run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
@@ -555,6 +581,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         run_id=run_id,
         n_sims=args.sims,
         seed=args.seed,
+        market=market,
     )
     runtime.shutdown()
     if snapshot is not None:
