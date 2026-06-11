@@ -11,13 +11,13 @@ variable "region" {
 }
 
 variable "github_repo" {
-  description = "GitHub owner/name trusted by the release OIDC role."
+  description = "GitHub owner/name trusted by the OIDC roles."
   type        = string
   default     = "jonahanton/wolves-ai"
 }
 
 variable "schedule_state" {
-  description = "Kill switch for the daily run schedule."
+  description = "Creation-time schedule state only; runtime flips go through the backend admin API."
   type        = string
   default     = "ENABLED"
 
@@ -28,7 +28,7 @@ variable "schedule_state" {
 }
 
 variable "schedule_cron" {
-  description = "Daily run cron, UTC."
+  description = "Creation-time daily run cron (UTC) only; runtime edits go through the backend admin API."
   type        = string
   default     = "cron(0 11 * * ? *)"
 }
@@ -95,7 +95,7 @@ variable "log_retention_days" {
 }
 
 variable "bucket" {
-  description = "Artifact bucket the production stack reads and writes"
+  description = "Artifact bucket the production stack reads and writes."
   type        = string
   default     = "wolves-superforecaster-prod"
 }

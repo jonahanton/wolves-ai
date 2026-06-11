@@ -12,7 +12,7 @@ output "dynamo_table" {
 }
 
 output "schedule_name" {
-  value = aws_scheduler_schedule.daily_run.name
+  value = module.scheduler.schedule_name
 }
 
 output "ecs_cluster_arn" {
@@ -20,7 +20,7 @@ output "ecs_cluster_arn" {
 }
 
 output "ecs_task_definition_family" {
-  value = aws_ecs_task_definition.daily.family
+  value = module.engine.task_definition_family
 }
 
 output "ecs_subnets" {
@@ -28,25 +28,29 @@ output "ecs_subnets" {
 }
 
 output "ecs_security_group" {
-  value = aws_security_group.engine.id
+  value = module.engine.security_group_id
 }
 
 output "ecr_repository_url" {
-  value = aws_ecr_repository.engine.repository_url
+  value = module.engine.ecr_repository_url
 }
 
 output "backend_ecr_repository_url" {
-  value = aws_ecr_repository.backend.repository_url
+  value = module.backend_api.ecr_repository_url
 }
 
 output "backend_service_name" {
-  value = aws_ecs_service.backend.name
+  value = module.backend_api.service_name
 }
 
 output "github_release_role_arn" {
-  value = aws_iam_role.github_release.arn
+  value = module.release_oidc.release_role_arn
+}
+
+output "github_ops_role_arn" {
+  value = module.release_oidc.ops_role_arn
 }
 
 output "alerts_topic_arn" {
-  value = aws_sns_topic.alerts.arn
+  value = module.alerting.alerts_topic_arn
 }

@@ -17,12 +17,12 @@ resource "aws_iam_role" "scheduler" {
 data "aws_iam_policy_document" "scheduler_run_task" {
   statement {
     actions   = ["ecs:RunTask"]
-    resources = ["arn:aws:ecs:${var.region}:${data.aws_caller_identity.current.account_id}:task-definition/${aws_ecs_task_definition.daily.family}:*"]
+    resources = ["arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.task_definition_family}:*"]
   }
 
   statement {
     actions   = ["iam:PassRole"]
-    resources = [aws_iam_role.task_execution.arn, aws_iam_role.task.arn]
+    resources = [var.task_execution_role_arn, var.task_role_arn]
 
     condition {
       test     = "StringEquals"
@@ -40,27 +40,33 @@ resource "aws_iam_role_policy" "scheduler_run_task" {
 
 resource "aws_scheduler_schedule" "daily_run" {
   name  = "${var.project}-daily-run"
-  state = var.schedule_state
+  state = var.initial_state
 
-  schedule_expression = var.schedule_cron
+  schedule_expression = var.initial_cron
+
+  # The backend admin API owns cron and state at runtime via UpdateSchedule;
+  # applies must not stomp those edits.
+  lifecycle {
+    ignore_changes = [schedule_expression, state]
+  }
 
   flexible_time_window {
     mode = "OFF"
   }
 
   target {
-    arn      = aws_ecs_cluster.this.arn
+    arn      = var.cluster_arn
     role_arn = aws_iam_role.scheduler.arn
 
     ecs_parameters {
       # Revisionless ARN so each release's freshly registered task definition
       # is picked up without touching the schedule.
-      task_definition_arn = replace(aws_ecs_task_definition.daily.arn, "/:\\d+$/", "")
+      task_definition_arn = replace(var.task_definition_arn, "/:\\d+$/", "")
       launch_type         = "FARGATE"
 
       network_configuration {
-        subnets          = data.aws_subnets.default.ids
-        security_groups  = [aws_security_group.engine.id]
+        subnets          = var.subnets
+        security_groups  = [var.security_group_id]
         assign_public_ip = true
       }
     }

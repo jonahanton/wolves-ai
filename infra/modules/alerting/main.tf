@@ -12,6 +12,22 @@ data "aws_iam_policy_document" "alerts_topic" {
       identifiers = ["budgets.amazonaws.com"]
     }
   }
+
+  statement {
+    actions   = ["SNS:Publish"]
+    resources = [aws_sns_topic.alerts.arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+
+    condition {
+      test     = "ArnEquals"
+      variable = "aws:SourceArn"
+      values   = [aws_cloudwatch_event_rule.engine_task_failed.arn]
+    }
+  }
 }
 
 resource "aws_sns_topic_policy" "alerts" {
@@ -25,6 +41,39 @@ resource "aws_sns_topic_subscription" "alerts_email" {
   topic_arn = aws_sns_topic.alerts.arn
   protocol  = "email"
   endpoint  = var.alert_email
+}
+
+resource "aws_cloudwatch_event_rule" "engine_task_failed" {
+  name        = "${var.project}-engine-task-failed"
+  description = "Engine task stopped with a non-zero exit or failed to start"
+
+  event_pattern = jsonencode({
+    source      = ["aws.ecs"]
+    detail-type = ["ECS Task State Change"]
+    detail = {
+      clusterArn        = [var.cluster_arn]
+      lastStatus        = ["STOPPED"]
+      taskDefinitionArn = [{ prefix = "arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.engine_task_definition_family}" }]
+      "$or" = [
+        { containers = { exitCode = [{ anything-but = [0] }] } },
+        { stopCode = ["TaskFailedToStart"] },
+      ]
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "engine_task_failed_sns" {
+  rule = aws_cloudwatch_event_rule.engine_task_failed.name
+  arn  = aws_sns_topic.alerts.arn
+
+  input_transformer {
+    input_paths = {
+      stopCode      = "$.detail.stopCode"
+      stoppedReason = "$.detail.stoppedReason"
+      taskArn       = "$.detail.taskArn"
+    }
+    input_template = "\"Engine task failed: <stopCode>. Reason: <stoppedReason>. Task: <taskArn>\""
+  }
 }
 
 resource "aws_budgets_budget" "monthly" {
@@ -81,7 +130,7 @@ resource "aws_iam_role" "budget_action" {
 data "aws_iam_policy_document" "budget_action" {
   statement {
     actions   = ["iam:AttachRolePolicy", "iam:DetachRolePolicy"]
-    resources = [aws_iam_role.scheduler.arn]
+    resources = [var.scheduler_role_arn]
   }
 
   statement {
@@ -111,7 +160,7 @@ resource "aws_budgets_budget_action" "kill_switch" {
   definition {
     iam_action_definition {
       policy_arn = aws_iam_policy.deny_run_task.arn
-      roles      = [aws_iam_role.scheduler.name]
+      roles      = [var.scheduler_role_name]
     }
   }
 
