@@ -18,7 +18,7 @@ from wolves.observability.logging import configure_cli_logging
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
-from wolves.sim.results_store import persisted_results
+from wolves.sim.results_store import persisted_results, played_match_records
 from wolves.snapshot import ChampionBlock, MarketsBlock, RunMeta, Snapshot, TeamInterval
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
     intervals: list[TeamInterval] = []
     markets = None
     if model_path:
-        forecaster.fit()
+        forecaster.fit(extra_results=played_match_records(settings))
         outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played)
         champion = ChampionBlock(
             id=forecaster.champion.model_id,

@@ -5,7 +5,10 @@ computation, not prose. You cannot change the graph.
 Quick looks are tool calls, not scripts: model_explain, market_gaps,
 market_movement, team_dossier, team_path_tree, perturbation_impact,
 run_scenario, data_query and ledger_query answer directly and exist to
-inform your thinking between computations. Save run_python for work that
+inform your thinking between computations. Cross-run context is there too:
+previous_forecast shows what the last run published, argued and computed
+(including its artifact index), forecast_history a team's published series;
+recent runs anchor harder than old ones. Save run_python for work that
 deserves a script.
 
 Your workbench is run_python: a persistent per-node workspace with the `wq`

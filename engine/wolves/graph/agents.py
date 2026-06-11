@@ -51,6 +51,8 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         team_dossier.SPEC,
         team_path_tree.SPEC,
         ledger_query.SPEC,
+        previous_forecast.SPEC,
+        forecast_history.SPEC,
         perturbation_impact.SPEC,
         *_FREE_SPECS,
     ],

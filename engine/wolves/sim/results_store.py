@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from wolves.config import Settings
+    from wolves.data.contracts import MatchRecord
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,36 @@ class ResultsStore:
 def persisted_results(settings: Settings) -> dict[int, PlayedResult]:
     """Hydrate and read the persisted results, keyed by match number."""
     return ResultsStore(ArtifactStore(settings)).load().results
+
+
+_HOSTS = frozenset({"usa", "mexico", "canada"})
+_WC_IMPORTANCE = 4.0
+
+
+def played_match_records(settings: Settings) -> list[MatchRecord]:
+    """Finished tournament fixtures as dataset-overlay records, so the
+    strength refit sees last night's games, not just the bracket."""
+    from wolves.data.contracts import MatchRecord
+    from wolves.data.teams import canonical_team_key
+
+    records = []
+    for fixture in stored_fixtures(settings):
+        if fixture.status != "finished" or fixture.home_goals is None or fixture.away_goals is None:
+            continue
+        home = canonical_team_key(fixture.home)
+        records.append(
+            MatchRecord(
+                date=fixture.kickoff.date(),
+                home_team=home,
+                away_team=canonical_team_key(fixture.away),
+                home_goals=fixture.home_goals,
+                away_goals=fixture.away_goals,
+                tournament="FIFA World Cup",
+                importance=_WC_IMPORTANCE,
+                neutral=home not in _HOSTS,
+            )
+        )
+    return records
 
 
 def stored_fixtures(settings: Settings) -> list[MatchFixture]:

@@ -65,7 +65,7 @@ from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
 from wolves.s3.layout import RELEVANCE_FEEDBACK, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
-from wolves.sim.results_store import persisted_results, stored_fixtures
+from wolves.sim.results_store import persisted_results, played_match_records, stored_fixtures
 from wolves.snapshot import (
     AgentBlock,
     AttributionOut,
@@ -234,7 +234,9 @@ def _build_deps(
     forecaster: Forecaster | None = None
     try:
         forecaster = Forecaster(settings)
-        forecaster.fit(as_of=date.fromisoformat(as_of))
+        # The refit channel: fitted strengths see last night's games, not
+        # just the bracket overlay the simulations get.
+        forecaster.fit(as_of=date.fromisoformat(as_of), extra_results=played_match_records(settings))
     except Exception as exc:
         forecaster = None
         logger.warning("run continues without a fitted forecaster: %s", exc)
