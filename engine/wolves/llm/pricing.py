@@ -42,13 +42,18 @@ def _prices(model: str) -> TokenPrices:
 def cost_micros(model: str, usage: dict[str, int]) -> int:
     """Estimate cost in micro-dollars from raw token usage.
 
-    Anthropic's ``input_tokens`` excludes cache tokens, so the four token
-    classes are billed independently and summed."""
+    The ``input`` count follows genai-prices semantics and INCLUDES cached
+    tokens, so the cache classes are subtracted before billing the uncached
+    remainder at the base rate; billing all four independently double-counted
+    every cached token and exhausted run budgets on paper."""
     prices = _prices(model)
+    cache_write = int(usage.get("cache_write", 0))
+    cache_read = int(usage.get("cache_read", 0))
+    uncached_input = max(0, int(usage.get("input", 0)) - cache_write - cache_read)
     total = (
-        int(usage.get("input", 0)) * prices.input
+        uncached_input * prices.input
         + int(usage.get("output", 0)) * prices.output
-        + int(usage.get("cache_write", 0)) * prices.cache_write
-        + int(usage.get("cache_read", 0)) * prices.cache_read
+        + cache_write * prices.cache_write
+        + cache_read * prices.cache_read
     )
     return ceil(total)

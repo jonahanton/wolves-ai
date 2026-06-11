@@ -10,11 +10,15 @@ from wolves.llm.client import LLMClient, LLMResponse, ToolTurn, ToolUseBlock
 
 
 def _usage_counts(usage: Any) -> dict[str, int]:
+    cache_write = int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
+    cache_read = int(getattr(usage, "cache_read_input_tokens", 0) or 0)
     return {
-        "input": int(getattr(usage, "input_tokens", 0) or 0),
+        # The raw API's input_tokens excludes cache tokens; pricing follows the
+        # genai-prices convention where input includes them, so fold them in here.
+        "input": int(getattr(usage, "input_tokens", 0) or 0) + cache_write + cache_read,
         "output": int(getattr(usage, "output_tokens", 0) or 0),
-        "cache_write": int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
-        "cache_read": int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        "cache_write": cache_write,
+        "cache_read": cache_read,
     }
 
 
