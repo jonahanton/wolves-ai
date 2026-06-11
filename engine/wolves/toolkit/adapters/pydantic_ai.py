@@ -20,6 +20,19 @@ async def _default_after_result(spec: ToolSpec, args: Any, ctx: RunContext[Any],
     return result.model_dump_json()
 
 
+def _emit_tool_call(deps: Any, tool: str, result: ToolResult) -> None:
+    """One uniform event per tool call, whatever the tool: the usage census
+    the run audits come from."""
+    runtime = getattr(deps, "runtime", None)
+    actor = getattr(deps, "actor", "unknown")
+    if runtime is None:
+        return
+    message = f"{tool} {'ok' if result.ok else 'error'}"
+    if not result.ok and result.error is not None:
+        message += f": {result.error.message[:80]}"
+    runtime.emit("tool_call", actor, message, tool=tool, ok=result.ok)
+
+
 def build_toolset(
     specs: list[ToolSpec],
     *,
@@ -63,6 +76,7 @@ def _build_tool(
             result = ToolResult(
                 ok=False, payload=None, error=ToolError(type=type(exc).__name__, message=str(exc)[:500])
             )
+        _emit_tool_call(ctx.deps, spec.name, result)
         return await after_result(spec, args, ctx, result)
 
     tool = Tool.from_schema(
