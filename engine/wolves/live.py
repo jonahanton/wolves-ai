@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -22,7 +22,7 @@ from wolves.clients.api_football import (
 )
 from wolves.config import Settings
 from wolves.forecast import Forecaster
-from wolves.live_state import LiveStateStore, build_live_state
+from wolves.live_state import LiveState, LiveStateStore, build_live_state
 from wolves.observability.logging import configure_cli_logging
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
@@ -192,9 +192,24 @@ def build_fixtures_client(settings: Settings) -> FixturesClient:
     return FakeFixturesClient()
 
 
+def near_kickoff(state: LiveState | None, *, now: datetime, horizon: timedelta) -> bool:
+    """True when a fixture is live or kicks off within the horizon (either side,
+    so delayed kickoffs keep the fast cadence)."""
+    if state is None:
+        return False
+    for fixture in state.fixtures:
+        if fixture.status == "live":
+            return True
+        if fixture.status == "scheduled" and abs(datetime.fromisoformat(fixture.kickoff) - now) <= horizon:
+            return True
+    return False
+
+
 async def _run(args: argparse.Namespace, settings: Settings) -> None:
     fixtures = build_fixtures_client(settings)
     forecaster = Forecaster(settings)
+    states = LiveStateStore(ArtifactStore(settings))
+    grace = timedelta(hours=settings.live_idle_grace_hours)
     try:
         while True:
             try:
@@ -212,7 +227,13 @@ async def _run(args: argparse.Namespace, settings: Settings) -> None:
             if published:
                 # A publish means a result landed; refit next pass or the loop's ratings drift.
                 forecaster = Forecaster(settings)
-            await asyncio.sleep(args.interval)
+            now = datetime.now(UTC)
+            state = states.load()
+            if args.until_idle and not near_kickoff(state, now=now, horizon=grace):
+                logger.info("no live fixture and no kickoff within %.1fh; exiting", settings.live_idle_grace_hours)
+                return
+            fast = near_kickoff(state, now=now, horizon=timedelta(hours=1))
+            await asyncio.sleep(args.interval if fast else max(args.interval, settings.live_idle_interval_s))
     finally:
         await fixtures.aclose()
 
@@ -226,6 +247,9 @@ def main() -> None:
     parser.add_argument("--loop", action="store_true", help="poll repeatedly for the match-day task")
     parser.add_argument(
         "--interval", type=float, default=settings.live_poll_interval_s, help="seconds between --loop passes"
+    )
+    parser.add_argument(
+        "--until-idle", action="store_true", help="exit the loop when no kickoff falls inside the idle grace window"
     )
     add_storage_argument(parser)
     args = parser.parse_args()
