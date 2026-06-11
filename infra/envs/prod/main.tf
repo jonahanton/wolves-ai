@@ -144,7 +144,7 @@ module "scheduler" {
   archive_initial_state          = var.archive_schedule_state
   archive_initial_cron           = var.archive_schedule_cron
   agent_initial_state            = var.agent_schedule_state
-  agent_initial_cron             = var.agent_schedule_cron
+  agent_schedule_windows         = var.agent_schedule_windows
   live_initial_state             = var.live_schedule_state
   live_initial_cron              = var.live_schedule_cron
 }

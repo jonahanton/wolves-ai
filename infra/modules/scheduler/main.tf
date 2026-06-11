@@ -83,10 +83,14 @@ resource "aws_scheduler_schedule" "daily_run" {
 }
 
 resource "aws_scheduler_schedule" "agent_daily" {
-  name  = "${var.project}-agent-daily"
+  for_each = { for window in var.agent_schedule_windows : window.name => window }
+
+  name  = "${var.project}-agent-${each.key}"
   state = var.agent_initial_state
 
-  schedule_expression = var.agent_initial_cron
+  schedule_expression = each.value.cron
+  start_date          = each.value.start
+  end_date            = each.value.end
 
   lifecycle {
     ignore_changes = [schedule_expression, state]

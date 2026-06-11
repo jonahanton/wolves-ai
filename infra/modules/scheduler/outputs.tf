@@ -23,11 +23,11 @@ output "archive_schedule_arn" {
 }
 
 output "agent_schedule_name" {
-  value = aws_scheduler_schedule.agent_daily.name
+  value = { for key, schedule in aws_scheduler_schedule.agent_daily : key => schedule.name }
 }
 
 output "agent_schedule_arn" {
-  value = aws_scheduler_schedule.agent_daily.arn
+  value = { for key, schedule in aws_scheduler_schedule.agent_daily : key => schedule.arn }
 }
 
 output "live_schedule_name" {

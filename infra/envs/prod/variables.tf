@@ -61,10 +61,19 @@ variable "agent_schedule_state" {
   }
 }
 
-variable "agent_schedule_cron" {
-  description = "Creation-time agent run cron (UTC); 07:30 clears the latest night game even after extra time and penalties."
-  type        = string
-  default     = "cron(30 7 * * ? *)"
+variable "agent_schedule_windows" {
+  description = "Date-windowed agent run crons matching the operator's travel: 06:30 UTC reads as UK morning; 10:00 UTC clears every night game (extra time included) and reads as US morning during the 24 Jun to 13 Jul trip."
+  type = list(object({
+    name  = string
+    cron  = string
+    start = optional(string)
+    end   = optional(string)
+  }))
+  default = [
+    { name = "uk-opening", cron = "cron(30 6 * * ? *)", end = "2026-06-23T23:59:59Z" },
+    { name = "us-trip", cron = "cron(0 10 * * ? *)", start = "2026-06-24T00:00:00Z", end = "2026-07-13T23:59:59Z" },
+    { name = "uk-finals", cron = "cron(30 6 * * ? *)", start = "2026-07-14T00:00:00Z" },
+  ]
 }
 
 variable "live_schedule_state" {

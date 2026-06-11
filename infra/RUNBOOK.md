@@ -122,14 +122,16 @@ aws scheduler update-schedule --name wolves-odds-archive --state ENABLED \
 
 ## Run schedules and policy
 
-Four EventBridge schedules launch engine tasks, all created DISABLED and runtime-owned (`ignore_changes`):
+EventBridge schedules launch engine tasks, all created DISABLED and runtime-owned (`ignore_changes`):
 
-| Schedule | Task | Cron variable |
+| Schedule | Task | Configuration |
 | --- | --- | --- |
 | `wolves-daily-run` | deterministic daily run | `schedule_cron` |
 | `wolves-odds-archive` | odds archive | `archive_schedule_cron` |
-| `wolves-agent-daily` | agent run (ceiling derived from the calendar policy) | `agent_schedule_cron` |
+| `wolves-agent-<window>` | agent run (ceiling derived from the calendar policy) | `agent_schedule_windows`: one date-windowed schedule per travel leg (uk-opening 06:30 UTC, us-trip 10:00 UTC for 24 Jun to 13 Jul, uk-finals 06:30 UTC) |
 | `wolves-live-window` | live polling loop, exits itself when idle | `live_schedule_cron` |
+
+The live state flags `schedule_drift` (and the live task logs a warning) whenever the provider's kickoff times diverge from `data/format/schedule.json`; correct the schedule files when it fires.
 
 The `run_policy` variable in `infra/envs/prod/variables.tf` is the spend-policy configuration surface: agent ceilings and live polling cadence, rendered into every engine task's environment. To see the calendar the engine derives from it, run from a directory with `.env`:
 

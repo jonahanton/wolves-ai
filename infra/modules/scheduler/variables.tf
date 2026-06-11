@@ -88,10 +88,14 @@ variable "agent_initial_state" {
   default     = "DISABLED"
 }
 
-variable "agent_initial_cron" {
-  description = "Creation-time agent run cron; 07:30 UTC clears the latest night game even after extra time and penalties."
-  type        = string
-  default     = "cron(30 7 * * ? *)"
+variable "agent_schedule_windows" {
+  description = "Date-windowed agent run crons so the morning run lands in the operator's local timezone."
+  type = list(object({
+    name  = string
+    cron  = string
+    start = optional(string)
+    end   = optional(string)
+  }))
 }
 
 variable "live_initial_state" {
