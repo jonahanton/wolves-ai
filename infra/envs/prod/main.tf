@@ -38,6 +38,21 @@ resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
     }
   }
 
+  # The live loop writes one immutable history point per poll, roughly 1440
+  # objects a day, so these expire fast.
+  rule {
+    id     = "expire-live-history"
+    status = "Enabled"
+
+    filter {
+      prefix = "live/history/"
+    }
+
+    expiration {
+      days = 30
+    }
+  }
+
   # Bucket-wide hygiene; snapshots/ and datasets/ current versions are kept
   # indefinitely because no rule expires them.
   rule {
@@ -188,4 +203,5 @@ module "release_oidc" {
   backend_task_role_arn         = module.backend_api.task_role_arn
   task_execution_role_arn       = module.engine.task_execution_role_arn
   backend_service_arn           = module.backend_api.service_arn
+  cluster_arn                   = aws_ecs_cluster.this.arn
 }

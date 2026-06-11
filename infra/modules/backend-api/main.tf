@@ -66,6 +66,12 @@ data "aws_iam_policy_document" "backend_task" {
   statement {
     actions   = ["ecs:RunTask"]
     resources = ["arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.engine_task_definition_family}:*"]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "ecs:cluster"
+      values   = [var.cluster_arn]
+    }
   }
 
   statement {
@@ -217,6 +223,11 @@ resource "aws_ecs_service" "backend" {
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   network_configuration {
     subnets          = var.subnets

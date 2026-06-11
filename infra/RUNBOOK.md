@@ -1,0 +1,140 @@
+# Prod runbook
+
+First apply, release, and day-two operations for `infra/envs/prod`. All commands assume `AWS_REGION=eu-west-2` and admin credentials.
+
+## First apply
+
+### 1. Bootstrap the state backend (once per account)
+
+Skip if the `wolves-terraform-state` bucket already exists.
+
+```sh
+terraform -chdir=infra/bootstrap init
+terraform -chdir=infra/bootstrap apply
+```
+
+Bootstrap state stays on local disk by design.
+
+### 2. Import a pre-existing GitHub OIDC provider
+
+An account can hold only one provider for `token.actions.githubusercontent.com`. Check first:
+
+```sh
+aws iam list-open-id-connect-providers
+```
+
+If one exists, import it before applying:
+
+```sh
+terraform -chdir=infra/envs/prod init
+terraform -chdir=infra/envs/prod import \
+  module.release_oidc.aws_iam_openid_connect_provider.github \
+  arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
+```
+
+### 3. Apply
+
+```sh
+terraform -chdir=infra/envs/prod init
+terraform -chdir=infra/envs/prod apply
+```
+
+Defaults are safe for an empty account: both schedules are created DISABLED and `backend_desired_count` is 0, so nothing tries to pull from the still-empty ECR repositories or read versionless secrets.
+
+### 4. Confirm the SNS subscription
+
+The apply subscribes `alert_email` (from `terraform.tfvars`) to the `wolves-alerts` topic. Click the confirmation link in the email before relying on alerts.
+
+### 5. Put secret values
+
+Terraform creates the secret containers only; values never go through terraform or its state.
+
+```sh
+aws secretsmanager put-secret-value --secret-id wolves-engine-anthropic-api-key --secret-string '<value>'
+aws secretsmanager put-secret-value --secret-id wolves-engine-api-football-key  --secret-string '<value>'
+aws secretsmanager put-secret-value --secret-id wolves-engine-odds-api-key      --secret-string '<value>'
+aws secretsmanager put-secret-value --secret-id wolves-backend-admin-token      --secret-string '<value>'
+```
+
+### 6. Set GitHub secrets and variables
+
+From `terraform -chdir=infra/envs/prod output`:
+
+| GitHub setting | Type | Source |
+| --- | --- | --- |
+| `AWS_RELEASE_ROLE_ARN` | secret | output `github_release_role_arn` |
+| `AWS_OPS_ROLE_ARN` | secret | output `github_ops_role_arn` |
+| `ADMIN_TOKEN` | secret | the value put into `wolves-backend-admin-token` |
+| `BACKEND_URL` | secret | set in step 8 once the backend has an IP |
+| `ECS_SUBNETS` | variable | output `ecs_subnets` |
+| `ECS_SECURITY_GROUP` | variable | output `ecs_security_group` |
+
+### 7. First release
+
+Tag and push:
+
+```sh
+git tag prod-<version> && git push origin prod-<version>
+```
+
+`release.yml` builds and pushes the engine and backend images and registers fresh `wolves-engine-daily` and `wolves-engine-archive` task definition revisions. The backend service roll step is harmless at desired count 0.
+
+### 8. Start the backend and set BACKEND_URL
+
+```sh
+terraform -chdir=infra/envs/prod apply -var backend_desired_count=1
+```
+
+Read the task's public IP:
+
+```sh
+task=$(aws ecs list-tasks --cluster wolves --service-name wolves-backend --query 'taskArns[0]' --output text)
+eni=$(aws ecs describe-tasks --cluster wolves --tasks "$task" \
+  --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
+aws ec2 describe-network-interfaces --network-interface-ids "$eni" \
+  --query 'NetworkInterfaces[0].Association.PublicIp' --output text
+```
+
+Set the GitHub secret `BACKEND_URL` to `http://<ip>:8080`. Known limitation: this IP rots on every backend redeploy until a stable HTTPS endpoint exists (tracked separately); refresh the secret after each roll.
+
+### 9. Smoke checks
+
+1. `admin-control.yml` with action `active-runs` returns an empty list.
+2. `run-engine.yml` with mode `daily`; watch `/ecs/wolves-engine` in CloudWatch Logs.
+3. Confirm a snapshot lands in `s3://wolves-superforecaster-prod/snapshots/`.
+4. Deliberately break a run (for example dispatch with a bad ceiling or stop the task) and confirm the failure alert email arrives.
+
+### 10. Enable the schedules
+
+Schedule state is runtime-owned (`ignore_changes`), so terraform will not flip it after creation.
+
+- Daily run: `schedule-control.yml` with `enabled=true`, or the backend admin API directly.
+- Odds archive: no admin API path; update in place:
+
+```sh
+aws scheduler get-schedule --name wolves-odds-archive > sched.json
+# Re-submit the schedule with State=ENABLED, keeping all other fields.
+aws scheduler update-schedule --name wolves-odds-archive --state ENABLED \
+  --schedule-expression "$(jq -r .ScheduleExpression sched.json)" \
+  --flexible-time-window Mode=OFF \
+  --target "$(jq -c .Target sched.json)"
+```
+
+## Kill-switch reset
+
+At 100 percent of the monthly budget, the budget action attaches `wolves-deny-run-task` to three roles, which stops all new engine tasks. To reset after investigating:
+
+```sh
+for role in wolves-scheduler wolves-backend-task wolves-github-ops; do
+  aws iam detach-role-policy --role-name "$role" \
+    --policy-arn arn:aws:iam::<ACCOUNT_ID>:policy/wolves-deny-run-task
+done
+```
+
+Then `admin-control.yml` action `stop-all` to clear anything still running, and re-enable the schedules as in step 10.
+
+## Operational notes
+
+- Manually stopping an engine task triggers the failure alert email. Expected: the EventBridge rule matches any non-zero exit or failed start and cannot distinguish operator stops.
+- Secrets Manager blocks recreating a deleted secret name during the recovery window. On teardown, delete with `--force-delete-without-recovery` if the stack will be re-applied soon.
+- `run-engine.yml` refuses to dispatch while any `wolves-engine-daily` or `wolves-engine-archive` task is RUNNING or PENDING; pass `force=true` to override deliberately.

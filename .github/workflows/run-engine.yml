@@ -16,6 +16,11 @@ on:
         description: Agent spend ceiling in USD (blank uses the engine default)
         required: false
         type: string
+      force:
+        description: Skip the active-task guard
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   id-token: write
@@ -25,6 +30,7 @@ env:
   AWS_REGION: eu-west-2
   ECS_CLUSTER: wolves
   TASK_FAMILY: wolves-engine-daily
+  ARCHIVE_TASK_FAMILY: wolves-engine-archive
 
 jobs:
   run:
@@ -34,6 +40,23 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_OPS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      # PENDING tasks carry desiredStatus RUNNING, so one filter covers both.
+      - name: Refuse to overlap an active engine task
+        if: ${{ !inputs.force }}
+        run: |
+          for family in "$TASK_FAMILY" "$ARCHIVE_TASK_FAMILY"; do
+            active=$(aws ecs list-tasks \
+              --cluster "$ECS_CLUSTER" \
+              --family "$family" \
+              --desired-status RUNNING \
+              --query 'taskArns' --output text)
+            if [ -n "$active" ] && [ "$active" != "None" ]; then
+              echo "Engine task already active in family $family: $active" >&2
+              echo "Re-run with force=true to launch anyway." >&2
+              exit 1
+            fi
+          done
 
       - name: Run one engine task
         env:

@@ -17,9 +17,9 @@ variable "github_repo" {
 }
 
 variable "schedule_state" {
-  description = "Creation-time schedule state only; runtime flips go through the backend admin API."
+  description = "Creation-time schedule state only; runtime flips go through the backend admin API. Disabled by default so a first apply against an empty ECR cannot crash-loop; enabling is an explicit operational act (see infra/RUNBOOK.md)."
   type        = string
-  default     = "ENABLED"
+  default     = "DISABLED"
 
   validation {
     condition     = contains(["ENABLED", "DISABLED"], var.schedule_state)
@@ -34,9 +34,9 @@ variable "schedule_cron" {
 }
 
 variable "archive_schedule_state" {
-  description = "Creation-time archive schedule state."
+  description = "Creation-time archive schedule state. Disabled by default for the same first-apply reason as schedule_state."
   type        = string
-  default     = "ENABLED"
+  default     = "DISABLED"
 
   validation {
     condition     = contains(["ENABLED", "DISABLED"], var.archive_schedule_state)
@@ -83,9 +83,9 @@ variable "backend_memory" {
 }
 
 variable "backend_desired_count" {
-  description = "Backend API task count; 0 parks the service without destroying it."
+  description = "Backend API task count; 0 parks the service without destroying it. Zero by default so a first apply against an empty ECR and versionless secrets cannot crash-loop."
   type        = number
-  default     = 1
+  default     = 0
 }
 
 variable "monthly_budget_usd" {

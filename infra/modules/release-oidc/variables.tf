@@ -42,3 +42,7 @@ variable "task_execution_role_arn" {
 variable "backend_service_arn" {
   type = string
 }
+
+variable "cluster_arn" {
+  type = string
+}
