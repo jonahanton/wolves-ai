@@ -34,6 +34,21 @@ def simulate(
     return forecaster().title_probs(n_sims=_n_sims(n_sims), seed=seed, perturbations=tuple(perturbations))
 
 
+def reach(
+    perturbations: tuple[Perturbation, ...] | list[Perturbation] = (),
+    *,
+    n_sims: int | None = None,
+    seed: int = 0,
+) -> pd.DataFrame:
+    """Per-team reach probabilities through the rounds (rows teams, columns
+    r32 to champion), common random numbers by seed."""
+    import pandas as pd
+
+    SESSION.usage.sims += 1
+    outputs = forecaster().sim_outputs(n_sims=_n_sims(n_sims), seed=seed, perturbations=tuple(perturbations))
+    return pd.DataFrame({t.team_id: t.reach_probs for t in outputs.teams}).T
+
+
 def noise_floor(*, n_sims: int | None = None, seed: int = 0) -> float:
     """The paired-seed noise floor in pp: the largest per-team title move
     between two baselines that differ only by seed. Any cross-team delta

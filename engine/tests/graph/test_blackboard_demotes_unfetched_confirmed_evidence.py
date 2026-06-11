@@ -26,6 +26,7 @@ def test_confirmed_needs_a_page_fetched_this_run(tmp_path: Path):
             _evidence("backed by a fetched page", "https://www.reuters.com/fetched"),
             _evidence("backed only by a snippet", "https://www.bbc.co.uk/stale"),
             _evidence("internal tool output", "internal://odds/consensus"),
+            _evidence("first-party odds tool output", "https://tools.internal/get_odds"),
         ],
     )
     artifact = store.add(kind="evidence", created_by="research-1", summary=output.summary, payload=output.model_dump())
@@ -37,4 +38,5 @@ def test_confirmed_needs_a_page_fetched_this_run(tmp_path: Path):
     assert statuses["backed by a fetched page"] == "confirmed"
     assert statuses["backed only by a snippet"] == "probable"
     assert statuses["internal tool output"] == "confirmed"
+    assert statuses["first-party odds tool output"] == "confirmed"
     deps.runtime.shutdown()

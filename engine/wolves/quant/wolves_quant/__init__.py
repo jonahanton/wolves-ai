@@ -30,6 +30,7 @@ from wolves.quant.wolves_quant._sim import (
     match_probs,
     noise_floor,
     posterior_draws,
+    reach,
     score_grid,
     simulate,
 )
@@ -60,6 +61,7 @@ __all__ = [
     "noise_floor",
     "posterior_draws",
     "query",
+    "reach",
     "scenario_mixture",
     "score_grid",
     "simulate",

@@ -105,6 +105,8 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         usage = workspace.read_usage()
         if sum(usage.values()) == 0:
             flags.append("quant_no_computation")
+        elif usage.get("sims", 0) == 0:
+            flags.append("quant_no_simulation")
     artifact = store.add(
         kind=_ARTIFACT_KINDS[brief.kind],
         created_by=brief.node_id,

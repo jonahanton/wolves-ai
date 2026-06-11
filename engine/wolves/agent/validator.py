@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 EM_DASH = "—"
 _REACH_ORDER = ["r32", "r16", "qf", "sf", "final", "champion"]
 _R32_SLOT_COUNT = 16
+_UNPRICED_DELTA_FLOOR = 0.5
 
 
 class ValidatorLimits(BaseModel):
@@ -60,6 +61,7 @@ def validate_submission(
     payload = _artifact_payload(submission, artifacts, issues)
     if payload is not None:
         issues += _check_coherence(payload)
+        issues += _check_evidence_priced(submission, payload, ledger)
         if baseline_titles is not None:
             escalations += _diff_escalations(payload, baseline_titles, limits, against="baseline")
         if previous_titles is not None and not (
@@ -130,6 +132,34 @@ def _check_coherence(payload: dict) -> list[ValidationIssue]:
     if any(later > earlier + 1e-9 for earlier, later in itertools.pairwise(chain)):
         issues.append(_issue("probs_incoherent", "reach probabilities must not increase through rounds"))
     return issues
+
+
+def _check_evidence_priced(
+    submission: ForecastSubmission, payload: dict, ledger: EvidenceLedger
+) -> list[ValidationIssue]:
+    """An unperturbed baseline cannot publish over material evidence in
+    silence: the run either prices the evidence into a computed mixture or
+    states why it moves nothing."""
+    worlds: dict[str, dict] = payload.get("worlds") or {}
+    if worlds and any(spec.get("perturbations") for spec in worlds.values()):
+        return []
+    material = [
+        e.id
+        for e in ledger.all()
+        if e.status in ("confirmed", "probable") and abs(e.proposed_delta) >= _UNPRICED_DELTA_FLOOR
+    ]
+    if not material:
+        return []
+    if submission.change_justification.strip() or submission.inconsistency_note.strip():
+        return []
+    return [
+        _issue(
+            "evidence_unpriced",
+            f"the artifact is the unperturbed baseline while ledger entries {', '.join(material[:6])} propose "
+            "material deltas; cite a computed mixture that prices them (wq.scenario_mixture), or explain in "
+            "change_justification why today's evidence moves nothing",
+        )
+    ]
 
 
 def _diff_escalations(

@@ -120,6 +120,8 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             )
             ops, dropped = admit(patch, board=board, settings=settings)
             board.dropped = dropped
+            if dropped:
+                deps.runtime.emit("admission", "master", f"{len(dropped)} op(s) dropped", drops=dropped)
             if not ops:
                 if patch.stop or not patch.ops:
                     logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "empty wave")

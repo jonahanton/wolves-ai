@@ -96,7 +96,9 @@ class Blackboard:
         self._cost_at_wave_start = self._runtime.budget.cost_micros
 
     def _fetched_this_run(self, url: str) -> bool:
-        if not url.startswith("http"):
+        if not url.startswith("http") or url.startswith("https://tools.internal/"):
+            # Internal tool citations are first-party data, not web claims;
+            # there is no page to fetch.
             return True
         if self._source_memory is None:
             return True
@@ -105,7 +107,11 @@ class Blackboard:
 
     def _ledger_entries(self, payload: dict) -> int:
         output = ResearchOutput.model_validate(payload)
+        existing = {(e.claim.strip().lower(), e.source_url) for e in self.ledger.all()}
+        appended = 0
         for item in output.evidence:
+            if (item.claim.strip().lower(), item.source_url) in existing:
+                continue
             status = item.status
             if status == "confirmed" and not self._fetched_this_run(item.source_url):
                 # A confirmed claim must be backed by a page the run actually
@@ -127,7 +133,9 @@ class Blackboard:
                 relevance=item.relevance,
                 retrieval_id=item.retrieval_id,
             )
-        return len(output.evidence)
+            existing.add((item.claim.strip().lower(), item.source_url))
+            appended += 1
+        return appended
 
     def summary(self) -> str:
         """Compact JSON for the master: metadata only, never payloads."""
