@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from pydantic_ai import UnexpectedModelBehavior
 from pydantic_ai.models import Model
 
 from wolves.config import Settings
@@ -15,7 +16,11 @@ logger = logging.getLogger(__name__)
 
 async def plan_wave(prompt: str, *, model: Model) -> GraphPatch:
     """One master planning turn over the blackboard summary."""
-    result = await master_agent().run(prompt, model=model, model_settings=CACHE_SETTINGS)
+    try:
+        result = await master_agent().run(prompt, model=model, model_settings=CACHE_SETTINGS)
+    except UnexpectedModelBehavior as exc:
+        logger.warning("master patch failed output validation repeatedly: %s", exc)
+        return GraphPatch(stop=True, reason="master output failed validation; ending planning")
     return result.output
 
 

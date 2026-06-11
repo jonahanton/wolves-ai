@@ -9,11 +9,10 @@ from wolves.graph.fakes import scripted_model
 from wolves.graph.runner import run_graph
 
 
-async def test_degenerate_patch_is_reasked_once_then_treated_as_a_stop(tmp_path: Path):
+async def test_degenerate_patches_are_retried_in_call_then_degrade_to_a_stop(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
-    # Empty-no-stop twice: the first earns a re-ask, the second ends planning.
-    # A third planning turn would exhaust the script and raise.
-    models = _models(scripted_model([GraphPatch(), GraphPatch()]))
+    # Validator bounces two empty patches; the third degrades to a stop.
+    models = _models(scripted_model([GraphPatch(), GraphPatch(), GraphPatch()]))
 
     result = await run_graph(deps, as_of="2026-06-11", models=models)
 

@@ -125,8 +125,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 deps.runtime.emit("admission", "master", f"{len(dropped)} op(s) dropped", drops=dropped)
             if not ops:
                 if not patch.ops and not patch.stop and not empty_patch_nudged:
-                    # A degenerate patch (no ops, no stop, no reason) is a
-                    # malformed plan, not a decision; re-ask exactly once.
+                    # A malformed plan, not a decision; re-ask exactly once.
                     empty_patch_nudged = True
                     logger.warning("wave %d patch was empty without stop; re-asking the master", board.wave)
                     board.dropped = ["empty patch: return ops for the next wave, or stop=true with a reason"]

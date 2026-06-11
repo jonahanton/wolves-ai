@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 from typing import Any
 
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, ModelRetry, RunContext
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools.market import market_gaps, market_movement
@@ -106,4 +106,16 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
 @cache
 def master_agent() -> Agent[None, GraphPatch]:
     """The planner: pure structured output over the blackboard summary, no tools."""
-    return Agent(output_type=GraphPatch, system_prompt=prompt("master"))
+    agent: Agent[None, GraphPatch] = Agent(output_type=GraphPatch, system_prompt=prompt("master"), retries=2)
+
+    @agent.output_validator
+    def _ops_or_stop(patch: GraphPatch) -> GraphPatch:
+        # Opus narrates a wave in reason while emitting ops=[].
+        if not patch.ops and not patch.stop:
+            raise ModelRetry(
+                "Empty patch: put the node ops for the next wave in ops, or set stop=true with your reason. "
+                "If you described a wave in reason, emit those ops now."
+            )
+        return patch
+
+    return agent
