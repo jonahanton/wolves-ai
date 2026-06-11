@@ -32,7 +32,8 @@ _ALIASES = {
 
 
 def _normalise(text: str) -> str:
-    decomposed = unicodedata.normalize("NFKD", text.lower())
+    # API-Football writes "Bosnia & Herzegovina"; the register uses "and".
+    decomposed = unicodedata.normalize("NFKD", text.lower().replace("&", "and"))
     return "".join(c for c in decomposed if not unicodedata.combining(c))
 
 

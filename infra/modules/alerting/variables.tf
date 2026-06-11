@@ -27,10 +27,27 @@ variable "scheduler_role_name" {
   type = string
 }
 
+variable "backend_run_role_arn" {
+  type = string
+}
+
+variable "backend_run_role_name" {
+  type = string
+}
+
+variable "github_ops_role_arn" {
+  type = string
+}
+
+variable "github_ops_role_name" {
+  type = string
+}
+
 variable "cluster_arn" {
   type = string
 }
 
-variable "engine_task_definition_family" {
-  type = string
+variable "engine_task_definition_families" {
+  description = "Engine task families whose failed tasks raise the alert."
+  type        = list(string)
 }

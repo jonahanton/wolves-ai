@@ -29,3 +29,5 @@ data/odds/
 # Docs
 docs/
 prototypes/
+
+.terraform/

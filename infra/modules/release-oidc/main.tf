@@ -113,6 +113,25 @@ data "aws_iam_policy_document" "github_ops" {
   statement {
     actions   = ["ecs:RunTask"]
     resources = ["arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.engine_task_definition_family}:*"]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "ecs:cluster"
+      values   = [var.cluster_arn]
+    }
+  }
+
+  # ListTasks scopes by cluster condition, not task resource ARNs; the
+  # run-engine workflow uses it to refuse overlapping engine runs.
+  statement {
+    actions   = ["ecs:ListTasks"]
+    resources = ["*"]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "ecs:cluster"
+      values   = [var.cluster_arn]
+    }
   }
 
   statement {

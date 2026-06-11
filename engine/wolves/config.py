@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     graph_quant_model: str = ""
     graph_forecast_model: str = ""
     graph_critic_model: str = "claude-haiku-4-5"
+    # Master plans visibly better on Opus for ~$0.30 a run; empty inherits fast_model.
+    graph_master_model: str = "claude-opus-4-8"
     # Candidate scoring is mechanical; the cheap tier is enough.
     relevance_model: str = "claude-haiku-4-5"
 
@@ -51,6 +53,24 @@ class Settings(BaseSettings):
     storage_mode: StorageMode = "both"
 
     runs_root: Path = REPO_ROOT / "runs"
+    live_poll_interval_s: float = 60.0
+    # Two missed polls plus jitter before consumers treat the state as stale.
+    live_stale_after_s: int = 150
+    # Away from a live window the loop slows down, and with --until-idle it
+    # exits once no kickoff falls inside the grace horizon.
+    live_idle_interval_s: float = 900.0
+    live_idle_grace_hours: float = 6.0
+
+    # Calendar-aware agent spend (wolves/run_policy.py): the day's phase
+    # sets the ceiling, front-loaded into the opening week.
+    agent_ceiling_opening_usd: float = 5.00
+    agent_ceiling_big_group_usd: float = 3.00
+    agent_ceiling_group_usd: float = 2.00
+    agent_ceiling_rest_usd: float = 2.00
+    agent_ceiling_r32_r16_usd: float = 3.50
+    agent_ceiling_qf_final_usd: float = 5.00
+    agent_ceiling_single_game_discount_usd: float = 1.00
+    agent_big_team_count: int = 8
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
     article_cache_max_age_hours: float = 48.0
@@ -92,7 +112,9 @@ class Settings(BaseSettings):
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
 
-    agent_run_ceiling_usd: float = 3.00
+    # Explicit per-run override (run-now and workflow dispatch set it);
+    # unset means the calendar policy decides (wolves/run_policy.py).
+    agent_run_ceiling_usd: float | None = None
     agent_run_ceiling_max_usd: float = 8.00
     graph_forecast_reserve_usd: float = 0.35
     graph_forecast_reserve_llm_calls: int = 8

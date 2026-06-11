@@ -23,6 +23,7 @@ from wolves_backend.errors import UpstreamError
 from wolves_backend.routes.admin import router as admin_router
 from wolves_backend.routes.agent_state import router as agent_state_router
 from wolves_backend.routes.health import router as health_router
+from wolves_backend.routes.live import router as live_router
 from wolves_backend.routes.odds import router as odds_router
 from wolves_backend.routes.runs import router as runs_router
 from wolves_backend.routes.snapshots import router as snapshots_router
@@ -77,6 +78,7 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
         return JSONResponse(status_code=502, content={"error": exc.detail})
 
     app.include_router(health_router)
+    app.include_router(live_router)
     app.include_router(snapshots_router)
     app.include_router(runs_router)
     app.include_router(teams_router)

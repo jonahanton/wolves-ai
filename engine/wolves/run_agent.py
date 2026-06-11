@@ -62,12 +62,14 @@ from wolves.observability import (
     configure_cli_logging,
 )
 from wolves.quant.observed import ObservedQuant
+from wolves.run_policy import agent_ceiling
 from wolves.s3.agent_state import build_agent_state_store
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
 from wolves.s3.layout import ARTICLE, RELEVANCE_FEEDBACK, RELEVANCE_MEMORY, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
+from wolves.sim.format import load_format
 from wolves.sim.results_store import persisted_results, played_match_records, stored_fixtures
 from wolves.snapshot import (
     AgentBlock,
@@ -475,7 +477,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     score_yesterday(settings, as_of=as_of, run_id=run_id)
 
     if args.live:
-        ceiling = args.ceiling if args.ceiling is not None else settings.agent_run_ceiling_usd
+        ceiling = args.ceiling
         # The dollar ceiling is the budget; the call cap is only a runaway
         # backstop, sized so cheap-tier nodes cannot exhaust it first.
         caps = Caps(max_cost_micros=int(ceiling * 1_000_000), max_llm_calls=240, max_quant_executions=60)
@@ -490,7 +492,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             return ObservedModel(AnthropicModel(model_name, provider=provider), runtime=runtime)
 
         models = GraphModels(
-            master=observed(settings.fast_model),
+            master=observed(settings.graph_master_model or settings.fast_model),
             nodes={
                 "research": observed(settings.graph_research_model or settings.worker_model),
                 "quant": observed(settings.graph_quant_model or settings.worker_model),
@@ -504,7 +506,13 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         fixtures: FixturesClient = (
             ApiFootballClient(settings.api_football_key) if settings.api_football_key else FakeFixturesClient()
         )
-        logger.info("LIVE run %s: model=%s, ceiling=$%.2f", run_id, settings.worker_model, ceiling)
+        logger.info(
+            "LIVE run %s: master=%s, workers=%s, ceiling=$%.2f",
+            run_id,
+            settings.graph_master_model or settings.fast_model,
+            settings.worker_model,
+            ceiling,
+        )
     else:
         runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=Caps(), runs_root=settings.runs_root)
         models = _dev_models(runtime, as_of, settings.focus_team)
@@ -651,8 +659,13 @@ def main() -> None:
             parser.error("--live requires ANTHROPIC_API_KEY to be set")
         if not args.confirm_spend:
             parser.error("--live requires --confirm-spend with a per-run dollar ceiling")
-        ceiling = args.ceiling if args.ceiling is not None else settings.agent_run_ceiling_usd
-        if ceiling <= 0 or ceiling > settings.agent_run_ceiling_max_usd:
+        if args.ceiling is None:
+            args.ceiling = settings.agent_run_ceiling_usd
+        if args.ceiling is None:
+            # No explicit ceiling means the calendar decides (wolves/run_policy.py).
+            fmt = load_format(settings.data_dir)
+            args.ceiling = agent_ceiling(settings, fmt, on=datetime.now(UTC).date())
+        if args.ceiling <= 0 or args.ceiling > settings.agent_run_ceiling_max_usd:
             parser.error(f"--ceiling must be in (0, {settings.agent_run_ceiling_max_usd:.2f}]")
 
     sys.exit(asyncio.run(_run(args, settings)))

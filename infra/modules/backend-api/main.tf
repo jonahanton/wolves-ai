@@ -66,6 +66,12 @@ data "aws_iam_policy_document" "backend_task" {
   statement {
     actions   = ["ecs:RunTask"]
     resources = ["arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.engine_task_definition_family}:*"]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "ecs:cluster"
+      values   = [var.cluster_arn]
+    }
   }
 
   statement {
@@ -93,6 +99,17 @@ data "aws_iam_policy_document" "backend_task" {
       test     = "StringEquals"
       variable = "iam:PassedToService"
       values   = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+
+  statement {
+    actions   = ["iam:PassRole"]
+    resources = [var.scheduler_role_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["scheduler.amazonaws.com"]
     }
   }
 }
@@ -175,6 +192,8 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "SCHEDULE_NAME", value = var.schedule_name },
         { name = "ECS_CLUSTER_ARN", value = var.cluster_arn },
         { name = "ECS_TASK_DEFINITION", value = var.engine_task_definition_family },
+        { name = "ECS_AGENT_TASK_DEFINITION", value = var.agent_task_definition_family },
+        { name = "ECS_LIVE_TASK_DEFINITION", value = var.live_task_definition_family },
         { name = "ECS_SUBNETS", value = join(",", var.subnets) },
         { name = "ECS_SECURITY_GROUP", value = var.engine_security_group_id },
       ]
@@ -206,6 +225,11 @@ resource "aws_ecs_service" "backend" {
   task_definition = aws_ecs_task_definition.backend.arn
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   network_configuration {
     subnets          = var.subnets

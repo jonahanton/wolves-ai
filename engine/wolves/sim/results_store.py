@@ -83,29 +83,34 @@ _WC_IMPORTANCE = 4.0
 
 
 def played_match_records(settings: Settings) -> list[MatchRecord]:
-    """Finished tournament fixtures as dataset-overlay records, so the
-    strength refit sees last night's games, not just the bracket."""
+    """Build refit overlay records from persisted tournament fixtures."""
     from wolves.data.contracts import MatchRecord
-    from wolves.data.teams import canonical_team_key
+    from wolves.data.teams import registry_team_key
+    from wolves.sim.format import load_format
+    from wolves.sim.overlay import resolve_fixture
 
-    records = []
+    fmt = load_format(settings.data_dir)
+    by_match: dict[int, MatchRecord] = {}
     for fixture in stored_fixtures(settings):
         if fixture.status != "finished" or fixture.home_goals is None or fixture.away_goals is None:
             continue
-        home = canonical_team_key(fixture.home)
-        records.append(
-            MatchRecord(
-                date=fixture.kickoff.date(),
-                home_team=home,
-                away_team=canonical_team_key(fixture.away),
-                home_goals=fixture.home_goals,
-                away_goals=fixture.away_goals,
-                tournament="FIFA World Cup",
-                importance=_WC_IMPORTANCE,
-                neutral=home not in _HOSTS,
-            )
+        resolved = resolve_fixture(fmt, fixture)
+        if resolved is None:
+            continue
+        if resolved.home_goals is None or resolved.away_goals is None:
+            continue
+        home = registry_team_key(resolved.home_id)
+        by_match[resolved.match] = MatchRecord(
+            date=fixture.kickoff.date(),
+            home_team=home,
+            away_team=registry_team_key(resolved.away_id),
+            home_goals=resolved.home_goals,
+            away_goals=resolved.away_goals,
+            tournament="FIFA World Cup",
+            importance=_WC_IMPORTANCE,
+            neutral=resolved.home_id not in _HOSTS,
         )
-    return records
+    return [by_match[match] for match in sorted(by_match)]
 
 
 def stored_fixtures(settings: Settings) -> list[MatchFixture]:

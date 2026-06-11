@@ -188,6 +188,10 @@ class Forecaster:
         return self._state
 
     @property
+    def is_fitted(self) -> bool:
+        return self._state is not None
+
+    @property
     def state(self) -> FittedState:
         if self._state is None:
             return self.fit()

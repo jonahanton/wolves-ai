@@ -6,16 +6,23 @@ import argparse
 import asyncio
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import httpx
 from pydantic import ValidationError
 
 from wolves import ENGINE_VERSION
 from wolves.agent.forecast_artifact import PublishedWorld, mixed_outputs, worlds_from_payload
-from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
+from wolves.clients.api_football import (
+    ApiFootballClient,
+    ApiFootballPayloadError,
+    FakeFixturesClient,
+    FixturesClient,
+)
 from wolves.config import Settings
 from wolves.forecast import Forecaster
+from wolves.live_state import LiveState, LiveStateStore, build_live_state
 from wolves.observability.logging import configure_cli_logging
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
@@ -23,15 +30,14 @@ from wolves.s3.layout import SNAPSHOT
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import PlayedResult, load_format, load_results
 from wolves.sim.overlay import results_from_fixtures
-from wolves.sim.results_store import ResultsStore
+from wolves.sim.results_store import ResultsStore, played_match_records
 from wolves.snapshot import RunMeta, Snapshot
 
 logger = logging.getLogger(__name__)
 
 
 def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, list[PublishedWorld]]:
-    """One directory scan: the newest readable snapshot, plus the published
-    world configurations from the newest snapshot with an agent block."""
+    """Find the newest snapshot and latest published agent worlds."""
     newest: Snapshot | None = None
     newest_agent: Snapshot | None = None
     if not snapshot_dir.exists():
@@ -60,21 +66,21 @@ def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, list[PublishedW
     return newest, worlds
 
 
-def pending_results(
+def publishable_results(
     overlay: dict[int, PlayedResult],
     *,
     file_results: dict[int, PlayedResult],
     previous: Snapshot | None,
 ) -> dict[int, PlayedResult]:
-    """Polled results not yet baked into the results file or the latest snapshot.
-
-    A match absent from the previous snapshot's forecast list was already
-    overlaid as played when that snapshot ran, so it is not new information."""
-    fresh = {match: result for match, result in overlay.items() if match not in file_results}
+    """Select polled results that still need a live snapshot publish."""
     if previous is None:
-        return fresh
+        return {match: result for match, result in overlay.items() if file_results.get(match) != result}
     forecast = {entry.match for entry in previous.matches}
-    return {match: result for match, result in fresh.items() if match in forecast}
+    return {
+        match: result
+        for match, result in overlay.items()
+        if match in forecast or file_results.get(match) != result
+    }
 
 
 async def live_pass(
@@ -92,16 +98,23 @@ async def live_pass(
         return False
 
     fmt = load_format(settings.data_dir)
-    polled = await fixtures.fixtures()
-    overlay = results_from_fixtures(fmt, polled)
     artifacts = ArtifactStore(settings)
+    live_states = LiveStateStore(artifacts)
+    try:
+        polled = await fixtures.fixtures()
+    except (httpx.HTTPError, ApiFootballPayloadError) as exc:
+        live_states.record_failure(message=str(exc))
+        logger.warning("live poll failed; keeping the previous live state: %s", exc)
+        return False
+    fetched_at = datetime.now(UTC)
+    overlay = results_from_fixtures(fmt, polled)
     store = ResultsStore(artifacts)
     known = store.load()
     # Fresh containers hold no snapshots; without this the continuity check
     # and the agent overrides silently degrade to nothing.
     artifacts.sync_down(prefix=SNAPSHOT.prefix)
     previous, worlds = scan_snapshots(settings.runs_root / "snapshots")
-    pending = pending_results(
+    pending = publishable_results(
         overlay,
         file_results=load_results(settings.data_dir) | known.results,
         previous=previous,
@@ -110,23 +123,42 @@ async def live_pass(
     # polled result must survive even when this pass publishes nothing.
     finished = [f for f in polled if f.status == "finished"]
     merged = store.record(overlay, fixtures=finished)
+    if forecaster is None:
+        forecaster = Forecaster(settings)
+    if not forecaster.is_fitted:
+        forecaster.fit(extra_results=played_match_records(settings))
+    state = build_live_state(
+        forecaster,
+        polled,
+        fetched_at=fetched_at,
+        results=merged.results,
+        previous=previous,
+        n_sims=n_sims,
+        seed=seed,
+        stale_after_s=settings.live_stale_after_s,
+    )
+    for drift in state.schedule_drift:
+        logger.warning(
+            "match %d kickoff moved: schedule has %s, provider has %s",
+            drift.match,
+            drift.scheduled_kickoff,
+            drift.provider_kickoff,
+        )
+    live_states.put(state)
     if not pending:
-        logger.info("no new results; live pass is a no-op")
+        logger.info("no new or corrected results; live snapshot publish is a no-op")
         return False
     now = datetime.now(UTC)
     run_id = now.strftime("live-%Y%m%d-%H%M%S")
     created_at = now.isoformat(timespec="seconds")
     started = time.monotonic()
     try:
-        if forecaster is None:
-            forecaster = Forecaster(settings)
-            forecaster.fit()
         outputs = mixed_outputs(
             forecaster,
             worlds or [PublishedWorld(name="baseline", weight=1.0)],
             n_sims=n_sims,
             seed=seed,
-            extra_results=merged.results | overlay,
+            extra_results=merged.results,
         )
     except Exception:
         publisher.record_failure(run_id=run_id, created_at=created_at, started=started)
@@ -161,17 +193,53 @@ async def live_pass(
 def build_fixtures_client(settings: Settings) -> FixturesClient:
     if settings.api_football_key:
         return ApiFootballClient(settings.api_football_key)
+    if settings.storage_mode != "local":
+        raise RuntimeError("API_FOOTBALL_KEY is required for cloud-backed live polling")
     return FakeFixturesClient()
+
+
+def near_kickoff(state: LiveState | None, *, now: datetime, horizon: timedelta) -> bool:
+    """True when a fixture is live or kicks off within the horizon (either side,
+    so delayed kickoffs keep the fast cadence)."""
+    if state is None:
+        return False
+    for fixture in state.fixtures:
+        if fixture.status == "live":
+            return True
+        if fixture.status == "scheduled" and abs(datetime.fromisoformat(fixture.kickoff) - now) <= horizon:
+            return True
+    return False
 
 
 async def _run(args: argparse.Namespace, settings: Settings) -> None:
     fixtures = build_fixtures_client(settings)
+    forecaster = Forecaster(settings)
+    states = LiveStateStore(ArtifactStore(settings))
+    grace = timedelta(hours=settings.live_idle_grace_hours)
     try:
         while True:
-            await live_pass(settings, fixtures=fixtures, n_sims=args.sims, seed=args.seed)
+            try:
+                published = await live_pass(
+                    settings, fixtures=fixtures, n_sims=args.sims, seed=args.seed, forecaster=forecaster
+                )
+            except Exception:
+                if not args.loop:
+                    raise
+                # One bad pass must not end the match-day task.
+                logger.exception("live pass failed; continuing the loop")
+                published = False
             if not args.loop:
                 return
-            await asyncio.sleep(args.interval)
+            if published:
+                # A publish means a result landed; refit next pass or the loop's ratings drift.
+                forecaster = Forecaster(settings)
+            now = datetime.now(UTC)
+            state = states.load()
+            if args.until_idle and not near_kickoff(state, now=now, horizon=grace):
+                logger.info("no live fixture and no kickoff within %.1fh; exiting", settings.live_idle_grace_hours)
+                return
+            fast = near_kickoff(state, now=now, horizon=timedelta(hours=1))
+            await asyncio.sleep(args.interval if fast else max(args.interval, settings.live_idle_interval_s))
     finally:
         await fixtures.aclose()
 
@@ -182,8 +250,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run a live results update pass")
     parser.add_argument("--sims", type=int, default=settings.n_sims)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--loop", action="store_true", help="poll repeatedly; local dev only")
-    parser.add_argument("--interval", type=float, default=900.0, help="seconds between --loop passes")
+    parser.add_argument("--loop", action="store_true", help="poll repeatedly for the match-day task")
+    parser.add_argument(
+        "--interval", type=float, default=settings.live_poll_interval_s, help="seconds between --loop passes"
+    )
+    parser.add_argument(
+        "--until-idle", action="store_true", help="exit the loop when no kickoff falls inside the idle grace window"
+    )
     add_storage_argument(parser)
     args = parser.parse_args()
     asyncio.run(_run(args, apply_storage_choice(settings, args.storage)))

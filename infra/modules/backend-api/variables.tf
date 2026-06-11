@@ -54,7 +54,19 @@ variable "schedule_arn" {
   type = string
 }
 
+variable "scheduler_role_arn" {
+  type = string
+}
+
 variable "engine_task_definition_family" {
+  type = string
+}
+
+variable "agent_task_definition_family" {
+  type = string
+}
+
+variable "live_task_definition_family" {
   type = string
 }
 

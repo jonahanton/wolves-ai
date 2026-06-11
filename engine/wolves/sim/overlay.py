@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from wolves.clients.odds.team_names import team_id_for_name
@@ -15,16 +16,25 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def results_from_fixtures(fmt: FormatData, fixtures: list[MatchFixture]) -> dict[int, PlayedResult]:
-    """Convert finished fixtures into the results overlay keyed by match number.
+@dataclass(frozen=True)
+class FixtureResolution:
+    match: int
+    home_id: str
+    away_id: str
+    home_goals: int | None
+    away_goals: int | None
+    home_reds: int
+    away_reds: int
+    knockout: bool
 
-    In-play fixtures are deliberately excluded: a half-time score is not a
-    result, and overlaying it would freeze the match at that score."""
+
+def results_from_fixtures(fmt: FormatData, fixtures: list[MatchFixture]) -> dict[int, PlayedResult]:
+    """Convert finished fixtures into the played-results overlay."""
     results: dict[int, PlayedResult] = {}
     for fixture in fixtures:
         if fixture.status != "finished" or fixture.home_goals is None or fixture.away_goals is None:
             continue
-        resolved = _resolve(fmt, fixture)
+        resolved = resolve_fixture(fmt, fixture)
         if resolved is None:
             logger.warning(
                 "could not map finished fixture %s v %s on %s to a match",
@@ -33,38 +43,52 @@ def results_from_fixtures(fmt: FormatData, fixtures: list[MatchFixture]) -> dict
                 fixture.kickoff.date(),
             )
             continue
-        results[resolved.match] = resolved
+        winner = _winner_from_fixture(fixture, home_id=resolved.home_id, away_id=resolved.away_id)
+        if resolved.knockout and winner is None:
+            logger.warning("finished knockout fixture %s v %s has no winner; skipping", fixture.home, fixture.away)
+            continue
+        results[resolved.match] = PlayedResult(
+            match=resolved.match,
+            home_goals=resolved.home_goals,
+            away_goals=resolved.away_goals,
+            winner=winner if resolved.knockout else None,
+        )
     return results
 
 
-def _resolve(fmt: FormatData, fixture: MatchFixture) -> PlayedResult | None:
+def resolve_fixture(fmt: FormatData, fixture: MatchFixture) -> FixtureResolution | None:
+    """Map a provider fixture onto the tournament match id and schedule orientation."""
     home_id = team_id_for_name(fixture.home, fmt.teams)
     away_id = team_id_for_name(fixture.away, fmt.teams)
     if home_id is None or away_id is None:
         return None
-    assert fixture.home_goals is not None and fixture.away_goals is not None
 
     group = _group_match(fmt, home_id, away_id)
     if group is not None:
         oriented = group.home == home_id
-        return PlayedResult(
+        return FixtureResolution(
             match=group.match,
+            home_id=group.home,
+            away_id=group.away,
             home_goals=fixture.home_goals if oriented else fixture.away_goals,
             away_goals=fixture.away_goals if oriented else fixture.home_goals,
+            home_reds=fixture.home_reds if oriented else fixture.away_reds,
+            away_reds=fixture.away_reds if oriented else fixture.home_reds,
+            knockout=False,
         )
 
     knockout = _knockout_match(fmt, fixture)
     if knockout is None:
         return None
-    winner = _knockout_winner(fixture, home_id=home_id, away_id=away_id)
-    if winner is None:
-        logger.warning("finished knockout fixture %s v %s has no winner; skipping", fixture.home, fixture.away)
-        return None
-    return PlayedResult(
+    return FixtureResolution(
         match=knockout.match,
+        home_id=home_id,
+        away_id=away_id,
         home_goals=fixture.home_goals,
         away_goals=fixture.away_goals,
-        winner=winner,
+        home_reds=fixture.home_reds,
+        away_reds=fixture.away_reds,
+        knockout=True,
     )
 
 
@@ -73,22 +97,42 @@ def _group_match(fmt: FormatData, home_id: str, away_id: str) -> GroupMatch | No
     return by_pair.get((home_id, away_id)) or by_pair.get((away_id, home_id))
 
 
+# Schedule host regions vs provider stadium municipalities; used only by the rescheduled-kickoff fallback.
+_PROVIDER_CITY_ALIASES = {
+    "east rutherford": "new york/new jersey",
+    "new jersey": "new york/new jersey",
+    "new york": "new york/new jersey",
+    "santa clara": "san francisco bay area",
+    "san francisco": "san francisco bay area",
+    "inglewood": "los angeles",
+    "arlington": "dallas",
+    "foxborough": "boston",
+    "foxboro": "boston",
+    "guadalupe": "monterrey",
+    "miami gardens": "miami",
+    "zapopan": "guadalajara",
+}
+
+
 def _knockout_match(fmt: FormatData, fixture: MatchFixture) -> KnockoutMatch | None:
-    kickoff_date = fixture.kickoff.astimezone(UTC).date().isoformat()
-    candidates = [m for m in fmt.knockout if m.date[:10] == kickoff_date]
+    kickoff = fixture.kickoff.astimezone(UTC)
+    exact = [m for m in fmt.knockout if datetime.fromisoformat(m.date) == kickoff]
+    if len(exact) == 1:
+        return exact[0]
+    candidates = [m for m in fmt.knockout if m.date[:10] == kickoff.date().isoformat()]
     if len(candidates) == 1:
         return candidates[0]
     if fixture.city:
         city = fixture.city.casefold()
+        city = _PROVIDER_CITY_ALIASES.get(city, city)
         narrowed = [m for m in candidates if city in m.city.casefold() or m.city.casefold() in city]
         if len(narrowed) == 1:
             return narrowed[0]
     return None
 
 
-def _knockout_winner(fixture: MatchFixture, *, home_id: str, away_id: str) -> str | None:
-    assert fixture.home_goals is not None and fixture.away_goals is not None
-    if fixture.home_goals != fixture.away_goals:
+def _winner_from_fixture(fixture: MatchFixture, *, home_id: str, away_id: str) -> str | None:
+    if fixture.home_goals is not None and fixture.away_goals is not None and fixture.home_goals != fixture.away_goals:
         return home_id if fixture.home_goals > fixture.away_goals else away_id
     if fixture.winner == "home":
         return home_id

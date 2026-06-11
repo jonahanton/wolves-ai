@@ -15,12 +15,20 @@ output "schedule_name" {
   value = module.scheduler.schedule_name
 }
 
+output "archive_schedule_name" {
+  value = module.scheduler.archive_schedule_name
+}
+
 output "ecs_cluster_arn" {
   value = aws_ecs_cluster.this.arn
 }
 
 output "ecs_task_definition_family" {
   value = module.engine.task_definition_family
+}
+
+output "ecs_archive_task_definition_family" {
+  value = module.engine.archive_task_definition_family
 }
 
 output "ecs_subnets" {

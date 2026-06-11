@@ -59,19 +59,23 @@ class ArtifactStore:
     def put_text(self, key: str, body: str, *, content_type: str = "application/json") -> None:
         # Local write first, so an S3 outage is loud without losing data.
         if self.mode != "s3":
-            path = self.local_path(key)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(body, encoding="utf-8")
+            self._write_local(key, body.encode("utf-8"))
         if self._s3 is not None:
             self._s3.put_text(key, body, content_type=content_type)
 
     def put_bytes(self, key: str, body: bytes) -> None:
         if self.mode != "s3":
-            path = self.local_path(key)
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(body)
+            self._write_local(key, body)
         if self._s3 is not None:
             self._s3.put_bytes(key, body)
+
+    def _write_local(self, key: str, body: bytes) -> None:
+        # Atomic replace: a crash mid-write must not leave a torn mutable key.
+        path = self.local_path(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f".{path.name}.tmp")
+        tmp.write_bytes(body)
+        tmp.replace(path)
 
     def get_text(self, key: str, *, prefer: Literal["local", "s3"] = "local") -> str | None:
         body = self.get_bytes(key, prefer=prefer)

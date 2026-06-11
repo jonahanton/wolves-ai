@@ -1,7 +1,7 @@
 {
  "get": "fixtures",
  "parameters": {"league": "1", "season": "2026"},
- "results": 4,
+ "results": 5,
  "response": [
   {
    "fixture": {
@@ -33,7 +33,7 @@
    "fixture": {
     "id": 1300015,
     "date": "2026-06-16T21:00:00-04:00",
-    "status": {"long": "Second Half", "short": "2H"},
+    "status": {"long": "Second Half", "short": "2H", "elapsed": 63},
     "venue": {"id": 3, "name": "MetLife Stadium", "city": "New Jersey"}
    },
    "teams": {
@@ -41,6 +41,19 @@
     "away": {"id": 1530, "name": "Cape Verde Islands"}
    },
    "goals": {"home": 1, "away": 0}
+  },
+  {
+   "fixture": {
+    "id": 1300030,
+    "date": "2026-06-18T12:00:00-04:00",
+    "status": {"long": "Match Abandoned", "short": "ABD"},
+    "venue": {"id": 5, "name": "Mercedes-Benz Stadium", "city": "Atlanta"}
+   },
+   "teams": {
+    "home": {"id": 111, "name": "Czechia"},
+    "away": {"id": 1531, "name": "South Africa"}
+   },
+   "goals": {"home": null, "away": null}
   },
   {
    "fixture": {

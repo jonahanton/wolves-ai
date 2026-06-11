@@ -1,0 +1,62 @@
+name: Admin control
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Admin action
+        required: true
+        type: choice
+        options:
+          - active-runs
+          - stop-task
+          - stop-all
+      task_arn:
+        description: Task ARN for stop-task
+        required: false
+        type: string
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call backend admin API
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          ACTION: ${{ inputs.action }}
+          TASK_ARN: ${{ inputs.task_arn }}
+        run: |
+          auth=(-H "Authorization: Bearer $ADMIN_TOKEN")
+          case "$ACTION" in
+            active-runs)
+              curl --fail-with-body -sS "$BACKEND_URL/admin/runs/active" "${auth[@]}" | jq .
+              ;;
+            stop-task)
+              if [ -z "$TASK_ARN" ]; then
+                echo "task_arn is required for stop-task" >&2
+                exit 2
+              fi
+              curl --fail-with-body -sS -X POST "$BACKEND_URL/admin/stop" \
+                "${auth[@]}" \
+                -H "Content-Type: application/json" \
+                -d "$(jq -n --arg taskArn "$TASK_ARN" '{taskArn: $taskArn}')" | jq .
+              ;;
+            stop-all)
+              tasks=$(curl --fail-with-body -sS "$BACKEND_URL/admin/runs/active" "${auth[@]}" | jq -r '.tasks[].taskArn')
+              if [ -z "$tasks" ]; then
+                echo "No active tasks"
+                exit 0
+              fi
+              for task in $tasks; do
+                curl --fail-with-body -sS -X POST "$BACKEND_URL/admin/stop" \
+                  "${auth[@]}" \
+                  -H "Content-Type: application/json" \
+                  -d "$(jq -n --arg taskArn "$task" '{taskArn: $taskArn}')" | jq .
+              done
+              ;;
+            *)
+              echo "unknown action: $ACTION" >&2
+              exit 2
+              ;;
+          esac
