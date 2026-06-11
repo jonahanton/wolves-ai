@@ -8,14 +8,17 @@ import pandas as pd
 import pytest
 
 from wolves.agent.contracts import ForecastSubmission, Narrative
+from wolves.config import get_settings
 from wolves.data.build import write_dataset
 from wolves.models.contracts import DatasetHandle
 
 
 # Session-scoped so the pin lands before any session fixture builds Settings;
 # fake credentials keep moto-backed tests off the developer's real AWS profile.
+# RUNS_ROOT points at a fresh directory so results persisted in a developer's
+# local runs/ never leak into simulations under test.
 @pytest.fixture(scope="session", autouse=True)
-def _fake_aws_credentials() -> Iterator[None]:
+def _fake_aws_credentials(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
     patch = pytest.MonkeyPatch()
     patch.setenv("AWS_ACCESS_KEY_ID", "testing")
     patch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
@@ -23,8 +26,11 @@ def _fake_aws_credentials() -> Iterator[None]:
     patch.setenv("AWS_DEFAULT_REGION", "eu-west-2")
     patch.delenv("AWS_PROFILE", raising=False)
     patch.setenv("STORAGE_MODE", "local")
+    patch.setenv("RUNS_ROOT", str(tmp_path_factory.mktemp("runs-root")))
+    get_settings.cache_clear()
     yield
     patch.undo()
+    get_settings.cache_clear()
 
 
 R32_MATCHES = [str(m) for m in range(73, 89)]

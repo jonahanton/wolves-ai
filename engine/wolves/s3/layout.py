@@ -128,6 +128,12 @@ ODDS_CLOSE = ArtifactSpec(
     pattern="odds-archive/closes/{tournament}/{snapshot}.json",
     description="Purchased historical closing odds backing the gate holdout.",
 )
+RESULTS = ArtifactSpec(
+    name="results",
+    pattern="live/results.json",
+    mutable=True,
+    description="Played results and finished fixtures persisted from live polling; merged on write.",
+)
 LESSONS = ArtifactSpec(
     name="lessons",
     pattern="agent-state/lessons.jsonl",
@@ -179,6 +185,7 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     ODDS_SNAPSHOT,
     ODDS_SERIES_POINT,
     ODDS_CLOSE,
+    RESULTS,
     LESSONS,
     SCENARIOS,
     SOURCES_SEEN,

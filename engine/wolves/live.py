@@ -23,6 +23,7 @@ from wolves.s3.layout import SNAPSHOT
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import PlayedResult, load_format, load_results
 from wolves.sim.overlay import results_from_fixtures
+from wolves.sim.results_store import ResultsStore
 from wolves.snapshot import RunMeta, Snapshot
 
 logger = logging.getLogger(__name__)
@@ -91,16 +92,24 @@ async def live_pass(
         return False
 
     fmt = load_format(settings.data_dir)
-    overlay = results_from_fixtures(fmt, await fixtures.fixtures())
+    polled = await fixtures.fixtures()
+    overlay = results_from_fixtures(fmt, polled)
+    artifacts = ArtifactStore(settings)
+    store = ResultsStore(artifacts)
+    known = store.load()
     # Fresh containers hold no snapshots; without this the continuity check
     # and the agent overrides silently degrade to nothing.
-    ArtifactStore(settings).sync_down(prefix=SNAPSHOT.prefix)
+    artifacts.sync_down(prefix=SNAPSHOT.prefix)
     previous, worlds = scan_snapshots(settings.runs_root / "snapshots")
     pending = pending_results(
         overlay,
-        file_results=load_results(settings.data_dir),
+        file_results=load_results(settings.data_dir) | known.results,
         previous=previous,
     )
+    # Persist before simulating: daily and agent runs read the store, so a
+    # polled result must survive even when this pass publishes nothing.
+    finished = [f for f in polled if f.status == "finished"]
+    merged = store.record(overlay, fixtures=finished)
     if not pending:
         logger.info("no new results; live pass is a no-op")
         return False
@@ -117,7 +126,7 @@ async def live_pass(
             worlds or [PublishedWorld(name="baseline", weight=1.0)],
             n_sims=n_sims,
             seed=seed,
-            extra_results=overlay,
+            extra_results=merged.results | overlay,
         )
     except Exception:
         publisher.record_failure(run_id=run_id, created_at=created_at, started=started)
