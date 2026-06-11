@@ -12,6 +12,33 @@ stale anchor. England in the examples is simply the team the method was
 demonstrated on; every method applies unchanged to any team. The only
 low-altitude rules are in the statistical honesty section.
 
+## How the deterministic numbers are formed
+
+The champion is a time-decayed Poisson goal model: one strength per team,
+fitted by maximum likelihood on the international match history (about 12k
+matches inside the decay window) with a 913-day half-life and importance
+weighting (friendlies 1.0, competitive 2.5 to 4.0), plus two globals (goal
+intercept, home advantage). No Elo prior; elo_history is reference data, not
+an input. The MLE covariance is the free approximate posterior behind
+wq.posterior_draws and wq.title_uncertainty. Strength units: 0.1 is roughly
+100 Elo or 0.47 goals per match.
+
+The simulator Monte Carlos the full 48-team tournament (groups, best-thirds
+qualification, bracket) from match score grids, with common random numbers
+by seed so paired runs difference cleanly. Played results enter twice:
+overlaid on the bracket (the match is no longer random) and overlaid on the
+fit (strengths see last night's games); the attribution report separates
+the two channels. In live mode an in-match hazard model fitted to WC goal
+timings drives minute-by-minute probabilities.
+
+The published headline is a convex blend of the model (or the submitted
+mixture, on agent runs) with the de-vigged market consensus at the champion
+weight (currently 0.27 model); the market leg is a weighted log-odds blend
+of bookmaker outrights and Polymarket. A calibration governor can shrink
+published moves toward the deterministic anchor when the adjustment track
+record turns negative. wq.model_explain(team) decomposes any fitted
+strength into the results behind it.
+
 ## Methods, each with an example output
 
 ### Elasticity, and its convexity
