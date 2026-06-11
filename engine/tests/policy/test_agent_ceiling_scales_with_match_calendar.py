@@ -69,3 +69,9 @@ def test_ceiling_clamps_to_the_absolute_max() -> None:
     greedy = SETTINGS.model_copy(update={"agent_ceiling_qf_final_usd": 50.0})
 
     assert day_policy(greedy, FMT, on=date(2026, 7, 19)).ceiling_usd == greedy.agent_run_ceiling_max_usd
+
+
+def test_phase_knobs_below_the_rest_rate_are_honoured() -> None:
+    frugal = SETTINGS.model_copy(update={"agent_ceiling_opening_usd": 1.25})
+
+    assert day_policy(frugal, FMT, on=date(2026, 6, 12)).ceiling_usd == 1.25

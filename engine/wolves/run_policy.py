@@ -64,12 +64,12 @@ def _games_day_policy(settings: Settings, fmt: FormatData, big: frozenset[str], 
         phase: Phase = "qf_final"
         ceiling = settings.agent_ceiling_qf_final_usd
         if single_knockout:
-            ceiling -= settings.agent_ceiling_single_game_discount_usd
+            ceiling = max(ceiling - settings.agent_ceiling_single_game_discount_usd, settings.agent_ceiling_rest_usd)
     elif knockout_stages:
         phase = "r32_r16"
         ceiling = settings.agent_ceiling_r32_r16_usd
         if single_knockout:
-            ceiling -= settings.agent_ceiling_single_game_discount_usd
+            ceiling = max(ceiling - settings.agent_ceiling_single_game_discount_usd, settings.agent_ceiling_rest_usd)
     elif not group_games:
         phase = "rest"
         ceiling = settings.agent_ceiling_rest_usd
@@ -82,7 +82,7 @@ def _games_day_policy(settings: Settings, fmt: FormatData, big: frozenset[str], 
     else:
         phase = "group"
         ceiling = settings.agent_ceiling_group_usd
-    capped = min(max(ceiling, settings.agent_ceiling_rest_usd), settings.agent_run_ceiling_max_usd)
+    capped = min(ceiling, settings.agent_run_ceiling_max_usd)
     return DayPolicy(on, phase, round(capped, 2), big_playing)
 
 

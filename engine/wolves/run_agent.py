@@ -505,7 +505,13 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         fixtures: FixturesClient = (
             ApiFootballClient(settings.api_football_key) if settings.api_football_key else FakeFixturesClient()
         )
-        logger.info("LIVE run %s: model=%s, ceiling=$%.2f", run_id, settings.worker_model, ceiling)
+        logger.info(
+            "LIVE run %s: master=%s, workers=%s, ceiling=$%.2f",
+            run_id,
+            settings.graph_master_model or settings.fast_model,
+            settings.worker_model,
+            ceiling,
+        )
     else:
         runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=Caps(), runs_root=settings.runs_root)
         models = _dev_models(runtime, as_of, settings.focus_team)
