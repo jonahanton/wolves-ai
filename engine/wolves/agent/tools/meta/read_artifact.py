@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
-
-from typing import TYPE_CHECKING
 
 from wolves.agent.deps import AgentDeps
 from wolves.toolkit.core import ToolSpec
@@ -42,8 +40,7 @@ def _read_file(store: RunArtifactStore, artifact_id: str, name: str) -> dict[str
 
 
 async def _read_artifact(args: ReadArtifactArgs, deps: AgentDeps) -> ToolResult[Any]:
-    # Imported lazily: the graph package init mounts the toolsets that import
-    # this module, so a top-level import is circular.
+    # Lazy: a top-level wolves.graph import is circular via the toolsets.
     from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
     from wolves.s3.artifacts import ArtifactStore
 
