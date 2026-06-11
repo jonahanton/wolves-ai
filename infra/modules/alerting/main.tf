@@ -4,6 +4,7 @@ resource "aws_sns_topic" "alerts" {
 
 data "aws_iam_policy_document" "alerts_topic" {
   statement {
+    sid       = "BudgetsPublish"
     actions   = ["SNS:Publish"]
     resources = [aws_sns_topic.alerts.arn]
 
@@ -14,6 +15,7 @@ data "aws_iam_policy_document" "alerts_topic" {
   }
 
   statement {
+    sid       = "EventsPublish"
     actions   = ["SNS:Publish"]
     resources = [aws_sns_topic.alerts.arn]
 
