@@ -87,8 +87,8 @@ class Settings(BaseSettings):
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
 
-    agent_run_ceiling_usd: float = 1.00
-    agent_run_ceiling_max_usd: float = 1.50
+    agent_run_ceiling_usd: float = 3.00
+    agent_run_ceiling_max_usd: float = 5.00
     graph_forecast_reserve_usd: float = 0.35
     graph_forecast_reserve_llm_calls: int = 8
 
