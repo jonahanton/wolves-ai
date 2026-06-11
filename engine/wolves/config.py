@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     smart_model: str = "claude-opus-4-8"
     fast_model: str = "claude-sonnet-4-6"
     worker_model: str = "claude-sonnet-4-6"
+    # Empty string means inherit worker_model. Research and critic are
+    # extraction-shaped and run fine on the cheap tier; quant and forecast
+    # carry the numerical judgement and stay on the worker default.
+    graph_research_model: str = "claude-haiku-4-5"
+    graph_quant_model: str = ""
+    graph_forecast_model: str = ""
+    graph_critic_model: str = "claude-haiku-4-5"
 
     brave_api_key: str = ""
     exa_api_key: str = ""

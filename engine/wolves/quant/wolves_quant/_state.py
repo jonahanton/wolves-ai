@@ -36,9 +36,16 @@ class Usage:
     artifact_reads: int = 0
 
     def flush(self, root: Path) -> None:
+        # Every script runs in a fresh process, so the file carries the node's
+        # cumulative counters; overwriting let a final assemble-only script
+        # zero the record and falsely flag the node as quant_no_computation.
         path = root / USAGE_FILENAME
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self.__dict__), encoding="utf-8")
+        counts = dict(self.__dict__)
+        if path.exists():
+            for key, value in json.loads(path.read_text(encoding="utf-8")).items():
+                counts[key] = counts.get(key, 0) + int(value)
+        path.write_text(json.dumps(counts), encoding="utf-8")
 
 
 @dataclass

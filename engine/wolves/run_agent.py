@@ -427,12 +427,20 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
         llm: LLMClient = build_llm(settings, model=settings.worker_model)
         provider = AnthropicProvider(api_key=settings.anthropic_api_key)
-        # Wave planning needs the stronger model; workers stay on the cheap one.
-        worker = ObservedModel(AnthropicModel(settings.worker_model, provider=provider), runtime=runtime)
-        master = ObservedModel(AnthropicModel(settings.fast_model, provider=provider), runtime=runtime)
+
+        # Wave planning and numerical judgement need the stronger model;
+        # extraction-shaped nodes run on the cheap one.
+        def observed(model_name: str) -> ObservedModel:
+            return ObservedModel(AnthropicModel(model_name, provider=provider), runtime=runtime)
+
         models = GraphModels(
-            master=master,
-            nodes={"research": worker, "quant": worker, "forecast": worker, "critic": worker},
+            master=observed(settings.fast_model),
+            nodes={
+                "research": observed(settings.graph_research_model or settings.worker_model),
+                "quant": observed(settings.graph_quant_model or settings.worker_model),
+                "forecast": observed(settings.graph_forecast_model or settings.worker_model),
+                "critic": observed(settings.graph_critic_model or settings.worker_model),
+            },
         )
         web = build_web(settings, runtime)
         odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
