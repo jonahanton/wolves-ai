@@ -23,15 +23,30 @@ discovering them:
   strength uncertainty; wq.query(sql) over the research dataset (49k
   international results, Elo history, market closes); wq.load_ledger(),
   wq.load_market_series(), wq.load_ratings().
+- The deterministic model's own diagnostics: wq.model_explain(team) decomposes
+  a fitted strength into its weighted record, strongest match influences and
+  Elo trajectory; wq.path_tree(team, view="reach"|"title") maps the knockout
+  route with per-stage advance probabilities and likely opponents;
+  wq.market_gaps() -> DataFrame of model vs de-vigged market vs published
+  blend per team; wq.market_movement() -> DataFrame of bookmaker moves
+  across archived snapshots.
 - Perturbation classes sit beside them: wq.StrengthPerturbation(team=,
   delta=, reason=), wq.MatchRatePerturbation, wq.TempoPerturbation and the
   rest; team ids are lowercase keys from wq.teams().
 
 Files persist between calls; variables do not. End every script by assigning
 the finding to `result`, including pure orientation scripts: a print is
-discarded. Orient in ONE script, not four: read inputs/field_guide.md and
-inputs/data_card.md with open().read() when you need them, and trust the API
-reference above instead of probing return shapes.
+discarded. Orient in ONE script, not four: trust the API reference above
+instead of probing return shapes, and open the reference documents directly.
+The shape of a good first script:
+
+    teams = wq.teams()
+    card = open("inputs/data_card.md").read()
+    guide = open("inputs/field_guide.md").read()
+    result = {"groups": teams.groupby("group").size().to_dict(),
+              "guide_sections": [l for l in guide.splitlines() if l.startswith("#")]}
+
+so the second script already computes.
 
 The full scientific stack is importable beside wq: scipy and statsmodels for
 fitting and inference, sklearn for regression, validation splits and boosted

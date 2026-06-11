@@ -22,6 +22,7 @@ from wolves.quant.wolves_quant._data import (
     query,
     teams,
 )
+from wolves.quant.wolves_quant._insights import market_gaps, market_movement, model_explain, path_tree
 from wolves.quant.wolves_quant._mixture import Factor, Scenario, scenario_mixture
 from wolves.quant.wolves_quant._sanitise import sanitise as _sanitise
 from wolves.quant.wolves_quant._sim import (
@@ -57,8 +58,12 @@ __all__ = [
     "load_market_series",
     "load_matches",
     "load_ratings",
+    "market_gaps",
+    "market_movement",
     "match_probs",
+    "model_explain",
     "noise_floor",
+    "path_tree",
     "posterior_draws",
     "query",
     "reach",
