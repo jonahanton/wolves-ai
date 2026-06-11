@@ -38,6 +38,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         limits=deps.limits,
         baseline_titles=_baseline_titles(deps),
         previous_titles=_previous_titles(deps),
+        focus_team=deps.settings.focus_team,
     )
     if not report.ok:
         deps.submission.validation_failures += 1

@@ -49,6 +49,7 @@ def validate_submission(
     limits: ValidatorLimits,
     baseline_titles: dict[str, float] | None = None,
     previous_titles: dict[str, float] | None = None,
+    focus_team: str | None = None,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
     citation discipline on weights, Paleka coherence on the artifact's own
@@ -77,6 +78,7 @@ def validate_submission(
     issues += _check_narrative(submission)
     issues += _check_em_dashes(submission)
     issues += _check_british_english(submission)
+    issues += _check_focus_story(submission, focus_team)
     return ValidationReport(ok=not issues, issues=issues, escalations=escalations)
 
 
@@ -199,6 +201,20 @@ _AMERICANISMS = re.compile(
     r"organiz\w+|analyz\w+|capitaliz\w+|honor(s|ed)?|behavior[s]?|soccer)\b",
     re.IGNORECASE,
 )
+
+
+def _check_focus_story(submission: ForecastSubmission, focus_team: str | None) -> list[ValidationIssue]:
+    if focus_team is None:
+        return []
+    display = focus_team.replace("-", " ").lower()
+    if display not in submission.narrative.focus_story.lower():
+        return [
+            _issue(
+                "focus_story_off_topic",
+                f"focus_story is the {display} daily story and must concern that team",
+            )
+        ]
+    return []
 
 
 def _check_british_english(submission: ForecastSubmission) -> list[ValidationIssue]:

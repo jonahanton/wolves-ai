@@ -57,6 +57,15 @@ def test_em_dash_anywhere_rejects(store: RunArtifactStore, ledger: EvidenceLedge
     assert "em_dash" in _codes(_validate(submission, store, ledger))
 
 
+def test_focus_story_about_another_team_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
+    story = "Canada enter the tournament at home with real defensive disruption."
+    submission = build_submission(narrative=build_narrative(focus_story=story))
+    report = validate_submission(
+        submission, artifacts=store, ledger=ledger, limits=ValidatorLimits(), focus_team="england"
+    )
+    assert "focus_story_off_topic" in [i.code for i in report.issues]
+
+
 def test_american_spelling_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
     story = "England's favorable draw and organized defense set up a calm opener."
     submission = build_submission(narrative=build_narrative(focus_story=story))
