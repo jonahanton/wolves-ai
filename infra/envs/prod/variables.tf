@@ -50,6 +50,68 @@ variable "archive_schedule_cron" {
   default     = "cron(0 8,14,18,22 * * ? *)"
 }
 
+variable "agent_schedule_state" {
+  description = "Creation-time agent schedule state. Disabled by default for the same first-apply reason as schedule_state; enabling is an explicit operational act (see infra/RUNBOOK.md)."
+  type        = string
+  default     = "DISABLED"
+
+  validation {
+    condition     = contains(["ENABLED", "DISABLED"], var.agent_schedule_state)
+    error_message = "agent_schedule_state must be ENABLED or DISABLED."
+  }
+}
+
+variable "agent_schedule_cron" {
+  description = "Creation-time agent run cron (UTC); 06:30 sits before any kickoff."
+  type        = string
+  default     = "cron(30 6 * * ? *)"
+}
+
+variable "live_schedule_state" {
+  description = "Creation-time live window schedule state. Disabled by default for the same first-apply reason as schedule_state."
+  type        = string
+  default     = "DISABLED"
+
+  validation {
+    condition     = contains(["ENABLED", "DISABLED"], var.live_schedule_state)
+    error_message = "live_schedule_state must be ENABLED or DISABLED."
+  }
+}
+
+variable "live_schedule_cron" {
+  description = "Creation-time live window cron (UTC); 15:00 precedes the earliest 16:00 kickoff and the task exits itself when idle."
+  type        = string
+  default     = "cron(0 15 * * ? *)"
+}
+
+variable "run_policy" {
+  description = "The operator-facing spend-policy and live-cadence configuration surface; rendered into the engine task environment. `python -m wolves.run_policy` prints the calendar derived from these values."
+  type = object({
+    agent_ceiling_base_usd           = number
+    agent_ceiling_rest_day_usd       = number
+    agent_ceiling_per_result_usd     = number
+    agent_ceiling_knockout_today_usd = number
+    agent_ceiling_focus_bonus_usd    = number
+    agent_ceiling_policy_max_usd     = number
+    live_poll_interval_s             = number
+    live_stale_after_s               = number
+    live_idle_interval_s             = number
+    live_idle_grace_hours            = number
+  })
+  default = {
+    agent_ceiling_base_usd           = 0.75
+    agent_ceiling_rest_day_usd       = 0.50
+    agent_ceiling_per_result_usd     = 0.10
+    agent_ceiling_knockout_today_usd = 0.40
+    agent_ceiling_focus_bonus_usd    = 0.50
+    agent_ceiling_policy_max_usd     = 4.00
+    live_poll_interval_s             = 60
+    live_stale_after_s               = 150
+    live_idle_interval_s             = 900
+    live_idle_grace_hours            = 6
+  }
+}
+
 variable "engine_image_tag" {
   description = "Engine image tag the task definition points at."
   type        = string

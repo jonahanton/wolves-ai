@@ -117,6 +117,7 @@ module "engine" {
   cpu                = var.engine_cpu
   memory             = var.engine_memory
   log_retention_days = var.log_retention_days
+  run_policy         = var.run_policy
 }
 
 module "scheduler" {
@@ -130,6 +131,10 @@ module "scheduler" {
   task_definition_family         = module.engine.task_definition_family
   archive_task_definition_arn    = module.engine.archive_task_definition_arn
   archive_task_definition_family = module.engine.archive_task_definition_family
+  agent_task_definition_arn      = module.engine.agent_task_definition_arn
+  agent_task_definition_family   = module.engine.agent_task_definition_family
+  live_task_definition_arn       = module.engine.live_task_definition_arn
+  live_task_definition_family    = module.engine.live_task_definition_family
   task_role_arn                  = module.engine.task_role_arn
   task_execution_role_arn        = module.engine.task_execution_role_arn
   subnets                        = data.aws_subnets.default.ids
@@ -138,6 +143,10 @@ module "scheduler" {
   initial_cron                   = var.schedule_cron
   archive_initial_state          = var.archive_schedule_state
   archive_initial_cron           = var.archive_schedule_cron
+  agent_initial_state            = var.agent_schedule_state
+  agent_initial_cron             = var.agent_schedule_cron
+  live_initial_state             = var.live_schedule_state
+  live_initial_cron              = var.live_schedule_cron
 }
 
 module "backend_api" {
@@ -159,6 +168,8 @@ module "backend_api" {
   schedule_arn                  = module.scheduler.schedule_arn
   scheduler_role_arn            = module.scheduler.scheduler_role_arn
   engine_task_definition_family = module.engine.task_definition_family
+  agent_task_definition_family  = module.engine.agent_task_definition_family
+  live_task_definition_family   = module.engine.live_task_definition_family
   engine_task_role_arn          = module.engine.task_role_arn
   engine_security_group_id      = module.engine.security_group_id
   task_execution_role_arn       = module.engine.task_execution_role_arn
@@ -173,20 +184,24 @@ module "backend_api" {
 module "alerting" {
   source = "../../modules/alerting"
 
-  project                        = var.project
-  region                         = var.region
-  account_id                     = data.aws_caller_identity.current.account_id
-  monthly_budget_usd             = var.monthly_budget_usd
-  alert_email                    = var.alert_email
-  scheduler_role_arn             = module.scheduler.scheduler_role_arn
-  scheduler_role_name            = module.scheduler.scheduler_role_name
-  backend_run_role_arn           = module.backend_api.task_role_arn
-  backend_run_role_name          = module.backend_api.task_role_name
-  github_ops_role_arn            = module.release_oidc.ops_role_arn
-  github_ops_role_name           = module.release_oidc.ops_role_name
-  cluster_arn                    = aws_ecs_cluster.this.arn
-  engine_task_definition_family  = module.engine.task_definition_family
-  archive_task_definition_family = module.engine.archive_task_definition_family
+  project               = var.project
+  region                = var.region
+  account_id            = data.aws_caller_identity.current.account_id
+  monthly_budget_usd    = var.monthly_budget_usd
+  alert_email           = var.alert_email
+  scheduler_role_arn    = module.scheduler.scheduler_role_arn
+  scheduler_role_name   = module.scheduler.scheduler_role_name
+  backend_run_role_arn  = module.backend_api.task_role_arn
+  backend_run_role_name = module.backend_api.task_role_name
+  github_ops_role_arn   = module.release_oidc.ops_role_arn
+  github_ops_role_name  = module.release_oidc.ops_role_name
+  cluster_arn           = aws_ecs_cluster.this.arn
+  engine_task_definition_families = [
+    module.engine.task_definition_family,
+    module.engine.archive_task_definition_family,
+    module.engine.agent_task_definition_family,
+    module.engine.live_task_definition_family,
+  ]
 }
 
 module "release_oidc" {

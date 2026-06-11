@@ -47,10 +47,7 @@ variable "cluster_arn" {
   type = string
 }
 
-variable "engine_task_definition_family" {
-  type = string
-}
-
-variable "archive_task_definition_family" {
-  type = string
+variable "engine_task_definition_families" {
+  description = "Engine task families whose failed tasks raise the alert."
+  type        = list(string)
 }

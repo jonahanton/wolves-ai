@@ -14,6 +14,8 @@ env:
   ECR_REPOSITORY: wolves-engine
   TASK_FAMILY: wolves-engine-daily
   ARCHIVE_TASK_FAMILY: wolves-engine-archive
+  AGENT_TASK_FAMILY: wolves-engine-agent
+  LIVE_TASK_FAMILY: wolves-engine-live
   BACKEND_ECR_REPOSITORY: wolves-backend
   ECS_CLUSTER: wolves
   BACKEND_SERVICE: wolves-backend
@@ -54,7 +56,7 @@ jobs:
         env:
           IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.ref_name }}
         run: |
-          for family in "$TASK_FAMILY" "$ARCHIVE_TASK_FAMILY"; do
+          for family in "$TASK_FAMILY" "$ARCHIVE_TASK_FAMILY" "$AGENT_TASK_FAMILY" "$LIVE_TASK_FAMILY"; do
             aws ecs describe-task-definition --task-definition "$family" \
               --query taskDefinition > taskdef.json
             jq --arg image "$IMAGE" '

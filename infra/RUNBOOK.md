@@ -120,6 +120,25 @@ aws scheduler update-schedule --name wolves-odds-archive --state ENABLED \
   --target "$(jq -c .Target sched.json)"
 ```
 
+## Run schedules and policy
+
+Four EventBridge schedules launch engine tasks, all created DISABLED and runtime-owned (`ignore_changes`):
+
+| Schedule | Task | Cron variable |
+| --- | --- | --- |
+| `wolves-daily-run` | deterministic daily run | `schedule_cron` |
+| `wolves-odds-archive` | odds archive | `archive_schedule_cron` |
+| `wolves-agent-daily` | agent run (ceiling derived from the calendar policy) | `agent_schedule_cron` |
+| `wolves-live-window` | live polling loop, exits itself when idle | `live_schedule_cron` |
+
+The `run_policy` variable in `infra/envs/prod/variables.tf` is the spend-policy configuration surface: agent ceilings and live polling cadence, rendered into every engine task's environment. To see the calendar the engine derives from it, run from a directory with `.env`:
+
+```sh
+uv run --project engine python -m wolves.run_policy
+```
+
+The agent and live schedules ship DISABLED (same first-apply safety as the others). Enable them the same way as the odds archive in step 10: `aws scheduler get-schedule --name <name>`, then `update-schedule --state ENABLED` re-submitting the existing expression, window, and target.
+
 ## Kill-switch reset
 
 At 100 percent of the monthly budget, the budget action attaches `wolves-deny-run-task` to three roles, which stops all new engine tasks. To reset after investigating:

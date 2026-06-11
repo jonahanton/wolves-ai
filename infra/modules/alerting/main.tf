@@ -54,8 +54,8 @@ resource "aws_cloudwatch_event_rule" "engine_task_failed" {
       clusterArn = [var.cluster_arn]
       lastStatus = ["STOPPED"]
       taskDefinitionArn = [
-        { prefix = "arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.engine_task_definition_family}" },
-        { prefix = "arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${var.archive_task_definition_family}" },
+        for family in var.engine_task_definition_families :
+        { prefix = "arn:aws:ecs:${var.region}:${var.account_id}:task-definition/${family}" }
       ]
       "$or" = [
         { containers = { exitCode = [{ anything-but = [0] }] } },

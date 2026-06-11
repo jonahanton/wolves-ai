@@ -65,6 +65,16 @@ locals {
     { name = "STORAGE_MODE", value = "both" },
     { name = "DYNAMO_TABLE", value = var.dynamo_table_name },
     { name = "RUNS_ROOT", value = "/tmp/runs" },
+    { name = "AGENT_CEILING_BASE_USD", value = tostring(var.run_policy.agent_ceiling_base_usd) },
+    { name = "AGENT_CEILING_REST_DAY_USD", value = tostring(var.run_policy.agent_ceiling_rest_day_usd) },
+    { name = "AGENT_CEILING_PER_RESULT_USD", value = tostring(var.run_policy.agent_ceiling_per_result_usd) },
+    { name = "AGENT_CEILING_KNOCKOUT_TODAY_USD", value = tostring(var.run_policy.agent_ceiling_knockout_today_usd) },
+    { name = "AGENT_CEILING_FOCUS_BONUS_USD", value = tostring(var.run_policy.agent_ceiling_focus_bonus_usd) },
+    { name = "AGENT_CEILING_POLICY_MAX_USD", value = tostring(var.run_policy.agent_ceiling_policy_max_usd) },
+    { name = "LIVE_POLL_INTERVAL_S", value = tostring(var.run_policy.live_poll_interval_s) },
+    { name = "LIVE_STALE_AFTER_S", value = tostring(var.run_policy.live_stale_after_s) },
+    { name = "LIVE_IDLE_INTERVAL_S", value = tostring(var.run_policy.live_idle_interval_s) },
+    { name = "LIVE_IDLE_GRACE_HOURS", value = tostring(var.run_policy.live_idle_grace_hours) },
   ]
 
   engine_secrets = [
@@ -158,6 +168,75 @@ resource "aws_ecs_task_definition" "daily" {
           awslogs-group         = aws_cloudwatch_log_group.engine.name
           awslogs-region        = var.region
           awslogs-stream-prefix = "daily"
+        }
+      }
+    }
+  ])
+}
+
+resource "aws_ecs_task_definition" "agent" {
+  family                   = "${var.project}-engine-agent"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.cpu
+  memory                   = var.memory
+  execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.task.arn
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
+
+  container_definitions = jsonencode([
+    {
+      name      = "engine"
+      image     = "${aws_ecr_repository.engine.repository_url}:${var.image_tag}"
+      essential = true
+      # No --ceiling: the engine derives it from the calendar run policy.
+      command     = ["wolves.run_agent", "--live", "--confirm-spend"]
+      environment = local.engine_environment
+      secrets     = local.engine_secrets
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.engine.name
+          awslogs-region        = var.region
+          awslogs-stream-prefix = "agent"
+        }
+      }
+    }
+  ])
+}
+
+resource "aws_ecs_task_definition" "live" {
+  family                   = "${var.project}-engine-live"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = var.cpu
+  memory                   = var.memory
+  execution_role_arn       = aws_iam_role.task_execution.arn
+  task_role_arn            = aws_iam_role.task.arn
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "ARM64"
+  }
+
+  container_definitions = jsonencode([
+    {
+      name        = "engine"
+      image       = "${aws_ecr_repository.engine.repository_url}:${var.image_tag}"
+      essential   = true
+      command     = ["wolves.live", "--loop", "--until-idle"]
+      environment = local.engine_environment
+      secrets     = local.engine_secrets
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.engine.name
+          awslogs-region        = var.region
+          awslogs-stream-prefix = "live"
         }
       }
     }
