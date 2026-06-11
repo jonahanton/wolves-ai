@@ -422,7 +422,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
 
     if args.live:
         ceiling = args.ceiling if args.ceiling is not None else settings.agent_run_ceiling_usd
-        caps = Caps(max_cost_micros=int(ceiling * 1_000_000))
+        # The dollar ceiling is the budget; the call cap is only a runaway
+        # backstop, sized so cheap-tier nodes cannot exhaust it first.
+        caps = Caps(max_cost_micros=int(ceiling * 1_000_000), max_llm_calls=160)
         tracer = build_logfire_tracer(settings) if settings.logfire_token else InMemoryTracer()
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
         llm: LLMClient = build_llm(settings, model=settings.worker_model)
