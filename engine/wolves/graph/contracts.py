@@ -29,9 +29,15 @@ class NodePatch(Brief):
 class GraphPatch(BaseModel):
     """The master's wave plan: patches the runtime admits against caps."""
 
-    ops: list[NodePatch] = Field(default_factory=list)
+    ops: list[NodePatch] = Field(
+        default_factory=list,
+        description="The node briefs to run next wave. The plan lives HERE, never in reason; required unless stop is true.",
+    )
     stop: bool = False
-    reason: str = ""
+    reason: str = Field(
+        default="",
+        description="One short paragraph of planning rationale. Never describe nodes here that ops does not carry.",
+    )
 
 
 class LedgerEvidence(EvidenceItem):
