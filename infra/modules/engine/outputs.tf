@@ -22,6 +22,10 @@ output "task_execution_role_arn" {
   value = aws_iam_role.task_execution.arn
 }
 
+output "task_execution_role_name" {
+  value = aws_iam_role.task_execution.name
+}
+
 output "security_group_id" {
   value = aws_security_group.engine.id
 }

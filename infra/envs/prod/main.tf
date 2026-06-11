@@ -137,6 +137,7 @@ module "backend_api" {
   engine_task_role_arn          = module.engine.task_role_arn
   engine_security_group_id      = module.engine.security_group_id
   task_execution_role_arn       = module.engine.task_execution_role_arn
+  task_execution_role_name      = module.engine.task_execution_role_name
   image_tag                     = var.backend_image_tag
   cpu                           = var.backend_cpu
   memory                        = var.backend_memory

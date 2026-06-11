@@ -103,6 +103,26 @@ resource "aws_iam_role_policy" "backend_task" {
   policy = data.aws_iam_policy_document.backend_task.json
 }
 
+# The token value is set out of band (aws secretsmanager put-secret-value)
+# so it never enters terraform state; terraform manages only the container.
+resource "aws_secretsmanager_secret" "admin_token" {
+  name        = "${var.project}-backend-admin-token"
+  description = "Bearer token for the backend admin API. Value managed manually, not by terraform."
+}
+
+data "aws_iam_policy_document" "execution_admin_token" {
+  statement {
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.admin_token.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "execution_admin_token" {
+  name   = "backend-admin-token"
+  role   = var.task_execution_role_name
+  policy = data.aws_iam_policy_document.execution_admin_token.json
+}
+
 # No ALB in front of this service: it is a single public task whose admin
 # surface denies by default in-app, so ingress on the app port is acceptable.
 resource "aws_security_group" "backend" {
@@ -157,6 +177,9 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "ECS_TASK_DEFINITION", value = var.engine_task_definition_family },
         { name = "ECS_SUBNETS", value = join(",", var.subnets) },
         { name = "ECS_SECURITY_GROUP", value = var.engine_security_group_id },
+      ]
+      secrets = [
+        { name = "ADMIN_TOKEN", valueFrom = aws_secretsmanager_secret.admin_token.arn }
       ]
       healthCheck = {
         command     = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')\""]
