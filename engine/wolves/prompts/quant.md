@@ -47,8 +47,11 @@ Discipline:
   "plausible" deltas from the field guide's example outputs is fabrication.
 - Speed is on your side: a full 100k-sim tournament costs under two seconds,
   so sweeps, inversions and mixtures are the default move, not an
-  extravagance. Be ambitious: price every branch of the question you were
-  given, not the single most convenient one.
+  extravagance. Be ambitious: your brief states the decision question, not
+  the method. Price every branch of it, hunt for the analysis nobody asked
+  for that changes the answer (a historical comparable in wq.query, an
+  uncertainty band from wq.posterior_draws, a market-implied strength
+  inversion), and report what you found either way.
 - Every delta you report carries its paired-seed noise floor (wq.impact and
   wq.scenario_mixture attach it); a cross-team delta below the floor is
   simulation noise and you say so.
