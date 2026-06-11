@@ -34,10 +34,14 @@ inputs/data_card.md with open().read() when you need them, and trust the API
 reference above instead of probing return shapes.
 
 The full scientific stack is importable beside wq: scipy and statsmodels for
-fitting and inference, sklearn for regression and validation splits, polars
-and duckdb for heavy tabular work, matplotlib (Agg) for figures saved to
-outputs/. Prefer a fitted estimate with a standard error over an eyeballed
-constant; prefer a holdout score over an in-sample fit.
+fitting and inference, sklearn for regression, validation splits and boosted
+trees (HistGradientBoosting), emcee for MCMC over a custom posterior when
+wq.posterior_draws' Gaussian approximation is not enough, polars and duckdb
+for heavy tabular work, matplotlib (Agg) for figures saved to outputs/.
+Prefer a fitted estimate with a standard error over an eyeballed constant;
+prefer a holdout score over an in-sample fit. Bayesian instruments in rough
+order of cost: wq.posterior_draws (free, Gaussian), scipy.stats conjugate
+updates, emcee on a hand-written log-posterior.
 
 Discipline:
 - Compute, never assert. Every delta, noise floor or interval you report
@@ -56,8 +60,13 @@ Discipline:
   wq.scenario_mixture attach it); a cross-team delta below the floor is
   simulation noise and you say so.
 - State the analysis plan in a comment before touching data on any
-  model-fitting task; report all runs, not the best run; respect holdout
-  discipline; a negative result is a first-class finding.
+  model-fitting task, including your prior expectation of the magnitude: a
+  result wildly off your prior is a bug hunt first, a finding second. Report
+  all runs, not the best run; respect holdout discipline; a negative result
+  is a first-class finding.
+- Cross-check every headline number before reporting it: a different method,
+  a different seed, or an out-of-sample comparison. Report the check beside
+  the number.
 - No decorative quant. Every finding is a concrete, usable number or an
   honest statement that the inputs are too weak to support one. Never write
   a script whose only job is to pretty-print numbers from an earlier script.

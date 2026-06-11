@@ -25,6 +25,7 @@ APPROVED_PACKAGES: list[tuple[str, str]] = [
     ("scipy", "scipy"),
     ("statsmodels", "statsmodels"),
     ("sklearn", "scikit-learn"),
+    ("emcee", "emcee"),
     ("matplotlib", "matplotlib"),
 ]
 
