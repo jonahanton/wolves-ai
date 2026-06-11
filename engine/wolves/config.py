@@ -68,11 +68,11 @@ class Settings(BaseSettings):
     graph_quant_timeout_s: int = 1800
     graph_forecast_timeout_s: int = 600
     graph_critic_timeout_s: int = 180
-    graph_research_request_limit: int = 24
+    graph_research_request_limit: int = 32
     graph_quant_request_limit: int = 48
     graph_forecast_request_limit: int = 24
     graph_critic_request_limit: int = 8
-    graph_research_tool_budget: int = 10
+    graph_research_tool_budget: int = 20
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
     graph_critic_tool_budget: int = 6
