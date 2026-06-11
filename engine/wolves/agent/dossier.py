@@ -204,6 +204,8 @@ def _gaps(deps: AgentDeps, titles: dict[str, float] | None) -> str:
 
 
 def _published(deps: AgentDeps, titles: dict[str, float] | None) -> str:
+    from datetime import UTC, datetime
+
     from wolves.insights.what_changed import load_latest_snapshot
 
     if not deps.as_of:
@@ -213,9 +215,19 @@ def _published(deps: AgentDeps, titles: dict[str, float] | None) -> str:
         return ""
     top = sorted(previous.teams, key=lambda t: t.champion_prob, reverse=True)[:_TOP_TEAMS]
     rows = ", ".join(f"{t.team_id} {t.champion_prob * 100:.1f}" for t in top)
+    when = previous.run.created_at
+    try:
+        age_h = (datetime.now(UTC) - datetime.fromisoformat(when)).total_seconds() / 3600
+        when = f"{when}, {age_h:.0f}h ago"
+    except ValueError:
+        pass
+    worlds = ""
+    if previous.agent is not None and previous.agent.worlds:
+        worlds = " Its worlds: " + ", ".join(f"{w.name} {w.weight:.2f}" for w in previous.agent.worlds[:8]) + "."
     return (
-        f"Yesterday's published forecast ({previous.run.run_id}, {previous.run.kind}): {rows}. "
-        "This is the anchor your run moves from; unexplained drift against it is rejected at submission."
+        f"Previous published forecast ({previous.run.run_id}, {previous.run.kind}, created {when}): {rows}.{worlds} "
+        "This is the anchor your run moves from; unexplained drift against it is rejected at submission. "
+        "Nodes can open its full narrative, evidence and artifact index with previous_forecast."
     )
 
 

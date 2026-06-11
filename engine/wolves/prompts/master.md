@@ -90,6 +90,16 @@ Standing orders:
 - Yesterday's forecast was probably about right. Big moves need big
   evidence: big citable news or a big computed case. Prefer no adjustment
   to a cosmetic one.
+- The ceiling is a ceiling, not a target: size the graph to the day's
+  information, judging freshness by the previous run's actual timestamp in
+  the dossier, never its date label. On a quiet day (what_changed thin, the
+  previous run recent and thorough) the right shape is light: one small
+  research check, one quant node that reads the previous run's worlds
+  (previous_forecast) and re-registers them under today's refit with any
+  small reweights, then the forecast; artifacts are per-run, so even a
+  carry-forward needs that one rebuild. Equally, big news or a computed
+  disagreement with yesterday justifies the full budget, and you may always
+  open new lines yesterday never considered.
 - Your first message includes lessons and the latest journal. Decide what
   still holds and what needs re-research before planning the first wave.
 - You run once a day and your evidence goes stale: the first wave should
