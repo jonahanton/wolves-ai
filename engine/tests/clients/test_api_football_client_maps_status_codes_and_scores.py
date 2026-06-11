@@ -15,9 +15,18 @@ _FIXTURE = Path(__file__).resolve().parents[2] / "wolves/clients/api_football/fi
 async def test_fixture_parses_into_typed_matches_with_status_mapping():
     body = json.loads(_FIXTURE.read_text(encoding="utf-8"))
     body["response"][0]["teams"]["home"]["winner"] = True
+    live_item = next(i for i in body["response"] if i["fixture"]["id"] == 1300015)
+    enriched = json.loads(json.dumps(live_item))
+    enriched["events"] = [
+        {"type": "Card", "detail": "Yellow Card", "team": {"id": 9}},
+        {"type": "Card", "detail": "Red Card", "team": {"id": 1001}},
+    ]
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["x-apisports-key"] == "test-key"
+        if "ids" in request.url.params:
+            assert request.url.params["ids"] == "1300015"
+            return httpx.Response(200, json={"errors": [], "response": [enriched]})
         assert request.url.params["league"] == "1"
         return httpx.Response(200, json=body)
 
@@ -32,9 +41,55 @@ async def test_fixture_parses_into_typed_matches_with_status_mapping():
     assert by_id[1300015].status == "live"
     assert by_id[1300015].elapsed == 63
     assert by_id[1300015].winner is None
+    assert (by_id[1300015].home_reds, by_id[1300015].away_reds) == (0, 1)
     assert by_id[1300021].status == "scheduled"
     assert by_id[1300021].home_goals is None
     assert by_id[1300030].status == "abandoned"
+
+
+@pytest.mark.parametrize(
+    ("short", "status", "period"),
+    [
+        ("AWD", "finished", "regulation"),
+        ("WO", "finished", "regulation"),
+        ("SUSP", "live", "regulation"),
+        ("INT", "live", "regulation"),
+        ("PST", "scheduled", "regulation"),
+        ("ET", "live", "extra_time"),
+        ("BT", "live", "extra_time"),
+        ("P", "live", "shootout"),
+    ],
+)
+async def test_operational_statuses_map_to_forecastable_states(short: str, status: str, period: str):
+    body = json.loads(_FIXTURE.read_text(encoding="utf-8"))
+    item = next(i for i in body["response"] if i["fixture"]["id"] == 1300001)
+    item["fixture"]["status"] = {"short": short, "elapsed": 100}
+    payload = {"errors": [], "response": [item]}
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    client = ApiFootballClient("test-key", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    fixture = (await client.fixtures())[0]
+    await client.aclose()
+    assert (fixture.status, fixture.period) == (status, period)
+
+
+async def test_season_payload_pagination_is_followed():
+    body = json.loads(_FIXTURE.read_text(encoding="utf-8"))
+    finished = [i for i in body["response"] if i["fixture"]["status"]["short"] == "FT"]
+    pages = {
+        1: {"errors": [], "response": finished[:1], "paging": {"current": 1, "total": 2}},
+        2: {"errors": [], "response": finished[1:], "paging": {"current": 2, "total": 2}},
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=pages[int(request.url.params.get("page", "1"))])
+
+    client = ApiFootballClient("test-key", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    matches = await client.fixtures()
+    await client.aclose()
+    assert [m.fixture_id for m in matches] == [1300001, 1300002]
 
 
 async def test_fake_filters_by_date():
@@ -43,19 +98,16 @@ async def test_fake_filters_by_date():
     assert [m.home for m in matches] == ["Mexico"]
 
 
-async def test_fixture_api_errors_are_not_treated_as_empty_success():
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"errors": {"token": "bad key"}, "response": []},
+        {"errors": [], "response": []},
+    ],
+)
+async def test_error_and_empty_payloads_are_not_successful_polls(payload: dict):
     def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"errors": {"token": "bad key"}, "response": []})
-
-    client = ApiFootballClient("test-key", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
-    with pytest.raises(ApiFootballPayloadError):
-        await client.fixtures()
-    await client.aclose()
-
-
-async def test_empty_tournament_fixture_payload_is_not_a_successful_live_poll():
-    def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"errors": [], "response": []})
+        return httpx.Response(200, json=payload)
 
     client = ApiFootballClient("test-key", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
     with pytest.raises(ApiFootballPayloadError):

@@ -7,15 +7,18 @@ import httpx
 
 from wolves.connectors._http import _raise_for_status, async_retrying
 
-from .contracts import FixturesClient, MatchFixture, MatchStatus, WinnerSide
+from .contracts import FixturesClient, MatchFixture, MatchPeriod, MatchStatus, WinnerSide
 
 _BASE_URL = "https://v3.football.api-sports.io"
 WORLD_CUP_LEAGUE_ID = 1
 SEASON = 2026
 
-_FINISHED = {"FT", "AET", "PEN"}
-_LIVE = {"1H", "HT", "2H", "ET", "BT", "P", "LIVE"}
-_ABANDONED = {"ABD", "CANC", "INT", "PST", "SUSP", "AWD", "WO"}
+# AWD/WO carry goals and a winner; SUSP/INT resume with a frozen clock; PST replays as scheduled.
+_FINISHED = {"FT", "AET", "PEN", "AWD", "WO"}
+_LIVE = {"1H", "HT", "2H", "ET", "BT", "P", "LIVE", "SUSP", "INT"}
+_ABANDONED = {"ABD", "CANC"}
+_EXTRA_TIME = {"ET", "BT"}
+_IDS_BATCH = 20
 
 
 class ApiFootballPayloadError(Exception):
@@ -34,6 +37,14 @@ def _status(short: str) -> MatchStatus:
     return "scheduled"
 
 
+def _period(short: str) -> MatchPeriod:
+    if short in _EXTRA_TIME:
+        return "extra_time"
+    if short == "P":
+        return "shootout"
+    return "regulation"
+
+
 def _winner(teams: dict[str, Any]) -> WinnerSide | None:
     if (teams.get("home") or {}).get("winner"):
         return "home"
@@ -42,29 +53,48 @@ def _winner(teams: dict[str, Any]) -> WinnerSide | None:
     return None
 
 
+def _red_cards(item: dict[str, Any]) -> tuple[int, int]:
+    home_id = ((item.get("teams") or {}).get("home") or {}).get("id")
+    home = away = 0
+    for event in item.get("events") or []:
+        if (event.get("type") or "").casefold() != "card":
+            continue
+        if "red" not in (event.get("detail") or "").casefold():
+            continue
+        if ((event.get("team") or {}).get("id")) == home_id:
+            home += 1
+        else:
+            away += 1
+    return home, away
+
+
 def _to_fixture(item: dict[str, Any]) -> MatchFixture:
     fixture = item.get("fixture") or {}
     teams = item.get("teams") or {}
     goals = item.get("goals") or {}
     venue = fixture.get("venue") or {}
     status = fixture.get("status") or {}
+    short = (status.get("short")) or ""
+    home_reds, away_reds = _red_cards(item)
     return MatchFixture(
         fixture_id=int(fixture.get("id") or 0),
         kickoff=datetime.fromisoformat(fixture.get("date")),
-        status=_status((status.get("short")) or ""),
+        status=_status(short),
         home=(teams.get("home") or {}).get("name") or "",
         away=(teams.get("away") or {}).get("name") or "",
         home_goals=goals.get("home"),
         away_goals=goals.get("away"),
         elapsed=status.get("elapsed"),
+        period=_period(short),
+        home_reds=home_reds,
+        away_reds=away_reds,
         city=venue.get("city"),
         winner=_winner(teams),
     )
 
 
 class ApiFootballClient(FixturesClient):
-    """API-Football (api-sports) v3. The free tier allows 100 requests per day,
-    so callers should batch by date rather than poll per match."""
+    """API-Football (api-sports) v3. A 60s live loop exceeds the 100-per-day free tier; needs a paid plan."""
 
     def __init__(
         self,
@@ -81,6 +111,38 @@ class ApiFootballClient(FixturesClient):
         params: dict[str, Any] = {"league": WORLD_CUP_LEAGUE_ID, "season": SEASON}
         if date:
             params["date"] = date
+        items = await self._fetch_all_pages(params)
+        if date is None and not items:
+            raise ApiFootballPayloadError("API-Football returned no World Cup fixtures")
+        fixtures = [_to_fixture(item) for item in items]
+        return await self._with_live_events(fixtures)
+
+    async def _fetch_all_pages(self, params: dict[str, Any]) -> list[dict[str, Any]]:
+        items = []
+        page = 1
+        while True:
+            payload = await self._get({**params, "page": page} if page > 1 else params)
+            items.extend(payload.get("response") or [])
+            paging = payload.get("paging") or {}
+            if page >= int(paging.get("total") or 1):
+                return items
+            page += 1
+
+    async def _with_live_events(self, fixtures: list[MatchFixture]) -> list[MatchFixture]:
+        """Re-fetch live fixtures by id: only by-ids responses carry card events."""
+        live_ids = [f.fixture_id for f in fixtures if f.status == "live"]
+        if not live_ids:
+            return fixtures
+        enriched: dict[int, MatchFixture] = {}
+        for start in range(0, len(live_ids), _IDS_BATCH):
+            batch = live_ids[start : start + _IDS_BATCH]
+            payload = await self._get({"ids": "-".join(str(i) for i in batch)})
+            for item in payload.get("response") or []:
+                fixture = _to_fixture(item)
+                enriched[fixture.fixture_id] = fixture
+        return [enriched.get(f.fixture_id, f) for f in fixtures]
+
+    async def _get(self, params: dict[str, Any]) -> dict[str, Any]:
         headers = {"x-apisports-key": self._api_key}
         async for attempt in async_retrying():
             with attempt:
@@ -90,11 +152,8 @@ class ApiFootballClient(FixturesClient):
                 errors = payload.get("errors")
                 if errors:
                     raise ApiFootballPayloadError(str(errors))
-                items = payload.get("response") or []
-                if date is None and not items:
-                    raise ApiFootballPayloadError("API-Football returned no World Cup fixtures")
-                return [_to_fixture(item) for item in items]
-        return []
+                return payload
+        raise ApiFootballPayloadError("API-Football retries exhausted")
 
     async def aclose(self) -> None:
         if self._owns_client:
