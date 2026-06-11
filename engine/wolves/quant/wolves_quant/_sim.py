@@ -105,6 +105,69 @@ def score_grid(
     return pd.DataFrame(grid.grid)
 
 
+def implied_delta(
+    team: str,
+    target_p: float,
+    *,
+    lo: float = -0.5,
+    hi: float = 0.5,
+    iterations: int = 12,
+    n_sims: int | None = None,
+    seed: int = 0,
+) -> float:
+    """Strength delta that moves the team's title probability to target_p:
+    the translation of a model-vs-market gap into parameter units you can
+    argue about (bisection, common random numbers)."""
+    from wolves.forecast import StrengthPerturbation
+
+    for _ in range(iterations):
+        mid = (lo + hi) / 2
+        pert = StrengthPerturbation(team=team, delta=mid, reason="implied delta inversion")
+        p = simulate((pert,), n_sims=n_sims, seed=seed)[team]
+        lo, hi = (mid, hi) if p < target_p else (lo, mid)
+    return round((lo + hi) / 2, 4)
+
+
+def title_uncertainty(
+    teams: list[str] | None = None,
+    *,
+    n_draws: int = 30,
+    n_sims: int | None = None,
+    seed: int = 0,
+) -> pd.DataFrame:
+    """Title probability quantiles under the champion's own parameter
+    uncertainty: strengths drawn from the MLE covariance, each draw
+    re-simulated. A model-vs-market gap inside [p10, p90] is explainable as
+    parameter noise; one outside it is structural disagreement."""
+    import numpy as np
+    import pandas as pd
+
+    from wolves.forecast import StrengthPerturbation
+
+    state = forecaster().state
+    all_teams = list(state.teams)
+    draws = posterior_draws(n_draws, seed=seed)
+    rows: dict[str, list[float]] = {t: [] for t in (teams or all_teams)}
+    for k in range(n_draws):
+        perts = tuple(
+            StrengthPerturbation(team=t, delta=float(draws.iloc[k][t] - state.strengths[i]), reason="posterior draw")
+            for i, t in enumerate(all_teams)
+            if abs(draws.iloc[k][t] - state.strengths[i]) > 1e-4
+        )
+        probs = simulate(perts, n_sims=n_sims, seed=seed)
+        for t in rows:
+            rows[t].append(probs[t])
+    frame = pd.DataFrame(
+        {
+            "mean": {t: float(np.mean(v)) for t, v in rows.items()},
+            "p10": {t: float(np.percentile(v, 10)) for t, v in rows.items()},
+            "p50": {t: float(np.percentile(v, 50)) for t, v in rows.items()},
+            "p90": {t: float(np.percentile(v, 90)) for t, v in rows.items()},
+        }
+    )
+    return frame.sort_values("mean", ascending=False)
+
+
 def posterior_draws(n: int = 200, *, seed: int = 0) -> pd.DataFrame:
     """Per-team strength draws from the champion's MLE covariance, the free
     approximate posterior; columns are teams, one row per draw."""

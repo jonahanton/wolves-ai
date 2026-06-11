@@ -22,18 +22,26 @@ from wolves.quant.wolves_quant._data import (
     query,
     teams,
 )
-from wolves.quant.wolves_quant._insights import market_gaps, market_movement, model_explain, path_tree
+from wolves.quant.wolves_quant._insights import (
+    market_gaps,
+    market_movement,
+    model_explain,
+    path_difficulty,
+    path_tree,
+)
 from wolves.quant.wolves_quant._mixture import Factor, Scenario, scenario_mixture
 from wolves.quant.wolves_quant._sanitise import sanitise as _sanitise
 from wolves.quant.wolves_quant._sim import (
     baseline,
     impact,
+    implied_delta,
     match_probs,
     noise_floor,
     posterior_draws,
     reach,
     score_grid,
     simulate,
+    title_uncertainty,
 )
 from wolves.quant.wolves_quant._state import finalise as _finalise
 
@@ -53,6 +61,7 @@ __all__ = [
     "baseline",
     "fixtures",
     "impact",
+    "implied_delta",
     "load_calibration",
     "load_ledger",
     "load_market_series",
@@ -63,6 +72,7 @@ __all__ = [
     "match_probs",
     "model_explain",
     "noise_floor",
+    "path_difficulty",
     "path_tree",
     "posterior_draws",
     "query",
@@ -71,4 +81,5 @@ __all__ = [
     "score_grid",
     "simulate",
     "teams",
+    "title_uncertainty",
 ]

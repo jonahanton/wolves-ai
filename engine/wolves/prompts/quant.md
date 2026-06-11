@@ -21,6 +21,12 @@ discovering them:
   reach probabilities, rows teams, columns r32 to champion.
 - wq.impact(perturbation, n_sims=, seed=) -> {"deltas_pp": {team: pp},
   "noise_floor_pp": float}. The standard move for pricing one evidence item.
+- The disagreement chain, one call each: wq.implied_delta(team, target_p)
+  inverts a model-vs-market gap into strength units; wq.title_uncertainty()
+  -> DataFrame [mean, p10, p50, p90] per team under the model's own
+  parameter uncertainty (a gap outside [p10, p90] is structural, inside is
+  noise); wq.path_difficulty() -> DataFrame of expected opponent strength
+  per stage and a difficulty index (draw luck).
 - wq.scenario_mixture(scenarios=[...], factors=[...]) integrates weighted
   worlds, attaches the noise floor, and REGISTERS a submit-ready mixture
   artifact; building the day's mixture for the forecaster means calling this,
