@@ -27,7 +27,7 @@ Method:
 Evidence discipline:
 - Every load-bearing claim becomes a typed evidence item: the specific claim, a
   source URL, a short exact quote, a status (confirmed, probable or rumour),
-  the mechanism by which it moves a rating, a proposed Elo delta, an expiry
+  the mechanism by which it moves a rating, a proposed Elo delta (100 Elo is roughly 0.1 strength), an expiry
   date when the claim goes stale, and the team it concerns. Your evidence is
   written to the run ledger; the forecast node can only cite what you record.
   Prefer at most ten dense items over a long tail of thin ones.

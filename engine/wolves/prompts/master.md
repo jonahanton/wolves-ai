@@ -43,10 +43,11 @@ privileged. The day's mixture therefore contains both bases as worlds: the
 unperturbed model world, and a market-base world built by inverting the
 market's prices into implied strengths (wq.implied_delta per contender) so
 the simulation publishes a coherent full distribution under the market's
-view. Their relative weights are the day's first judgement call; the fitted
-publish blend historically sat near 0.27 model, so a mixture that gives the
-market view no weight is claiming the model beats the market and must earn
-that with computation. Evidence worlds layer on top of the bases. Where the
+view. The base weights are the mixture-building quant's first judgement call
+(historically the market base earned most of the weight); your brief
+requires only that both bases appear as argued worlds. A mixture that gives
+the market view no weight is claiming the model beats the market and must
+earn that with computation. Evidence worlds layer on top of the bases. Where the
 two bases disagree on a team beyond noise, that team is a finding: invert,
 test against the data, then grant a weighted world or publish the argued
 disagreement, symmetrically; a team's published number that simply inherits
@@ -56,7 +57,7 @@ invariants bound the run; the shape between them is your judgement:
   expresses the day's evidence and uncertainty as weighted worlds (only
   wq.scenario_mixture in a quant node registers one). The forecaster submits
   THAT artifact.
-- The seeded baseline mixture-001 is the quiet-day fallback only; submitting
+- The seeded two-base fallback mixture-001 is the quiet-day fallback only; submitting
   it over a ledger of material evidence is a failed run and the validator
   will reject it.
 
@@ -64,8 +65,7 @@ Quant is your analytical engine, not a calculator. Brief it with the
 decision question and the expected artifact, then let it choose its methods;
 prescribing its arithmetic wastes the workbench. Pricing a single evidence
 item is the floor, not the ceiling: a strong quant brief asks for things
-like inverting the market's prices into implied strengths and reconciling
-them with the model's, mining the 49k-match dataset for historical
+like mining the 49k-match dataset for historical
 comparables to today's evidence, propagating strength uncertainty through
 posterior draws, sweeping a factor lattice over the day's open questions, or
 stress-testing the focus team's bracket path. Deep questions deserve deep
@@ -110,11 +110,15 @@ Standing orders:
   anchor lists yesterday's worlds; the node that builds today's mixture must
   open them (previous_forecast, then read_artifact for the detail) and start
   from them: reweight, collapse, extend, or argue the rebuild. Write that
-  instruction into the mixture-building brief every day. A mixture built
-  blind to yesterday's worlds wastes everything yesterday computed.
+  instruction into the mixture-building brief every day; it is the one
+  standing exception to the no-method rule in brief discipline. When the dossier carries
+  no previous-forecast anchor, this is the first run: skip continuity and
+  brief the two bases built fresh. A mixture built blind to yesterday's
+  worlds wastes everything yesterday computed.
 - The ceiling is a ceiling, not a target: size the graph to the day's
   information, judging freshness by the previous run's actual timestamp in
-  the dossier, never its date label. On a quiet day (what_changed thin, the
+  the dossier, never its date label; with no previous run, the day is
+  maximally fresh and deserves the full two-base build. On a quiet day (what_changed thin, the
   previous run recent and thorough) the right shape is light: one small
   research check, one quant node that reads the previous run's worlds
   (previous_forecast) and re-registers them under today's refit with any
@@ -145,7 +149,7 @@ Standing orders:
   follow with a forecast wave is a round-trip you cannot afford.
 - You are near hard caps on waves, nodes per kind and cost; the budget block
   and per-node request counts show where you stand. When in doubt, move
-  toward a forecast.
+  towards a forecast.
 - Do the budget arithmetic before every wave: a research node that fetches
   pages costs roughly $0.05 to $0.15, a focused quant node $0.10 to $0.30, a
   deep analytical quant $0.30 to $0.80 and usually worth it, a forecast node

@@ -49,7 +49,7 @@ simulates a coherent full distribution. A large gap between the bases is a
 finding that demands work, never a residual the harness will smooth away.
 Reconcile it inside the mixture, in either direction. The snapshot still records the
 market and a reference blend for transparency, and a calibration governor
-can shrink published moves toward the deterministic anchor when the
+can shrink published moves towards the deterministic anchor when the
 adjustment track record turns negative. Deterministic (non-agent) runs do
 publish a fixed convex blend with the market; that is their guard against
 having no reasoning layer, not yours.

@@ -60,30 +60,39 @@ def market_base_perturbations(
 
 def seed_baseline_payload(forecaster: Forecaster | None, archive_dir: Path) -> tuple[dict, str]:
     """The fallback mixture payload and its summary: two bases at the fitted
-    blend weight when the market is priceable, the bare model world otherwise."""
+    blend weight when the market is priceable, the bare model world otherwise.
+    The mixture key is always populated so the validator's escalation and
+    market anchors bite on the fallback too."""
     single = {"weights": {"baseline": 1.0}, "worlds": {"baseline": {"perturbations": []}}, "mixture": {}}
+    single_summary = "Baseline single-world mixture: the unperturbed champion simulation, the quiet-day fallback."
     if forecaster is None:
-        return single, "Baseline single-world mixture: the unperturbed champion simulation, submit-ready as-is."
+        return single, single_summary
+    base = forecaster.title_probs(n_sims=_SEED_SIMS, seed=0)
+    single["mixture"] = {team: round(p, 6) for team, p in base.items()}
     market = latest_market(archive_dir)
     if not market:
-        return single, "Baseline single-world mixture: the unperturbed champion simulation, submit-ready as-is."
+        return single, single_summary
     try:
         perturbations = market_base_perturbations(forecaster, market)
     except Exception:
         logger.warning("market base inversion failed; seeding the single-world baseline", exc_info=True)
-        return single, "Baseline single-world mixture: the unperturbed champion simulation, submit-ready as-is."
+        return single, single_summary
     # An unfitted blend weight would hand the fallback wholly to one base.
     model_weight = forecaster.champion.blend_weight or 0.27
+    market_world = forecaster.title_probs(n_sims=_SEED_SIMS, seed=0, perturbations=tuple(perturbations))
+    mixture = {
+        team: round(model_weight * p + (1.0 - model_weight) * market_world.get(team, p), 6) for team, p in base.items()
+    }
     payload = {
         "weights": {"model_base": round(model_weight, 4), "market_base": round(1.0 - model_weight, 4)},
         "worlds": {
             "model_base": {"perturbations": []},
             "market_base": {"perturbations": [p.model_dump(mode="json") for p in perturbations]},
         },
-        "mixture": {},
+        "mixture": mixture,
     }
     summary = (
         f"Two-base fallback mixture: champion simulation ({model_weight:.2f}) and the market-implied world "
-        f"({1.0 - model_weight:.2f}, {len(perturbations)} inverted contender(s)), submit-ready as-is."
+        f"({1.0 - model_weight:.2f}, {len(perturbations)} inverted contender(s)), the quiet-day fallback."
     )
     return payload, summary

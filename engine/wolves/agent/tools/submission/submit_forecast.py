@@ -74,7 +74,8 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
                 ),
             }
         )
-    if deps.submission.escalation_fired and not (args.change_justification.strip() and args.evidence_ids):
+    grounded = bool(args.evidence_ids) or bool(args.market_justification.strip())
+    if deps.submission.escalation_fired and not (args.change_justification.strip() and grounded):
         # Once an escalation fires, the steelman substance is required even if
         # the resubmission swaps in a quieter artifact; the move was flagged.
         deps.submission.validation_failures += 1
@@ -85,8 +86,9 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
             error=ToolError(
                 type="escalation_unsubstantiated",
                 message=(
-                    "A resubmission past the escalation must name its evidence (evidence_ids citing ledger "
-                    "entries) and carry the steelman in change_justification."
+                    "A resubmission past the escalation must carry the steelman in change_justification and "
+                    "name its grounds: ledger ids in evidence_ids for news-driven moves, or the computing "
+                    "artifact in market_justification for analysis-driven ones."
                 ),
             ),
         )

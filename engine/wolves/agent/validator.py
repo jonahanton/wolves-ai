@@ -20,6 +20,7 @@ EM_DASH = "—"
 _REACH_ORDER = ["r32", "r16", "qf", "sf", "final", "champion"]
 _R32_SLOT_COUNT = 16
 _UNPRICED_DELTA_FLOOR = 0.5
+_BASE_WORLDS = frozenset({"baseline", "model_base", "market_base"})
 
 
 class ValidatorLimits(BaseModel):
@@ -82,7 +83,11 @@ def validate_submission(
             justification = submission.market_justification.lower()
             # Per-team coverage: a justification that argues England cannot
             # silently carry an unexamined Germany gap.
-            unargued = [g for g in gaps if g.split()[0] not in justification]
+            unargued = [
+                g
+                for g in gaps
+                if g.split()[0] not in justification and g.split()[0].replace("-", " ") not in justification
+            ]
             if unargued:
                 issues.append(
                     _issue(
@@ -156,7 +161,8 @@ def _check_evidence_priced(
     silence: the run either prices the evidence into a computed mixture or
     states why it moves nothing."""
     worlds: dict[str, dict] = payload.get("worlds") or {}
-    if worlds and any(spec.get("perturbations") for spec in worlds.values()):
+    # The two standing base worlds express priors, not today's evidence.
+    if any(spec.get("perturbations") for name, spec in worlds.items() if name not in _BASE_WORLDS):
         return []
     material = [
         e.id

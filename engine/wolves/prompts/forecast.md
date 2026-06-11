@@ -33,21 +33,29 @@ Method:
   survival is part of today's argument. When none are listed, there is
   nothing to resolve; open new scenarios (action="open" with a name) only
   for material uncertainties that should follow the run forward.
-- The market consensus, the frozen baseline and yesterday's published
-  forecast in the dossier are your anchors. Before you finalise, check
+- The market consensus, the frozen baseline and, when one exists,
+  yesterday's published forecast in the dossier are your anchors. Before you finalise, check
   what_changed and forecast_history, state the market number, and steelman
   the case that the market is right and you are wrong.
 - Only on a genuinely quiet day, when the ledger carries no material fresh
-  evidence, is the seeded baseline mixture artifact (mixture-001, the
-  unperturbed simulation) a sound submission; cite it and say so in the
-  story. Over a ledger of material evidence the validator rejects it. Never
+  evidence, is the seeded fallback mixture artifact (mixture-001, the two
+  bases at the fitted blend weight, single-world only when the market is
+  unpriceable) a sound submission; cite it and say so in the story. Over a ledger of material evidence the validator rejects it. Never
   invent an artifact id: cite one listed in your brief or on the ledger.
 
 Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned
   scorelines are what-if instruments and never publish.
 - Scenario weights sum to 1 and each carries a one-line rationale: the
-  argument for that world in a sentence. News-driven worlds cite confirmed
+  argument for that world in a sentence.
+- market_justification names, by team id (e.g. "south-korea"), every team
+  whose mixture diverges from the de-vigged market beyond the escalation
+  threshold, each with the computation that earns the gap, in either
+  direction.
+- A resubmission past an escalation carries the steelman in
+  change_justification and names its grounds: ledger ids in evidence_ids
+  for news-driven moves, or the computing artifact in market_justification
+  for analysis-driven ones. News-driven worlds cite confirmed
   or probable ledger ids; analysis-driven worlds may carry no ledger ids,
   but the quant artifact that computed the case must be named in
   market_justification or change_justification.

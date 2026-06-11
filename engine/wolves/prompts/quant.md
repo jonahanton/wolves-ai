@@ -26,11 +26,15 @@ discovering them:
   "noise_floor_pp": float}. The standard move for pricing one evidence item.
   wq.noise_floor(n_sims=, seed=) -> float gives the paired-seed floor
   directly, without a perturbation.
-- The market-base world: when your brief asks for the day's mixture, build
-  the second base alongside the unperturbed model: wq.implied_delta(team,
-  market_p) for each top contender with a material gap, the resulting
-  StrengthPerturbations composed into one world expressing the market's
-  view. Weight it against the model base as a judgement anchored on the
+- The market-base world: any brief whose deliverable is the submit-ready
+  mixture includes it unless the brief argues otherwise. Build the second
+  base alongside the unperturbed model: take market_p per team from
+  wq.market_gaps(), invert each top contender with a material gap via
+  wq.implied_delta(team, market_p), and compose the resulting
+  StrengthPerturbations into one world expressing the market's view.
+  Inversions are independent, so the composed world matches the market
+  approximately: verify with one wq.simulate, report the residual, do not
+  iterate. Weight it against the model base as a judgement anchored on the
   fitted publish blend (~0.27 model historically), adjusted by today's
   evidence about which base is more trustworthy.
 - The disagreement chain, one call each: wq.implied_delta(team, target_p)
@@ -47,7 +51,8 @@ discovering them:
   nothing else makes a citable artifact. When that is your brief, start from
   the previous run's worlds (previous_forecast lists them): reweight,
   collapse or extend them under today's refit, and rebuild from scratch only
-  with an argued reason.
+  with an argued reason. If previous_forecast reports not_found there is no
+  previous run; build today's worlds fresh from the two bases.
 - wq.match_probs / wq.score_grid for one fixture; wq.posterior_draws(n) for
   strength uncertainty; wq.query(sql) over the research dataset (49k
   international results, Elo history, market closes); wq.load_ledger(),
