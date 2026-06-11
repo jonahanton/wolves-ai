@@ -23,6 +23,7 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger
+from wolves.agent.market_base import seed_baseline_payload
 from wolves.agent.memory import RunMemory
 from wolves.agent.relevance_feedback import append_feedback, relevance_feedback
 from wolves.agent.relevance_memory import RelevanceMemory
@@ -536,14 +537,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     store = RunArtifactStore(ArtifactStore(settings), run_id=run_id)
     if args.live:
         # Submission is by artifact reference, so a citable mixture must exist
-        # even when every quant node fails: the unperturbed baseline is always
-        # a valid quiet-day submission.
-        store.add(
-            kind="mixture",
-            created_by="runtime",
-            summary="Baseline single-world mixture: the unperturbed champion simulation, submit-ready as-is.",
-            payload={"weights": {"baseline": 1.0}, "worlds": {"baseline": {"perturbations": []}}, "mixture": {}},
-        )
+        # even when every quant node fails; it carries both bases so even the
+        # fallback never publishes one view unexamined.
+        payload, summary = seed_baseline_payload(deps.forecaster, settings.runs_root / "odds-archive")
+        store.add(kind="mixture", created_by="runtime", summary=summary, payload=payload)
     else:
         # The scripted forecast submits by reference, so the dev run seeds the
         # computed artifact a real quant node would have registered.
