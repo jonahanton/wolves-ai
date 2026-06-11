@@ -365,6 +365,7 @@ def _build_snapshot(
     assert artifact is not None
     worlds = worlds_from_payload(artifact.payload)
     played = persisted_results(settings)
+    n_sims = max(n_sims, settings.publish_n_sims)
     outputs = mixed_outputs(deps.forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=played)
 
     governor_scale = CalibrationLedger(settings.calibration_path).scale(window=settings.governor_window)
@@ -479,7 +480,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         caps = Caps(max_cost_micros=int(ceiling * 1_000_000), max_llm_calls=240, max_quant_executions=60)
         tracer = build_logfire_tracer(settings) if settings.logfire_token else InMemoryTracer()
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
-        llm: LLMClient = build_llm(settings, model=settings.worker_model)
+        llm: LLMClient = build_llm(settings, model=settings.relevance_model)
         provider = AnthropicProvider(api_key=settings.anthropic_api_key)
 
         # Wave planning and numerical judgement need the stronger model;

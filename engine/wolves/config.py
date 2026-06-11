@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     graph_quant_model: str = ""
     graph_forecast_model: str = ""
     graph_critic_model: str = "claude-haiku-4-5"
+    # Candidate scoring is mechanical; the cheap tier is enough.
+    relevance_model: str = "claude-haiku-4-5"
 
     brave_api_key: str = ""
     exa_api_key: str = ""
@@ -52,6 +54,8 @@ class Settings(BaseSettings):
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
     article_cache_max_age_hours: float = 48.0
+    # Published numbers are re-simulated at this fidelity regardless of --sims.
+    publish_n_sims: int = 50_000
 
     bookmaker_leg_weight: float = 1.0
     polymarket_leg_weight: float = 1.0
@@ -89,7 +93,7 @@ class Settings(BaseSettings):
     agent_evening_debrief: bool = False
 
     agent_run_ceiling_usd: float = 3.00
-    agent_run_ceiling_max_usd: float = 5.00
+    agent_run_ceiling_max_usd: float = 8.00
     graph_forecast_reserve_usd: float = 0.35
     graph_forecast_reserve_llm_calls: int = 8
 
