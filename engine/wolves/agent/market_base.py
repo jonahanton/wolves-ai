@@ -8,6 +8,7 @@ from pathlib import Path
 
 from wolves.forecast import Forecaster, StrengthPerturbation
 from wolves.markets.series import load_series
+from wolves.sim.api import UnknownTeamError
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,11 @@ def market_base_perturbations(
         if model_p is None or abs(model_p - target) * 100 < _GAP_FLOOR_PP:
             continue
         delta = round(_implied_delta(forecaster, team, target, seed=seed), 4)
+        if abs(delta) >= 0.45:
+            # The bisection hit its boundary: the price is outside what any
+            # plausible strength shift reproduces.
+            logger.warning("market inversion for %s hit the boundary (%.2f); skipping", team, delta)
+            continue
         perturbations.append(
             StrengthPerturbation(
                 team=team,
@@ -74,8 +80,8 @@ def seed_baseline_payload(forecaster: Forecaster | None, archive_dir: Path) -> t
         return single, single_summary
     try:
         perturbations = market_base_perturbations(forecaster, market)
-    except Exception:
-        logger.warning("market base inversion failed; seeding the single-world baseline", exc_info=True)
+    except (UnknownTeamError, ValueError) as exc:
+        logger.warning("market base inversion failed (%s); seeding the single-world baseline", exc)
         return single, single_summary
     # An unfitted blend weight would hand the fallback wholly to one base.
     model_weight = forecaster.champion.blend_weight or 0.27
