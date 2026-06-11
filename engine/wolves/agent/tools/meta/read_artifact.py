@@ -5,11 +5,14 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from typing import TYPE_CHECKING
+
 from wolves.agent.deps import AgentDeps
-from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
-from wolves.s3.artifacts import ArtifactStore
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
+
+if TYPE_CHECKING:
+    from wolves.graph.artifacts import RunArtifactStore
 
 _FILE_CHARS = 12_000
 
@@ -39,6 +42,11 @@ def _read_file(store: RunArtifactStore, artifact_id: str, name: str) -> dict[str
 
 
 async def _read_artifact(args: ReadArtifactArgs, deps: AgentDeps) -> ToolResult[Any]:
+    # Imported lazily: the graph package init mounts the toolsets that import
+    # this module, so a top-level import is circular.
+    from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
+    from wolves.s3.artifacts import ArtifactStore
+
     store = deps.artifacts
     if args.run_id is not None and (store is None or args.run_id != store.run_id):
         try:

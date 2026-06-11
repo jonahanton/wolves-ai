@@ -7,8 +7,6 @@ from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.scoring import load_previous_snapshots
-from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
-from wolves.s3.artifacts import ArtifactStore
 from wolves.snapshot import Snapshot
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
@@ -64,6 +62,11 @@ async def _previous_forecast(args: PreviousForecastArgs, deps: AgentDeps) -> Too
     if snapshot.agent is not None:
         payload["narrative"] = snapshot.agent.narrative.model_dump(mode="json")
         payload["ledger"] = [e.model_dump(mode="json") for e in snapshot.agent.ledger_entries[:10]]
+    # Imported lazily: the graph package init mounts the toolsets that import
+    # this module, so a top-level import is circular.
+    from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
+    from wolves.s3.artifacts import ArtifactStore
+
     try:
         store = RunArtifactStore.open_run(ArtifactStore(deps.settings), snapshot.run.run_id)
         payload["artifacts"] = [r.model_dump(mode="json", exclude={"created_at"}) for r in store.all()]
