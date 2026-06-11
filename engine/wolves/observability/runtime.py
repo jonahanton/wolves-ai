@@ -21,6 +21,7 @@ _OBSERVATION_TYPES = {
     "critic": "agent",
     "synthesise": "agent",
     "web_search": "tool",
+    "tool_call": "tool",
     "fetch": "tool",
     "data_fetch": "retriever",
     "workspace_write": "tool",

@@ -220,6 +220,8 @@ class ChampionBlock(BaseModel):
     dataset_id: str
     half_life_days: float | None = None
     blend_weight: float = 0.0
+    # Played results overlaid into the strength refit.
+    results_overlaid: int = 0
 
 
 class TeamInterval(BaseModel):

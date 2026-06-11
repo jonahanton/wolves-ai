@@ -29,6 +29,22 @@ def _usage_dict(usage: Any) -> dict[str, int]:
     }
 
 
+_PART_TEXT_CHARS = 2000
+
+
+def _rendered_parts(parts: list[Any]) -> list[dict[str, str]]:
+    """The response content as trace output: text and tool calls, truncated."""
+    rendered: list[dict[str, str]] = []
+    for part in parts:
+        kind = getattr(part, "part_kind", type(part).__name__)
+        tool_name = getattr(part, "tool_name", None)
+        if tool_name is not None:
+            rendered.append({"kind": kind, "tool": tool_name, "args": str(getattr(part, "args", ""))[:1000]})
+        elif isinstance(getattr(part, "content", None), str):
+            rendered.append({"kind": kind, "text": part.content[:_PART_TEXT_CHARS]})
+    return rendered
+
+
 class ObservedModel(WrapperModel):
     """The only path graph agents reach a model.
 
@@ -64,7 +80,7 @@ class ObservedModel(WrapperModel):
             cost = cost_micros(response.model_name or self.model_name, usage)
             self._runtime.add_cost(cost, reservation=reservation)
             rec.set_output(
-                {"parts": len(response.parts)},
+                {"parts": len(response.parts), "content": _rendered_parts(response.parts)},
                 usage={**usage, "total": usage["input"] + usage["output"]},
                 cost={"total": round(cost / 1e6, 6)},
                 model=response.model_name or self.model_name,

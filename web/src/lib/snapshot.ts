@@ -206,6 +206,7 @@ export interface ChampionBlock {
   dataset_id: string;
   half_life_days?: number | null;
   blend_weight?: number;
+  results_overlaid?: number;
 }
 
 export interface TeamInterval {

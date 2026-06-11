@@ -234,8 +234,6 @@ def _build_deps(
     forecaster: Forecaster | None = None
     try:
         forecaster = Forecaster(settings)
-        # The refit channel: fitted strengths see last night's games, not
-        # just the bracket overlay the simulations get.
         forecaster.fit(as_of=date.fromisoformat(as_of), extra_results=played_match_records(settings))
     except Exception as exc:
         forecaster = None

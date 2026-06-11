@@ -21,8 +21,7 @@ async def _default_after_result(spec: ToolSpec, args: Any, ctx: RunContext[Any],
 
 
 def _emit_tool_call(deps: Any, tool: str, result: ToolResult) -> None:
-    """One uniform event per tool call, whatever the tool: the usage census
-    the run audits come from."""
+    """One uniform event per tool call; run audits census from these."""
     runtime = getattr(deps, "runtime", None)
     actor = getattr(deps, "actor", "unknown")
     if runtime is None:

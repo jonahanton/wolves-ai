@@ -64,8 +64,9 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
     champion = None
     intervals: list[TeamInterval] = []
     markets = None
+    played_records = played_match_records(settings)
     if model_path:
-        forecaster.fit(extra_results=played_match_records(settings))
+        forecaster.fit(extra_results=played_records)
         outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played)
         champion = ChampionBlock(
             id=forecaster.champion.model_id,
@@ -73,6 +74,7 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
             dataset_id=forecaster.champion.dataset_id,
             half_life_days=forecaster.champion.half_life_days,
             blend_weight=forecaster.champion.blend_weight,
+            results_overlaid=len(played_records),
         )
         intervals = [
             TeamInterval(team_id=team, lo=round(lo, 4), hi=round(hi, 4))
