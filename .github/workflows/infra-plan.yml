@@ -1,0 +1,31 @@
+name: Infra checks
+
+on:
+  pull_request:
+    paths:
+      - infra/**
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.12"
+
+      - run: terraform fmt -check -recursive
+
+      # No AWS credentials on PRs, so validation is the deepest offline check;
+      # plan runs only from a credentialled apply session.
+      - name: Validate bootstrap
+        working-directory: infra/bootstrap
+        run: terraform init -backend=false -input=false && terraform validate
+
+      - name: Validate prod
+        working-directory: infra/envs/prod
+        run: terraform init -backend=false -input=false && terraform validate
