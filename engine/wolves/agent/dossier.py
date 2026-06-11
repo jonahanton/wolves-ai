@@ -30,7 +30,18 @@ def build_dossier(deps: AgentDeps) -> str:
         except Exception as exc:
             logger.warning("dossier baseline skipped: %s", exc)
     sections: list[str] = []
-    for build in (_what_changed, _baseline, _gaps, _published, _movement, _matchday, _scenarios, _ledger, _calibration):
+    for build in (
+        _what_changed,
+        _tournament,
+        _baseline,
+        _gaps,
+        _published,
+        _movement,
+        _matchday,
+        _scenarios,
+        _ledger,
+        _calibration,
+    ):
         try:
             section = build(deps, titles)
         except Exception as exc:
@@ -67,6 +78,38 @@ def _what_changed(deps: AgentDeps, titles: dict[str, float] | None) -> str:
         market_moves_pp=market_moves,
         upcoming_fixtures=fixtures,
     ).digest()
+
+
+def _tournament(deps: AgentDeps, titles: dict[str, float] | None) -> str:
+    from wolves.sim.results_store import persisted_results
+
+    fc = deps.forecaster
+    if fc is None or not deps.as_of:
+        return ""
+    played = persisted_results(deps.settings)
+    today = date.fromisoformat(deps.as_of)
+    fixtures = [
+        f"m{m.match} {m.home} v {m.away} ({m.date[:10]})"
+        for m in sorted(fc.fmt.group_matches + fc.fmt.knockout, key=lambda m: m.date)
+        if m.match not in played and 0 <= (date.fromisoformat(m.date[:10]) - today).days <= 1
+    ]
+    parts = []
+    if played:
+        group_results = [m for m in fc.fmt.group_matches if m.match in played]
+        points: dict[str, dict[str, int]] = {}
+        for m in group_results:
+            r = played[m.match]
+            home_pts = 3 if r.home_goals > r.away_goals else (1 if r.home_goals == r.away_goals else 0)
+            for team, pts in ((m.home, home_pts), (m.away, 3 - home_pts if home_pts != 1 else 1)):
+                points.setdefault(m.group, {})[team] = points.get(m.group, {}).get(team, 0) + pts
+        standings = "; ".join(
+            f"{group}: " + ", ".join(f"{t} {p}" for t, p in sorted(table.items(), key=lambda kv: -kv[1]))
+            for group, table in sorted(points.items())
+        )
+        parts.append(f"Results so far: {len(played)} played. Group points: {standings}.")
+    if fixtures:
+        parts.append(f"Fixtures today and tomorrow: {', '.join(fixtures[:16])}.")
+    return " ".join(parts)
 
 
 def _matchday(deps: AgentDeps, titles: dict[str, float] | None) -> str:
