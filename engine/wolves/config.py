@@ -54,6 +54,19 @@ class Settings(BaseSettings):
     live_poll_interval_s: float = 60.0
     # Two missed polls plus jitter before consumers treat the state as stale.
     live_stale_after_s: int = 150
+    # Away from a live window the loop slows down, and with --until-idle it
+    # exits once no kickoff falls inside the grace horizon.
+    live_idle_interval_s: float = 900.0
+    live_idle_grace_hours: float = 6.0
+
+    # Calendar-aware agent spend (wolves/run_policy.py): base plus
+    # stage-weighted yesterday results and knockout stakes today.
+    agent_ceiling_base_usd: float = 0.75
+    agent_ceiling_rest_day_usd: float = 0.50
+    agent_ceiling_per_result_usd: float = 0.10
+    agent_ceiling_knockout_today_usd: float = 0.40
+    agent_ceiling_focus_bonus_usd: float = 0.50
+    agent_ceiling_policy_max_usd: float = 4.00
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
     article_cache_max_age_hours: float = 48.0
@@ -95,7 +108,9 @@ class Settings(BaseSettings):
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
 
-    agent_run_ceiling_usd: float = 3.00
+    # Explicit per-run override (run-now and workflow dispatch set it);
+    # unset means the calendar policy decides (wolves/run_policy.py).
+    agent_run_ceiling_usd: float | None = None
     agent_run_ceiling_max_usd: float = 8.00
     graph_forecast_reserve_usd: float = 0.35
     graph_forecast_reserve_llm_calls: int = 8
