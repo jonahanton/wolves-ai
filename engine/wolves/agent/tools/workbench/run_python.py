@@ -52,7 +52,7 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
     store = deps.artifacts
     if store is None:
         return
-    registered = {r.summary for r in store.all() if r.kind == "mixture"}
+    registered = {r.summary.split(":", 1)[0] for r in store.all() if r.kind == "mixture"}
     for filename in files:
         if not filename.endswith(".json"):
             continue
@@ -71,10 +71,23 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
         store.add(
             kind="mixture",
             created_by=deps.actor,
-            summary=marker,
+            summary=f"{marker}: {_describe_mixture(payload)}",
             payload=payload,
             workspace_prefix=f"runs/{store.run_id}/workspace/quant/{workspace_dir}",
         )
+
+
+def _describe_mixture(payload: dict) -> str:
+    worlds = payload.get("worlds") or {}
+    mixture = payload.get("mixture") or {}
+    details = f"{len(worlds)} world(s)"
+    if mixture:
+        top = max(mixture, key=mixture.get)
+        details += f", top {top} {mixture[top] * 100:.1f}%"
+    floor = payload.get("noise_floor_pp")
+    if floor is not None:
+        details += f", floor {floor}pp"
+    return details
 
 
 SPEC = ToolSpec(
