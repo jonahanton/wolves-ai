@@ -62,9 +62,9 @@ variable "agent_schedule_state" {
 }
 
 variable "agent_schedule_cron" {
-  description = "Creation-time agent run cron (UTC); 06:30 sits before any kickoff."
+  description = "Creation-time agent run cron (UTC); 07:30 clears the latest night game even after extra time and penalties."
   type        = string
-  default     = "cron(30 6 * * ? *)"
+  default     = "cron(30 7 * * ? *)"
 }
 
 variable "live_schedule_state" {
@@ -102,10 +102,10 @@ variable "run_policy" {
   })
   default = {
     agent_ceiling_opening_usd              = 5.00
-    agent_ceiling_big_group_usd            = 4.00
+    agent_ceiling_big_group_usd            = 3.00
     agent_ceiling_group_usd                = 2.00
     agent_ceiling_rest_usd                 = 2.00
-    agent_ceiling_r32_r16_usd              = 4.00
+    agent_ceiling_r32_r16_usd              = 3.50
     agent_ceiling_qf_final_usd             = 5.00
     agent_ceiling_single_game_discount_usd = 1.00
     agent_big_team_count                   = 8

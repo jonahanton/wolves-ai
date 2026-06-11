@@ -89,9 +89,9 @@ variable "agent_initial_state" {
 }
 
 variable "agent_initial_cron" {
-  description = "Creation-time agent run cron; 06:30 UTC sits before any kickoff."
+  description = "Creation-time agent run cron; 07:30 UTC clears the latest night game even after extra time and penalties."
   type        = string
-  default     = "cron(30 6 * * ? *)"
+  default     = "cron(30 7 * * ? *)"
 }
 
 variable "live_initial_state" {
