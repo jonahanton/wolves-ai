@@ -42,7 +42,11 @@ def build_deps(settings: Settings) -> Deps:
         engine_tasks=EngineTasks(
             cluster_arn=settings.ecs_cluster_arn,
             task_definition=settings.ecs_task_definition,
-            archive_task_definition=settings.ecs_archive_task_definition,
+            extra_task_families=(
+                settings.ecs_archive_task_definition,
+                settings.ecs_agent_task_definition,
+                settings.ecs_live_task_definition,
+            ),
             subnets=settings.subnet_ids,
             security_group=settings.ecs_security_group,
             region=settings.aws_region,

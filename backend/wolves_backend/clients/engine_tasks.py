@@ -17,7 +17,7 @@ class EngineTasks:
         *,
         cluster_arn: str,
         task_definition: str,
-        archive_task_definition: str = "",
+        extra_task_families: tuple[str, ...] = (),
         subnets: list[str],
         security_group: str,
         region: str,
@@ -25,7 +25,7 @@ class EngineTasks:
     ) -> None:
         self._cluster_arn = cluster_arn
         self._task_definition = task_definition
-        self._families = [task_definition] + ([archive_task_definition] if archive_task_definition else [])
+        self._families = [task_definition, *(family for family in extra_task_families if family)]
         self._subnets = subnets
         self._security_group = security_group
         self._client = client or boto3.client("ecs", region_name=region)
