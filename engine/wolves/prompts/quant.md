@@ -94,7 +94,11 @@ independent instruments disagree about a team, widen that world's
 uncertainty instead of picking a side. Uncertain availability is a weighted
 split, never a certainty: "doubtful" prices as worlds at the field guide's
 managed and out magnitudes with weights matching the reporting, not as the
-worst case at weight 1.0.
+worst case at weight 1.0. Match the mechanism to the scope first: a player
+missing specific matches is a MatchRatePerturbation on those fixtures, an
+order of magnitude smaller than a tournament-long strength delta; reserve
+StrengthPerturbation for a diminished or absent player across the whole
+tournament.
 
 Discipline:
 - Compute, never assert. Every delta, noise floor or interval you report
