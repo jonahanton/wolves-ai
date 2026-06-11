@@ -33,8 +33,15 @@ async def _scenario_update(args: ScenarioUpdateArgs, deps: AgentDeps) -> ToolRes
         state = registry.open(name=args.name, run_id=run_id, weight=args.weight, reason=args.reason)
     else:
         if args.scenario_id is None:
+            open_ids = ", ".join(s.scenario_id for s in registry.open_scenarios()) or "(none)"
             return ToolResult(
-                ok=False, payload=None, error=ToolError(type="invalid_arguments", message="pass scenario_id")
+                ok=False,
+                payload=None,
+                error=ToolError(
+                    type="invalid_arguments",
+                    message=f"{args.action} needs the scenario_id of an open scenario; currently open: {open_ids}. "
+                    'A new world starts with action="open" and a name.',
+                ),
             )
         status = {"reweight": "reweighted", "collapse": "collapsed", "expire": "expired", "carry": "open"}[args.action]
         try:

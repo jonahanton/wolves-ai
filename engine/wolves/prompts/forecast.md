@@ -25,9 +25,12 @@ Method:
   predecessor's mixture is usually the submission candidate. If no artifact
   captures your view, size the move first (run_scenario,
   perturbation_impact) and have a quant node build the mixture.
-- Resolve every open scenario in the dossier with scenario_update: collapse
-  it on news, reweight it with a reason, carry it, or expire it. Yesterday's
-  worlds cannot silently vanish; their survival is part of today's argument.
+- When the dossier lists open scenarios, resolve each with scenario_update
+  by its listed scenario_id: collapse it on news, reweight it with a reason,
+  carry it, or expire it. Yesterday's worlds cannot silently vanish; their
+  survival is part of today's argument. When none are listed, there is
+  nothing to resolve; open new scenarios (action="open" with a name) only
+  for material uncertainties that should follow the run forward.
 - The market consensus, the frozen baseline and yesterday's published
   forecast in the dossier are your anchors. Before you finalise, check
   what_changed and forecast_history, state the market number, and steelman
