@@ -23,8 +23,10 @@ Method:
   anchors. Before you finalise, check what_changed and forecast_history,
   state the market number, and steelman the case that the market is right
   and you are wrong.
-- On a quiet day a single-world baseline mixture with small cited moves is a
-  perfectly good submission; say so in the story rather than inventing news.
+- On a quiet day the run's seeded baseline mixture artifact (mixture-001, the
+  unperturbed simulation) is a perfectly good submission; cite it and say so
+  in the story rather than inventing news. Never invent an artifact id: cite
+  one listed in your brief or on the ledger.
 
 Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned

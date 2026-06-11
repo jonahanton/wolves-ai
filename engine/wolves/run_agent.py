@@ -480,10 +480,20 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         run_id=run_id,
         as_of=as_of,
     )
-    if not args.live:
+    store = RunArtifactStore(ArtifactStore(settings), run_id=run_id)
+    if args.live:
+        # Submission is by artifact reference, so a citable mixture must exist
+        # even when every quant node fails: the unperturbed baseline is always
+        # a valid quiet-day submission.
+        store.add(
+            kind="mixture",
+            created_by="runtime",
+            summary="Baseline single-world mixture: the unperturbed champion simulation, submit-ready as-is.",
+            payload={"weights": {"baseline": 1.0}, "worlds": {"baseline": {"perturbations": []}}, "mixture": {}},
+        )
+    else:
         # The scripted forecast submits by reference, so the dev run seeds the
         # computed artifact a real quant node would have registered.
-        store = RunArtifactStore(ArtifactStore(settings), run_id=run_id)
         store.add(
             kind="mixture",
             created_by="dev-seed",
@@ -499,7 +509,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
                 "mixture": {},
             },
         )
-        deps.artifacts = store
+    deps.artifacts = store
     try:
         result = await run_graph(deps, as_of=as_of, models=models)
     except Exception:
