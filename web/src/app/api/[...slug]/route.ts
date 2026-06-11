@@ -4,6 +4,7 @@ const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 const BACKEND_ORIGIN = new URL(BACKEND_URL).origin;
 
 const FORWARDED_REQUEST_HEADERS = ["content-type", "if-none-match", "if-modified-since"];
+const ADMIN_PREFIX = "admin";
 
 interface RouteContext {
   params: Promise<{ slug: string[] }>;
@@ -24,6 +25,10 @@ async function proxyRequest(request: NextRequest, context: RouteContext): Promis
   for (const name of FORWARDED_REQUEST_HEADERS) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
+  }
+  if (slug[0] === ADMIN_PREFIX) {
+    const value = request.headers.get("authorization");
+    if (value) headers.set("authorization", value);
   }
 
   const options: RequestInit = {

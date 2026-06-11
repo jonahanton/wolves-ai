@@ -3,8 +3,17 @@ name: Run engine
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: Which engine command to run
+        required: true
+        default: agent
+        type: choice
+        options:
+          - daily
+          - agent
+          - live
       ceiling_usd:
-        description: Spend ceiling for this run in USD (blank uses the engine default)
+        description: Agent spend ceiling in USD (blank uses the engine default)
         required: false
         type: string
 
@@ -30,16 +39,26 @@ jobs:
         env:
           SUBNETS: ${{ vars.ECS_SUBNETS }}
           SECURITY_GROUP: ${{ vars.ECS_SECURITY_GROUP }}
+          MODE: ${{ inputs.mode }}
           CEILING_USD: ${{ inputs.ceiling_usd }}
         run: |
-          overrides='{}'
+          case "$MODE" in
+            daily) command='["wolves.run"]' ;;
+            agent) command='["wolves.run_agent","--live","--confirm-spend"]' ;;
+            live) command='["wolves.live","--loop","--interval","60"]' ;;
+            *) echo "unknown mode: $MODE" >&2; exit 2 ;;
+          esac
+          if [ -n "$CEILING_USD" ] && [ "$MODE" != "agent" ]; then
+            echo "ceiling_usd only applies to agent runs" >&2
+            exit 2
+          fi
+          overrides=$(jq -n --argjson command "$command" '{
+            containerOverrides: [{name: "engine", command: $command}]
+          }')
           if [ -n "$CEILING_USD" ]; then
-            overrides=$(jq -n --arg ceiling "$CEILING_USD" '{
-              containerOverrides: [{
-                name: "engine",
-                environment: [{name: "AGENT_RUN_CEILING_USD", value: $ceiling}]
-              }]
-            }')
+            overrides=$(jq --arg ceiling "$CEILING_USD" '
+              .containerOverrides[0].environment = [{name: "AGENT_RUN_CEILING_USD", value: $ceiling}]
+            ' <<<"$overrides")
           fi
           aws ecs run-task \
             --cluster "$ECS_CLUSTER" \

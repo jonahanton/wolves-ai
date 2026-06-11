@@ -36,7 +36,36 @@ async def test_run_now_returns_task_arn_with_202():
     assert response.status_code == 202
     assert response.json() == {"taskArn": TASK_ARN}
     assert ecs.run_calls[0]["launchType"] == "FARGATE"
+    assert ecs.run_calls[0]["overrides"]["containerOverrides"][0]["command"] == ["wolves.run"]
     assert ecs.run_calls[0]["networkConfiguration"]["awsvpcConfiguration"]["subnets"] == ["subnet-1", "subnet-2"]
+
+
+async def test_run_now_agent_mode_sets_command_and_ceiling():
+    ecs = FakeEcsClient(task_arn=TASK_ARN)
+    async with client_for(build_test_app(ecs=ecs), headers=ADMIN_HEADERS) as client:
+        response = await client.post("/admin/run-now", json={"mode": "agent", "ceilingUsd": 3.5})
+    override = ecs.run_calls[0]["overrides"]["containerOverrides"][0]
+    assert response.status_code == 202
+    assert override["command"] == ["wolves.run_agent", "--live", "--confirm-spend"]
+    assert override["environment"] == [{"name": "AGENT_RUN_CEILING_USD", "value": "3.50"}]
+
+
+async def test_run_now_live_mode_sets_the_live_command():
+    ecs = FakeEcsClient(task_arn=TASK_ARN)
+    async with client_for(build_test_app(ecs=ecs), headers=ADMIN_HEADERS) as client:
+        response = await client.post("/admin/run-now", json={"mode": "live"})
+    override = ecs.run_calls[0]["overrides"]["containerOverrides"][0]
+    assert response.status_code == 202
+    assert override["command"] == ["wolves.live", "--loop", "--interval", "60"]
+    assert "environment" not in override
+
+
+async def test_run_now_rejects_ceiling_on_non_agent_modes():
+    ecs = FakeEcsClient(task_arn=TASK_ARN)
+    async with client_for(build_test_app(ecs=ecs), headers=ADMIN_HEADERS) as client:
+        response = await client.post("/admin/run-now", json={"mode": "live", "ceilingUsd": 3.5})
+    assert response.status_code == 400
+    assert ecs.run_calls == []
 
 
 async def test_run_now_failure_reason_maps_to_502():

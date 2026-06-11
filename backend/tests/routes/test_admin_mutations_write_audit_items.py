@@ -9,7 +9,7 @@ from tests.fakes import ADMIN_HEADERS, FakeDynamoTable, FakeEcsClient, build_tes
 TASK_ARN = "arn:aws:ecs:eu-west-2:000000000000:task/wolves/abc123def456"
 
 MUTATIONS = [
-    ("/admin/run-now", None, "run-now", {"taskArn": TASK_ARN, "force": False}),
+    ("/admin/run-now", None, "run-now", {"taskArn": TASK_ARN, "force": False, "mode": "daily", "ceilingUsd": None}),
     ("/admin/stop", {"taskArn": TASK_ARN}, "stop", {"taskArn": TASK_ARN}),
     ("/admin/schedule", {"enabled": True, "cron": "0 11 * * ? *"}, "schedule-update", None),
 ]

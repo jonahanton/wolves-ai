@@ -28,22 +28,26 @@ class EngineTasks:
         self._security_group = security_group
         self._client = client or boto3.client("ecs", region_name=region)
 
-    def run_now(self) -> str:
+    def run_now(self, *, command: list[str] | None = None, environment: dict[str, str] | None = None) -> str:
         """Launch one engine task and return its ARN."""
+        overrides = _container_overrides(command=command, environment=environment)
         try:
-            result = self._client.run_task(
-                cluster=self._cluster_arn,
-                taskDefinition=self._task_definition,
-                launchType="FARGATE",
-                count=1,
-                networkConfiguration={
+            kwargs = {
+                "cluster": self._cluster_arn,
+                "taskDefinition": self._task_definition,
+                "launchType": "FARGATE",
+                "count": 1,
+                "networkConfiguration": {
                     "awsvpcConfiguration": {
                         "subnets": self._subnets,
                         "securityGroups": [self._security_group] if self._security_group else [],
                         "assignPublicIp": "ENABLED",
                     }
                 },
-            )
+            }
+            if overrides:
+                kwargs["overrides"] = overrides
+            result = self._client.run_task(**kwargs)
         except (ClientError, BotoCoreError) as exc:
             raise UpstreamError("ecs", str(exc)) from exc
         tasks = result.get("tasks") or []
@@ -80,3 +84,16 @@ class EngineTasks:
             self._client.stop_task(cluster=self._cluster_arn, task=task_arn, reason="Stopped from admin")
         except (ClientError, BotoCoreError) as exc:
             raise UpstreamError("ecs", str(exc)) from exc
+
+
+def _container_overrides(
+    *, command: list[str] | None = None, environment: dict[str, str] | None = None
+) -> dict[str, Any] | None:
+    if not command and not environment:
+        return None
+    override: dict[str, Any] = {"name": "engine"}
+    if command:
+        override["command"] = command
+    if environment:
+        override["environment"] = [{"name": name, "value": value} for name, value in sorted(environment.items())]
+    return {"containerOverrides": [override]}

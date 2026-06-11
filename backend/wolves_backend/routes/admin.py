@@ -23,6 +23,12 @@ router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 
 DepsDep = Annotated[Deps, Depends(get_deps)]
 
+RUN_COMMANDS = {
+    "daily": ["wolves.run"],
+    "agent": ["wolves.run_agent", "--live", "--confirm-spend"],
+    "live": ["wolves.live", "--loop", "--interval", "60"],
+}
+
 
 async def _audit(deps: Deps, request: Request, *, action: str, payload: dict[str, Any]) -> None:
     source_ip = request.client.host if request.client else None
@@ -51,11 +57,24 @@ async def active_runs(deps: DepsDep) -> ActiveRuns:
 
 @router.post("/run-now", status_code=202)
 async def run_now(request: Request, deps: DepsDep, body: RunNowRequest | None = None) -> RunStarted:
-    force = body.force if body else False
+    body = body or RunNowRequest()
+    force = body.force
     if not force and await asyncio.to_thread(deps.engine_tasks.list_active):
         raise HTTPException(status_code=409, detail="an engine run is already active; pass force to start another")
-    task_arn = await asyncio.to_thread(deps.engine_tasks.run_now)
-    await _audit(deps, request, action="run-now", payload={"taskArn": task_arn, "force": force})
+    environment = (
+        {"AGENT_RUN_CEILING_USD": f"{body.ceiling_usd:.2f}"}
+        if body.mode == "agent" and body.ceiling_usd is not None
+        else None
+    )
+    task_arn = await asyncio.to_thread(
+        lambda: deps.engine_tasks.run_now(command=RUN_COMMANDS[body.mode], environment=environment)
+    )
+    await _audit(
+        deps,
+        request,
+        action="run-now",
+        payload={"taskArn": task_arn, "force": force, "mode": body.mode, "ceilingUsd": body.ceiling_usd},
+    )
     return RunStarted(task_arn=task_arn)
 
 
