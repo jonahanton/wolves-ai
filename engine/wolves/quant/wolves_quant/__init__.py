@@ -42,6 +42,7 @@ from wolves.quant.wolves_quant._sim import (
     score_grid,
     simulate,
     title_uncertainty,
+    update_from_result,
 )
 from wolves.quant.wolves_quant._state import finalise as _finalise
 
@@ -82,4 +83,5 @@ __all__ = [
     "simulate",
     "teams",
     "title_uncertainty",
+    "update_from_result",
 ]

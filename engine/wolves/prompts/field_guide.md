@@ -97,6 +97,83 @@ output: "Dallas heat does not move the England headline: marginals 6.67 vs
 draws, sd 0.04pp" is a complete, submit-ready quant result. Do not pad a null
 into an adjustment to seem useful.
 
+### The disagreement chain (gap, structural test, posterior)
+
+Method: any model-vs-market gap runs the same three calls. wq.implied_delta
+translates the gap into strength units you can argue about;
+wq.title_uncertainty asks whether the gap sits outside the model's own
+parameter uncertainty (inside [p10, p90] is noise, outside is structural
+disagreement worth a world); a posterior reconciliation (conjugate, or emcee
+on a hand-written log-posterior with the market as a noisy logit observation)
+produces the DeltaDistribution to publish. Example output: France model 8.5
+vs market 15.6 inverted to +0.147; the gap sat outside France's own 80%
+parameter CI [4.9, 10.9] while Spain's and Brazil's gaps sat inside theirs
+(no action); the emcee posterior gave delta +0.126 (80% CI +0.076..+0.177),
+title 14.8%, published as DeltaDistribution(mean=0.126, sd=0.039).
+
+### The score-test misrating hunt
+
+Method: convert a contender's recent-results residual into a parameter delta
+via the model's own likelihood (delta = score/information, SE =
+1/sqrt(information)), run it both on the current fit and on a fit frozen in
+the past: the gap between the two separates "model cannot fit this team"
+from "team changed regime". Cross-check any flag by refitting the decay
+half-life at the extremes; the per-team perturbation should reproduce the
+wholesale refit's title impact. Example output: Norway +0.234 in-sample
+(z=1.8), +0.607 out-of-sample (z=4.4); priced at +0.20 the title impact is
++5.4pp against a 0.4pp floor, and the 1-year-half-life refit independently
+reproduced it (+5.24pp). Brazil and Belgium flagged the other way (-3.1pp,
+-2.2pp). Size the published world BELOW the full residual delta: the
+half-life is a prior, not an error.
+
+### External covariates as second measurements
+
+Method: regress the fitted strengths on an external covariate across the
+full cross-section, treat the regression line as a noisy second measurement,
+and let a conjugate update against the model's own posterior variance size
+the perturbation; for time-series signals, fit the SIGNED coefficient and
+demand era stability plus an out-of-sample log-loss gain before pricing.
+Where two independent signals agree (z-scores across the cross-section),
+price the agreement; where independent instruments CONFLICT on a team, widen
+the world's DeltaDistribution rather than picking a side. Example output:
+squad value (R2 0.85, n=48) gave England prior N(1.494, 0.123) x likelihood
+N(1.563, 0.125) = posterior +0.034, +1.35pp title; Elo trend came out
+mean-reverting, not momentum (coefficient -0.0043 per Elo-point/year,
+z=-4.7, sign-stable across four eras, OOS log-loss gain), fading Spain
+(steepest climb, also hot vs squad value: both signals agree) by -4.3pp
+conservatively; Norway was flagged UP by the score test and DOWN by the
+value regression, so its world widened instead of moving.
+
+### The leverage map
+
+Method: with common random numbers the whole Jacobian of title-vs-parameter
+is cheap; sweep +-0.05/+-0.10 across the contenders before deciding where
+analysis is worth spending, and report fixture leverage in BOTH rankings:
+raw win-minus-loss spread (tail exposure; favourites' wins over minnows are
+already priced, all the leverage is in the loss) and probability-weighted
+expected movement (news value). Example output: exposure is proportional to
+title probability (Spain 3.37pp per +0.05, England 1.64, Norway 0.84);
+France-Iraq carried the biggest tail (spread 3.16pp title, -30pp R32 on a
+loss, win +0.01pp) while England-Croatia carried the most expected movement
+(0.85pp). Perturbation algebra: additive to ~0.2pp EXCEPT favourite-down
+plus rival-up pairs, ~15% super-additive on the rival (replicated across
+three seeds), so mixtures simulate opposite-sign worlds jointly, never by
+summing single impacts. Interaction terms combine three runs; inflate the
+floor by sqrt(3) and replicate across seeds before declaring one real.
+
+### One result, one update
+
+Method: wq.update_from_result sizes the strength update one played match
+justifies (the model's own match likelihood over a delta grid, weighted by
+the champion's parameter prior); the qualification-path effect of the result
+flows separately through the played-results channel and is never re-added.
+Example output: England losing to Panama justifies -0.044 (-1.6pp title);
+beating Croatia +0.018; an expected win under +0.01. Information is
+asymmetric (surprises carry 3-5x), scorelines roughly double a bare W/D/L,
+and the posterior sd barely moves (0.121 vs prior 0.123): no single match
+justifies a large update. Cap single-match form perturbations at |0.05|,
+typical |0.02|.
+
 ### News-shock scale (example outputs, recompute to use)
 
 Backup keeper in (-0.03 strength) = -1.09pp. Star striker out (-0.12) =
@@ -162,7 +239,17 @@ what caused the changes in market numbers.
 
 Decline briefs built on these; the citation is the finding:
 
-- Momentum and recent-form overlays (null once ability is controlled).
+- Momentum overlays: worse than null. Elo trend is mean-reverting (signed
+  coefficient z=-4.7, sign-stable across four eras, OOS-validated): hot
+  teams underperform their level. Price reversion or nothing, never
+  momentum.
+- Favourite-longshot corrections after proportional de-vig: the shrinkage
+  fit gave b=0.80 with CI [0.63, 1.04] and the correction failed
+  leave-one-tournament-out scoring; de-vigged tournament prices are already
+  approximately calibrated, and the 2022 tail produced Morocco, so never
+  shave longshots.
+- Ad-hoc upset inflation: the sim's draw and upset tails match 1,098
+  historical tournament matches bin-by-bin; upsets are priced.
 - Rest-day differentials at 3+ days both sides.
 - Penalty shootout skill beyond a few points off 50/50 (our 50/50 stands and
   cannot be overridden).
@@ -190,6 +277,14 @@ Decline briefs built on these; the citation is the finding:
   (weak: market-revealed, not peer-reviewed; label as a prior).
 - Normal starter absent: an order of magnitude less (weak).
 - Shootouts 50/50; at most ~55/45 on extreme squad-value gaps (strong null).
+- Outright market vs Elo at match level: market better by 0.031 nats per
+  match (95% CI 0.001 to 0.062, n=230): weight it meaningfully, never defer
+  to it (moderate).
+- Single-result form update: cap |0.05| strength, typical |0.02|
+  (engine-measured via the posterior grid; recompute with
+  wq.update_from_result).
+- elo_history year Y is END-of-year rating: pre-tournament priors must use
+  year-1 or they leak the tournament itself (data trap, strong).
 - Paired-seed noise floor at 50k sims: ~0.2pp for favourites (England
   seed-pair delta 0.17pp), ~0.35pp at 100k for Spain-sized favourites.
   Cross-team deltas below the floor are fiction; wq.impact reports it.

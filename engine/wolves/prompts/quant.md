@@ -26,7 +26,9 @@ discovering them:
   -> DataFrame [mean, p10, p50, p90] per team under the model's own
   parameter uncertainty (a gap outside [p10, p90] is structural, inside is
   noise); wq.path_difficulty() -> DataFrame of expected opponent strength
-  per stage and a difficulty index (draw luck).
+  per stage and a difficulty index (draw luck);
+  wq.update_from_result(team, opponent, "win"|"draw"|"loss") -> the
+  posterior strength delta one played match justifies.
 - wq.scenario_mixture(scenarios=[...], factors=[...]) integrates weighted
   worlds, attaches the noise floor, and REGISTERS a submit-ready mixture
   artifact; building the day's mixture for the forecaster means calling this,
@@ -69,6 +71,15 @@ Prefer a fitted estimate with a standard error over an eyeballed constant;
 prefer a holdout score over an in-sample fit. Bayesian instruments in rough
 order of cost: wq.posterior_draws (free, Gaussian), scipy.stats conjugate
 updates, emcee on a hand-written log-posterior.
+
+A repertoire, not a syllabus (the field guide carries a worked example of
+each): the disagreement chain for any model-vs-market gap; the score-test
+misrating hunt over recent results; external covariates (squad value, Elo
+trend) as second measurements sized by conjugate updates; the leverage map
+before deciding where analysis is worth spending; update_from_result to
+size form updates; factor lattices to integrate the day's worlds. When two
+independent instruments disagree about a team, widen that world's
+uncertainty instead of picking a side.
 
 Discipline:
 - Compute, never assert. Every delta, noise floor or interval you report

@@ -168,6 +168,55 @@ def title_uncertainty(
     return frame.sort_values("mean", ascending=False)
 
 
+def update_from_result(
+    team: str,
+    opponent: str,
+    outcome: str,
+    *,
+    team_at_home: bool = False,
+    neutral: bool = True,
+    match: int | None = None,
+    grid_half_width: float = 0.4,
+    points: int = 17,
+) -> dict[str, float]:
+    """Posterior strength-delta update justified by one observed result
+    ("win", "draw" or "loss" for team): the model's own match likelihood over
+    a delta grid, weighted by the champion's parameter prior. Calibrated
+    expectation: even a shock loss justifies only ~|0.05|; expected results
+    near zero. The qualification-path effect of the result flows separately
+    through the simulator's played-results channel; never add it here."""
+    import numpy as np
+
+    from wolves.forecast import StrengthPerturbation
+
+    state = forecaster().state
+    idx = list(state.teams).index(team)
+    prior_sd = float(np.sqrt(state.covariance[idx, idx])) if state.covariance is not None else 0.12
+    home, away = (team, opponent) if team_at_home else (opponent, team)
+    key = {"win": "home" if team_at_home else "away", "loss": "away" if team_at_home else "home", "draw": "draw"}[
+        outcome
+    ]
+    deltas = np.linspace(-grid_half_width, grid_half_width, points)
+    likelihood = np.array(
+        [
+            forecaster().match_probs(
+                home,
+                away,
+                neutral=neutral,
+                match=match,
+                perturbations=(StrengthPerturbation(team=team, delta=float(d), reason="result update"),),
+            )[key]
+            for d in deltas
+        ]
+    )
+    SESSION.usage.sims += 1
+    weights = np.exp(-0.5 * (deltas / prior_sd) ** 2) * likelihood
+    weights /= weights.sum()
+    mean = float(np.sum(weights * deltas))
+    sd = float(np.sqrt(np.sum(weights * (deltas - mean) ** 2)))
+    return {"posterior_mean_delta": round(mean, 4), "posterior_sd": round(sd, 4), "prior_sd": round(prior_sd, 4)}
+
+
 def posterior_draws(n: int = 200, *, seed: int = 0) -> pd.DataFrame:
     """Per-team strength draws from the champion's MLE covariance, the free
     approximate posterior; columns are teams, one row per draw."""
