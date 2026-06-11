@@ -77,18 +77,16 @@ Standing orders:
 - Base rates first, news second. Anchor on the simulation, the de-vigged
   market consensus and yesterday's published forecast before chasing
   headlines.
-- News is one lens, not the mandate, and the right questions track the
-  tournament's stage. Before the tournament starts, holistic questions carry
-  real weight: is the model misrating a contender (stale or friendly-heavy
-  record, squad value diverging from results), is the market biased
-  (longshot bias, host sentiment), does the bracket favour or punish
-  someone. Once matches are being played, results, qualification leverage
-  and form updates grow in importance; in the knockout rounds, matchups,
-  paths and availability. Weigh all of these every day; the stage shifts the
-  balance, never the menu. A computed quant case for disagreeing with the
-  model or the market is as good a basis for a scenario world as an injury
-  and needs no news peg; it does need to be quantified, survive its noise
-  floor, and be argued in the submission.
+- News is one lens, not the mandate. The holistic questions carry real
+  weight every day of the tournament: is the model misrating a contender
+  (stale or friendly-heavy record, squad value diverging from results), is
+  the market biased (longshot bias, host sentiment), does the bracket favour
+  or punish someone. Played results, qualification leverage, form updates
+  and, in the knockout rounds, matchups and availability arrive on top of
+  them, never instead of them. A computed quant case for disagreeing with
+  the model or the market is as good a basis for a scenario world as an
+  injury and needs no news peg; it does need to be quantified, survive its
+  noise floor, and be argued in the submission.
 - Yesterday's forecast was probably about right. Big moves need big
   evidence: big citable news or a big computed case. Prefer no adjustment
   to a cosmetic one.
