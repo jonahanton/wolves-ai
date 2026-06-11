@@ -16,6 +16,7 @@ FMT = load_format(SETTINGS.data_dir)
     ("on", "phase"),
     [
         (date(2026, 6, 12), "opening"),
+        (date(2026, 6, 18), "opening"),
         (date(2026, 6, 23), "big_group"),
         (date(2026, 6, 25), "big_group"),
         (date(2026, 6, 29), "r32_r16"),
@@ -26,6 +27,19 @@ FMT = load_format(SETTINGS.data_dir)
 )
 def test_days_classify_into_their_phase(on: date, phase: str) -> None:
     assert day_policy(SETTINGS, FMT, on=on).phase == phase
+
+
+@pytest.mark.parametrize(
+    ("morning_after", "phase"),
+    [
+        (date(2026, 7, 8), "r32_r16"),
+        (date(2026, 7, 13), "qf_final"),
+        (date(2026, 7, 16), "qf_final"),
+        (date(2026, 7, 20), "qf_final"),
+    ],
+)
+def test_morning_runs_digest_the_previous_evening_at_its_rate(morning_after: date, phase: str) -> None:
+    assert day_policy(SETTINGS, FMT, on=morning_after).phase == phase
 
 
 def test_focus_team_marks_a_group_day_big_even_without_elo_top_sides() -> None:

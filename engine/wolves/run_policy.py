@@ -49,12 +49,11 @@ def _group_concludes(fmt: FormatData, on: date) -> bool:
     return on.isoformat() in by_group.values() and bool(_group_games_on(fmt, on))
 
 
-def day_policy(settings: Settings, fmt: FormatData, *, on: date) -> DayPolicy:
+def _games_day_policy(settings: Settings, fmt: FormatData, big: frozenset[str], on: date) -> DayPolicy:
     knockout_stages = {m.stage for m in fmt.knockout if m.date[:10] == on.isoformat()}
     group_games = _group_games_on(fmt, on)
-    big = big_team_ids(settings, fmt)
     playing = {m.home for m in group_games} | {m.away for m in group_games}
-    big_today = tuple(sorted(playing & big))
+    big_playing = tuple(sorted(playing & big))
 
     if knockout_stages & _LATE_STAGES:
         phase: Phase = "qf_final"
@@ -68,14 +67,25 @@ def day_policy(settings: Settings, fmt: FormatData, *, on: date) -> DayPolicy:
     elif on <= _first_group_date(fmt) + timedelta(days=_OPENING_DAYS - 1):
         phase = "opening"
         ceiling = settings.agent_ceiling_opening_usd
-    elif big_today or _group_concludes(fmt, on) or len(group_games) >= _BIG_SLATE_GAMES:
+    elif big_playing or _group_concludes(fmt, on) or len(group_games) >= _BIG_SLATE_GAMES:
         phase = "big_group"
         ceiling = settings.agent_ceiling_big_group_usd
     else:
         phase = "group"
         ceiling = settings.agent_ceiling_group_usd
     capped = min(ceiling, settings.agent_run_ceiling_max_usd)
-    return DayPolicy(on, phase, round(capped, 2), big_today)
+    return DayPolicy(on, phase, round(capped, 2), big_playing)
+
+
+def day_policy(settings: Settings, fmt: FormatData, *, on: date) -> DayPolicy:
+    """The morning run digests yesterday evening's games and previews today's,
+    so the run date is charged at whichever day is bigger."""
+    big = big_team_ids(settings, fmt)
+    today = _games_day_policy(settings, fmt, big, on)
+    digest = _games_day_policy(settings, fmt, big, on - timedelta(days=1))
+    chosen = digest if digest.ceiling_usd > today.ceiling_usd else today
+    big_teams = tuple(sorted({*today.big_teams, *digest.big_teams}))
+    return DayPolicy(on, chosen.phase, chosen.ceiling_usd, big_teams)
 
 
 def agent_ceiling(settings: Settings, fmt: FormatData, *, on: date) -> float:
