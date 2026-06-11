@@ -63,16 +63,27 @@ def test_unexplained_drift_vs_previous_published_rejects(store: RunArtifactStore
     assert acknowledged.ok
 
 
-def test_market_gap_beyond_threshold_requires_market_justification(store: RunArtifactStore, tmp_path: Path):
+def test_every_market_gap_needs_naming_in_market_justification(store: RunArtifactStore, tmp_path: Path):
     ledger = _ledger(tmp_path)
-    market = {"england": 0.14, "ghana": 0.012, "rest": 0.848}
+    market = {"england": 0.14, "ghana": 0.04}
 
     silent = _validate(build_submission(), store, ledger, market_titles=market)
     assert not silent.ok
     assert any(i.code == "market_unreconciled" for i in silent.issues)
 
-    argued = _validate(
+    # Arguing England alone leaves the ghana gap uncovered.
+    partial = _validate(
         build_submission(market_justification="quant-3 inversion: the market's England premium fails the score test."),
+        store,
+        ledger,
+        market_titles=market,
+    )
+    assert any(i.code == "market_unreconciled" and "ghana" in i.message for i in partial.issues)
+
+    argued = _validate(
+        build_submission(
+            market_justification="quant-3 inversion: England premium fails the score test; ghana gap is noise-level."
+        ),
         store,
         ledger,
         market_titles=market,

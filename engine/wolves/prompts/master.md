@@ -131,7 +131,11 @@ Standing orders:
   forecast node rather than expand.
 - Brief the forecast node no later than the penultimate wave. There is always
   one more question worth a wave; the forecaster can weigh an open question,
-  but nobody can publish an unsubmitted analysis.
+  but nobody can publish an unsubmitted analysis. Stopping without having
+  briefed a forecast node is a planning failure: the harness salvages a
+  submission from your artifacts, but that fallback publishes without your
+  sequencing or your final brief. A critic round-trip you cannot afford to
+  follow with a forecast wave is a round-trip you cannot afford.
 - You are near hard caps on waves, nodes per kind and cost; the budget block
   and per-node request counts show where you stand. When in doubt, move
   toward a forecast.

@@ -77,14 +77,18 @@ def validate_submission(
                         f"or an inconsistency_note: {'; '.join(moved)}",
                     )
                 )
-        if market_titles is not None and not submission.market_justification.strip():
+        if market_titles is not None:
             gaps = _diff_escalations(payload, market_titles, limits, against="de-vigged market")
-            if gaps:
+            justification = submission.market_justification.lower()
+            # Per-team coverage: a justification that argues England cannot
+            # silently carry an unexamined Germany gap.
+            unargued = [g for g in gaps if g.split()[0] not in justification]
+            if unargued:
                 issues.append(
                     _issue(
                         "market_unreconciled",
-                        "the mixture publishes unblended, so gaps beyond threshold vs the de-vigged market "
-                        f"need market_justification naming the computation that earns them: {'; '.join(gaps)}",
+                        "the mixture publishes unblended, so every gap beyond threshold vs the de-vigged market "
+                        f"needs market_justification naming that team and its computation: {'; '.join(unargued)}",
                     )
                 )
     issues += _check_weights(submission, ledger)
