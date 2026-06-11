@@ -40,7 +40,6 @@ def _read_file(store: RunArtifactStore, artifact_id: str, name: str) -> dict[str
 
 
 async def _read_artifact(args: ReadArtifactArgs, deps: AgentDeps) -> ToolResult[Any]:
-    # Lazy: a top-level wolves.graph import is circular via the toolsets.
     from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
     from wolves.s3.artifacts import ArtifactStore
 

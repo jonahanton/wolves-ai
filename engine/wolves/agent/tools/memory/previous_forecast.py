@@ -62,7 +62,6 @@ async def _previous_forecast(args: PreviousForecastArgs, deps: AgentDeps) -> Too
     if snapshot.agent is not None:
         payload["narrative"] = snapshot.agent.narrative.model_dump(mode="json")
         payload["ledger"] = [e.model_dump(mode="json") for e in snapshot.agent.ledger_entries[:10]]
-    # Lazy: a top-level wolves.graph import is circular via the toolsets.
     from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
     from wolves.s3.artifacts import ArtifactStore
 
