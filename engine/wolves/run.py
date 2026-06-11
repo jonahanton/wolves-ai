@@ -18,6 +18,7 @@ from wolves.observability.logging import configure_cli_logging
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
+from wolves.sim.results_store import persisted_results
 from wolves.snapshot import ChampionBlock, MarketsBlock, RunMeta, Snapshot, TeamInterval
 
 logger = logging.getLogger(__name__)
@@ -56,13 +57,16 @@ def _markets_block(settings: Settings, forecaster: Forecaster, model_probs: dict
 def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id: str | None = None) -> Snapshot:
     """Run the trusted model's simulation (or the Elo baseline) and assemble a snapshot."""
     forecaster = Forecaster(settings)
+    # Read through this run's settings so a per-run --storage choice governs
+    # which persisted results the published snapshot sees.
+    played = persisted_results(settings)
     model_path = forecaster.champion.model_id != ELO_CHAMPION_ID
     champion = None
     intervals: list[TeamInterval] = []
     markets = None
     if model_path:
         forecaster.fit()
-        outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed)
+        outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played)
         champion = ChampionBlock(
             id=forecaster.champion.model_id,
             version=forecaster.champion.model_version,
@@ -77,7 +81,7 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
         model_probs = {t.team_id: t.champion_prob for t in outputs.teams}
         markets = _markets_block(settings, forecaster, model_probs)
     else:
-        outputs = run_simulation({}, {}, n_sims, seed)
+        outputs = run_simulation({}, {}, n_sims, seed, extra_results=played)
 
     now = datetime.now(UTC)
     return Snapshot(
