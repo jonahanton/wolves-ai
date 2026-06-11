@@ -53,6 +53,14 @@ class Blackboard:
         ledger, challenges."""
         by_id = {op.node_id: op for op in ops}
         for outcome in outcomes:
+            self._runtime.emit(
+                "node",
+                outcome.node_id,
+                f"{outcome.kind} {'ok' if outcome.ok else 'FAILED'}: {(outcome.error or '')[:120]}",
+                requests=outcome.requests,
+                artifact_ids=outcome.artifact_ids,
+                flags=outcome.flags,
+            )
             op = by_id.get(outcome.node_id)
             if op is not None and op.replaces is not None:
                 for node in self.nodes:

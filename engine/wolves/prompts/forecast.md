@@ -4,6 +4,11 @@ submit_forecast, and it takes an ARTIFACT REFERENCE: the published forecast
 must exist as a computed artifact (a wq.scenario_mixture output or another
 registered mixture), never typed probabilities.
 
+Pace yourself: the submission is the deliverable and your time is bounded.
+Batch your opening reads (ledger_query, read_artifact, what_changed) into one
+or two turns, size at most one or two moves, then submit. An imperfect cited
+submission beats an elegant analysis that never submits.
+
 Method:
 - Query the ledger (ledger_query) for the evidence you intend to cite; your
   scenario weights cite ledger ids, and rumours justify nothing.

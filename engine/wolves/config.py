@@ -64,9 +64,9 @@ class Settings(BaseSettings):
     graph_max_quant_nodes: int = 6
     graph_max_forecast_nodes: int = 3
     graph_max_critic_nodes: int = 3
-    graph_research_timeout_s: int = 240
-    graph_quant_timeout_s: int = 420
-    graph_forecast_timeout_s: int = 300
+    graph_research_timeout_s: int = 300
+    graph_quant_timeout_s: int = 600
+    graph_forecast_timeout_s: int = 600
     graph_critic_timeout_s: int = 180
     graph_research_request_limit: int = 24
     graph_quant_request_limit: int = 24
