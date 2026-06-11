@@ -1,4 +1,4 @@
-import { ENGLAND, knockoutMatches } from "@/lib/schedule";
+import { knockoutMatches } from "@/lib/schedule";
 import type { Candidate, Finish, Slot, Snapshot } from "@/lib/snapshot";
 
 const SEMI_LEFT = 101;
@@ -31,14 +31,16 @@ export function r32Halves(slots: Slot[]): { left: Slot[]; right: Slot[] } {
   };
 }
 
-export function englandSlotProb(slot: Slot): number {
+export function focusSlotProb(slot: Slot, teamId: string): number {
   const sideProb = (candidates: Candidate[]) =>
-    candidates.find((c) => c.team_id === ENGLAND)?.prob ?? 0;
+    candidates.find((c) => c.team_id === teamId)?.prob ?? 0;
   return sideProb(slot.home.candidates) + sideProb(slot.away.candidates);
 }
 
-export function pinEnglandFirst(slots: Slot[]): Slot[] {
-  return [...slots].sort((a, b) => englandSlotProb(b) - englandSlotProb(a) || a.match - b.match);
+export function pinFocusFirst(slots: Slot[], teamId: string): Slot[] {
+  return [...slots].sort(
+    (a, b) => focusSlotProb(b, teamId) - focusSlotProb(a, teamId) || a.match - b.match,
+  );
 }
 
 export interface SpineStage {
@@ -49,8 +51,8 @@ export interface SpineStage {
   opponents: Candidate[];
 }
 
-export function englandSpine(snapshot: Snapshot, finish: Finish): SpineStage[] {
-  const path = snapshot.england.paths.find((p) => p.finish === finish);
+export function focusSpine(snapshot: Snapshot, finish: Finish): SpineStage[] {
+  const path = snapshot.focus.paths.find((p) => p.finish === finish);
   if (!path) return [];
 
   const slotByMatch = new Map(snapshot.slots.map((s) => [s.match, s]));
@@ -80,7 +82,7 @@ export function englandSpine(snapshot: Snapshot, finish: Finish): SpineStage[] {
       match: next.match,
       city: next.city,
       date: next.date,
-      opponents: opposing.candidates.filter((c) => c.team_id !== ENGLAND),
+      opponents: opposing.candidates.filter((c) => c.team_id !== snapshot.focus.team_id),
     });
     current = next.match;
   }

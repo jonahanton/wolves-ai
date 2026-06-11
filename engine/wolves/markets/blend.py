@@ -1,4 +1,4 @@
-"""The published number: a convex blend of champion simulation and de-vigged
+"""Deterministic runs publish this convex blend of champion simulation and de-vigged
 market consensus, with the weight fitted on the backtest."""
 
 from __future__ import annotations

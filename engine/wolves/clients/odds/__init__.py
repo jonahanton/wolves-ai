@@ -9,7 +9,7 @@ from wolves.clients.odds.contracts import (
     Outcome,
 )
 from wolves.clients.odds.fakes import FakeOddsClient, FakePolymarketClient
-from wolves.clients.odds.markets import event_consensus
+from wolves.clients.odds.markets import event_consensus, market_last_updates
 from wolves.clients.odds.polymarket import (
     GammaPolymarketClient,
     PolymarketClient,
@@ -36,6 +36,7 @@ __all__ = [
     "TheOddsApiClient",
     "consensus_probabilities",
     "event_consensus",
+    "market_last_updates",
     "markets_from_events",
     "power_devig",
     "team_id_for_name",

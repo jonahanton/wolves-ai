@@ -17,7 +17,7 @@ interface BracketBoardProps {
 
 export function BracketBoard({ view }: BracketBoardProps) {
   const [mode, setMode] = useState<Mode>("canvas");
-  const [half, setHalf] = useState<Half>(view.englandHalf);
+  const [half, setHalf] = useState<Half>(view.focusHalf);
   const [selected, setSelected] = useState<SlotView | null>(null);
   const slots = half === "left" ? view.left : view.right;
 

@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from wolves.clients.odds.contracts import OddsEvent
-from wolves.clients.odds.markets import event_consensus
+from wolves.clients.odds.markets import event_consensus, market_last_updates
 from wolves.clients.odds.polymarket import markets_from_events, winner_probabilities
 from wolves.clients.odds.team_names import team_id_for_name
 from wolves.sim.format import FormatData
@@ -27,6 +27,7 @@ class MatchPoint(BaseModel):
     p_home: float
     p_draw: float
     p_away: float
+    last_update: str | None = None
 
 
 class SeriesPoint(BaseModel):
@@ -34,6 +35,8 @@ class SeriesPoint(BaseModel):
     outright_bookmakers: dict[str, float]
     outright_polymarket: dict[str, float]
     matches: list[MatchPoint]
+    outright_updated_oldest: str | None = None
+    outright_updated_newest: str | None = None
 
 
 def point_from_snapshot(snapshot: dict[str, Any], fmt: FormatData) -> SeriesPoint:
@@ -41,8 +44,10 @@ def point_from_snapshot(snapshot: dict[str, Any], fmt: FormatData) -> SeriesPoin
     sources = snapshot.get("sources", {})
 
     bookmakers: dict[str, float] = {}
+    outright_updates = []
     for item in (sources.get("odds_outrights") or {}).get("payload") or []:
         event = OddsEvent.model_validate(item)
+        outright_updates.extend(market_last_updates(event, market_key="outrights"))
         for name, prob in event_consensus(event, market_key="outrights").items():
             team_id = team_id_for_name(name, teams)
             if team_id is not None:
@@ -67,6 +72,7 @@ def point_from_snapshot(snapshot: dict[str, Any], fmt: FormatData) -> SeriesPoin
         away = team_id_for_name(event.away_team, teams)
         if home is None or away is None:
             continue
+        updated = max(market_last_updates(event, market_key="h2h"), default=None)
         matches.append(
             MatchPoint(
                 home=home,
@@ -75,6 +81,7 @@ def point_from_snapshot(snapshot: dict[str, Any], fmt: FormatData) -> SeriesPoin
                 p_home=round(consensus.get(event.home_team, 0.0), 4),
                 p_draw=round(consensus.get("Draw", 0.0), 4),
                 p_away=round(consensus.get(event.away_team, 0.0), 4),
+                last_update=updated.isoformat() if updated else None,
             )
         )
     return SeriesPoint(
@@ -82,6 +89,8 @@ def point_from_snapshot(snapshot: dict[str, Any], fmt: FormatData) -> SeriesPoin
         outright_bookmakers=bookmakers,
         outright_polymarket=polymarket,
         matches=matches,
+        outright_updated_oldest=min(outright_updates).isoformat() if outright_updates else None,
+        outright_updated_newest=max(outright_updates).isoformat() if outright_updates else None,
     )
 
 
@@ -119,3 +128,34 @@ def rebuild_series(archive_dir: Path, fmt: FormatData) -> list[SeriesPoint]:
             points.append(point)
     logger.info("rebuilt market series: %d point(s)", len(points))
     return sorted(points, key=lambda p: p.captured_at)
+
+
+def compact_series(archive_dir: Path) -> Path:
+    """Fold the per-snapshot outright series points into one parquet table.
+
+    Derived and rebuildable; raw snapshots stay the source of truth. One row
+    per (captured_at, source, team)."""
+    import pandas as pd
+
+    rows = [
+        {"captured_at": point.captured_at, "source": source, "team": team, "p_title": prob}
+        for point in load_series(archive_dir)
+        for source, outright in (
+            ("bookmakers", point.outright_bookmakers),
+            ("polymarket", point.outright_polymarket),
+        )
+        for team, prob in outright.items()
+    ]
+    import duckdb
+
+    destination = archive_dir / "market_series.parquet"
+    frame = pd.DataFrame(rows, columns=["captured_at", "source", "team", "p_title"])
+    con = duckdb.connect()
+    try:
+        con.register("series", frame)
+        # duckdb writes parquet natively, so pandas needs no pyarrow dependency.
+        con.execute(f"COPY series TO '{destination.as_posix()}' (FORMAT parquet)")
+    finally:
+        con.close()
+    logger.info("compacted market series: %d row(s)", len(rows))
+    return destination

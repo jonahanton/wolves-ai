@@ -7,38 +7,34 @@ from pydantic import BaseModel, Field
 LedgerStatus = Literal["confirmed", "probable", "rumour"]
 
 
-class RatingOverride(BaseModel):
-    team_id: str
-    delta_elo: float
-    cause: str
-    ledger_ids: list[str] = Field(default_factory=list)
-
-
-class FixtureOffset(BaseModel):
-    match: int
-    home_goals: float
-    away_goals: float
-    expiry: str
-    ledger_ids: list[str] = Field(default_factory=list)
-
-
 class Narrative(BaseModel):
-    england_story: str
+    focus_story: str
     slot_rationales: dict[str, str] = Field(default_factory=dict)
     travel_memo: str
 
 
-class ForecastSubmission(BaseModel):
-    """The agent's final output, accepted only through the submit validator."""
+class ScenarioWeight(BaseModel):
+    """One named judgement point: a world's weight and the evidence behind it."""
 
-    rating_overrides: list[RatingOverride] = Field(default_factory=list)
-    fixture_offsets: list[FixtureOffset] = Field(default_factory=list)
-    england_reach_probs: dict[str, float] = Field(default_factory=dict)
+    name: str
+    weight: float = Field(ge=0.0, le=1.0)
+    scenario_id: str | None = None
+    ledger_ids: list[str] = Field(default_factory=list)
+    rationale: str = ""
+
+
+class ForecastSubmission(BaseModel):
+    """Submission by artifact reference: the published distribution must exist
+    as a computed run artifact (a mixture or simulation output); typed tokens
+    never become published numbers."""
+
+    artifact_id: str
     narrative: Narrative
-    delta_vs_market: float = 0.0
+    scenario_weights: list[ScenarioWeight] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
     market_justification: str = ""
-    delta_vs_yesterday: float = 0.0
     change_justification: str = ""
+    inconsistency_note: str = ""
 
 
 class EvidenceItem(BaseModel):
@@ -46,18 +42,3 @@ class EvidenceItem(BaseModel):
     source_url: str
     quote: str = ""
     stance: str = ""
-
-
-class OverrideSample(BaseModel):
-    """One re-extraction of the final rating overrides from the same dossier."""
-
-    rating_overrides: list[RatingOverride] = Field(default_factory=list)
-
-
-class Disagreement(BaseModel):
-    """K-sample spread of the final rating overrides, per team and summarised."""
-
-    k: int
-    per_team_spread: dict[str, float] = Field(default_factory=dict)
-    max_spread: float = 0.0
-    mean_spread: float = 0.0

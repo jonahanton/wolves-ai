@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     aws_region: str = "eu-west-2"
     bucket: str = ""
-    snapshot_dir: Path = REPO_ROOT / "runs"
+    storage_dir: Path = REPO_ROOT / "runs"
 
     dynamo_table: str = "wolves-forecaster"
     dynamo_endpoint: str = ""
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     ecs_subnets: str = ""
     ecs_security_group: str = ""
 
-    admin_dev_bypass: bool = False
+    admin_token: str = ""
     run_history_limit: int = 50
 
     @property

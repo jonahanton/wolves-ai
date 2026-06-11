@@ -28,7 +28,7 @@ export interface RoundOpponents {
   opponents: Candidate[];
 }
 
-export interface EnglandPath {
+export interface FocusTeamPath {
   finish: Finish;
   prob: number;
   r32_match: number;
@@ -73,12 +73,12 @@ export interface WhatIfFixture {
   outcomes: WhatIfOutcome[];
 }
 
-export interface EnglandBlock {
+export interface FocusTeamBlock {
   team_id: string;
   group: string;
   finish_probs: Record<string, number>;
   reach_probs: Record<string, number>;
-  paths: EnglandPath[];
+  paths: FocusTeamPath[];
   modal_path?: ModalStep[];
   city_probs?: Record<string, CityProb[]>;
   lock_dates?: LockDate[];
@@ -88,6 +88,7 @@ export interface EnglandBlock {
 export interface RunMeta {
   run_id: string;
   created_at: string;
+  as_of?: string;
   n_sims: number;
   engine_version: string;
   kind: string;
@@ -131,7 +132,7 @@ export interface MatchProbs {
 }
 
 export interface NarrativeBlock {
-  england_story: string;
+  focus_story: string;
   slot_rationales: Record<string, string>;
   travel_memo: string;
 }
@@ -145,21 +146,44 @@ export interface LedgerEntryOut {
   proposed_delta: number;
   expiry: string | null;
   team_id: string | null;
+  relevance: number | null;
+  source_tier: number | null;
+  retrieved_at: string | null;
+  retrieval_id: string | null;
   created_at: string;
 }
 
-export interface RatingOverrideOut {
-  team_id: string;
-  delta_elo: number;
-  cause: string;
+export interface ScenarioWeightOut {
+  name: string;
+  weight: number;
+  scenario_id: string | null;
   ledger_ids: string[];
+  rationale?: string;
 }
 
-export interface DisagreementOut {
-  k: number;
-  per_team_spread: Record<string, number>;
-  max_spread: number;
-  mean_spread: number;
+export interface WorldOut {
+  name: string;
+  weight: number;
+  perturbations: Record<string, unknown>[];
+  title_probs?: Record<string, number>;
+}
+
+export interface QuantFindingOut {
+  node_id: string;
+  summary: string;
+  headline_value: number | null;
+  findings: string[];
+}
+
+export interface GovernorOut {
+  scale: number;
+  effective_d: number;
+}
+
+export interface AttributionOut {
+  bracket_pp: Record<string, number>;
+  refit_pp: Record<string, number>;
+  residual_pp: Record<string, number>;
 }
 
 export interface CalibrationSummary {
@@ -172,9 +196,17 @@ export interface CalibrationSummary {
 
 export interface AgentBlock {
   narrative: NarrativeBlock;
+  artifact_id: string;
   ledger_entries: LedgerEntryOut[];
-  rating_overrides: RatingOverrideOut[];
-  disagreement: DisagreementOut | null;
+  scenario_weights: ScenarioWeightOut[];
+  worlds: WorldOut[];
+  quant_findings?: QuantFindingOut[];
+  escalations: string[];
+  market_justification: string;
+  change_justification: string;
+  inconsistency_note: string;
+  attribution: AttributionOut | null;
+  governor: GovernorOut | null;
   calibration: CalibrationSummary | null;
 }
 
@@ -184,6 +216,7 @@ export interface ChampionBlock {
   dataset_id: string;
   half_life_days?: number | null;
   blend_weight?: number;
+  results_overlaid?: number;
 }
 
 export interface TeamInterval {
@@ -202,7 +235,7 @@ export interface MarketsBlock {
 export interface Snapshot {
   schema_version: number;
   run: RunMeta;
-  england: EnglandBlock;
+  focus: FocusTeamBlock;
   slots: Slot[];
   teams: TeamInfo[];
   groups?: GroupBlock[];

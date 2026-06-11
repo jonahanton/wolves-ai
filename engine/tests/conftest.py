@@ -7,15 +7,18 @@ from typing import Any
 import pandas as pd
 import pytest
 
-from wolves.agent.contracts import ForecastSubmission, Narrative, RatingOverride
+from wolves.agent.contracts import ForecastSubmission, Narrative
+from wolves.config import get_settings
 from wolves.data.build import write_dataset
 from wolves.models.contracts import DatasetHandle
 
 
 # Session-scoped so the pin lands before any session fixture builds Settings;
 # fake credentials keep moto-backed tests off the developer's real AWS profile.
+# RUNS_ROOT points at a fresh directory so results persisted in a developer's
+# local runs/ never leak into simulations under test.
 @pytest.fixture(scope="session", autouse=True)
-def _fake_aws_credentials() -> Iterator[None]:
+def _fake_aws_credentials(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
     patch = pytest.MonkeyPatch()
     patch.setenv("AWS_ACCESS_KEY_ID", "testing")
     patch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
@@ -23,8 +26,11 @@ def _fake_aws_credentials() -> Iterator[None]:
     patch.setenv("AWS_DEFAULT_REGION", "eu-west-2")
     patch.delenv("AWS_PROFILE", raising=False)
     patch.setenv("STORAGE_MODE", "local")
+    patch.setenv("RUNS_ROOT", str(tmp_path_factory.mktemp("runs-root")))
+    get_settings.cache_clear()
     yield
     patch.undo()
+    get_settings.cache_clear()
 
 
 R32_MATCHES = [str(m) for m in range(73, 89)]
@@ -32,7 +38,7 @@ R32_MATCHES = [str(m) for m in range(73, 89)]
 
 def build_narrative(**overrides: Any) -> Narrative:
     fields: dict[str, Any] = {
-        "england_story": "England are settled and the squad trained in full ahead of Croatia.",
+        "focus_story": "England are settled and the squad trained in full ahead of Croatia.",
         "slot_rationales": {m: f"Slot {m}: favourite advances on rating gap." for m in R32_MATCHES},
         "travel_memo": "Win the group and England stay east; second means a longer hop west.",
     }
@@ -42,25 +48,9 @@ def build_narrative(**overrides: Any) -> Narrative:
 
 def build_submission(**overrides: Any) -> ForecastSubmission:
     fields: dict[str, Any] = {
-        "rating_overrides": [
-            RatingOverride(
-                team_id="england",
-                delta_elo=15.0,
-                cause="First-choice keeper confirmed fit",
-                ledger_ids=["led-0001"],
-            )
-        ],
-        "england_reach_probs": {
-            "r32": 0.97,
-            "r16": 0.62,
-            "qf": 0.38,
-            "sf": 0.22,
-            "final": 0.13,
-            "champion": 0.07,
-        },
+        "artifact_id": "mixture-001",
         "narrative": build_narrative(),
-        "delta_vs_market": 0.01,
-        "delta_vs_yesterday": 0.0,
+        "evidence_ids": ["led-0001"],
     }
     fields.update(overrides)
     return ForecastSubmission(**fields)

@@ -3,6 +3,7 @@ import type { Snapshot } from "@/lib/snapshot";
 export interface MarketRow {
   teamId: string;
   name: string;
+  isFocus: boolean;
   modelProb: number;
   marketProb: number | null;
   deltaPts: number | null;
@@ -55,6 +56,7 @@ export function buildMarketsView(snapshot: Snapshot, names: Map<string, string>)
       return {
         teamId,
         name: names.get(teamId) ?? teamId,
+        isFocus: teamId === snapshot.focus.team_id,
         modelProb,
         marketProb,
         deltaPts: marketProb === null ? null : (modelProb - marketProb) * 100,

@@ -1,5 +1,5 @@
 import { slotRationale } from "@/lib/agent-fields";
-import { englandSlotProb, pinEnglandFirst, r32Halves } from "@/lib/bracket";
+import { focusSlotProb, pinFocusFirst, r32Halves } from "@/lib/bracket";
 import { formatMatchDate } from "@/lib/format";
 import type { Slot, SlotSide, Snapshot } from "@/lib/snapshot";
 import type { OpponentView } from "@/lib/spine-view";
@@ -28,7 +28,9 @@ export interface SlotView {
   venueLabel: string | null;
   dateLabel: string;
   rationale: string | null;
-  englandProb: number;
+  focusProb: number;
+  focusTeamId: string;
+  focusName: string;
   home: SideView;
   away: SideView;
 }
@@ -42,7 +44,8 @@ export interface RoundView {
 export interface BracketViewModel {
   left: SlotView[];
   right: SlotView[];
-  englandHalf: "left" | "right";
+  focusHalf: "left" | "right";
+  focusName: string;
   rounds: RoundView[];
 }
 
@@ -75,8 +78,9 @@ function slotView(
   snapshot: Snapshot,
   slot: Slot,
   names: Map<string, string>,
-  englandProb: number,
+  focusProb: number,
 ): SlotView {
+  const focusTeamId = snapshot.focus.team_id;
   return {
     match: slot.match,
     stage: slot.stage,
@@ -85,27 +89,31 @@ function slotView(
     venueLabel: venueLine(slot.city),
     dateLabel: formatMatchDate(slot.date),
     rationale: slotRationale(snapshot, slot.match),
-    englandProb,
+    focusProb,
+    focusTeamId,
+    focusName: names.get(focusTeamId) ?? focusTeamId,
     home: sideView(slot.home, names),
     away: sideView(slot.away, names),
   };
 }
 
-const ENGLAND_PIN_THRESHOLD = 0.02;
+const FOCUS_PIN_THRESHOLD = 0.02;
 
 const LATER_ROUNDS = ["r16", "qf", "sf", "final", "third_place"];
 
 export function buildBracketView(snapshot: Snapshot, names: Map<string, string>): BracketViewModel {
+  const focusTeamId = snapshot.focus.team_id;
   const halves = r32Halves(snapshot.slots);
-  const englandHalf =
-    Math.max(...halves.left.map(englandSlotProb), 0) > Math.max(...halves.right.map(englandSlotProb), 0)
+  const slotProb = (slot: Slot) => focusSlotProb(slot, focusTeamId);
+  const focusHalf =
+    Math.max(...halves.left.map(slotProb), 0) > Math.max(...halves.right.map(slotProb), 0)
       ? "left"
       : "right";
 
   const buildHalf = (slots: Slot[]) =>
-    pinEnglandFirst(slots).map((slot) => {
-      const prob = englandSlotProb(slot);
-      return slotView(snapshot, slot, names, prob >= ENGLAND_PIN_THRESHOLD ? prob : 0);
+    pinFocusFirst(slots, focusTeamId).map((slot) => {
+      const prob = slotProb(slot);
+      return slotView(snapshot, slot, names, prob >= FOCUS_PIN_THRESHOLD ? prob : 0);
     });
 
   const rounds = LATER_ROUNDS.map((stage) => ({
@@ -120,7 +128,8 @@ export function buildBracketView(snapshot: Snapshot, names: Map<string, string>)
   return {
     left: buildHalf(halves.left),
     right: buildHalf(halves.right),
-    englandHalf,
+    focusHalf,
+    focusName: names.get(focusTeamId) ?? focusTeamId,
     rounds,
   };
 }

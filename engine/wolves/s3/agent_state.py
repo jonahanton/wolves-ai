@@ -6,7 +6,17 @@ import logging
 from typing import TYPE_CHECKING
 
 from wolves.s3.artifacts import ArtifactStore
-from wolves.s3.layout import CALIBRATION, LESSONS, RUN_JOURNAL, SNAPSHOT
+from wolves.s3.layout import (
+    ARTICLE,
+    CALIBRATION,
+    LESSONS,
+    RELEVANCE_MEMORY,
+    RUN_ARTIFACT_INDEX,
+    RUN_JOURNAL,
+    SCENARIOS,
+    SNAPSHOT,
+    SOURCES_SEEN,
+)
 
 if TYPE_CHECKING:
     from wolves.config import Settings
@@ -24,22 +34,35 @@ class AgentStateStore:
         """Hydrate local agent state; return the file count (0 on cold start)."""
         # Mutable pointers refresh through get(), which treats the bucket as
         # authoritative; sync_down would keep a stale local copy.
-        pulled = sum(1 for spec in (LESSONS, CALIBRATION) if self._artifacts.get(spec) is not None)
+        mutable = (LESSONS, CALIBRATION, SCENARIOS, SOURCES_SEEN, RELEVANCE_MEMORY)
+        pulled = sum(1 for spec in mutable if self._artifacts.get(spec) is not None)
         pulled += self._artifacts.sync_down(prefix=RUN_JOURNAL.prefix)
+        pulled += self._artifacts.sync_down(prefix=ARTICLE.prefix)
         # Yesterday's snapshots feed calibration scoring and live overrides.
         pulled += self._artifacts.sync_down(prefix=SNAPSHOT.prefix)
         logger.info("agent state: %d file(s) hydrated", pulled)
         return pulled
 
     def push(self, *, run_id: str) -> int:
-        """Upload lessons, the calibration ledger and this run's journal."""
+        """Upload cross-run state and everything this run produced."""
         pushed = 0
-        for spec, parts in ((LESSONS, {}), (CALIBRATION, {}), (RUN_JOURNAL, {"run_id": run_id})):
+        for spec, parts in (
+            (LESSONS, {}),
+            (CALIBRATION, {}),
+            (SCENARIOS, {}),
+            (SOURCES_SEEN, {}),
+            (RELEVANCE_MEMORY, {}),
+            (RUN_JOURNAL, {"run_id": run_id}),
+            (RUN_ARTIFACT_INDEX, {"run_id": run_id}),
+        ):
             path = self._artifacts.local_path(spec.key(**parts))
             if not path.exists():
                 continue
             self._artifacts.put(spec, path.read_text(encoding="utf-8"), **parts)
             pushed += 1
+        # Immutable run files (artifacts, events, workspace) ride one sweep.
+        pushed += self._artifacts.sync_up(prefix=f"runs/{run_id}/")
+        pushed += self._artifacts.sync_up(prefix=ARTICLE.prefix)
         logger.info("agent state: pushed %d file(s)", pushed)
         return pushed
 

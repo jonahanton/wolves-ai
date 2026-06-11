@@ -1,0 +1,80 @@
+{
+  "description": "Labelled fixtures for evaluating rank_relevance against a live model. Each case gives a sub-question, an as-of date, candidates, and expected_buckets: urls grouped from most to least useful. Scoring checks rank correlation against the bucket order and top-3 precision.",
+  "cases": [
+    {
+      "sub_question": "Is Jude Bellingham fit to start England's opening group game on 12 June 2026?",
+      "as_of": "2026-06-10",
+      "expected_buckets": [
+        ["https://www.thefa.com/news/2026/jun/squad-update-bellingham", "https://www.reuters.com/sports/soccer/england-bellingham-training-2026-06-09/"],
+        ["https://www.theathletic.com/2026/06/09/england-bellingham-fitness-watch/", "https://www.bbc.com/sport/football/articles/england-training-report"],
+        ["https://www.theguardian.com/football/2026/jun/05/england-camp-report"],
+        ["https://www.90min.com/posts/bellingham-injury-fears-fans-panic", "https://www.caughtoffside.com/2026/06/09/bellingham-doubt-rumour/"],
+        ["https://www.dailystar.co.uk/sport/football/bellingham-girlfriend-instagram-post"]
+      ],
+      "candidates": [
+        {"url": "https://www.thefa.com/news/2026/jun/squad-update-bellingham", "title": "Squad update: Bellingham returns to full training", "snippet": "The FA confirms Jude Bellingham completed a full session with the group on Tuesday.", "published_at": "2026-06-09"},
+        {"url": "https://www.reuters.com/sports/soccer/england-bellingham-training-2026-06-09/", "title": "England's Bellingham trains fully ahead of opener", "snippet": "Bellingham took part in the full session, two days before England open their campaign.", "published_at": "2026-06-09"},
+        {"url": "https://www.theathletic.com/2026/06/09/england-bellingham-fitness-watch/", "title": "Bellingham fitness watch: what we saw at training", "snippet": "Our reporter watched the open session: Bellingham moved freely but was managed in small-sided games.", "published_at": "2026-06-09"},
+        {"url": "https://www.bbc.com/sport/football/articles/england-training-report", "title": "England training: Bellingham involved as opener nears", "snippet": "Bellingham trained with the squad on Tuesday at England's base.", "published_at": "2026-06-09"},
+        {"url": "https://www.theguardian.com/football/2026/jun/05/england-camp-report", "title": "England camp report: settled squad, one fitness doubt", "snippet": "Five days out, the only question mark hangs over Bellingham's minutes.", "published_at": "2026-06-05"},
+        {"url": "https://www.90min.com/posts/bellingham-injury-fears-fans-panic", "title": "Fans PANIC as Bellingham spotted with strapping", "snippet": "Social media erupted after photos appeared to show strapping on the midfielder's knee.", "published_at": "2026-06-09"},
+        {"url": "https://www.caughtoffside.com/2026/06/09/bellingham-doubt-rumour/", "title": "Bellingham OUT of opener? What we are hearing", "snippet": "Sources close to the camp suggest concern is growing.", "published_at": "2026-06-09"},
+        {"url": "https://www.dailystar.co.uk/sport/football/bellingham-girlfriend-instagram-post", "title": "Bellingham's girlfriend posts cryptic Instagram story", "snippet": "Fans speculate the post hints at bad news.", "published_at": "2026-06-10"}
+      ]
+    },
+    {
+      "sub_question": "How are Mexico likely to set up at altitude in Mexico City, and does the venue help them against European opponents?",
+      "as_of": "2026-06-10",
+      "expected_buckets": [
+        ["https://www.espn.com.mx/futbol/mexico/altitude-azteca-analysis", "https://www.tudn.com/futbol/seleccion-mexicana/plan-altura-azteca"],
+        ["https://www.theathletic.com/2026/06/01/world-cup-altitude-science/", "https://www.record.com.mx/futbol-seleccion-nacional/entrenamiento-cdmx"],
+        ["https://www.mediotiempo.com/futbol/mexico-azteca-fortaleza-historica"],
+        ["https://www.sportskeeda.com/football/mexico-altitude-advantage-ranked"]
+      ],
+      "candidates": [
+        {"url": "https://www.espn.com.mx/futbol/mexico/altitude-azteca-analysis", "title": "Por que la altura del Azteca sigue pesando", "snippet": "Analisis tactico de como El Tri explota los 2,200 metros contra rivales europeos.", "published_at": "2026-06-07"},
+        {"url": "https://www.tudn.com/futbol/seleccion-mexicana/plan-altura-azteca", "title": "El plan de Mexico para la altura", "snippet": "El cuerpo tecnico detalla la preparacion fisica especifica para el Azteca.", "published_at": "2026-06-08"},
+        {"url": "https://www.theathletic.com/2026/06/01/world-cup-altitude-science/", "title": "The science of altitude at the 2026 World Cup", "snippet": "What 1,460 matches of evidence say about playing at 2,200 metres unacclimatised.", "published_at": "2026-06-01"},
+        {"url": "https://www.record.com.mx/futbol-seleccion-nacional/entrenamiento-cdmx", "title": "El Tri completa microciclo en CDMX", "snippet": "La seleccion entrena en la capital desde el lunes.", "published_at": "2026-06-09"},
+        {"url": "https://www.mediotiempo.com/futbol/mexico-azteca-fortaleza-historica", "title": "Azteca: la fortaleza historica de Mexico", "snippet": "Repaso de los numeros del Tri como local.", "published_at": "2026-05-20"},
+        {"url": "https://www.sportskeeda.com/football/mexico-altitude-advantage-ranked", "title": "Ranked: 5 teams altitude will DESTROY at the World Cup", "snippet": "Number 3 will shock you.", "published_at": "2026-06-06"}
+      ]
+    },
+    {
+      "sub_question": "What is the latest team news on France's probable starting XI for their group opener?",
+      "as_of": "2026-06-10",
+      "expected_buckets": [
+        ["https://www.lequipe.fr/Football/equipe-de-france/compo-probable-ouverture", "https://rmcsport.bfmtv.com/football/equipe-de-france/seance-veille-match"],
+        ["https://www.fff.fr/article/point-groupe-france", "https://www.reuters.com/sports/soccer/france-team-news-2026-06-09/"],
+        ["https://www.leparisien.fr/sports/football/bleus-ambiance-clairefontaine"],
+        ["https://www.footmercato.net/a-compo-france-rumeur-surprise", "https://www.le10sport.com/football/equipe-de-france/tension-vestiaire-rumeur"]
+      ],
+      "candidates": [
+        {"url": "https://www.lequipe.fr/Football/equipe-de-france/compo-probable-ouverture", "title": "La compo probable des Bleus pour l'ouverture", "snippet": "Selon nos informations, le onze de depart se dessine.", "published_at": "2026-06-09"},
+        {"url": "https://rmcsport.bfmtv.com/football/equipe-de-france/seance-veille-match", "title": "Bleus: ce qu'on a vu a la seance de veille de match", "snippet": "Notre envoye special detaille l'organisation travaillee.", "published_at": "2026-06-10"},
+        {"url": "https://www.fff.fr/article/point-groupe-france", "title": "Point sur le groupe France", "snippet": "La FFF fait le point sur l'etat du groupe.", "published_at": "2026-06-09"},
+        {"url": "https://www.reuters.com/sports/soccer/france-team-news-2026-06-09/", "title": "France team news ahead of opener", "snippet": "France trained with a full squad on Tuesday.", "published_at": "2026-06-09"},
+        {"url": "https://www.leparisien.fr/sports/football/bleus-ambiance-clairefontaine", "title": "Dans les coulisses de Clairefontaine", "snippet": "Reportage sur l'ambiance du groupe.", "published_at": "2026-06-06"},
+        {"url": "https://www.footmercato.net/a-compo-france-rumeur-surprise", "title": "Une surprise XXL dans le onze des Bleus?", "snippet": "Une rumeur insistante evoque un choix fort.", "published_at": "2026-06-10"},
+        {"url": "https://www.le10sport.com/football/equipe-de-france/tension-vestiaire-rumeur", "title": "Tension dans le vestiaire des Bleus?", "snippet": "Selon nos sources, un malaise couve.", "published_at": "2026-06-09"}
+      ]
+    },
+    {
+      "sub_question": "Did the bookmaker market move on England title odds in the last 48 hours, and why?",
+      "as_of": "2026-06-10",
+      "expected_buckets": [
+        ["https://www.reuters.com/sports/soccer/world-cup-betting-england-shorten/"],
+        ["https://www.theguardian.com/football/2026/jun/09/england-odds-move-bookmakers", "https://www.skysports.com/football/news/england-world-cup-odds-shift"],
+        ["https://www.goal.com/en/news/england-odds-slashed-fans-confident"],
+        ["https://www.sportbible.com/football/england-odds-bet-now"]
+      ],
+      "candidates": [
+        {"url": "https://www.reuters.com/sports/soccer/world-cup-betting-england-shorten/", "title": "England shorten to favourites with leading bookmakers", "snippet": "Pinnacle and Bet365 cut England after Tuesday's squad confirmation.", "published_at": "2026-06-09"},
+        {"url": "https://www.theguardian.com/football/2026/jun/09/england-odds-move-bookmakers", "title": "England's odds shorten as squad news lands", "snippet": "The market reacted within hours of the fitness update.", "published_at": "2026-06-09"},
+        {"url": "https://www.skysports.com/football/news/england-world-cup-odds-shift", "title": "England now clear second favourites", "snippet": "A steady move across the books since Monday.", "published_at": "2026-06-09"},
+        {"url": "https://www.goal.com/en/news/england-odds-slashed-fans-confident", "title": "England odds SLASHED as fans pile on", "snippet": "Everyone is backing the Three Lions.", "published_at": "2026-06-10"},
+        {"url": "https://www.sportbible.com/football/england-odds-bet-now", "title": "Why you should back England RIGHT NOW", "snippet": "The stats do not lie.", "published_at": "2026-06-10"}
+      ]
+    }
+  ]
+}

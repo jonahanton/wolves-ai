@@ -10,8 +10,9 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-local}
-      - SNAPSHOT_DIR=/app/runs
+      - STORAGE_DIR=/app/runs
       - DYNAMO_ENDPOINT=http://db:8000
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
     volumes:
       - ..:/app
       - /app/backend/.venv

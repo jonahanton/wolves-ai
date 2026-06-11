@@ -7,11 +7,12 @@ from typing import TYPE_CHECKING
 # annotation when wiring the dependency.
 from fastapi import Request  # noqa: TC002
 
+from wolves_backend.clients.bucket import Bucket
 from wolves_backend.clients.engine_tasks import EngineTasks
 from wolves_backend.clients.run_index import RunIndex
 from wolves_backend.clients.run_schedule import RunSchedule
-from wolves_backend.clients.snapshot_bucket import SnapshotBucket
 from wolves_backend.snapshots import SnapshotSource
+from wolves_backend.storage import Storage
 
 if TYPE_CHECKING:
     from wolves_backend.config import Settings
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class Deps:
+    storage: Storage
     snapshots: SnapshotSource
     run_index: RunIndex
     schedule: RunSchedule
@@ -26,9 +28,11 @@ class Deps:
 
 
 def build_deps(settings: Settings) -> Deps:
-    bucket = SnapshotBucket(bucket=settings.bucket, region=settings.aws_region) if settings.bucket else None
+    bucket = Bucket(bucket=settings.bucket, region=settings.aws_region) if settings.bucket else None
+    storage = Storage(bucket=bucket, local_dir=settings.storage_dir)
     return Deps(
-        snapshots=SnapshotSource(bucket=bucket, local_dir=settings.snapshot_dir),
+        storage=storage,
+        snapshots=SnapshotSource(storage),
         run_index=RunIndex(
             table_name=settings.dynamo_table,
             region=settings.aws_region,

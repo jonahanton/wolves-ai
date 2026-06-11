@@ -101,10 +101,15 @@ def load_format(data_dir: Path) -> FormatData:
 
 
 def load_results(data_dir: Path) -> dict[int, PlayedResult]:
-    """Load the played-results overlay keyed by match number."""
+    """Played results keyed by match number: the static file unioned with
+    results persisted from live polling, the persisted side winning."""
+    # Imported lazily: results_store needs PlayedResult from this module.
+    from wolves.config import get_settings
+    from wolves.sim.results_store import persisted_results
+
     raw = json.loads((data_dir / "results.json").read_text())
     results = [
         PlayedResult(match=r["match"], home_goals=r["homeGoals"], away_goals=r["awayGoals"], winner=r.get("winner"))
         for r in raw["results"]
     ]
-    return {r.match: r for r in results}
+    return {r.match: r for r in results} | persisted_results(get_settings())

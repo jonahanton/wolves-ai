@@ -20,10 +20,11 @@ class RunSchedule:
         schedule = self._get()
         return ScheduleState(enabled=schedule.get("State") == "ENABLED", cron=schedule.get("ScheduleExpression", ""))
 
-    def set_enabled(self, *, enabled: bool) -> ScheduleState:
+    def update(self, *, enabled: bool, cron: str | None = None) -> ScheduleState:
         # UpdateSchedule replaces the whole schedule, so echo back every field
-        # from GetSchedule with only State changed. Absent optional fields are
-        # dropped rather than passed as None, which boto3 rejects.
+        # from GetSchedule with only State (and optionally the expression)
+        # changed. Absent optional fields are dropped rather than passed as
+        # None, which boto3 rejects.
         current = self._get()
         echoed = {
             field: current[field]
@@ -37,11 +38,13 @@ class RunSchedule:
             )
             if current.get(field) is not None
         }
+        if cron is not None:
+            echoed["ScheduleExpression"] = f"cron({cron})"
         try:
             self._client.update_schedule(**echoed, State="ENABLED" if enabled else "DISABLED")
         except (ClientError, BotoCoreError) as exc:
             raise UpstreamError("scheduler", str(exc)) from exc
-        return ScheduleState(enabled=enabled, cron=current.get("ScheduleExpression", ""))
+        return ScheduleState(enabled=enabled, cron=echoed.get("ScheduleExpression", ""))
 
     def _get(self) -> dict[str, Any]:
         try:

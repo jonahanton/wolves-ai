@@ -50,7 +50,7 @@ export function GroupTables({ groups, onSelectTeam }: GroupTablesProps) {
                   onClick={() => onSelectTeam(team.teamId)}
                   className={cn(GRID, "w-full px-3 text-left text-xs hover:bg-secondary/60")}
                 >
-                  <span className={cn("flex min-w-0 items-center font-medium", team.isEngland && "text-gold")}>
+                  <span className={cn("flex min-w-0 items-center font-medium", team.isFocus && "text-gold")}>
                     <span className="truncate">{team.name}</span>
                   </span>
                   <span className="flex items-center justify-end px-1 py-2 font-semibold">
@@ -62,7 +62,7 @@ export function GroupTables({ groups, onSelectTeam }: GroupTablesProps) {
                       <span
                         key={column.label}
                         className="flex items-center justify-end px-1 py-2 text-foreground/80"
-                        style={{ backgroundColor: heatFill(prob, team.isEngland) }}
+                        style={{ backgroundColor: heatFill(prob, team.isFocus) }}
                       >
                         {formatPctBare(prob)}
                       </span>

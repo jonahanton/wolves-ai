@@ -1,19 +1,19 @@
 import { ProbBar } from "@/components/charts/prob-bar";
 import { formatMatchDate, frequencyFrame } from "@/lib/format";
-import type { EnglandBlock } from "@/lib/snapshot";
+import type { FocusTeamBlock } from "@/lib/snapshot";
 
 interface TravelForkCardProps {
-  england: EnglandBlock;
+  focus: FocusTeamBlock;
   memo: string | null;
 }
 
-export function TravelForkCard({ england, memo }: TravelForkCardProps) {
-  const forks = [...england.paths].sort((a, b) => b.prob - a.prob);
+export function TravelForkCard({ focus, memo }: TravelForkCardProps) {
+  const forks = [...focus.paths].sort((a, b) => b.prob - a.prob);
   const outProb = Math.max(0, 1 - forks.reduce((sum, p) => sum + p.prob, 0));
   const top = forks[0];
 
   return (
-    <section className="sticker foil p-3" aria-label="Where England's last 32 is played">
+    <section className="sticker foil p-3" aria-label="Where our last 32 is played">
       <p className="text-[11px] font-semibold tracking-widest text-gold uppercase">The travel fork</p>
       <h2 className="mt-1 text-lg font-semibold tracking-tight">Where is our last-32 tie?</h2>
       <div className="mt-3 space-y-1.5">

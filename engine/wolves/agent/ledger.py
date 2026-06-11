@@ -6,6 +6,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from wolves.agent.contracts import LedgerStatus
+from wolves.agent.sources import source_tier
 
 
 class LedgerEntry(BaseModel):
@@ -17,6 +18,10 @@ class LedgerEntry(BaseModel):
     proposed_delta: float = 0.0
     expiry: str | None = None
     team_id: str | None = None
+    relevance: float | None = None
+    source_tier: int | None = None
+    retrieved_at: str | None = None
+    retrieval_id: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -43,6 +48,8 @@ class EvidenceLedger:
         proposed_delta: float = 0.0,
         expiry: str | None = None,
         team_id: str | None = None,
+        relevance: float | None = None,
+        retrieval_id: str | None = None,
     ) -> LedgerEntry:
         entry = LedgerEntry(
             id=f"led-{len(self._entries) + 1:04d}",
@@ -53,6 +60,10 @@ class EvidenceLedger:
             proposed_delta=proposed_delta,
             expiry=expiry,
             team_id=team_id,
+            relevance=relevance,
+            source_tier=source_tier(source_url),
+            retrieved_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            retrieval_id=retrieval_id,
         )
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(entry.model_dump_json() + "\n")

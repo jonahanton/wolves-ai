@@ -1,10 +1,9 @@
-import { ENGLAND } from "@/lib/schedule";
 import type { Snapshot } from "@/lib/snapshot";
 
 export interface GroupTeamRow {
   teamId: string;
   name: string;
-  isEngland: boolean;
+  isFocus: boolean;
   expectedPoints: number;
   winGroup: number;
   runnerUp: number;
@@ -25,7 +24,7 @@ export function buildGroupsView(snapshot: Snapshot, names: Map<string, string>):
         .map((team) => ({
           teamId: team.team_id,
           name: names.get(team.team_id) ?? team.team_id,
-          isEngland: team.team_id === ENGLAND,
+          isFocus: team.team_id === snapshot.focus.team_id,
           expectedPoints: team.expected_points,
           winGroup: team.finish_probs.win_group ?? 0,
           runnerUp: team.finish_probs.runner_up ?? 0,

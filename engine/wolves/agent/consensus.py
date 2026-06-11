@@ -1,43 +1,44 @@
-"""K-sample median of the final rating overrides.
-
-The calibration device from Halawi and FutureSearch practice: rerun only the
-final extraction over the same dossier and take the per-team median, recording
-the spread as a disagreement metric. Replaces reviewer agents."""
+"""Publish-time anchoring: extremising and the trust governor share one
+log-odds blend. d = 1.0 publishes the agent's numbers untouched; the
+governor shrinks d towards the deterministic baseline when the trailing
+adjustment PnL is negative, loudly recorded in the snapshot."""
 
 from __future__ import annotations
 
-import statistics
-
-from wolves.agent.contracts import Disagreement, RatingOverride
+import math
 
 
-def median_overrides(samples: list[list[RatingOverride]]) -> tuple[list[RatingOverride], Disagreement]:
-    """Per-team median delta across samples; teams absent from a sample count as 0."""
-    if not samples:
-        return [], Disagreement(k=0)
+def blend_log_odds(
+    agent: dict[str, float], anchor: dict[str, float], *, d: float, renormalise: bool = False
+) -> dict[str, float]:
+    """log O_pub = log O_anchor + d (log O_agent - log O_anchor).
 
-    teams: list[str] = []
-    for sample in samples:
-        for override in sample:
-            if override.team_id not in teams:
-                teams.append(override.team_id)
+    Renormalise only when the dict is an exhaustive partition (the title
+    distribution); marginal probabilities blend stage by stage untouched."""
+    if d == 1.0:
+        return dict(agent)
+    blended: dict[str, float] = {}
+    for team, p_agent in agent.items():
+        p_anchor = anchor.get(team, p_agent)
+        blended[team] = _from_log_odds(_log_odds(p_anchor) + d * (_log_odds(p_agent) - _log_odds(p_anchor)))
+    if renormalise:
+        total = sum(blended.values())
+        if total > 0:
+            blended = {team: p / total for team, p in blended.items()}
+    return blended
 
-    by_team = {s_id: {o.team_id: o for o in sample} for s_id, sample in enumerate(samples)}
-    medians: list[RatingOverride] = []
-    spreads: dict[str, float] = {}
-    for team in teams:
-        deltas = [by_team[i][team].delta_elo if team in by_team[i] else 0.0 for i in range(len(samples))]
-        spreads[team] = max(deltas) - min(deltas)
-        median = statistics.median(deltas)
-        if median == 0.0:
-            continue
-        template = next(o for sample in samples for o in sample if o.team_id == team)
-        medians.append(template.model_copy(update={"delta_elo": median}))
 
-    disagreement = Disagreement(
-        k=len(samples),
-        per_team_spread=spreads,
-        max_spread=max(spreads.values(), default=0.0),
-        mean_spread=sum(spreads.values()) / len(spreads) if spreads else 0.0,
-    )
-    return medians, disagreement
+def publish_scale(*, extremising_d: float, governor_scale: float, shrink_weight: float) -> float:
+    """The effective d at publish time: extremising tempered by the governor."""
+    if governor_scale >= 1.0:
+        return extremising_d
+    return extremising_d * shrink_weight
+
+
+def _log_odds(p: float) -> float:
+    clamped = min(max(p, 1e-9), 1.0 - 1e-9)
+    return math.log(clamped / (1.0 - clamped))
+
+
+def _from_log_odds(value: float) -> float:
+    return 1.0 / (1.0 + math.exp(-value))

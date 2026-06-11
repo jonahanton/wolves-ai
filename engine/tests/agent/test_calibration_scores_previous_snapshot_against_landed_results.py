@@ -10,12 +10,12 @@ from wolves.agent.scoring import score_yesterday
 from wolves.config import Settings
 from wolves.snapshot import (
     AgentBlock,
-    EnglandBlock,
+    FocusTeamBlock,
     MatchProbs,
     NarrativeBlock,
-    RatingOverrideOut,
     RunMeta,
     Snapshot,
+    WorldOut,
 )
 
 
@@ -36,7 +36,7 @@ def _match(match: int, *, p_home: float, p_draw: float, p_away: float) -> MatchP
 def _snapshot(*, run_id: str, created_at: str, kind: str, matches: list[MatchProbs], agent: AgentBlock | None = None):
     return Snapshot(
         run=RunMeta(run_id=run_id, created_at=created_at, n_sims=1000, engine_version="0.2.0", kind=kind),
-        england=EnglandBlock(team_id="england", group="L", finish_probs={}, reach_probs={}, paths=[]),
+        focus=FocusTeamBlock(team_id="england", group="L", finish_probs={}, reach_probs={}, paths=[]),
         slots=[],
         teams=[],
         matches=matches,
@@ -61,8 +61,14 @@ def settings(tmp_path) -> Settings:
         matches=[_match(1, p_home=0.5, p_draw=0.3, p_away=0.2)],
     )
     agent = AgentBlock(
-        narrative=NarrativeBlock(england_story="story", travel_memo="memo"),
-        rating_overrides=[RatingOverrideOut(team_id="mexico", delta_elo=20.0, cause="cause")],
+        narrative=NarrativeBlock(focus_story="story", travel_memo="memo"),
+        worlds=[
+            WorldOut(
+                name="mexico_altitude",
+                weight=1.0,
+                perturbations=[{"team": "mexico", "delta": 0.05, "reason": "altitude"}],
+            )
+        ],
     )
     previous = _snapshot(
         run_id="agent-20260608-120000",

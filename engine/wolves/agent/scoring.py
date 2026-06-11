@@ -4,7 +4,7 @@ today's delta caps already reflect yesterday's P&L."""
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -13,7 +13,7 @@ from wolves.agent.calibration import CalibrationLedger, MatchForecast, MatchScor
 from wolves.agent.memory import RunMemory
 from wolves.config import Settings
 from wolves.sim.format import PlayedResult, load_results
-from wolves.snapshot import MatchProbs, Snapshot
+from wolves.snapshot import MatchProbs, Snapshot, run_day
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapsh
         except ValidationError:
             logger.warning("skipping unreadable snapshot %s", path)
             continue
-        if datetime.fromisoformat(snapshot.run.created_at).date() >= before:
+        if date.fromisoformat(run_day(snapshot.run)) >= before:
             continue
         if latest is None or snapshot.run.created_at > latest.run.created_at:
             latest = snapshot
@@ -64,7 +64,13 @@ def score_resolved_matches(
     """Score the previous snapshot's group-match forecasts that now have results."""
     already = {score.match_id for score in ledger.scores()}
     baseline_entries = {entry.match: entry for entry in baseline.matches} if baseline else {}
-    adjusted_teams = {o.team_id for o in previous.agent.rating_overrides} if previous.agent else set()
+    adjusted_teams: set[str] = set()
+    if previous.agent is not None:
+        for world in previous.agent.worlds:
+            for perturbation in world.perturbations:
+                team = perturbation.get("team")
+                if isinstance(team, str):
+                    adjusted_teams.add(team)
 
     scores: list[MatchScore] = []
     for entry in previous.matches:

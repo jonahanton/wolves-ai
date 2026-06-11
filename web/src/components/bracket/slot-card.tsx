@@ -3,7 +3,7 @@ import { formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { SideView, SlotView } from "@/lib/bracket-view";
 
-function Side({ side }: { side: SideView }) {
+function Side({ side, focusTeamId }: { side: SideView; focusTeamId: string }) {
   const top = side.candidates[0];
   const more = side.candidates.length - 1;
   return (
@@ -12,7 +12,7 @@ function Side({ side }: { side: SideView }) {
       {top && (
         <div className="mt-1 flex items-center gap-2">
           <div className="flex-1">
-            <ProbBar label={top.name} prob={top.prob} highlight gold={top.teamId === "england"} />
+            <ProbBar label={top.name} prob={top.prob} highlight gold={top.teamId === focusTeamId} />
           </div>
           {more > 0 && <span className="shrink-0 text-[11px] text-muted-foreground">+{more} more</span>}
         </div>
@@ -27,28 +27,28 @@ interface SlotCardProps {
 }
 
 export function SlotCard({ slot, onSelect }: SlotCardProps) {
-  const england = slot.englandProb > 0;
+  const focus = slot.focusProb > 0;
   return (
     <button
       type="button"
       onClick={() => onSelect(slot)}
       className={cn(
         "sticker w-full p-3 text-left transition-transform duration-150 active:scale-[0.99]",
-        england && "foil border-gold/60",
+        focus && "foil border-gold/60",
       )}
     >
       <header className="flex items-baseline justify-between gap-2">
-        <h3 className={cn("text-sm font-semibold", england && "text-gold")}>
+        <h3 className={cn("text-sm font-semibold", focus && "text-gold")}>
           Match {slot.match}
-          {england && ` · England ${formatPct(slot.englandProb)}`}
+          {focus && ` · ${slot.focusName} ${formatPct(slot.focusProb)}`}
         </h3>
         <span className="text-xs text-muted-foreground">
           {slot.city} &middot; {slot.dateLabel}
         </span>
       </header>
       <div className="mt-2 space-y-2.5">
-        <Side side={slot.home} />
-        <Side side={slot.away} />
+        <Side side={slot.home} focusTeamId={slot.focusTeamId} />
+        <Side side={slot.away} focusTeamId={slot.focusTeamId} />
       </div>
       {slot.rationale && (
         <p className="mt-2 line-clamp-2 border-t border-dashed pt-2 text-xs text-muted-foreground">

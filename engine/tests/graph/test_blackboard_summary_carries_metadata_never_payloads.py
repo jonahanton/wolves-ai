@@ -3,17 +3,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tests.graph.conftest import build_graph_deps
-from wolves.graph.artifacts import NodeArtifactStore
+from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.graph.blackboard import Blackboard
-from wolves.graph.contracts import Brief, NodeOutcome
+from wolves.graph.contracts import NodeOutcome, NodePatch
 
 SENTINEL = "SECRET-PAYLOAD-TEXT-THAT-MUST-NOT-LEAK"
 
 
 def test_summary_is_metadata_only(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
-    store = NodeArtifactStore(tmp_path / "artifacts")
+    store = build_run_store(tmp_path)
     board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
 
     artifact = store.add(
@@ -22,7 +21,7 @@ def test_summary_is_metadata_only(tmp_path: Path):
         summary="A 15 Elo delta lifts champion prob by 0.4pp. " + "x" * 200,
         payload={"summary": "delta check", "findings": [SENTINEL], "headline_value": 0.004},
     )
-    brief = Brief(node_id="quant-delta", kind="quant", objective="Delta sensitivity " + "y" * 100, brief="...")
+    brief = NodePatch(node_id="quant-delta", kind="quant", objective="Delta sensitivity " + "y" * 100, brief="...")
     board.merge([brief], [NodeOutcome(node_id="quant-delta", kind="quant", ok=True, artifact_ids=[artifact.id])])
 
     state = json.loads(board.summary())

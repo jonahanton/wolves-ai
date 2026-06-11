@@ -2,7 +2,7 @@ import { ProbBar } from "@/components/charts/prob-bar";
 import { BottomSheet } from "@/components/ui/sheet";
 import type { SideView, SlotView } from "@/lib/bracket-view";
 
-function SideDistribution({ side }: { side: SideView }) {
+function SideDistribution({ side, focusTeamId }: { side: SideView; focusTeamId: string }) {
   return (
     <section className="py-3">
       <h3 className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -15,7 +15,7 @@ function SideDistribution({ side }: { side: SideView }) {
             label={candidate.name}
             prob={candidate.prob}
             highlight={i === 0}
-            gold={candidate.teamId === "england"}
+            gold={candidate.teamId === focusTeamId}
           />
         ))}
       </div>
@@ -44,8 +44,8 @@ export function SlotSheet({ slot, onClose }: SlotSheetProps) {
             {slot.venueLabel && <span className="block">{slot.venueLabel}</span>}
           </p>
           <div className="mt-1 divide-y">
-            <SideDistribution side={slot.home} />
-            <SideDistribution side={slot.away} />
+            <SideDistribution side={slot.home} focusTeamId={slot.focusTeamId} />
+            <SideDistribution side={slot.away} focusTeamId={slot.focusTeamId} />
           </div>
           <p className="mt-1 border-t border-dashed pt-3 text-sm">
             {slot.rationale ?? (

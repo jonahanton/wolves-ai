@@ -25,7 +25,7 @@ class Slot(BaseModel):
 
 
 class RoundOpponents(BaseModel):
-    """Opponent distribution for a later round, conditional on the group finish and England reaching it."""
+    """Opponent distribution for a later round, conditional on the group finish and the focus team reaching it."""
 
     round: str
     match: int
@@ -35,7 +35,7 @@ class RoundOpponents(BaseModel):
     opponents: list[Candidate]
 
 
-class EnglandPath(BaseModel):
+class FocusTeamPath(BaseModel):
     finish: str
     prob: float
     r32_match: int
@@ -60,7 +60,7 @@ class CityProb(BaseModel):
 
 
 class LockDate(BaseModel):
-    """How certain England's R32 city is once a group matchday completes; bookability signal."""
+    """How certain the focus team's R32 city is once a group matchday completes; bookability signal."""
 
     date: str
     prob_locked: float
@@ -82,12 +82,12 @@ class WhatIfFixture(BaseModel):
     outcomes: list[WhatIfOutcome]
 
 
-class EnglandBlock(BaseModel):
+class FocusTeamBlock(BaseModel):
     team_id: str
     group: str
     finish_probs: dict[str, float]
     reach_probs: dict[str, float]
-    paths: list[EnglandPath]
+    paths: list[FocusTeamPath]
     modal_path: list[ModalStep] = Field(default_factory=list)
     city_probs: dict[str, list[CityProb]] = Field(default_factory=dict)
     lock_dates: list[LockDate] = Field(default_factory=list)
@@ -126,13 +126,20 @@ class MatchProbs(BaseModel):
 class RunMeta(BaseModel):
     run_id: str
     created_at: str
+    as_of: str = ""
     n_sims: int
     engine_version: str
     kind: str
 
 
+def run_day(meta: RunMeta) -> str:
+    """The forecast day a run speaks for; runs are as_of-keyed, and the
+    wall-clock created_at only stands in for replays of older snapshots."""
+    return meta.as_of or meta.created_at[:10]
+
+
 class NarrativeBlock(BaseModel):
-    england_story: str
+    focus_story: str
     slot_rationales: dict[str, str] = Field(default_factory=dict)
     travel_memo: str
 
@@ -146,21 +153,49 @@ class LedgerEntryOut(BaseModel):
     proposed_delta: float = 0.0
     expiry: str | None = None
     team_id: str | None = None
+    relevance: float | None = None
+    source_tier: int | None = None
+    retrieved_at: str | None = None
+    retrieval_id: str | None = None
     created_at: str
 
 
-class RatingOverrideOut(BaseModel):
-    team_id: str
-    delta_elo: float
-    cause: str
+class ScenarioWeightOut(BaseModel):
+    name: str
+    weight: float
+    scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
+    rationale: str = ""
 
 
-class DisagreementOut(BaseModel):
-    k: int
-    per_team_spread: dict[str, float] = Field(default_factory=dict)
-    max_spread: float = 0.0
-    mean_spread: float = 0.0
+class WorldOut(BaseModel):
+    """One published world's configuration, kept so live republishes can
+    reapply the agent's adjustments without re-running the agent."""
+
+    name: str
+    weight: float
+    perturbations: list[dict] = Field(default_factory=list)
+    title_probs: dict[str, float] = Field(default_factory=dict)
+
+
+class QuantFindingOut(BaseModel):
+    """One quant node's headline, surfaced so the run page can show the analysis."""
+
+    node_id: str
+    summary: str
+    headline_value: float | None = None
+    findings: list[str] = Field(default_factory=list)
+
+
+class GovernorOut(BaseModel):
+    scale: float = 1.0
+    effective_d: float = 1.0
+
+
+class AttributionOut(BaseModel):
+    bracket_pp: dict[str, float] = Field(default_factory=dict)
+    refit_pp: dict[str, float] = Field(default_factory=dict)
+    residual_pp: dict[str, float] = Field(default_factory=dict)
 
 
 class CalibrationSummary(BaseModel):
@@ -175,9 +210,17 @@ class AgentBlock(BaseModel):
     """Agent-run extras; absent on sim-only snapshots. Additive by design."""
 
     narrative: NarrativeBlock
+    artifact_id: str = ""
     ledger_entries: list[LedgerEntryOut] = Field(default_factory=list)
-    rating_overrides: list[RatingOverrideOut] = Field(default_factory=list)
-    disagreement: DisagreementOut | None = None
+    scenario_weights: list[ScenarioWeightOut] = Field(default_factory=list)
+    worlds: list[WorldOut] = Field(default_factory=list)
+    quant_findings: list[QuantFindingOut] = Field(default_factory=list)
+    escalations: list[str] = Field(default_factory=list)
+    market_justification: str = ""
+    change_justification: str = ""
+    inconsistency_note: str = ""
+    attribution: AttributionOut | None = None
+    governor: GovernorOut | None = None
     calibration: CalibrationSummary | None = None
 
 
@@ -189,6 +232,8 @@ class ChampionBlock(BaseModel):
     dataset_id: str
     half_life_days: float | None = None
     blend_weight: float = 0.0
+    # Played results overlaid into the strength refit.
+    results_overlaid: int = 0
 
 
 class TeamInterval(BaseModel):
@@ -198,7 +243,10 @@ class TeamInterval(BaseModel):
 
 
 class MarketsBlock(BaseModel):
-    """Published title probabilities: model, de-vigged market and the blend."""
+    """Transparency block: model view, de-vigged market and a reference blend.
+
+    On agent runs teams[] is the published headline and blend_probs is
+    comparison only; deterministic runs publish blend_probs as teams[]."""
 
     model_config = ConfigDict(protected_namespaces=())
 
@@ -224,7 +272,7 @@ class Snapshot(BaseModel):
 
     schema_version: int = SCHEMA_VERSION
     run: RunMeta
-    england: EnglandBlock
+    focus: FocusTeamBlock
     slots: list[Slot]
     teams: list[TeamInfo]
     groups: list[GroupBlock] = Field(default_factory=list)

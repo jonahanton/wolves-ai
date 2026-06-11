@@ -9,14 +9,18 @@ from typing import Any
 import httpx
 from botocore.exceptions import ClientError
 
+from wolves_backend.clients.bucket import Bucket
 from wolves_backend.clients.engine_tasks import EngineTasks
 from wolves_backend.clients.run_index import RunIndex
 from wolves_backend.clients.run_schedule import RunSchedule
-from wolves_backend.clients.snapshot_bucket import SnapshotBucket
 from wolves_backend.config import Settings
 from wolves_backend.deps import Deps
 from wolves_backend.main import create_app
 from wolves_backend.snapshots import SnapshotSource
+from wolves_backend.storage import Storage
+
+ADMIN_TOKEN = "test-admin-token"
+ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 
 class FakeBody:
@@ -27,6 +31,14 @@ class FakeBody:
         return self._content.encode("utf-8")
 
 
+class FakePaginator:
+    def __init__(self, objects: dict[str, str]) -> None:
+        self._objects = objects
+
+    def paginate(self, *, Bucket: str, Prefix: str) -> Any:
+        yield {"Contents": [{"Key": key} for key in sorted(self._objects) if key.startswith(Prefix)]}
+
+
 class FakeS3Client:
     def __init__(self, objects: dict[str, str] | None = None) -> None:
         self.objects = objects or {}
@@ -35,6 +47,9 @@ class FakeS3Client:
         if Key not in self.objects:
             raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
         return {"Body": FakeBody(self.objects[Key])}
+
+    def get_paginator(self, name: str) -> FakePaginator:
+        return FakePaginator(self.objects)
 
 
 class FakeDynamoTable:
@@ -71,11 +86,19 @@ class FakeSchedulerClient:
 
 
 class FakeEcsClient:
-    def __init__(self, *, task_arn: str | None = None, failure_reason: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        task_arn: str | None = None,
+        failure_reason: str | None = None,
+        active_tasks: list[dict[str, Any]] | None = None,
+    ) -> None:
         self.task_arn = task_arn
         self.failure_reason = failure_reason
+        self.active_tasks = active_tasks or []
         self.run_calls: list[dict[str, Any]] = []
         self.stop_calls: list[dict[str, Any]] = []
+        self.list_calls: list[dict[str, Any]] = []
 
     def run_task(self, **kwargs: Any) -> dict[str, Any]:
         self.run_calls.append(kwargs)
@@ -86,30 +109,39 @@ class FakeEcsClient:
     def stop_task(self, **kwargs: Any) -> None:
         self.stop_calls.append(kwargs)
 
+    def list_tasks(self, **kwargs: Any) -> dict[str, Any]:
+        self.list_calls.append(kwargs)
+        return {"taskArns": [task["taskArn"] for task in self.active_tasks]}
+
+    def describe_tasks(self, **kwargs: Any) -> dict[str, Any]:
+        return {"tasks": [dict(task) for task in self.active_tasks]}
+
 
 def build_test_app(
     *,
-    snapshot_dir: Path | None = None,
+    storage_dir: Path | None = None,
     s3: FakeS3Client | None = None,
     dynamo: FakeDynamoTable | None = None,
     scheduler: FakeSchedulerClient | None = None,
     ecs: FakeEcsClient | None = None,
     environment: str = "local",
-    admin_dev_bypass: bool = False,
+    admin_token: str = ADMIN_TOKEN,
 ) -> Any:
     settings = Settings(
         _env_file=None,
         environment=environment,
-        admin_dev_bypass=admin_dev_bypass,
+        admin_token=admin_token,
         bucket="test-bucket" if s3 is not None else "",
-        snapshot_dir=snapshot_dir or Path("/nonexistent"),
+        storage_dir=storage_dir or Path("/nonexistent"),
         ecs_subnets="subnet-1,subnet-2",
         ecs_security_group="sg-1",
         ecs_cluster_arn="arn:aws:ecs:eu-west-2:000000000000:cluster/wolves",
     )
-    bucket = SnapshotBucket(bucket="test-bucket", region="eu-west-2", client=s3) if s3 is not None else None
+    bucket = Bucket(bucket="test-bucket", region="eu-west-2", client=s3) if s3 is not None else None
+    storage = Storage(bucket=bucket, local_dir=settings.storage_dir)
     deps = Deps(
-        snapshots=SnapshotSource(bucket=bucket, local_dir=settings.snapshot_dir),
+        storage=storage,
+        snapshots=SnapshotSource(storage),
         run_index=RunIndex(table_name="t", region="eu-west-2", table=dynamo or FakeDynamoTable()),
         schedule=RunSchedule(
             schedule_name="wolves-daily-run", region="eu-west-2", client=scheduler or FakeSchedulerClient()
@@ -126,5 +158,5 @@ def build_test_app(
     return create_app(settings, deps=deps)
 
 
-def client_for(app: Any) -> httpx.AsyncClient:
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+def client_for(app: Any, *, headers: dict[str, str] | None = None) -> httpx.AsyncClient:
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test", headers=headers)

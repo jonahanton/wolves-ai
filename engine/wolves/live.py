@@ -1,4 +1,4 @@
-"""Match-day live pass: overlay polled results plus agent overrides, republish."""
+"""Match-day live pass: overlay polled results plus the published agent worlds, republish."""
 
 from __future__ import annotations
 
@@ -12,28 +12,30 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from wolves import ENGINE_VERSION
+from wolves.agent.forecast_artifact import PublishedWorld, mixed_outputs, worlds_from_payload
 from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
 from wolves.config import Settings
+from wolves.forecast import Forecaster
 from wolves.observability.logging import configure_cli_logging
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.layout import SNAPSHOT
 from wolves.s3.publish import SnapshotPublisher
-from wolves.sim.api import run_simulation
 from wolves.sim.format import PlayedResult, load_format, load_results
 from wolves.sim.overlay import results_from_fixtures
+from wolves.sim.results_store import ResultsStore
 from wolves.snapshot import RunMeta, Snapshot
 
 logger = logging.getLogger(__name__)
 
 
-def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, dict[str, float]]:
-    """One directory scan: the newest readable snapshot, plus rating overrides
-    from the newest snapshot that carries an agent block."""
+def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, list[PublishedWorld]]:
+    """One directory scan: the newest readable snapshot, plus the published
+    world configurations from the newest snapshot with an agent block."""
     newest: Snapshot | None = None
     newest_agent: Snapshot | None = None
     if not snapshot_dir.exists():
-        return None, {}
+        return None, []
     for path in snapshot_dir.rglob("*.json"):
         if path.name == "latest.json":
             continue
@@ -48,12 +50,14 @@ def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, dict[str, float
             newest_agent is None or snapshot.run.created_at > newest_agent.run.created_at
         ):
             newest_agent = snapshot
-    overrides = (
-        {o.team_id: o.delta_elo for o in newest_agent.agent.rating_overrides}
-        if newest_agent is not None and newest_agent.agent is not None
-        else {}
-    )
-    return newest, overrides
+    worlds: list[PublishedWorld] = []
+    if newest_agent is not None and newest_agent.agent is not None and newest_agent.agent.worlds:
+        payload = {
+            "weights": {w.name: w.weight for w in newest_agent.agent.worlds},
+            "worlds": {w.name: {"perturbations": w.perturbations} for w in newest_agent.agent.worlds},
+        }
+        worlds = worlds_from_payload(payload)
+    return newest, worlds
 
 
 def pending_results(
@@ -73,7 +77,14 @@ def pending_results(
     return {match: result for match, result in fresh.items() if match in forecast}
 
 
-async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int, seed: int = 0) -> bool:
+async def live_pass(
+    settings: Settings,
+    *,
+    fixtures: FixturesClient,
+    n_sims: int,
+    seed: int = 0,
+    forecaster: Forecaster | None = None,
+) -> bool:
     """Run one deterministic update; return True when a snapshot was published."""
     publisher = SnapshotPublisher(settings)
     if not publisher.run_enabled():
@@ -81,16 +92,24 @@ async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int
         return False
 
     fmt = load_format(settings.data_dir)
-    overlay = results_from_fixtures(fmt, await fixtures.fixtures())
+    polled = await fixtures.fixtures()
+    overlay = results_from_fixtures(fmt, polled)
+    artifacts = ArtifactStore(settings)
+    store = ResultsStore(artifacts)
+    known = store.load()
     # Fresh containers hold no snapshots; without this the continuity check
     # and the agent overrides silently degrade to nothing.
-    ArtifactStore(settings).sync_down(prefix=SNAPSHOT.prefix)
-    previous, overrides = scan_snapshots(settings.runs_root / "snapshots")
+    artifacts.sync_down(prefix=SNAPSHOT.prefix)
+    previous, worlds = scan_snapshots(settings.runs_root / "snapshots")
     pending = pending_results(
         overlay,
-        file_results=load_results(settings.data_dir),
+        file_results=load_results(settings.data_dir) | known.results,
         previous=previous,
     )
+    # Persist before simulating: daily and agent runs read the store, so a
+    # polled result must survive even when this pass publishes nothing.
+    finished = [f for f in polled if f.status == "finished"]
+    merged = store.record(overlay, fixtures=finished)
     if not pending:
         logger.info("no new results; live pass is a no-op")
         return False
@@ -99,7 +118,16 @@ async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int
     created_at = now.isoformat(timespec="seconds")
     started = time.monotonic()
     try:
-        outputs = run_simulation(overrides, {}, n_sims, seed, extra_results=overlay)
+        if forecaster is None:
+            forecaster = Forecaster(settings)
+            forecaster.fit()
+        outputs = mixed_outputs(
+            forecaster,
+            worlds or [PublishedWorld(name="baseline", weight=1.0)],
+            n_sims=n_sims,
+            seed=seed,
+            extra_results=merged.results | overlay,
+        )
     except Exception:
         publisher.record_failure(run_id=run_id, created_at=created_at, started=started)
         raise
@@ -108,11 +136,12 @@ async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int
         run=RunMeta(
             run_id=run_id,
             created_at=created_at,
+            as_of=now.date().isoformat(),
             n_sims=n_sims,
             engine_version=ENGINE_VERSION,
             kind="live",
         ),
-        england=outputs.england,
+        focus=outputs.focus,
         slots=outputs.slots,
         teams=outputs.teams,
         groups=outputs.groups,
@@ -120,10 +149,10 @@ async def live_pass(settings: Settings, *, fixtures: FixturesClient, n_sims: int
     )
     s3_key = publisher.publish(snapshot, as_of=now.date(), started=started)
     logger.info(
-        "live run %s applied %d new result(s) with %d override(s) (s3_key=%s)",
+        "live run %s applied %d new result(s) across %d world(s) (s3_key=%s)",
         run_id,
         len(pending),
-        len(overrides),
+        len(worlds) or 1,
         s3_key or "local",
     )
     return True

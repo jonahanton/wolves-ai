@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     smart_model: str = "claude-opus-4-8"
     fast_model: str = "claude-sonnet-4-6"
     worker_model: str = "claude-sonnet-4-6"
+    # Empty string means inherit worker_model. Research and critic are
+    # extraction-shaped and run fine on the cheap tier; quant and forecast
+    # carry the numerical judgement and stay on the worker default.
+    graph_research_model: str = "claude-haiku-4-5"
+    graph_quant_model: str = ""
+    graph_forecast_model: str = ""
+    graph_critic_model: str = "claude-haiku-4-5"
+    # Candidate scoring is mechanical; the cheap tier is enough.
+    relevance_model: str = "claude-haiku-4-5"
 
     brave_api_key: str = ""
     exa_api_key: str = ""
@@ -32,6 +41,7 @@ class Settings(BaseSettings):
     api_football_key: str = ""
 
     data_dir: Path = REPO_ROOT / "data"
+    focus_team: str = "england"
     n_sims: int = 10_000
 
     aws_region: str = "eu-west-2"
@@ -43,30 +53,49 @@ class Settings(BaseSettings):
     runs_root: Path = REPO_ROOT / "runs"
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
+    article_cache_max_age_hours: float = 48.0
+    # Published numbers are re-simulated at this fidelity regardless of --sims.
+    publish_n_sims: int = 50_000
 
     bookmaker_leg_weight: float = 1.0
     polymarket_leg_weight: float = 1.0
 
     agent_submit_retries: int = 3
-    agent_k_samples: int = 3
 
-    graph_max_waves: int = 4
-    graph_max_nodes: int = 12
-    graph_max_wave_workers: int = 4
-    graph_node_timeout_s: int = 240
-    graph_research_request_limit: int = 12
-    graph_quant_request_limit: int = 8
-    graph_forecast_request_limit: int = 16
-    graph_critic_request_limit: int = 4
+    graph_max_waves: int = 8
+    graph_max_nodes: int = 16
+    graph_max_wave_workers: int = 5
+    graph_max_research_nodes: int = 6
+    graph_max_quant_nodes: int = 6
+    graph_max_forecast_nodes: int = 3
+    graph_max_critic_nodes: int = 3
+    graph_research_timeout_s: int = 300
+    graph_quant_timeout_s: int = 1800
+    graph_forecast_timeout_s: int = 600
+    graph_critic_timeout_s: int = 180
+    graph_research_request_limit: int = 32
+    graph_quant_request_limit: int = 48
+    graph_forecast_request_limit: int = 24
+    graph_critic_request_limit: int = 8
+    graph_research_tool_budget: int = 20
+    graph_quant_tool_budget: int = 24
+    graph_forecast_tool_budget: int = 16
+    graph_critic_tool_budget: int = 6
 
-    confirmed_delta_cap_elo: float = 50.0
-    soft_delta_cap_elo: float = 10.0
-    justification_threshold: float = 0.05
-    tripwire_threshold: float = 0.10
+    market_movement_noise_floor_pp: float = 0.7
+
+    escalation_threshold_pp: float = 2.0
+    escalation_reference_p: float = 0.10
     governor_window: int = 20
+    governor_shrink_weight: float = 0.5
+    extremising_d: float = 1.0
+    scenario_lifecycle_enforcement: str = "soft"
+    agent_evening_debrief: bool = False
 
-    agent_run_ceiling_usd: float = 0.25
-    agent_run_ceiling_max_usd: float = 1.50
+    agent_run_ceiling_usd: float = 3.00
+    agent_run_ceiling_max_usd: float = 8.00
+    graph_forecast_reserve_usd: float = 0.35
+    graph_forecast_reserve_llm_calls: int = 8
 
     @property
     def lessons_path(self) -> Path:
