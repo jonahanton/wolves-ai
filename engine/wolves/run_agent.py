@@ -532,12 +532,11 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     try:
         result = await run_graph(deps, as_of=as_of, models=models)
         if result.submission is not None and deps.forecaster is not None:
-            # Fetched before the clients close: the published number ensembles
-            # the agent's mixture with the de-vigged market, like the daily run.
+            # Fetched before the clients close: feeds the transparency MarketsBlock.
             try:
                 market = await outright_consensus(settings, deps.forecaster.fmt, odds=odds, polymarket=polymarket)
             except Exception:
-                logger.warning("markets fetch failed; agent snapshot publishes without the blend", exc_info=True)
+                logger.warning("markets fetch failed; snapshot publishes without the markets block", exc_info=True)
     except Exception:
         publisher.record_failure(
             run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started

@@ -5,13 +5,15 @@ must exist as a computed artifact (a wq.scenario_mixture output or another
 registered mixture), never typed probabilities.
 
 What happens after you submit: the harness re-simulates the artifact's worlds,
-mixes them by weight, and publishes a blend of that mixture with the de-vigged
-market at the champion weight. The market leg is added for you, so submit your
-model-space view and let the blend do the anchoring; never shade your mixture
-toward the market, and never publish a baseline while narrating a different
-number. Every probability you state in the story or justifications must be a
-number you computed or read from a cited artifact, never a target from your
-brief.
+mixes them by weight, and publishes that mixture AS the forecast. No market
+leg is added for you. The market enters only as evidence the run has already
+reconciled: where the mixture disagrees with the de-vigged consensus, that
+disagreement publishes, so it must be earned by a cited computation, and
+where the market's case was granted it must live in a weighted world, not in
+a shade you applied by hand. Never publish a baseline while narrating a
+different number. Every probability you state in the story or justifications
+must be a number you computed or read from a cited artifact, never a target
+from your brief.
 
 Pace yourself: the submission is the deliverable and your time is bounded.
 Batch your opening reads (ledger_query, read_artifact, what_changed) into one

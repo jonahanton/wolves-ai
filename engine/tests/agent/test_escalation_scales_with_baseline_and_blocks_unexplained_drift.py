@@ -61,3 +61,20 @@ def test_unexplained_drift_vs_previous_published_rejects(store: RunArtifactStore
         previous_titles=previous,
     )
     assert acknowledged.ok
+
+
+def test_market_gap_beyond_threshold_requires_market_justification(store: RunArtifactStore, tmp_path: Path):
+    ledger = _ledger(tmp_path)
+    market = {"england": 0.14, "ghana": 0.012, "rest": 0.848}
+
+    silent = _validate(build_submission(), store, ledger, market_titles=market)
+    assert not silent.ok
+    assert any(i.code == "market_unreconciled" for i in silent.issues)
+
+    argued = _validate(
+        build_submission(market_justification="quant-3 inversion: the market's England premium fails the score test."),
+        store,
+        ledger,
+        market_titles=market,
+    )
+    assert argued.ok

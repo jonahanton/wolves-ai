@@ -17,6 +17,14 @@ def _baseline_titles(deps: AgentDeps) -> dict[str, float] | None:
     return deps.forecaster.title_probs(n_sims=_BASELINE_SIMS, seed=0)
 
 
+def _market_titles(deps: AgentDeps) -> dict[str, float] | None:
+    from wolves.markets.series import load_series
+
+    series = load_series(deps.settings.runs_root / "odds-archive")
+    latest = next((p for p in reversed(series) if p.outright_bookmakers), None)
+    return latest.outright_bookmakers if latest else None
+
+
 def _previous_titles(deps: AgentDeps) -> dict[str, float] | None:
     from datetime import date
 
@@ -38,6 +46,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         limits=deps.limits,
         baseline_titles=_baseline_titles(deps),
         previous_titles=_previous_titles(deps),
+        market_titles=_market_titles(deps),
         focus_team=deps.settings.focus_team,
     )
     if not report.ok:
@@ -95,9 +104,11 @@ SPEC = ToolSpec(
         "simulation artifact from this run (wq.scenario_mixture outputs register automatically); "
         "typed probabilities are never accepted. Carry the named scenario weights with their ledger "
         "citations, the focus team daily story, one rationale per R32 slot and the travel memo, no "
-        "em-dashes. Moves beyond the escalation threshold against the frozen baseline trigger one "
-        "steelman pass before acceptance; moves against the previous published forecast need "
-        "change_justification or an explicit inconsistency_note."
+        "em-dashes. The mixture publishes as the headline, unblended. Moves beyond the escalation "
+        "threshold against the frozen baseline trigger one steelman pass before acceptance; moves "
+        "against the previous published forecast need change_justification or an explicit "
+        "inconsistency_note; gaps beyond threshold against the de-vigged market need "
+        "market_justification naming the computation that earns them."
     ),
     args_model=ForecastSubmission,
     fn=_submit_forecast,

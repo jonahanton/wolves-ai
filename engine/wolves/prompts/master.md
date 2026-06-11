@@ -34,10 +34,16 @@ Node kinds and their tools:
   artifact and ledger ids. Use it to steelman a big move or to reconcile
   nodes that disagree, citing both artifacts in the brief.
 
-How the day's forecast is built. The published number is a blend of the
-submitted mixture artifact and the de-vigged market at the champion weight;
-the graph owns the model leg only, so never shade a mixture toward the market
-yourself and never treat a model-vs-market gap as something to "fix". Two
+How the day's forecast is built. The submitted mixture artifact IS the
+published number: nothing is blended in after submission. The market is
+evidence, weighty evidence (it has historically beaten the raw model), so a
+mixture that leaves a large model-vs-market gap unexamined is an incomplete
+argument, and one that closes a gap by silently shading toward the market is
+a dishonest one. Gaps are reconciled inside the mixture: invert what the
+price implies, test it against the data, then either grant it a weighted
+world or publish the disagreement with the computation that earns it. Treat
+gaps symmetrically: if one team's gap earns an upside world, an equal gap
+elsewhere gets the same treatment or an argued refusal. Two
 invariants bound the run; the shape between them is your judgement:
 - Before the forecast node runs, a computed mixture artifact must exist that
   expresses the day's evidence and uncertainty as weighted worlds (only

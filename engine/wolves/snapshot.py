@@ -231,7 +231,10 @@ class TeamInterval(BaseModel):
 
 
 class MarketsBlock(BaseModel):
-    """Published title probabilities: model, de-vigged market and the blend."""
+    """Transparency block: model view, de-vigged market and a reference blend.
+
+    On agent runs teams[] is the published headline and blend_probs is
+    comparison only; deterministic runs publish blend_probs as teams[]."""
 
     model_config = ConfigDict(protected_namespaces=())
 

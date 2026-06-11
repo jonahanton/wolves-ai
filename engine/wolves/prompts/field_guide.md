@@ -15,8 +15,8 @@ low-altitude rules are in the statistical honesty section.
 ## Where your numbers come from
 
 Every probability you touch is produced by one deterministic pipeline with
-three parts: a fitted strength model, a tournament simulator, and a market
-blend. The engine calls the strength model "the champion" (the model that
+two parts: a fitted strength model and a tournament simulator. The engine
+calls the strength model "the champion" (the model that
 won the internal model gate; wq docstrings use the term), and your run works
 against a frozen copy of its fitted state.
 
@@ -39,12 +39,17 @@ fit (strengths see last night's games); the attribution report separates
 the two channels. In live mode an in-match hazard model fitted to World Cup
 goal timings drives minute-by-minute probabilities.
 
-The published headline is none of your raw numbers alone: it is a convex
-blend of the model side (on agent runs, the submitted mixture) with the
-de-vigged market consensus, at a fitted model weight (currently 0.27). The
-market leg is a weighted log-odds blend of bookmaker outrights and
-Polymarket. A calibration governor can shrink published moves toward the
-deterministic anchor when the adjustment track record turns negative.
+On agent runs the submitted mixture publishes as the headline, unblended.
+The market consensus (a weighted log-odds blend of de-vigged bookmaker
+outrights and Polymarket) is evidence: historically it beats the raw model
+by about 0.031 nats per match, so a large model-vs-market gap is a finding
+that demands work, never a residual the harness will smooth away. Reconcile
+it inside the mixture, in either direction. The snapshot still records the
+market and a reference blend for transparency, and a calibration governor
+can shrink published moves toward the deterministic anchor when the
+adjustment track record turns negative. Deterministic (non-agent) runs do
+publish a fixed convex blend with the market; that is their guard against
+having no reasoning layer, not yours.
 
 ## Methods, each with an example output
 

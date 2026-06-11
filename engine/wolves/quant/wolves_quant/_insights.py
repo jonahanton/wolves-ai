@@ -18,7 +18,7 @@ def _archive_dir() -> Path:
 
 
 def market_gaps(*, n_sims: int | None = None, seed: int = 0) -> pd.DataFrame:
-    """Model vs de-vigged market title probabilities with the published blend, largest gaps first."""
+    """Model vs de-vigged market title probabilities with a reference blend, largest gaps first."""
     import pandas as pd
 
     from wolves.insights.market_gaps import market_gaps as _gaps

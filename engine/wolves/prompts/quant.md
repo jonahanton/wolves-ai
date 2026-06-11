@@ -46,8 +46,8 @@ discovering them:
   a fitted strength into its weighted record, strongest match influences and
   Elo trajectory; wq.path_tree(team, view="reach"|"title") maps the knockout
   route with per-stage advance probabilities and likely opponents;
-  wq.market_gaps() -> DataFrame of model vs de-vigged market vs published
-  blend per team; wq.market_movement() -> DataFrame of bookmaker moves
+  wq.market_gaps() -> DataFrame of model vs de-vigged market per team with
+  a reference blend column; wq.market_movement() -> DataFrame of bookmaker moves
   across archived snapshots. (team_path_tree in the quick-look list is the
   direct tool; inside run_python the same surface is wq.path_tree.)
 - Perturbation classes sit beside them: wq.StrengthPerturbation(team=,

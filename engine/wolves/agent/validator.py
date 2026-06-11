@@ -50,12 +50,13 @@ def validate_submission(
     limits: ValidatorLimits,
     baseline_titles: dict[str, float] | None = None,
     previous_titles: dict[str, float] | None = None,
+    market_titles: dict[str, float] | None = None,
     focus_team: str | None = None,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
     citation discipline on weights, Paleka coherence on the artifact's own
-    numbers, and the escalation diff against the frozen baseline and the
-    previous published forecast."""
+    numbers, and the escalation diff against the frozen baseline, the
+    previous published forecast and the de-vigged market."""
     issues: list[ValidationIssue] = []
     escalations: list[str] = []
     payload = _artifact_payload(submission, artifacts, issues)
@@ -74,6 +75,16 @@ def validate_submission(
                         "unexplained_drift",
                         "moves beyond threshold vs the previous published forecast need change_justification "
                         f"or an inconsistency_note: {'; '.join(moved)}",
+                    )
+                )
+        if market_titles is not None and not submission.market_justification.strip():
+            gaps = _diff_escalations(payload, market_titles, limits, against="de-vigged market")
+            if gaps:
+                issues.append(
+                    _issue(
+                        "market_unreconciled",
+                        "the mixture publishes unblended, so gaps beyond threshold vs the de-vigged market "
+                        f"need market_justification naming the computation that earns them: {'; '.join(gaps)}",
                     )
                 )
     issues += _check_weights(submission, ledger)
