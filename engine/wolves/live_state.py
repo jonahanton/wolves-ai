@@ -50,6 +50,12 @@ class LiveFixture(BaseModel):
     message: str | None = None
 
 
+class ScheduleDrift(BaseModel):
+    match: int
+    scheduled_kickoff: str
+    provider_kickoff: str
+
+
 class LiveState(BaseModel):
     schema_version: int = 1
     generated_at: str
@@ -62,6 +68,7 @@ class LiveState(BaseModel):
     fixtures: list[LiveFixture] = Field(default_factory=list)
     title_probs: dict[str, float] = Field(default_factory=dict)
     title_deltas_pp: dict[str, float] = Field(default_factory=dict)
+    schedule_drift: list[ScheduleDrift] = Field(default_factory=list)
 
 
 class LiveForecaster(Protocol):
@@ -157,8 +164,13 @@ def build_live_state(
 ) -> LiveState:
     live_distributions: dict[int, ScorelineDistribution] = {}
     rendered = []
+    drift = []
     for fixture in sorted(fixtures, key=lambda f: (f.kickoff, f.fixture_id)):
         resolved = resolve_fixture(forecaster.fmt, fixture)
+        if resolved is not None:
+            entry = _kickoff_drift(forecaster.fmt, fixture, resolved)
+            if entry is not None:
+                drift.append(entry)
         distribution: ScorelineDistribution | None = None
         if fixture.status == "live" and resolved is not None:
             state = _match_state(fixture, resolved)
@@ -182,6 +194,21 @@ def build_live_state(
         fixtures=rendered,
         title_probs=title_probs,
         title_deltas_pp=_title_deltas(title_probs, previous),
+        schedule_drift=drift,
+    )
+
+
+def _kickoff_drift(fmt: FormatData, fixture: MatchFixture, resolved: FixtureResolution) -> ScheduleDrift | None:
+    scheduled = next(
+        (m.date for m in [*fmt.group_matches, *fmt.knockout] if m.match == resolved.match),
+        None,
+    )
+    if scheduled is None or datetime.fromisoformat(scheduled) == fixture.kickoff.astimezone(UTC):
+        return None
+    return ScheduleDrift(
+        match=resolved.match,
+        scheduled_kickoff=scheduled,
+        provider_kickoff=_stamp(fixture.kickoff),
     )
 
 

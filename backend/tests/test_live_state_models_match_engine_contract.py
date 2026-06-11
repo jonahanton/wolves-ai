@@ -31,7 +31,7 @@ def _engine_model_fields(source_path: Path, class_name: str) -> set[str]:
     raise AssertionError(f"{class_name} not found in {source_path}")
 
 
-@pytest.mark.parametrize("class_name", ["LiveForecast", "LiveFixture", "LiveState"])
+@pytest.mark.parametrize("class_name", ["LiveForecast", "LiveFixture", "ScheduleDrift", "LiveState"])
 def test_backend_live_models_carry_the_engine_fields(class_name):
     engine_fields = _engine_model_fields(ENGINE_LIVE_STATE, class_name)
     backend_fields = set(getattr(models, class_name).model_fields)

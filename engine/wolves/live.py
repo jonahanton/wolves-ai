@@ -127,18 +127,24 @@ async def live_pass(
         forecaster = Forecaster(settings)
     if not forecaster.is_fitted:
         forecaster.fit(extra_results=played_match_records(settings))
-    live_states.put(
-        build_live_state(
-            forecaster,
-            polled,
-            fetched_at=fetched_at,
-            results=merged.results,
-            previous=previous,
-            n_sims=n_sims,
-            seed=seed,
-            stale_after_s=settings.live_stale_after_s,
-        )
+    state = build_live_state(
+        forecaster,
+        polled,
+        fetched_at=fetched_at,
+        results=merged.results,
+        previous=previous,
+        n_sims=n_sims,
+        seed=seed,
+        stale_after_s=settings.live_stale_after_s,
     )
+    for drift in state.schedule_drift:
+        logger.warning(
+            "match %d kickoff moved: schedule has %s, provider has %s",
+            drift.match,
+            drift.scheduled_kickoff,
+            drift.provider_kickoff,
+        )
+    live_states.put(state)
     if not pending:
         logger.info("no new or corrected results; live snapshot publish is a no-op")
         return False

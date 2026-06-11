@@ -166,6 +166,12 @@ class LiveFixture(BaseModel):
     message: str | None = None
 
 
+class ScheduleDrift(BaseModel):
+    match: int
+    scheduled_kickoff: str
+    provider_kickoff: str
+
+
 class LiveState(BaseModel):
     schema_version: int
     generated_at: str
@@ -178,3 +184,4 @@ class LiveState(BaseModel):
     fixtures: list[LiveFixture]
     title_probs: dict[str, float]
     title_deltas_pp: dict[str, float]
+    schedule_drift: list[ScheduleDrift] = Field(default_factory=list)
