@@ -98,7 +98,6 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
     settings = deps.settings
     submission_state = deps.submission
     budget_exhausted = False
-    empty_patch_nudged = False
 
     with deps.runtime.run_trace(title=f"forecast {as_of}"):
         for wave in range(settings.graph_max_waves):
@@ -124,12 +123,6 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             if dropped:
                 deps.runtime.emit("admission", "master", f"{len(dropped)} op(s) dropped", drops=dropped)
             if not ops:
-                if not patch.ops and not patch.stop and not empty_patch_nudged:
-                    # A malformed plan, not a decision; re-ask exactly once.
-                    empty_patch_nudged = True
-                    logger.warning("wave %d patch was empty without stop; re-asking the master", board.wave)
-                    board.dropped = ["empty patch: return ops for the next wave, or stop=true with a reason"]
-                    continue
                 if patch.stop or not patch.ops:
                     logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "empty wave")
                     break
