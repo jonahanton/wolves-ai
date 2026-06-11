@@ -31,3 +31,8 @@ docs/
 prototypes/
 
 .terraform/
+
+# Local terraform state (bootstrap keeps its own on disk; never commit it)
+terraform.tfstate
+terraform.tfstate.*
+*.tfstate.backup
