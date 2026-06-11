@@ -26,6 +26,13 @@ discovering them:
   "noise_floor_pp": float}. The standard move for pricing one evidence item.
   wq.noise_floor(n_sims=, seed=) -> float gives the paired-seed floor
   directly, without a perturbation.
+- The market-base world: when your brief asks for the day's mixture, build
+  the second base alongside the unperturbed model: wq.implied_delta(team,
+  market_p) for each top contender with a material gap, the resulting
+  StrengthPerturbations composed into one world expressing the market's
+  view. Weight it against the model base as a judgement anchored on the
+  fitted publish blend (~0.27 model historically), adjusted by today's
+  evidence about which base is more trustworthy.
 - The disagreement chain, one call each: wq.implied_delta(team, target_p)
   inverts a model-vs-market gap into strength units; wq.title_uncertainty()
   -> DataFrame [mean, p10, p50, p90] per team under the model's own

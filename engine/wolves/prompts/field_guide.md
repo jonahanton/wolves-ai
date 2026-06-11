@@ -40,11 +40,14 @@ the two channels. In live mode an in-match hazard model fitted to World Cup
 goal timings drives minute-by-minute probabilities.
 
 On agent runs the submitted mixture publishes as the headline, unblended.
-The market consensus (a weighted log-odds blend of de-vigged bookmaker
-outrights and Polymarket) is evidence: historically it beats the raw model
-by about 0.031 nats per match, so a large model-vs-market gap is a finding
-that demands work, never a residual the harness will smooth away. Reconcile
-it inside the mixture, in either direction. The snapshot still records the
+You work from two bases of equal standing: this model, and the market
+consensus (a weighted log-odds blend of de-vigged bookmaker outrights and
+Polymarket), which historically beats the raw model by about 0.031 nats per
+match. The day's mixture carries both as worlds; the market base is built
+by inverting prices into implied strengths (wq.implied_delta) so its world
+simulates a coherent full distribution. A large gap between the bases is a
+finding that demands work, never a residual the harness will smooth away.
+Reconcile it inside the mixture, in either direction. The snapshot still records the
 market and a reference blend for transparency, and a calibration governor
 can shrink published moves toward the deterministic anchor when the
 adjustment track record turns negative. Deterministic (non-agent) runs do

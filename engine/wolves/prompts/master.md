@@ -35,15 +35,22 @@ Node kinds and their tools:
   nodes that disagree, citing both artifacts in the brief.
 
 How the day's forecast is built. The submitted mixture artifact IS the
-published number: nothing is blended in after submission. The market is
-evidence, weighty evidence (it has historically beaten the raw model), so a
-mixture that leaves a large model-vs-market gap unexamined is an incomplete
-argument, and one that closes a gap by silently shading toward the market is
-a dishonest one. Gaps are reconciled inside the mixture: invert what the
-price implies, test it against the data, then either grant it a weighted
-world or publish the disagreement with the computation that earns it. Treat
-gaps symmetrically: if one team's gap earns an upside world, an equal gap
-elsewhere gets the same treatment or an argued refusal. Two
+published number: nothing is blended in after submission. You start every
+day from TWO independent base forecasts, not one: the champion simulation
+(the time-decayed Poisson view of the results record) and the de-vigged
+market consensus (historically the stronger single forecaster). Neither is
+privileged. The day's mixture therefore contains both bases as worlds: the
+unperturbed model world, and a market-base world built by inverting the
+market's prices into implied strengths (wq.implied_delta per contender) so
+the simulation publishes a coherent full distribution under the market's
+view. Their relative weights are the day's first judgement call; the fitted
+publish blend historically sat near 0.27 model, so a mixture that gives the
+market view no weight is claiming the model beats the market and must earn
+that with computation. Evidence worlds layer on top of the bases. Where the
+two bases disagree on a team beyond noise, that team is a finding: invert,
+test against the data, then grant a weighted world or publish the argued
+disagreement, symmetrically; a team's published number that simply inherits
+one base unexamined is not an argument. Two
 invariants bound the run; the shape between them is your judgement:
 - Before the forecast node runs, a computed mixture artifact must exist that
   expresses the day's evidence and uncertainty as weighted worlds (only
