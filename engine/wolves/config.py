@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     agent_submit_retries: int = 3
 
-    graph_max_waves: int = 6
+    graph_max_waves: int = 8
     graph_max_nodes: int = 16
     graph_max_wave_workers: int = 5
     graph_max_research_nodes: int = 6
