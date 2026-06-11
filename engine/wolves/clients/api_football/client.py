@@ -15,6 +15,13 @@ SEASON = 2026
 
 _FINISHED = {"FT", "AET", "PEN"}
 _LIVE = {"1H", "HT", "2H", "ET", "BT", "P", "LIVE"}
+_ABANDONED = {"ABD", "CANC", "INT", "PST", "SUSP", "AWD", "WO"}
+
+
+class ApiFootballPayloadError(Exception):
+    def __init__(self, detail: str) -> None:
+        self.detail = detail
+        super().__init__(detail)
 
 
 def _status(short: str) -> MatchStatus:
@@ -22,6 +29,8 @@ def _status(short: str) -> MatchStatus:
         return "finished"
     if short in _LIVE:
         return "live"
+    if short in _ABANDONED:
+        return "abandoned"
     return "scheduled"
 
 
@@ -38,14 +47,16 @@ def _to_fixture(item: dict[str, Any]) -> MatchFixture:
     teams = item.get("teams") or {}
     goals = item.get("goals") or {}
     venue = fixture.get("venue") or {}
+    status = fixture.get("status") or {}
     return MatchFixture(
         fixture_id=int(fixture.get("id") or 0),
         kickoff=datetime.fromisoformat(fixture.get("date")),
-        status=_status(((fixture.get("status") or {}).get("short")) or ""),
+        status=_status((status.get("short")) or ""),
         home=(teams.get("home") or {}).get("name") or "",
         away=(teams.get("away") or {}).get("name") or "",
         home_goals=goals.get("home"),
         away_goals=goals.get("away"),
+        elapsed=status.get("elapsed"),
         city=venue.get("city"),
         winner=_winner(teams),
     )
@@ -75,7 +86,13 @@ class ApiFootballClient(FixturesClient):
             with attempt:
                 response = await self._client.get(f"{_BASE_URL}/fixtures", params=params, headers=headers)
                 _raise_for_status(response)
-                items = response.json().get("response") or []
+                payload = response.json()
+                errors = payload.get("errors")
+                if errors:
+                    raise ApiFootballPayloadError(str(errors))
+                items = payload.get("response") or []
+                if date is None and not items:
+                    raise ApiFootballPayloadError("API-Football returned no World Cup fixtures")
                 return [_to_fixture(item) for item in items]
         return []
 

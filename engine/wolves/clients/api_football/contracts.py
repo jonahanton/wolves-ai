@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-MatchStatus = Literal["scheduled", "live", "finished"]
+MatchStatus = Literal["scheduled", "live", "finished", "abandoned"]
 WinnerSide = Literal["home", "away"]
 
 
@@ -18,6 +18,9 @@ class MatchFixture(BaseModel):
     away: str
     home_goals: int | None = None
     away_goals: int | None = None
+    elapsed: int | None = None
+    home_reds: int = 0
+    away_reds: int = 0
     city: str | None = None
     winner: WinnerSide | None = None
 

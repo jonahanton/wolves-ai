@@ -38,3 +38,23 @@ def test_finished_fixtures_convert_with_canonical_keys_and_host_neutrality(tmp_p
     assert records["england"].neutral is True
     assert records["england"].away_team == "croatia"
     assert records["england"].tournament == "FIFA World Cup"
+
+
+def test_finished_fixtures_resolve_aliases_and_dedupe_by_tournament_match(tmp_path):
+    settings = Settings(runs_root=tmp_path, storage_mode="local")
+    ResultsStore(ArtifactStore(settings)).record(
+        {},
+        fixtures=[
+            _fixture(1, "South Africa", "Mexico", goals=(0, 2)),
+            _fixture(999, "Mexico", "South Africa", goals=(2, 0)),
+            _fixture(15, "Spain", "Cape Verde Islands", status="finished", goals=(1, 1)),
+        ],
+    )
+
+    records = {record.home_team: record for record in played_match_records(settings)}
+
+    assert records["mexico"].away_team == "south-africa"
+    assert records["mexico"].home_goals == 2
+    assert records["mexico"].away_goals == 0
+    assert records["spain"].away_team == "cape-verde"
+    assert len(records) == 2

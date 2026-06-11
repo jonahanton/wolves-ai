@@ -134,6 +134,17 @@ RESULTS = ArtifactSpec(
     mutable=True,
     description="Played results and finished fixtures persisted from live polling; merged on write.",
 )
+LIVE_STATE = ArtifactSpec(
+    name="live-state",
+    pattern="live/state.json",
+    mutable=True,
+    description="Latest live poll, scores and in-match deterministic forecasts.",
+)
+LIVE_STATE_POINT = ArtifactSpec(
+    name="live-state-point",
+    pattern="live/history/{date}/{time}.json",
+    description="Immutable copy of one live poll and its deterministic forecasts.",
+)
 LESSONS = ArtifactSpec(
     name="lessons",
     pattern="agent-state/lessons.jsonl",
@@ -199,6 +210,8 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     ODDS_SERIES_POINT,
     ODDS_CLOSE,
     RESULTS,
+    LIVE_STATE,
+    LIVE_STATE_POINT,
     LESSONS,
     SCENARIOS,
     SOURCES_SEEN,
