@@ -13,7 +13,7 @@ from wolves.observability import CapExceeded, Caps, InMemoryTracer, build_runtim
 
 # Default (sonnet) prices applied to the explicit usage mapping below:
 # 1000*3 + 500*15 + 200*6 + 100*0.3 micro-dollars.
-EXPECTED_COST_MICROS = 11_730
+EXPECTED_COST_MICROS = 11_280
 
 
 def _counting_inner() -> tuple[FunctionModel, list[int]]:

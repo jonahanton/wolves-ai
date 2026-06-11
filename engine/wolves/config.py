@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     graph_quant_request_limit: int = 24
     graph_forecast_request_limit: int = 24
     graph_critic_request_limit: int = 8
+    graph_research_tool_budget: int = 10
+    graph_quant_tool_budget: int = 12
+    graph_forecast_tool_budget: int = 16
+    graph_critic_tool_budget: int = 6
 
     market_movement_noise_floor_pp: float = 0.7
 

@@ -94,7 +94,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
     """The wave loop: plan, admit, execute, merge, until acceptance or caps."""
     store = deps.artifacts or RunArtifactStore(ArtifactStore(deps.settings), run_id=deps.runtime.run_id)
     deps.artifacts = store
-    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime, source_memory=deps.source_memory)
     settings = deps.settings
     submission_state = deps.submission
     budget_exhausted = False
@@ -110,6 +110,14 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 logger.warning("master plan stopped by cap: %s", exc)
                 budget_exhausted = True
                 break
+            deps.runtime.emit(
+                "graph_patch",
+                "master",
+                f"wave {board.wave + 1}: {len(patch.ops)} op(s)" + (", stop" if patch.stop else ""),
+                ops=[op.model_dump(mode="json") for op in patch.ops],
+                reason=patch.reason,
+                stop=patch.stop,
+            )
             ops, dropped = admit(patch, board=board, settings=settings)
             board.dropped = dropped
             if not ops:

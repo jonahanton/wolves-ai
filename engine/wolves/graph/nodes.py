@@ -11,6 +11,7 @@ from wolves.config import Settings
 from wolves.graph.agents import node_agent
 from wolves.graph.artifacts import ArtifactKind, RunArtifactStore
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
+from wolves.graph.observed_model import CACHE_SETTINGS, ObservedModel
 from wolves.toolkit._budget_gate import BudgetGate
 
 _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
@@ -45,6 +46,15 @@ def _request_limit(kind: NodeKind, settings: Settings) -> int:
     }[kind]
 
 
+def _tool_budget(kind: NodeKind, settings: Settings) -> int:
+    return {
+        "research": settings.graph_research_tool_budget,
+        "quant": settings.graph_quant_tool_budget,
+        "forecast": settings.graph_forecast_tool_budget,
+        "critic": settings.graph_critic_tool_budget,
+    }[kind]
+
+
 def _timeout(kind: NodeKind, settings: Settings) -> int:
     # Quant nodes build and check models, not single expressions; their
     # budget is minutes while a critic pass stays tight.
@@ -60,14 +70,23 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
     """Run one worker node to a typed artifact. Total: every failure, including
     CapExceeded surfacing in whatever shape pydantic-ai wraps it, degrades to a
     failed outcome so the wave and the run carry on."""
-    node_deps = dataclasses.replace(deps, actor=brief.node_id, gate=BudgetGate(), todos=[], python_calls=0)
     settings = deps.settings
+    node_deps = dataclasses.replace(
+        deps,
+        actor=brief.node_id,
+        gate=BudgetGate(_tool_budget(brief.kind, settings)),
+        todos=[],
+        python_calls=0,
+    )
+    if isinstance(model, ObservedModel):
+        model = ObservedModel(model.wrapped, runtime=deps.runtime, actor=brief.node_id)
     try:
         result = await asyncio.wait_for(
             node_agent(brief.kind).run(
                 _kickoff(brief, store),
                 deps=node_deps,
                 model=model,
+                model_settings=CACHE_SETTINGS,
                 usage_limits=UsageLimits(request_limit=_request_limit(brief.kind, settings)),
             ),
             timeout=_timeout(brief.kind, settings),

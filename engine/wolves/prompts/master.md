@@ -62,6 +62,11 @@ Standing orders:
 - You are near hard caps on waves, nodes per kind and cost; the budget block
   and per-node request counts show where you stand. When in doubt, move
   toward a forecast.
+- Do the budget arithmetic before every wave: a research node that fetches
+  pages costs roughly $0.10 to $0.30, a quant node $0.10 to $0.20, a forecast
+  node about $0.15; last_wave_cost_usd shows what your last wave actually
+  cost. If remaining_usd cannot fund the wave you want PLUS a forecast node,
+  brief the forecast node instead.
 - Never use em-dashes in anything you write.
 
 A failed node is not a dead end: its error is on the blackboard. Re-brief it

@@ -86,6 +86,9 @@ class Recorder:
         self.payload.update(payload)
 
 
+_DEFAULT_CALL_ESTIMATE_MICROS = 50_000
+
+
 class ObservedRuntime:
     """The single place that talks to the tracer and the local event stream, and
     the single gatekeeper that enforces caps before any external action."""
@@ -105,6 +108,9 @@ class ObservedRuntime:
         self.caps = caps
         self.paths = paths
         self.budget = BudgetState()
+        self._in_flight_micros = 0
+        self._settled_cost_micros = 0
+        self._settled_calls = 0
 
     @contextlib.contextmanager
     def observe(
@@ -174,13 +180,23 @@ class ObservedRuntime:
         if self.tracer.current_trace_id() is None:
             raise RuntimeError("Refusing external action with no active observation.")
 
-    def charge_llm(self) -> None:
+    def charge_llm(self) -> int:
+        """Admit one LLM call and reserve its estimated cost; returns the reservation.
+
+        Parallel siblings all pass a plain pre-check before any of their costs
+        settle, which let one run overshoot its ceiling by 60%. Projecting
+        in-flight reservations into the check closes that gap; the caller hands
+        the reservation back through add_cost when the real cost lands."""
         self.require_active_observation()
         if self.budget.llm_calls >= self.caps.max_llm_calls:
             raise CapExceeded(f"max_llm_calls ({self.caps.max_llm_calls}) reached")
-        if self.caps.max_cost_micros and self.budget.cost_micros >= self.caps.max_cost_micros:
+        projected = self.budget.cost_micros + self._in_flight_micros
+        if self.caps.max_cost_micros and projected >= self.caps.max_cost_micros:
             raise CapExceeded(f"max_cost_micros ({self.caps.max_cost_micros}) reached")
         self.budget.llm_calls += 1
+        reservation = self._call_estimate_micros()
+        self._in_flight_micros += reservation
+        return reservation
 
     def charge_search(self) -> None:
         self.require_active_observation()
@@ -206,8 +222,16 @@ class ObservedRuntime:
             raise CapExceeded(f"max_quant_executions ({self.caps.max_quant_executions}) reached")
         self.budget.quant_executions += 1
 
-    def add_cost(self, micros: int) -> None:
+    def add_cost(self, micros: int, *, reservation: int = 0) -> None:
+        self._in_flight_micros = max(0, self._in_flight_micros - reservation)
         self.budget.cost_micros += micros
+        self._settled_cost_micros += micros
+        self._settled_calls += 1
+
+    def _call_estimate_micros(self) -> int:
+        if self._settled_calls == 0:
+            return _DEFAULT_CALL_ESTIMATE_MICROS
+        return self._settled_cost_micros // self._settled_calls
 
     def bump_iteration(self) -> int:
         self.budget.iterations += 1

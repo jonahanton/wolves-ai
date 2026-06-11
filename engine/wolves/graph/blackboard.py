@@ -5,6 +5,7 @@ import json
 from pydantic import BaseModel, Field
 
 from wolves.agent.ledger import EvidenceLedger
+from wolves.agent.source_memory import SourceMemory
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.contracts import NodeOutcome, NodePatch, ResearchOutput
 from wolves.observability.runtime import ObservedRuntime
@@ -28,14 +29,24 @@ class Blackboard:
     evidence ledger's len-based ids and append-mode writes are not
     concurrency-safe, so evidence reaches it only through ``merge``."""
 
-    def __init__(self, *, artifacts: RunArtifactStore, ledger: EvidenceLedger, runtime: ObservedRuntime) -> None:
+    def __init__(
+        self,
+        *,
+        artifacts: RunArtifactStore,
+        ledger: EvidenceLedger,
+        runtime: ObservedRuntime,
+        source_memory: SourceMemory | None = None,
+    ) -> None:
         self.artifacts = artifacts
         self.ledger = ledger
         self._runtime = runtime
+        self._source_memory = source_memory
         self.nodes: list[NodeRecord] = []
         self.challenges: list[str] = []
         self.dropped: list[str] = []
         self.wave = 0
+        self.last_wave_cost_micros = 0
+        self._cost_at_wave_start = runtime.budget.cost_micros
 
     def merge(self, ops: list[NodePatch], outcomes: list[NodeOutcome]) -> None:
         """Fold one wave's outcomes in: node records, lineage, evidence to
@@ -73,14 +84,34 @@ class Blackboard:
                 elif artifact.kind == "critique":
                     self.challenges.extend(artifact.payload.get("challenges", []))
         self.wave += 1
+        self.last_wave_cost_micros = self._runtime.budget.cost_micros - self._cost_at_wave_start
+        self._cost_at_wave_start = self._runtime.budget.cost_micros
+
+    def _fetched_this_run(self, url: str) -> bool:
+        if not url.startswith("http"):
+            return True
+        if self._source_memory is None:
+            return True
+        seen = self._source_memory.seen(url)
+        return seen is not None and seen.last_seen_run == self._runtime.run_id and seen.disposition == "fetched"
 
     def _ledger_entries(self, payload: dict) -> int:
         output = ResearchOutput.model_validate(payload)
         for item in output.evidence:
+            status = item.status
+            if status == "confirmed" and not self._fetched_this_run(item.source_url):
+                # A confirmed claim must be backed by a page the run actually
+                # read; a snippet-only citation is at best probable.
+                status = "probable"
+                self._runtime.emit(
+                    "evidence_demoted",
+                    "blackboard",
+                    f"confirmed demoted to probable, page never fetched: {item.source_url[:80]}",
+                )
             self.ledger.append(
                 claim=item.claim,
                 source_url=item.source_url,
-                status=item.status,
+                status=status,
                 mechanism=item.mechanism,
                 proposed_delta=item.proposed_delta,
                 expiry=item.expiry,
@@ -100,6 +131,8 @@ class Blackboard:
                 "llm_calls": f"{budget.llm_calls}/{caps.max_llm_calls}",
                 "cost_usd": round(budget.cost_micros / 1e6, 4),
                 "ceiling_usd": round(caps.max_cost_micros / 1e6, 4),
+                "remaining_usd": round(max(0, caps.max_cost_micros - budget.cost_micros) / 1e6, 4),
+                "last_wave_cost_usd": round(self.last_wave_cost_micros / 1e6, 4),
             },
             "nodes": [
                 {

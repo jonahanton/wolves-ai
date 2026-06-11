@@ -8,13 +8,14 @@ from wolves.config import Settings
 from wolves.graph.agents import master_agent
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import GraphPatch, NodeKind, NodePatch
+from wolves.graph.observed_model import CACHE_SETTINGS
 
 logger = logging.getLogger(__name__)
 
 
 async def plan_wave(prompt: str, *, model: Model) -> GraphPatch:
     """One master planning turn over the blackboard summary."""
-    result = await master_agent().run(prompt, model=model)
+    result = await master_agent().run(prompt, model=model, model_settings=CACHE_SETTINGS)
     return result.output
 
 

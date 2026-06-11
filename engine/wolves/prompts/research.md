@@ -24,9 +24,13 @@ Evidence discipline:
   the mechanism by which it moves a rating, a proposed Elo delta, an expiry
   date when the claim goes stale, and the team it concerns. Your evidence is
   written to the run ledger; the forecast node can only cite what you record.
-- Statuses are honest: confirmed needs a primary or official source; rumours
-  justify nothing and carry zero delta. Never fabricate; only cite text present
-  in pages you actually fetched.
+  Prefer at most ten dense items over a long tail of thin ones.
+- Statuses are honest: confirmed needs a primary or official source whose page
+  you fetched this run; a claim backed only by a search snippet is at best
+  probable, and the harness demotes it if you overclaim. Rumours justify
+  nothing and carry zero delta. Never fabricate; only quote text present in
+  pages you actually fetched, and attribute internal tool numbers to the tool,
+  not to a news URL.
 - Raise a signal for anything missing or worth a follow-up, but keep signals
   few and specific.
 

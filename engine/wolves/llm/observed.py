@@ -33,7 +33,7 @@ class ObservedLLM:
         schema = harden_schema(response_model.model_json_schema())
         schema_name = response_model.__name__
 
-        self._runtime.charge_llm()
+        reservation = self._runtime.charge_llm()
         with self._runtime.observe(
             kind="llm_call",
             actor=actor,
@@ -58,7 +58,7 @@ class ObservedLLM:
             )
             cost = cost_micros(resp.model, resp.usage)
             resp.cost_micros = cost
-            self._runtime.add_cost(cost)
+            self._runtime.add_cost(cost, reservation=reservation)
 
             rec.set_output(
                 resp.data,
@@ -101,7 +101,7 @@ class ObservedLLM:
     ) -> ToolTurn:
         """One observed, charged assistant turn of a ReAct tool loop. The caller
         owns the message list and the loop; this owns one turn + its observation."""
-        self._runtime.charge_llm()
+        reservation = self._runtime.charge_llm()
         with self._runtime.observe(
             kind="llm_call",
             actor=actor,
@@ -121,7 +121,7 @@ class ObservedLLM:
             )
             cost = cost_micros(turn.model, turn.usage)
             turn.cost_micros = cost
-            self._runtime.add_cost(cost)
+            self._runtime.add_cost(cost, reservation=reservation)
 
             tool_names = [b.name for b in turn.tool_use_blocks]
             rec.set_output(

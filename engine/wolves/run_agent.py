@@ -28,7 +28,7 @@ from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.source_memory import SourceMemory
 from wolves.agent.validator import ValidatorLimits
-from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient
+from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient, MergedFixturesClient
 from wolves.clients.odds import (
     FakeOddsClient,
     FakePolymarketClient,
@@ -63,6 +63,7 @@ from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
 from wolves.s3.layout import RELEVANCE_FEEDBACK, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
+from wolves.sim.results_store import persisted_results, stored_fixtures
 from wolves.snapshot import (
     AgentBlock,
     AttributionOut,
@@ -315,7 +316,8 @@ def _build_snapshot(
     artifact = deps.artifacts.get(submission.artifact_id)
     assert artifact is not None
     worlds = worlds_from_payload(artifact.payload)
-    outputs = mixed_outputs(deps.forecaster, worlds, n_sims=n_sims, seed=seed)
+    played = persisted_results(settings)
+    outputs = mixed_outputs(deps.forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=played)
 
     governor_scale = CalibrationLedger(settings.calibration_path).scale(window=settings.governor_window)
     effective_d = publish_scale(
@@ -325,7 +327,7 @@ def _build_snapshot(
     )
     governor = None
     if effective_d != 1.0:
-        anchor = deps.forecaster.sim_outputs(n_sims=n_sims, seed=seed)
+        anchor = deps.forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played)
         govern_outputs(outputs, anchor, d=effective_d)
         governor = GovernorOut(scale=governor_scale, effective_d=effective_d)
         logger.warning("run %s: governor active, publishing at d=%.2f", run_id, effective_d)
@@ -454,6 +456,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         fixtures = FakeFixturesClient()
         logger.info("dev run %s: scripted models and fixture clients, $0 spend", run_id)
 
+    # Results persisted by live passes back the fixtures tool too, so the agent
+    # sees the same played matches the simulation does.
+    fixtures = MergedFixturesClient(fixtures, stored=stored_fixtures(settings))
     deps = _build_deps(
         settings=settings,
         runtime=runtime,
@@ -500,6 +505,12 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         await llm.aclose()
 
     spent = runtime.budget.cost_micros / 1e6
+    if deps.artifacts is not None:
+        # Failed runs still paid for their retrieval; their feedback counts too.
+        append_feedback(
+            settings.runs_root / RELEVANCE_FEEDBACK.key(),
+            relevance_feedback(deps.artifacts, deps.ledger, run_id=run_id),
+        )
     if result.submission is None:
         runtime.shutdown()
         logger.error(
@@ -517,12 +528,6 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             settings, publisher, as_of=date.fromisoformat(as_of), n_sims=args.sims, seed=args.seed, started=started
         )
         return 1
-
-    if deps.artifacts is not None:
-        append_feedback(
-            settings.runs_root / RELEVANCE_FEEDBACK.key(),
-            relevance_feedback(deps.artifacts, deps.ledger, run_id=run_id),
-        )
     snapshot = _build_snapshot(
         settings=settings,
         deps=deps,

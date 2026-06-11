@@ -204,9 +204,14 @@ SOURCE_TIERS: dict[str, int] = {
     # USA and Canada
     "espn.com": 2,
     "cbssports.com": 2,
+    "foxsports.com": 2,
     "si.com": 3,
     "tsn.ca": 2,
     "sportsnet.ca": 2,
+    # Stats platforms: scores and lineups are reliable, editorial is thin
+    "fotmob.com": 3,
+    "sofascore.com": 3,
+    "flashscore.com": 3,
     # Japan
     "gekisaka.jp": 2,
     "nikkansports.com": 2,

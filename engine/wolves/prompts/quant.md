@@ -10,7 +10,9 @@ prior artifacts behind wq.artifact and wq.artifact_path). Orient before you
 compute: wq.teams() lists every team with group and fitted strength,
 wq.fixtures() the full calendar by match id, wq.artifacts() everything prior
 nodes produced. Files persist between calls; variables do not. End every
-script by assigning the finding to `result`. run_simulation drives the same
+script by assigning the finding to `result`, including pure orientation
+scripts: a print is discarded, so close even a first look with
+`result = {...}` of what you saw. run_simulation drives the same
 tournament engine when you only need a single configured run; read_artifact
 opens any artifact your brief cites, and quant predecessors' full workspaces
 are reachable with wq.artifact_path, so build on their tables instead of
