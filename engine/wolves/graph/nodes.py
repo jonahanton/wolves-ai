@@ -79,7 +79,10 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         python_calls=0,
     )
     if isinstance(model, ObservedModel):
-        model = ObservedModel(model.wrapped, runtime=deps.runtime, actor=brief.node_id)
+        # Only the forecast node may spend the held-back reserve; every other
+        # kind hits its ceiling early so the run always affords a submission.
+        hold_back = 0 if brief.kind == "forecast" else int(settings.graph_forecast_reserve_usd * 1_000_000)
+        model = ObservedModel(model.wrapped, runtime=deps.runtime, actor=brief.node_id, hold_back_micros=hold_back)
     try:
         result = await asyncio.wait_for(
             node_agent(brief.kind).run(

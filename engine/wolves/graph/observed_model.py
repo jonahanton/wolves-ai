@@ -37,10 +37,13 @@ class ObservedModel(WrapperModel):
     mapped explicitly to the pricing dict keys because passing RequestUsage
     straight through would silently zero the ceiling."""
 
-    def __init__(self, wrapped: Model, *, runtime: ObservedRuntime, actor: str = "graph") -> None:
+    def __init__(
+        self, wrapped: Model, *, runtime: ObservedRuntime, actor: str = "graph", hold_back_micros: int = 0
+    ) -> None:
         super().__init__(wrapped)
         self._runtime = runtime
         self._actor = actor
+        self._hold_back_micros = hold_back_micros
 
     async def request(
         self,
@@ -48,7 +51,7 @@ class ObservedModel(WrapperModel):
         model_settings: ModelSettings | None,
         model_request_parameters: ModelRequestParameters,
     ) -> ModelResponse:
-        reservation = self._runtime.charge_llm()
+        reservation = self._runtime.charge_llm(hold_back_micros=self._hold_back_micros)
         with self._runtime.observe(
             kind="llm_call",
             actor=self._actor,
@@ -84,7 +87,7 @@ class ObservedModel(WrapperModel):
     ) -> AsyncIterator[StreamedResponse]:
         # Nothing streams today, but a future run_stream call must not bypass
         # the ceiling: charge before the call, settle cost when the stream closes.
-        reservation = self._runtime.charge_llm()
+        reservation = self._runtime.charge_llm(hold_back_micros=self._hold_back_micros)
         async with super().request_stream(messages, model_settings, model_request_parameters, run_context) as stream:
             try:
                 yield stream

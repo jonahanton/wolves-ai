@@ -180,18 +180,20 @@ class ObservedRuntime:
         if self.tracer.current_trace_id() is None:
             raise RuntimeError("Refusing external action with no active observation.")
 
-    def charge_llm(self) -> int:
+    def charge_llm(self, *, hold_back_micros: int = 0) -> int:
         """Admit one LLM call and reserve its estimated cost; returns the reservation.
 
         Parallel siblings all pass a plain pre-check before any of their costs
         settle, which let one run overshoot its ceiling by 60%. Projecting
         in-flight reservations into the check closes that gap; the caller hands
-        the reservation back through add_cost when the real cost lands."""
+        the reservation back through add_cost when the real cost lands.
+        hold_back_micros lowers this caller's effective ceiling, so ordinary
+        nodes cannot spend the slice held back for the final forecast."""
         self.require_active_observation()
         if self.budget.llm_calls >= self.caps.max_llm_calls:
             raise CapExceeded(f"max_llm_calls ({self.caps.max_llm_calls}) reached")
         projected = self.budget.cost_micros + self._in_flight_micros
-        if self.caps.max_cost_micros and projected >= self.caps.max_cost_micros:
+        if self.caps.max_cost_micros and projected >= self.caps.max_cost_micros - hold_back_micros:
             raise CapExceeded(f"max_cost_micros ({self.caps.max_cost_micros}) reached")
         self.budget.llm_calls += 1
         reservation = self._call_estimate_micros()

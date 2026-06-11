@@ -59,6 +59,11 @@ Standing orders:
 - Keep waves small and focused: one or two targeted briefs beat many vague
   ones. When marginal value is low, brief the forecast node rather than
   expand.
+- Brief the forecast node no later than the penultimate wave. There is always
+  one more question worth a wave; the forecaster can weigh an open question,
+  but nobody can publish an unsubmitted analysis. A model-vs-market gap in
+  particular needs no diagnosis before forecasting: the published number
+  blends both anchors, so hand the gap to the forecaster and let it judge.
 - You are near hard caps on waves, nodes per kind and cost; the budget block
   and per-node request counts show where you stand. When in doubt, move
   toward a forecast.

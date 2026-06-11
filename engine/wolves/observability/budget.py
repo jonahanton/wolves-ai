@@ -12,7 +12,7 @@ class Caps(BaseModel):
     max_search_calls: int = 20
     max_fetch_calls: int = 24
     max_data_fetches: int = 24
-    max_quant_executions: int = 12
+    max_quant_executions: int = 30
     max_quant_rows: int = 200_000
     max_quant_bytes: int = 20_000_000
     max_quant_runtime_seconds: int = 180
