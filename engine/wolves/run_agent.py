@@ -491,7 +491,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             return ObservedModel(AnthropicModel(model_name, provider=provider), runtime=runtime)
 
         models = GraphModels(
-            master=observed(settings.fast_model),
+            master=observed(settings.graph_master_model or settings.fast_model),
             nodes={
                 "research": observed(settings.graph_research_model or settings.worker_model),
                 "quant": observed(settings.graph_quant_model or settings.worker_model),
@@ -661,7 +661,7 @@ def main() -> None:
         if args.ceiling is None:
             # No explicit ceiling means the calendar decides (wolves/run_policy.py).
             fmt = load_format(settings.data_dir)
-            args.ceiling = agent_ceiling(settings, fmt, on=datetime.now(UTC).date(), fixtures=stored_fixtures(settings))
+            args.ceiling = agent_ceiling(settings, fmt, on=datetime.now(UTC).date())
         if args.ceiling <= 0 or args.ceiling > settings.agent_run_ceiling_max_usd:
             parser.error(f"--ceiling must be in (0, {settings.agent_run_ceiling_max_usd:.2f}]")
 

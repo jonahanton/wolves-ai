@@ -1,90 +1,89 @@
-"""Calendar-aware run policy: the agent run ceiling scales with how much the
-tournament moved yesterday and how much knockout money is on the table today.
-Days are UTC, matching the schedule. `python -m wolves.run_policy` prints the
-derived calendar."""
+"""Calendar-aware run policy: each day classifies into a phase and the phase
+sets the agent run ceiling. Big group days are days with the focus team, an
+Elo top side, a group decider or a packed slate. Days are UTC, matching the
+schedule. `python -m wolves.run_policy` prints the derived calendar."""
 
 from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import Literal
 
-from wolves.clients.odds.team_names import team_id_for_name
 from wolves.config import Settings
-from wolves.sim.format import FormatData, load_format
+from wolves.sim.format import FormatData, GroupMatch, load_format
+from wolves.sim.ratings import load_elo_ratings
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
+Phase = Literal["rest", "opening", "group", "big_group", "r32_r16", "qf_final"]
 
-    from wolves.clients.api_football import MatchFixture
-
-_STAGE_WEIGHTS = {
-    "group": 1.0,
-    "r32": 1.5,
-    "r16": 2.0,
-    "qf": 2.5,
-    "sf": 3.0,
-    "third_place": 1.5,
-    "final": 4.0,
-}
+_OPENING_DAYS = 7
+_BIG_SLATE_GAMES = 6
+_LATE_STAGES = {"qf", "sf", "third_place", "final"}
 
 
 @dataclass(frozen=True)
 class DayPolicy:
     on: date
-    results_weight: float
-    knockout_weight: float
-    focus_involved: bool
+    phase: Phase
     ceiling_usd: float
+    big_teams: tuple[str, ...]
 
 
-def _games_on(fmt: FormatData, on: date) -> list[tuple[str, str, str]]:
-    day = on.isoformat()
-    group = [("group", m.home, m.away) for m in fmt.group_matches if m.date[:10] == day]
-    knockout = [(m.stage, m.home, m.away) for m in fmt.knockout if m.date[:10] == day]
-    return group + knockout
+def big_team_ids(settings: Settings, fmt: FormatData) -> frozenset[str]:
+    """The focus team plus the Elo top sides in the tournament."""
+    elo_path = sorted((settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
+    ratings = load_elo_ratings(elo_path, fmt)
+    ranked = sorted(zip(ratings, (team.id for team in fmt.teams), strict=True), reverse=True)
+    top = {team_id for _, team_id in ranked[: settings.agent_big_team_count]}
+    return frozenset(top | {settings.focus_team})
 
 
-def _focus_involved(
-    fmt: FormatData, settings: Settings, days: tuple[date, date], fixtures: Sequence[MatchFixture]
-) -> bool:
-    stamps = {d.isoformat() for d in days}
-    if any(m.date[:10] in stamps and settings.focus_team in (m.home, m.away) for m in fmt.group_matches):
-        return True
-    # Knockout pairings are slot specs in the schedule; once the bracket is
-    # set the provider fixtures carry the real names.
-    for fixture in fixtures:
-        if fixture.kickoff.astimezone(UTC).date().isoformat() not in stamps:
-            continue
-        if settings.focus_team in (
-            team_id_for_name(fixture.home, fmt.teams),
-            team_id_for_name(fixture.away, fmt.teams),
-        ):
-            return True
-    return False
+def _group_games_on(fmt: FormatData, on: date) -> list[GroupMatch]:
+    return [m for m in fmt.group_matches if m.date[:10] == on.isoformat()]
 
 
-def day_policy(settings: Settings, fmt: FormatData, *, on: date, fixtures: Sequence[MatchFixture] = ()) -> DayPolicy:
-    yesterday = _games_on(fmt, on - timedelta(days=1))
-    knockout_today = [g for g in _games_on(fmt, on) if g[0] != "group"]
-    focus = _focus_involved(fmt, settings, (on - timedelta(days=1), on), fixtures)
-    results_weight = sum(_STAGE_WEIGHTS[stage] for stage, _, _ in yesterday)
-    knockout_weight = sum(_STAGE_WEIGHTS[stage] for stage, _, _ in knockout_today)
-    if not yesterday and not knockout_today:
-        return DayPolicy(on, 0.0, 0.0, focus, round(settings.agent_ceiling_rest_day_usd, 2))
-    ceiling = (
-        settings.agent_ceiling_base_usd
-        + results_weight * settings.agent_ceiling_per_result_usd
-        + knockout_weight * settings.agent_ceiling_knockout_today_usd
-        + (settings.agent_ceiling_focus_bonus_usd if focus else 0.0)
-    )
-    capped = min(ceiling, settings.agent_ceiling_policy_max_usd, settings.agent_run_ceiling_max_usd)
-    return DayPolicy(on, results_weight, knockout_weight, focus, round(capped, 2))
+def _group_concludes(fmt: FormatData, on: date) -> bool:
+    by_group: dict[str, str] = {}
+    for m in fmt.group_matches:
+        by_group[m.group] = max(by_group.get(m.group, ""), m.date[:10])
+    return on.isoformat() in by_group.values() and bool(_group_games_on(fmt, on))
 
 
-def agent_ceiling(settings: Settings, fmt: FormatData, *, on: date, fixtures: Sequence[MatchFixture] = ()) -> float:
-    return day_policy(settings, fmt, on=on, fixtures=fixtures).ceiling_usd
+def day_policy(settings: Settings, fmt: FormatData, *, on: date) -> DayPolicy:
+    knockout_stages = {m.stage for m in fmt.knockout if m.date[:10] == on.isoformat()}
+    group_games = _group_games_on(fmt, on)
+    big = big_team_ids(settings, fmt)
+    playing = {m.home for m in group_games} | {m.away for m in group_games}
+    big_today = tuple(sorted(playing & big))
+
+    if knockout_stages & _LATE_STAGES:
+        phase: Phase = "qf_final"
+        ceiling = settings.agent_ceiling_qf_final_usd
+    elif knockout_stages:
+        phase = "r32_r16"
+        ceiling = settings.agent_ceiling_r32_r16_usd
+    elif not group_games:
+        phase = "rest"
+        ceiling = settings.agent_ceiling_rest_usd
+    elif on <= _first_group_date(fmt) + timedelta(days=_OPENING_DAYS - 1):
+        phase = "opening"
+        ceiling = settings.agent_ceiling_opening_usd
+    elif big_today or _group_concludes(fmt, on) or len(group_games) >= _BIG_SLATE_GAMES:
+        phase = "big_group"
+        ceiling = settings.agent_ceiling_big_group_usd
+    else:
+        phase = "group"
+        ceiling = settings.agent_ceiling_group_usd
+    capped = min(ceiling, settings.agent_run_ceiling_max_usd)
+    return DayPolicy(on, phase, round(capped, 2), big_today)
+
+
+def agent_ceiling(settings: Settings, fmt: FormatData, *, on: date) -> float:
+    return day_policy(settings, fmt, on=on).ceiling_usd
+
+
+def _first_group_date(fmt: FormatData) -> date:
+    return date.fromisoformat(min(m.date[:10] for m in fmt.group_matches))
 
 
 def _calendar_dates(fmt: FormatData) -> list[date]:
@@ -99,18 +98,12 @@ def main() -> None:
     parser.parse_args()
     settings = Settings()
     fmt = load_format(settings.data_dir)
-    print(f"{'date':<12}{'games':>6}{'ko today':>9}{'focus':>7}{'ceiling':>9}  kickoffs (UTC)")
+    print(f"{'date':<12}{'games':>6}{'phase':>11}{'ceiling':>9}  big teams playing")
     for on in _calendar_dates(fmt):
         policy = day_policy(settings, fmt, on=on)
-        today = _games_on(fmt, on)
-        kickoffs = sorted(
-            {m.date[11:16] for m in fmt.group_matches if m.date[:10] == on.isoformat()}
-            | {m.date[11:16] for m in fmt.knockout if m.date[:10] == on.isoformat()}
-        )
-        focus = "yes" if policy.focus_involved else ""
+        games = len(_group_games_on(fmt, on)) + sum(1 for m in fmt.knockout if m.date[:10] == on.isoformat())
         print(
-            f"{on.isoformat():<12}{len(today):>6}{policy.knockout_weight:>9.1f}{focus:>7}"
-            f"{policy.ceiling_usd:>9.2f}  {' '.join(kickoffs)}"
+            f"{on.isoformat():<12}{games:>6}{policy.phase:>11}{policy.ceiling_usd:>9.2f}  {' '.join(policy.big_teams)}"
         )
     now = datetime.now(UTC).date()
     print(f"\ntoday ({now.isoformat()}): ceiling ${agent_ceiling(settings, fmt, on=now):.2f}")

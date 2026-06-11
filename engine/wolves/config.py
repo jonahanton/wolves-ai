@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     graph_quant_model: str = ""
     graph_forecast_model: str = ""
     graph_critic_model: str = "claude-haiku-4-5"
+    # Master plans visibly better on Opus for ~$0.30 a run; empty inherits fast_model.
+    graph_master_model: str = "claude-opus-4-8"
     # Candidate scoring is mechanical; the cheap tier is enough.
     relevance_model: str = "claude-haiku-4-5"
 
@@ -59,14 +61,15 @@ class Settings(BaseSettings):
     live_idle_interval_s: float = 900.0
     live_idle_grace_hours: float = 6.0
 
-    # Calendar-aware agent spend (wolves/run_policy.py): base plus
-    # stage-weighted yesterday results and knockout stakes today.
-    agent_ceiling_base_usd: float = 0.75
-    agent_ceiling_rest_day_usd: float = 0.50
-    agent_ceiling_per_result_usd: float = 0.10
-    agent_ceiling_knockout_today_usd: float = 0.40
-    agent_ceiling_focus_bonus_usd: float = 0.50
-    agent_ceiling_policy_max_usd: float = 4.00
+    # Calendar-aware agent spend (wolves/run_policy.py): the day's phase
+    # sets the ceiling, front-loaded into the opening week.
+    agent_ceiling_opening_usd: float = 5.00
+    agent_ceiling_big_group_usd: float = 4.00
+    agent_ceiling_group_usd: float = 2.00
+    agent_ceiling_rest_usd: float = 2.00
+    agent_ceiling_r32_r16_usd: float = 4.00
+    agent_ceiling_qf_final_usd: float = 5.00
+    agent_big_team_count: int = 8
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
     article_cache_max_age_hours: float = 48.0
