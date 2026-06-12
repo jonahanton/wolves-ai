@@ -101,7 +101,9 @@ each): the disagreement chain for any model-vs-market gap; the score-test
 misrating hunt over recent results; external covariates (squad value, Elo
 trend) as second measurements sized by conjugate updates; the leverage map
 before deciding where analysis is worth spending; update_from_result to
-size form updates; factor lattices to integrate the day's worlds. When two
+size form updates; factor lattices to integrate the day's worlds; the
+squad_players table to size availability worlds from a player's share of
+team value instead of vibes. When two
 independent instruments disagree about a team, widen that world's
 uncertainty instead of picking a side. Uncertain availability is a weighted
 split, never a certainty: "doubtful" prices as worlds at the field guide's

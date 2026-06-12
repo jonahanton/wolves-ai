@@ -335,6 +335,12 @@ Decline briefs built on these; the citation is the finding:
 - All-time great absent: 5 to 10pp win probability, ~0.15 to 0.25 goals
   (weak: market-revealed, not peer-reviewed; label as a prior).
 - Normal starter absent: an order of magnitude less (weak).
+- Value-share bridge for tournament-long absence: a player who is share s of
+  squad value (squad_players table) shifts log(value) by log(1-s); times the
+  fitted value-prior slope (regress teams.elo on log squad_value_eur_m in wq)
+  times the 0.45 blend weight gives an Elo-point ceiling for the absence
+  world. A principled anchor beside the managed/out magnitudes (moderate:
+  arithmetic on the engine's own prior).
 - Shootouts 50/50; at most ~55/45 on extreme squad-value gaps (strong null).
 - Outright market vs Elo at match level: market better by 0.031 nats per
   match (95% CI 0.001 to 0.062, n=230): weight it meaningfully, never defer
