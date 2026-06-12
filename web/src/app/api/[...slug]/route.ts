@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+const ADMIN_COOKIE = "wolves-admin";
+
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 const BACKEND_ORIGIN = new URL(BACKEND_URL).origin;
 
@@ -50,8 +52,9 @@ async function proxyRequest(request: NextRequest, context: RouteContext): Promis
     if (value) headers.set(name, value);
   }
   if (slug[0] === ADMIN_PREFIX) {
-    const value = request.headers.get("authorization");
-    if (value) headers.set("authorization", value);
+    const token = request.cookies.get(ADMIN_COOKIE)?.value;
+    if (!token) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    headers.set("authorization", `Bearer ${token}`);
   }
 
   const options: RequestInit = {
