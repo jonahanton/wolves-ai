@@ -61,7 +61,6 @@ data "aws_iam_policy_document" "backend_task" {
       "${var.bucket_arn}/odds-archive/*",
       "${var.bucket_arn}/snapshots/*",
       "${var.bucket_arn}/models/fitted/*",
-      "${var.bucket_arn}/runs/*",
     ]
   }
 

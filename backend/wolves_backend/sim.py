@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from collections import OrderedDict
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
     from wolves.insights.market_gaps import MarketGaps
     from wolves.insights.path_tree import PathTree
     from wolves.run_policy import DayPolicy
+    from wolves.sim.format import PlayedResult
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,16 @@ class Pin:
         self.away_goals = away_goals
 
 
+@dataclass(frozen=True)
+class _Fit:
+    """One immutable serving state; requests snapshot it so a refresh mid-sim cannot mix states."""
+
+    forecaster: Forecaster
+    fitted_id: str
+    results: dict[int, PlayedResult]
+    revision: int
+
+
 class EngineService:
     """Boots from the published fitted-state artifact, refitting only when absent."""
 
@@ -72,14 +85,13 @@ class EngineService:
         self._artifacts = ArtifactStore(settings)
         self._fitted_store = FittedStateStore(self._artifacts)
         self._semaphore = asyncio.Semaphore(MAX_CONCURRENT_SIMS)
+        self._lock = threading.Lock()
         self._cache: OrderedDict[tuple[Any, ...], Any] = OrderedDict()
-        self._forecaster: Forecaster | None = None
-        self._fitted_id = ""
-        self._results: dict[int, Any] = {}
+        self._fit: _Fit | None = None
 
     @property
     def ready(self) -> bool:
-        return self._forecaster is not None
+        return self._fit is not None
 
     @property
     def settings(self) -> EngineSettings:
@@ -87,13 +99,17 @@ class EngineService:
 
     @property
     def fitted_id(self) -> str:
-        return self._fitted_id
+        return self._snapshot().fitted_id
 
     @property
     def forecaster(self) -> Forecaster:
-        if self._forecaster is None:
+        return self._snapshot().forecaster
+
+    def _snapshot(self) -> _Fit:
+        fit = self._fit
+        if fit is None:
             raise EngineNotReadyError
-        return self._forecaster
+        return fit
 
     async def run(self, *, refresh_interval_s: float) -> None:
         """Boot, then keep the fitted state aligned with the published pointer."""
@@ -113,80 +129,69 @@ class EngineService:
 
     def _boot(self) -> None:
         forecaster = Forecaster(self._settings)
+        fitted_id = ""
         pointer = self._fitted_store.latest_pointer()
         if pointer is not None:
             state = self._fitted_store.load(run_id=pointer.run_id)
             if state is not None:
                 forecaster.restore(state)
-                self._fitted_id = pointer.run_id
+                fitted_id = pointer.run_id
         if not forecaster.is_fitted:
             forecaster.fit(extra_results=played_match_records(self._settings))
-            self._fitted_id = f"local-fit-{forecaster.state.as_of.isoformat()}"
+            fitted_id = f"local-fit-{forecaster.state.as_of.isoformat()}"
             logger.info("no fitted-state artifact; fitted from the dataset")
-        self._results = load_results(self._settings.data_dir, settings=self._settings)
-        self._forecaster = forecaster
-        logger.info("engine ready: fitted state %s (%s)", self._fitted_id, forecaster.state.model_id)
+        results = load_results(self._settings.data_dir, settings=self._settings)
+        with self._lock:
+            revision = self._fit.revision + 1 if self._fit else 0
+            self._fit = _Fit(forecaster, fitted_id, results, revision)
+        logger.info("engine ready: fitted state %s (%s)", fitted_id, forecaster.state.model_id)
 
     async def refresh(self) -> None:
         await asyncio.to_thread(self._refresh)
 
     def _refresh(self) -> None:
-        if self._forecaster is None:
+        fit = self._fit
+        if fit is None:
             self._boot()
             return
         pointer = self._fitted_store.latest_pointer()
         results = load_results(self._settings.data_dir, settings=self._settings)
-        changed = results != self._results
-        if pointer is not None and pointer.run_id != self._fitted_id:
+        forecaster, fitted_id = fit.forecaster, fit.fitted_id
+        if pointer is not None and pointer.run_id != fit.fitted_id:
             state = self._fitted_store.load(run_id=pointer.run_id)
             if state is not None:
-                self._forecaster.restore(state)
-                self._fitted_id = pointer.run_id
-                changed = True
+                forecaster = Forecaster(self._settings)
+                forecaster.restore(state)
+                fitted_id = pointer.run_id
                 logger.info("engine refreshed to fitted state %s", pointer.run_id)
-        if changed:
-            self._results = results
-            self._cache.clear()
+        if fitted_id == fit.fitted_id and results == fit.results:
+            return
+        with self._lock:
+            self._fit = _Fit(forecaster, fitted_id, results, fit.revision + 1)
 
     async def simulate_pins(self, pins: list[Pin], *, n_sims: int, seed: int) -> dict[str, Any]:
         """CRN-paired baseline and pinned reach probabilities from one fitted state."""
-        if self._forecaster is None:
-            raise EngineNotReadyError
+        fit = self._snapshot()
         for pin in pins:
-            if pin.match in self._results:
+            if pin.match in fit.results:
                 raise MatchAlreadyPlayedError(pin.match)
-        pinned_key = tuple(sorted((p.match, p.home_goals, p.away_goals) for p in pins))
-        baseline = await self._cached(
-            ("reach", self._fitted_id, (), n_sims, seed), lambda: self._reach((), n_sims, seed)
-        )
-        pinned = (
-            await self._cached(
-                ("reach", self._fitted_id, pinned_key, n_sims, seed), lambda: self._reach(pins, n_sims, seed)
-            )
-            if pins
-            else baseline
-        )
+        baseline = await self._reach_cached(fit, (), n_sims=n_sims, seed=seed)
+        pinned = await self._reach_cached(fit, pins, n_sims=n_sims, seed=seed) if pins else baseline
         return {
-            "engine": self._engine_block(n_sims=n_sims, seed=seed),
+            "engine": self._engine_block(fit, n_sims=n_sims, seed=seed),
             "baseline": baseline,
             "pinned": pinned,
         }
 
     async def scores_hold(self, held: list[Pin], *, n_sims: int, seed: int = 0) -> dict[str, Any]:
         """Champion-probability deltas if every in-play score becomes the final one."""
-        if self._forecaster is None:
-            raise EngineNotReadyError
-        held_key = tuple(sorted((p.match, p.home_goals, p.away_goals) for p in held))
-        baseline = await self._cached(
-            ("reach", self._fitted_id, (), n_sims, seed), lambda: self._reach((), n_sims, seed)
-        )
-        held_reach = await self._cached(
-            ("reach", self._fitted_id, held_key, n_sims, seed), lambda: self._reach(held, n_sims, seed)
-        )
+        fit = self._snapshot()
+        baseline = await self._reach_cached(fit, (), n_sims=n_sims, seed=seed)
+        held_reach = await self._reach_cached(fit, held, n_sims=n_sims, seed=seed)
         base = {team: reach["champion"] for team, reach in baseline.items()}
         hold = {team: reach["champion"] for team, reach in held_reach.items()}
         return {
-            "fitted_run_id": self._fitted_id,
+            "fitted_run_id": fit.fitted_id,
             "n_sims": n_sims,
             "baseline": base,
             "held": hold,
@@ -194,37 +199,45 @@ class EngineService:
         }
 
     async def match_grid(self, match: int) -> dict[str, Any]:
-        forecaster = self.forecaster
-        return await self._cached(("grid", self._fitted_id, match), lambda: self._grid(forecaster, match))
+        fit = self._snapshot()
+        return await self._cached(("grid", fit.revision, match), lambda: self._grid(fit, match))
 
     async def team_paths(self, team: str, *, view: Literal["reach", "title"]) -> PathTree:
-        forecaster = self.forecaster
-        self._require_team(forecaster, team)
+        fit = self._snapshot()
+        self._require_team(fit.forecaster, team)
         n_sims = self._settings.publish_n_sims
         return await self._cached(
-            ("paths", self._fitted_id, team, view, n_sims),
-            lambda: team_path_tree(forecaster, team, view=view, results=self._results, n_sims=n_sims),
+            ("paths", fit.revision, team, view, n_sims),
+            lambda: team_path_tree(fit.forecaster, team, view=view, results=fit.results, n_sims=n_sims),
         )
 
     async def team_explain(self, team: str) -> StrengthExplanation:
-        forecaster = self.forecaster
-        self._require_team(forecaster, team)
-        return await self._cached(("explain", self._fitted_id, team), lambda: model_explain(forecaster, team))
+        fit = self._snapshot()
+        self._require_team(fit.forecaster, team)
+        return await self._cached(("explain", fit.revision, team), lambda: model_explain(fit.forecaster, team))
 
     async def market_gaps(self) -> MarketGaps:
-        forecaster = self.forecaster
+        fit = self._snapshot()
         archive_dir = self._settings.runs_root / ODDS_SNAPSHOT.prefix
         marker = await asyncio.to_thread(self._latest_series_marker, archive_dir)
         n_sims = self._settings.publish_n_sims
         return await self._cached(
-            ("market-gaps", self._fitted_id, marker, n_sims),
-            lambda: market_gaps(forecaster, archive_dir, results=self._results, n_sims=n_sims),
+            ("market-gaps", fit.revision, marker, n_sims),
+            lambda: market_gaps(fit.forecaster, archive_dir, results=fit.results, n_sims=n_sims),
         )
 
     async def run_policy(self) -> dict[str, Any]:
-        forecaster = self.forecaster
+        fit = self._snapshot()
         today = datetime.now(UTC).date()
-        return await self._cached(("run-policy", today.isoformat()), lambda: self._run_policy(forecaster, today))
+        return await self._cached(
+            ("run-policy", fit.revision, today.isoformat()), lambda: self._run_policy(fit.forecaster, today)
+        )
+
+    async def _reach_cached(
+        self, fit: _Fit, pins: list[Pin] | tuple[()], *, n_sims: int, seed: int
+    ) -> dict[str, dict[str, float]]:
+        key = ("reach", fit.revision, tuple(sorted((p.match, p.home_goals, p.away_goals) for p in pins)), n_sims, seed)
+        return await self._cached(key, lambda: self._reach(fit, pins, n_sims, seed))
 
     def _run_policy(self, forecaster: Forecaster, today: date) -> dict[str, Any]:
         fmt = forecaster.fmt
@@ -251,34 +264,34 @@ class EngineService:
         names = sorted(archive_dir.glob("*/*.series.json"))
         return names[-1].name if names else ""
 
-    def _engine_block(self, *, n_sims: int, seed: int) -> dict[str, Any]:
-        state = self.forecaster.state
+    @staticmethod
+    def _engine_block(fit: _Fit, *, n_sims: int, seed: int) -> dict[str, Any]:
+        state = fit.forecaster.state
         return {
-            "fitted_run_id": self._fitted_id,
+            "fitted_run_id": fit.fitted_id,
             "model_id": state.model_id,
             "as_of": state.as_of.isoformat(),
             "n_sims": n_sims,
             "seed": seed,
         }
 
-    def _reach(self, pins: list[Pin] | tuple[()], n_sims: int, seed: int) -> dict[str, dict[str, float]]:
-        forecaster = self.forecaster
+    def _reach(self, fit: _Fit, pins: list[Pin] | tuple[()], n_sims: int, seed: int) -> dict[str, dict[str, float]]:
         perturbations = tuple(
             ScorelinePerturbation(match=p.match, home_goals=p.home_goals, away_goals=p.away_goals, reason="api pin")
             for p in pins
         )
-        result = forecaster.simulate(
+        result = fit.forecaster.simulate(
             n_sims=n_sims,
             seed=seed,
             perturbations=perturbations,
-            results=self._results,
+            results=fit.results,
             parameter_uncertainty=False,
         )
-        return build_team_reach(forecaster.fmt, result)
+        return build_team_reach(fit.forecaster.fmt, result)
 
-    def _grid(self, forecaster: Forecaster, match: int) -> dict[str, Any]:
-        home, away, stage = self._fixture_teams(forecaster, match)
-        grid = forecaster.score_grid(home, away, match=match)
+    def _grid(self, fit: _Fit, match: int) -> dict[str, Any]:
+        home, away, stage = self._fixture_teams(fit.forecaster, match)
+        grid = fit.forecaster.score_grid(home, away, match=match)
         return {
             "match": match,
             "stage": stage,
@@ -288,7 +301,7 @@ class EngineService:
             "p_home": round(grid.p_home, 4),
             "p_draw": round(grid.p_draw, 4),
             "p_away": round(grid.p_away, 4),
-            "fitted_run_id": self._fitted_id,
+            "fitted_run_id": fit.fitted_id,
         }
 
     def _fixture_teams(self, forecaster: Forecaster, match: int) -> tuple[str, str, str]:
@@ -311,11 +324,13 @@ class EngineService:
             return await asyncio.to_thread(fn)
 
     async def _cached(self, key: tuple[Any, ...], compute: Callable[[], Any]) -> Any:
-        if key in self._cache:
-            self._cache.move_to_end(key)
-            return self._cache[key]
+        with self._lock:
+            if key in self._cache:
+                self._cache.move_to_end(key)
+                return self._cache[key]
         value = await self.run_blocking(compute)
-        self._cache[key] = value
-        if len(self._cache) > SIM_CACHE_SIZE:
-            self._cache.popitem(last=False)
+        with self._lock:
+            self._cache[key] = value
+            if len(self._cache) > SIM_CACHE_SIZE:
+                self._cache.popitem(last=False)
         return value

@@ -39,17 +39,16 @@ async def state(request: Request, deps: DepsDep) -> Response:
         live = LiveState.model_validate_json(raw)
     except ValidationError as exc:
         raise HTTPException(status_code=502, detail="live state is malformed") from exc
-    body = raw
+    # Always re-serialised compactly so the ETag is stable across engine readiness.
+    payload = json.loads(raw)
     held = _held_pins(live)
     if held and deps.engine.ready:
         # Scores-hold is garnish; a sim failure must never take down /live.
         try:
-            hold = await deps.engine.scores_hold(held, n_sims=deps.engine.settings.n_sims)
-            payload = json.loads(raw)
-            payload["scores_hold"] = hold
-            body = json.dumps(payload, separators=(",", ":"))
+            payload["scores_hold"] = await deps.engine.scores_hold(held, n_sims=deps.engine.settings.n_sims)
         except Exception:
             logger.exception("scores-hold failed; serving the raw live state")
+    body = json.dumps(payload, separators=(",", ":"))
     etag = f'"{hashlib.md5(body.encode("utf-8")).hexdigest()}"'
     headers = {"ETag": etag, "Cache-Control": "no-cache"}
     if request.headers.get("if-none-match") == etag:

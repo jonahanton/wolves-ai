@@ -61,6 +61,7 @@ class LiveLoop:
             await asyncio.sleep(await asyncio.to_thread(self._interval))
 
     def _pass(self) -> bool:
+        # live_pass mixes async polling with inline numpy; a worker-thread loop keeps it off the API's.
         return asyncio.run(self._pass_async())
 
     async def _pass_async(self) -> bool:
