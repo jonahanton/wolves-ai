@@ -25,7 +25,7 @@ ADMIN_TOKEN = "test-admin-token"
 ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 DAILY_FAMILY = "wolves-engine-daily"
-ARCHIVE_FAMILY = "wolves-engine-archive"
+AGENT_FAMILY = "wolves-engine-agent"
 
 
 class FakeBody:
@@ -140,7 +140,7 @@ def build_test_app(
         admin_token=admin_token,
         bucket="test-bucket" if s3 is not None else "",
         storage_dir=storage_dir or Path("/nonexistent"),
-        ecs_archive_task_definition=ARCHIVE_FAMILY,
+        ecs_agent_task_definition=AGENT_FAMILY,
         ecs_subnets="subnet-1,subnet-2",
         ecs_security_group="sg-1",
         ecs_cluster_arn="arn:aws:ecs:eu-west-2:000000000000:cluster/wolves",
@@ -157,11 +157,7 @@ def build_test_app(
         engine_tasks=EngineTasks(
             cluster_arn=settings.ecs_cluster_arn,
             task_definition=settings.ecs_task_definition,
-            extra_task_families=(
-                settings.ecs_archive_task_definition,
-                settings.ecs_agent_task_definition,
-                settings.ecs_live_task_definition,
-            ),
+            extra_task_families=(settings.ecs_agent_task_definition,),
             subnets=settings.subnet_ids,
             security_group=settings.ecs_security_group,
             region="eu-west-2",

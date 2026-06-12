@@ -123,30 +123,22 @@ module "engine" {
 module "scheduler" {
   source = "../../modules/scheduler"
 
-  project                        = var.project
-  region                         = var.region
-  account_id                     = data.aws_caller_identity.current.account_id
-  cluster_arn                    = aws_ecs_cluster.this.arn
-  task_definition_arn            = module.engine.task_definition_arn
-  task_definition_family         = module.engine.task_definition_family
-  archive_task_definition_arn    = module.engine.archive_task_definition_arn
-  archive_task_definition_family = module.engine.archive_task_definition_family
-  agent_task_definition_arn      = module.engine.agent_task_definition_arn
-  agent_task_definition_family   = module.engine.agent_task_definition_family
-  live_task_definition_arn       = module.engine.live_task_definition_arn
-  live_task_definition_family    = module.engine.live_task_definition_family
-  task_role_arn                  = module.engine.task_role_arn
-  task_execution_role_arn        = module.engine.task_execution_role_arn
-  subnets                        = data.aws_subnets.default.ids
-  security_group_id              = module.engine.security_group_id
-  initial_state                  = var.schedule_state
-  initial_cron                   = var.schedule_cron
-  archive_initial_state          = var.archive_schedule_state
-  archive_initial_cron           = var.archive_schedule_cron
-  agent_initial_state            = var.agent_schedule_state
-  agent_schedule_windows         = var.agent_schedule_windows
-  live_initial_state             = var.live_schedule_state
-  live_initial_cron              = var.live_schedule_cron
+  project                      = var.project
+  region                       = var.region
+  account_id                   = data.aws_caller_identity.current.account_id
+  cluster_arn                  = aws_ecs_cluster.this.arn
+  task_definition_arn          = module.engine.task_definition_arn
+  task_definition_family       = module.engine.task_definition_family
+  agent_task_definition_arn    = module.engine.agent_task_definition_arn
+  agent_task_definition_family = module.engine.agent_task_definition_family
+  task_role_arn                = module.engine.task_role_arn
+  task_execution_role_arn      = module.engine.task_execution_role_arn
+  subnets                      = data.aws_subnets.default.ids
+  security_group_id            = module.engine.security_group_id
+  initial_state                = var.schedule_state
+  initial_cron                 = var.schedule_cron
+  agent_initial_state          = var.agent_schedule_state
+  agent_schedule_windows       = var.agent_schedule_windows
 }
 
 module "backend_api" {
@@ -169,7 +161,6 @@ module "backend_api" {
   scheduler_role_arn            = module.scheduler.scheduler_role_arn
   engine_task_definition_family = module.engine.task_definition_family
   agent_task_definition_family  = module.engine.agent_task_definition_family
-  live_task_definition_family   = module.engine.live_task_definition_family
   engine_task_role_arn          = module.engine.task_role_arn
   engine_security_group_id      = module.engine.security_group_id
   task_execution_role_arn       = module.engine.task_execution_role_arn
@@ -201,11 +192,11 @@ module "alerting" {
   github_ops_role_arn   = module.release_oidc.ops_role_arn
   github_ops_role_name  = module.release_oidc.ops_role_name
   cluster_arn           = aws_ecs_cluster.this.arn
+  # The live and archive families came home to the backend process; only the
+  # ECS-launched families can still fail as tasks.
   engine_task_definition_families = [
     module.engine.task_definition_family,
-    module.engine.archive_task_definition_family,
     module.engine.agent_task_definition_family,
-    module.engine.live_task_definition_family,
   ]
 }
 

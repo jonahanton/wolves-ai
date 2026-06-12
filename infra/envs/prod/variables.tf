@@ -33,23 +33,6 @@ variable "schedule_cron" {
   default     = "cron(0 11 * * ? *)"
 }
 
-variable "archive_schedule_state" {
-  description = "Creation-time archive schedule state. Disabled by default for the same first-apply reason as schedule_state."
-  type        = string
-  default     = "DISABLED"
-
-  validation {
-    condition     = contains(["ENABLED", "DISABLED"], var.archive_schedule_state)
-    error_message = "archive_schedule_state must be ENABLED or DISABLED."
-  }
-}
-
-variable "archive_schedule_cron" {
-  description = "Creation-time odds archive cron (UTC)."
-  type        = string
-  default     = "cron(0 8,14,18,22 * * ? *)"
-}
-
 variable "agent_schedule_state" {
   description = "Creation-time agent schedule state. Disabled by default for the same first-apply reason as schedule_state; enabling is an explicit operational act (see infra/RUNBOOK.md)."
   type        = string
@@ -74,23 +57,6 @@ variable "agent_schedule_windows" {
     { name = "us-trip", cron = "cron(0 10 * * ? *)", start = "2026-06-24T00:00:00Z", end = "2026-07-13T23:59:59Z" },
     { name = "uk-finals", cron = "cron(30 6 * * ? *)", start = "2026-07-14T00:00:00Z" },
   ]
-}
-
-variable "live_schedule_state" {
-  description = "Creation-time live window schedule state. Disabled by default for the same first-apply reason as schedule_state."
-  type        = string
-  default     = "DISABLED"
-
-  validation {
-    condition     = contains(["ENABLED", "DISABLED"], var.live_schedule_state)
-    error_message = "live_schedule_state must be ENABLED or DISABLED."
-  }
-}
-
-variable "live_schedule_cron" {
-  description = "Creation-time live window cron (UTC); 15:00 precedes the earliest 16:00 kickoff and the task exits itself when idle."
-  type        = string
-  default     = "cron(0 15 * * ? *)"
 }
 
 variable "run_policy" {

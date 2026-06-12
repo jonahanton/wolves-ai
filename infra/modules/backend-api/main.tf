@@ -214,7 +214,6 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "ECS_CLUSTER_ARN", value = var.cluster_arn },
         { name = "ECS_TASK_DEFINITION", value = var.engine_task_definition_family },
         { name = "ECS_AGENT_TASK_DEFINITION", value = var.agent_task_definition_family },
-        { name = "ECS_LIVE_TASK_DEFINITION", value = var.live_task_definition_family },
         { name = "ECS_SUBNETS", value = join(",", var.subnets) },
         { name = "ECS_SECURITY_GROUP", value = var.engine_security_group_id },
         { name = "AGENT_CEILING_OPENING_USD", value = tostring(var.run_policy.agent_ceiling_opening_usd) },

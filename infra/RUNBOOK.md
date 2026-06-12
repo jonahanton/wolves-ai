@@ -77,7 +77,7 @@ Tag and push:
 git tag prod-<version> && git push origin prod-<version>
 ```
 
-`release.yml` builds and pushes the engine and backend images and registers fresh `wolves-engine-daily` and `wolves-engine-archive` task definition revisions. The backend service roll step is harmless at desired count 0.
+`release.yml` builds and pushes the engine and backend images and registers fresh `wolves-engine-daily` and `wolves-engine-agent` task definition revisions. The backend service roll step is harmless at desired count 0.
 
 ### 8. Start the backend and set BACKEND_URL
 
@@ -109,16 +109,9 @@ Set the GitHub secret `BACKEND_URL` to `http://<ip>:8080`. Known limitation: thi
 Schedule state is runtime-owned (`ignore_changes`), so terraform will not flip it after creation.
 
 - Daily run: `schedule-control.yml` with `enabled=true`, or the backend admin API directly.
-- Odds archive: no admin API path; update in place:
+- Agent windows: `aws scheduler get-schedule --name <name>`, then `update-schedule --state ENABLED` re-submitting the existing expression, window, and target.
 
-```sh
-aws scheduler get-schedule --name wolves-odds-archive > sched.json
-# Re-submit the schedule with State=ENABLED, keeping all other fields.
-aws scheduler update-schedule --name wolves-odds-archive --state ENABLED \
-  --schedule-expression "$(jq -r .ScheduleExpression sched.json)" \
-  --flexible-time-window Mode=OFF \
-  --target "$(jq -c .Target sched.json)"
-```
+The live loop and odds archive run inside the backend process and need no schedule; they start with the service.
 
 ## Run schedules and policy
 
@@ -127,11 +120,11 @@ EventBridge schedules launch engine tasks, all created DISABLED and runtime-owne
 | Schedule | Task | Configuration |
 | --- | --- | --- |
 | `wolves-daily-run` | deterministic daily run | `schedule_cron` |
-| `wolves-odds-archive` | odds archive | `archive_schedule_cron` |
 | `wolves-agent-<window>` | agent run (ceiling derived from the calendar policy) | `agent_schedule_windows`: one date-windowed schedule per travel leg (uk-opening 06:30 UTC, us-trip 10:00 UTC for 24 Jun to 13 Jul, uk-finals 06:30 UTC) |
-| `wolves-live-window` | live polling loop, exits itself when idle | `live_schedule_cron` |
 
-The live state flags `schedule_drift` (and the live task logs a warning) whenever the provider's kickoff times diverge from `data/format/schedule.json`; correct the schedule files when it fires.
+The live loop and the odds archive are not scheduled tasks: they run as asyncio loops inside the backend service (`wolves_backend/jobs.py`), polling on the engine's cadence settings and capturing at the archive's UTC hours (`ARCHIVE_HOURS_UTC`). A failing pass publishes to `wolves-alerts` directly, rate-limited to one alert per job per hour. Because of those loops the backend must stay a single writer: `desired_count` above 1 is refused by the module. 0 still parks the service, which also parks live polling and archiving.
+
+The live state flags `schedule_drift` (and the live pass logs a warning) whenever the provider's kickoff times diverge from `data/format/schedule.json`; correct the schedule files when it fires.
 
 The `run_policy` variable in `infra/envs/prod/variables.tf` is the spend-policy configuration surface: agent ceilings and live polling cadence, rendered into every engine task's environment. To see the calendar the engine derives from it, run from a directory with `.env`:
 
@@ -158,4 +151,17 @@ Then `admin-control.yml` action `stop-all` to clear anything still running, and 
 
 - Manually stopping an engine task triggers the failure alert email. Expected: the EventBridge rule matches any non-zero exit or failed start and cannot distinguish operator stops.
 - Secrets Manager blocks recreating a deleted secret name during the recovery window. On teardown, delete with `--force-delete-without-recovery` if the stack will be re-applied soon.
-- `run-engine.yml` refuses to dispatch while any `wolves-engine-daily` or `wolves-engine-archive` task is RUNNING or PENDING; pass `force=true` to override deliberately.
+- `run-engine.yml` refuses to dispatch while any `wolves-engine-daily` task is RUNNING or PENDING; pass `force=true` to override deliberately.
+- The backend serves engine sims in-process. After a deploy it boots from `models/fitted/latest.json` (falling back to a fresh fit from the dataset); engine routes return 503 until that completes, while `/healthz` and the artifact routes serve immediately.
+
+## Consolidation rollout (one-off)
+
+The backend-engine consolidation lands in two terraform points on the same branch; the deletions must not be applied until the consolidated backend has burned in.
+
+1. Apply at the additive commit ("Size the backend for the engine: ..."): `git checkout <that commit> && terraform -chdir=infra/envs/prod apply && git checkout main`. This grows the backend task (1 vCPU/2GB), grants it the live-data secrets, S3 writes and `sns:Publish`, and leaves every old schedule and task definition in place.
+2. Release the consolidated images (tag `prod-<version>`), confirm the backend boots and `/live` updates.
+3. Disable the `wolves-live-window` schedule (`update-schedule --state DISABLED`) so the ECS live task and the in-process loop do not double-poll. The odds archive schedule may stay enabled during burn-in: duplicate captures land on second-granularity keys and are harmless.
+4. Watch a full match day: live state cadence, a post-FT publish, archive captures at 08/14/18/22 UTC, and the daily run (still on ECS, untouched).
+5. Apply HEAD to delete the `live_window` and `odds_archive` schedules, the `wolves-engine-live` and `wolves-engine-archive` task definitions, and to narrow the ECS failure alert to the daily and agent families.
+
+Rollback before step 5 is a redeploy of the previous backend image plus re-enabling a schedule. After step 5, re-creating the deleted resources means re-applying the additive commit.

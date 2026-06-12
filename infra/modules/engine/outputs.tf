@@ -14,28 +14,12 @@ output "task_definition_family" {
   value = aws_ecs_task_definition.daily.family
 }
 
-output "archive_task_definition_arn" {
-  value = aws_ecs_task_definition.archive.arn
-}
-
-output "archive_task_definition_family" {
-  value = aws_ecs_task_definition.archive.family
-}
-
 output "agent_task_definition_arn" {
   value = aws_ecs_task_definition.agent.arn
 }
 
 output "agent_task_definition_family" {
   value = aws_ecs_task_definition.agent.family
-}
-
-output "live_task_definition_arn" {
-  value = aws_ecs_task_definition.live.arn
-}
-
-output "live_task_definition_family" {
-  value = aws_ecs_task_definition.live.family
 }
 
 output "task_role_arn" {
