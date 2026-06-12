@@ -12,7 +12,13 @@ import { loadMarketReach } from "@/lib/market-reach";
 import { loadResults } from "@/lib/results";
 import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
 
-const SERIES_COLOURS = ["oklch(0.6 0.06 250)", "oklch(0.965 0.008 95 / 0.34)", "oklch(0.965 0.008 95 / 0.25)", "oklch(0.965 0.008 95 / 0.22)"];
+// One red protagonist (the focus team); the rest of the field recedes to greys.
+const SERIES_COLOURS = [
+  "oklch(0.965 0.008 95 / 0.52)",
+  "oklch(0.965 0.008 95 / 0.36)",
+  "oklch(0.965 0.008 95 / 0.27)",
+  "oklch(0.965 0.008 95 / 0.22)",
+];
 
 export default async function LandingPage() {
   const [result, indexResult, marketReachResult, resultsResult] = await Promise.all([

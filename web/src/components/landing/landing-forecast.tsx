@@ -104,15 +104,21 @@ export function LandingForecast(props: LandingForecastProps) {
       <HeroVideo />
 
       <section className="relative">
-        <div className="wrap pt-[clamp(16px,2.5vh,30px)] pb-[clamp(40px,6vh,68px)]">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-1">
+        <div className="wrap pt-[clamp(14px,2.5vh,28px)] pb-[clamp(32px,5vh,56px)]">
+          <div className="flex items-baseline justify-between gap-x-8">
             <Kicker className="mb-0!">World Cup winner</Kicker>
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-cream-faint">Run {runLabelNb}</span>
           </div>
-          <div className="mt-3 mb-5 text-[clamp(19px,2.6vw,26px)] font-light tracking-[-0.01em] text-cream">
+          <h1 className="mt-3 mb-5 text-[clamp(24px,3.6vw,38px)] font-light tracking-[-0.015em] text-cream">
             Chance of {outcomeMeta.phrase}
-          </div>
-          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-hairline pb-1">
+          </h1>
+          <ForecastChart
+            data={data}
+            source={source}
+            outcome={outcome}
+            ariaLabel={`Chance of ${outcomeMeta.phrase} over time, ${source === "wolves" ? "the Wolves forecast" : "the market"}`}
+          />
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-x-8 gap-y-4 border-t border-hairline pt-4">
             <ToggleTabs
               options={OUTCOMES.map((o) => ({
                 key: o.key,
@@ -129,15 +135,7 @@ export function LandingForecast(props: LandingForecastProps) {
             />
             <ToggleTabs options={SOURCES} value={source} onChange={setSource} ariaLabel="Forecast source" />
           </div>
-          <div className="mt-5">
-            <ForecastChart
-              data={data}
-              source={source}
-              outcome={outcome}
-              ariaLabel={`Chance of ${outcomeMeta.phrase} over time, ${source === "wolves" ? "the Wolves forecast" : "the market"}`}
-            />
-          </div>
-          <div className="mt-3 font-mono text-[11.5px] text-cream-faint">{caption}</div>
+          <div className="mt-4 font-mono text-[11.5px] text-cream-faint">{caption}</div>
         </div>
       </section>
 
