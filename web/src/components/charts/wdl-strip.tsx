@@ -13,7 +13,7 @@ export function WdlStrip({ win, draw, lose, winLabel = "win", loseLabel = "lose"
   const pct = (v: number) => `${((v / total) * 100).toFixed(1)}%`;
   return (
     <div>
-      <div className="flex h-1 max-w-[880px] overflow-hidden rounded-pill bg-hairline">
+      <div className="flex h-[3px] max-w-[880px] overflow-hidden rounded-pill bg-hairline">
         <span className="bg-red" style={{ width: pct(win) }} />
         {draw !== null && <span className="bg-cream-faint" style={{ width: pct(draw) }} />}
         <span className="bg-slate" style={{ width: pct(lose) }} />

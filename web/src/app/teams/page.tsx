@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ErrorState } from "@/components/shell/error-state";
 import { Kicker } from "@/components/shell/kicker";
-import { formatPct1 } from "@/lib/format";
+import { formatPctFine } from "@/lib/format";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 
 interface TeamsPageProps {
@@ -16,10 +16,13 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
 
   const groups = [...new Set(snapshot.teams.map((t) => t.group))].sort();
   const selected = params.group?.toUpperCase();
-  const teams = snapshot.teams
+  const ranked = snapshot.teams
     .filter((t) => !selected || t.group === selected)
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0));
-  const barMax = Math.max(0.02, ...teams.map((t) => t.champion_prob ?? 0)) * 1.1;
+  const cut = selected ? ranked.length : ranked.findIndex((t) => (t.champion_prob ?? 0) < 0.001);
+  const teams = cut < 0 ? ranked : ranked.slice(0, cut);
+  const tail = cut < 0 ? [] : ranked.slice(cut);
+  const barMax = Math.max(0.02, ...ranked.map((t) => t.champion_prob ?? 0)) * 1.1;
 
   return (
     <section className="wrap py-16">
@@ -55,7 +58,7 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
               {team.name}
             </span>
             <span className="font-mono text-[12px] uppercase text-cream-faint">{team.group}</span>
-            <span className="font-mono text-[clamp(17px,2.4vw,21px)]">{formatPct1(team.champion_prob ?? 0)}</span>
+            <span className="font-mono text-[clamp(17px,2.4vw,21px)]">{formatPctFine(team.champion_prob ?? 0)}</span>
             <span className="relative col-span-full mt-1.5 h-[2px] rounded-pill bg-hairline">
               <i
                 className={`absolute inset-y-0 left-0 rounded-pill ${team.team_id === focusId ? "bg-red" : "bg-cream-dim"}`}
@@ -64,6 +67,11 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
             </span>
           </Link>
         ))}
+        {tail.length > 0 && (
+          <div className="border-b border-hairline py-3.5 font-mono text-[13px] text-cream-faint">
+            the other {tail.length} · all under 0.1% · filter by group to see them
+          </div>
+        )}
       </div>
     </section>
   );

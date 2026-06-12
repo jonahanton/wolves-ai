@@ -48,16 +48,18 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
             <Link
               key={ref.runId}
               href={`/runs/${ref.runId}`}
-              className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 border-b border-hairline py-4 font-mono text-[14px] sm:grid-cols-[1fr_auto_auto_auto]"
+              className={`grid items-baseline gap-x-4 border-b border-hairline py-4 font-mono text-[14px] ${records.size > 0 ? "grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto]" : "grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto]"}`}
             >
               <span className="truncate text-[15px] text-cream">{ref.runId}</span>
               <span className="hidden text-[11.5px] uppercase tracking-[0.1em] text-cream-faint sm:block">
                 {ref.kind}
               </span>
               <span className="hidden text-cream-faint sm:block">{formatUpdated(ref.asOf)}</span>
-              <span className={record?.status === "failed" ? "text-red" : "text-cream-dim"}>
-                {record ? (record.status === "failed" ? "failed" : `$${record.cost.toFixed(2)}`) : "—"}
-              </span>
+              {records.size > 0 && (
+                <span className={record?.status === "failed" ? "text-red" : "text-cream-dim"}>
+                  {record ? (record.status === "failed" ? "failed" : `$${record.cost.toFixed(2)}`) : ""}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -65,11 +67,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps) {
           <p className="py-4 font-mono text-[14px] text-cream-faint">no published runs of this kind</p>
         )}
       </div>
-      {records.size === 0 && (
-        <p className="mt-4 font-mono text-[12.5px] text-cream-faint">
-          run records unavailable here; costs and durations live in the run index
-        </p>
-      )}
+
     </section>
   );
 }

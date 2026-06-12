@@ -35,7 +35,10 @@ export function RoadSection({ snapshot, now }: RoadSectionProps) {
         <br />
         <b className="font-medium">{finalStep ? shortCity(finalStep.city) : "the final"}.</b>
       </h2>
-      <div className="mt-[clamp(28px,5vh,44px)] max-w-[880px]">
+      <p className="mt-[clamp(28px,5vh,44px)] font-mono text-[12px] text-cream-faint">
+        the modal path · %&nbsp;= chance of surviving each round
+      </p>
+      <div className="mt-2 max-w-[880px]">
         {path.map((step) => (
           <div
             key={step.round}

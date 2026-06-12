@@ -44,9 +44,14 @@ export default async function MatchPage({ params }: MatchPageProps) {
     ...rankedLedger(snapshot, 3, match.away_id),
   ].slice(0, 5);
 
+  const liveFixture = orNull(liveResult)?.fixtures.find((f) => f.match === matchNumber);
+  const underway = liveFixture
+    ? liveFixture.status !== "scheduled"
+    : new Date(match.date) < new Date();
   const day = match.date.slice(0, 10);
-  const history = orNull(await loadLiveHistory(day));
+  const history = underway ? orNull(await loadLiveHistory(day)) : null;
   const worm = history ? wormGeometry(history, matchNumber) : null;
+  const wormMobile = history ? wormGeometry(history, matchNumber, "mobile") : null;
 
   return (
     <>
@@ -81,10 +86,15 @@ export default async function MatchPage({ params }: MatchPageProps) {
 
       <MatchLivePanel initial={orNull(liveResult)} match={matchNumber} homeName={homeName} awayName={awayName} />
 
-      {worm && (
+      {worm && wormMobile && (
         <section className="wrap border-t border-hairline py-14">
           <Kicker>How it has run</Kicker>
-          <WormChart geometry={worm} homeName={homeName} awayName={awayName} />
+          <div className="hidden sm:block">
+            <WormChart geometry={worm} homeName={homeName} awayName={awayName} />
+          </div>
+          <div className="sm:hidden">
+            <WormChart geometry={wormMobile} homeName={homeName} awayName={awayName} />
+          </div>
         </section>
       )}
 

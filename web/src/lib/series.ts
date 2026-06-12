@@ -27,14 +27,11 @@ export interface ChartFrame {
   gridlines: { y: number; label: string }[];
 }
 
-export const FRAME: ChartFrame = {
-  width: 880,
-  height: 320,
-  left: 52,
-  right: 180,
-  top: 28,
-  bottom: 36,
-  gridlines: [],
+export type ChartVariant = "desktop" | "mobile";
+
+const FRAMES: Record<ChartVariant, Omit<ChartFrame, "gridlines">> = {
+  desktop: { width: 880, height: 320, left: 52, right: 180, top: 28, bottom: 36 },
+  mobile: { width: 420, height: 300, left: 38, right: 104, top: 24, bottom: 30 },
 };
 
 export interface TeamSeries {
@@ -45,7 +42,11 @@ export interface TeamSeries {
   points: TeamHistoryPoint[];
 }
 
-export function chartGeometry(series: TeamSeries[]): { frame: ChartFrame; lines: SeriesGeometry[] } {
+export function chartGeometry(
+  series: TeamSeries[],
+  variant: ChartVariant = "desktop",
+): { frame: ChartFrame; lines: SeriesGeometry[] } {
+  const FRAME = FRAMES[variant];
   const all = series.flatMap((s) => s.points.map((p) => p.championProb));
   const maxProb = Math.max(0.05, ...all) * 1.25;
   const runIds = [...new Set(series.flatMap((s) => s.points.map((p) => `${p.asOf}|${p.runId}`)))].sort();
@@ -57,10 +58,10 @@ export function chartGeometry(series: TeamSeries[]): { frame: ChartFrame; lines:
   const x = (i: number) => FRAME.left + (i / span) * plotW;
   const y = (p: number) => FRAME.top + (1 - p / maxProb) * plotH;
 
-  const step = maxProb > 0.15 ? 0.05 : 0.025;
+  const stepPct = maxProb > 0.2 ? 5 : maxProb > 0.08 ? 2 : 1;
   const gridlines = [];
-  for (let g = step; g < maxProb; g += step) {
-    gridlines.push({ y: y(g), label: `${Math.round(g * 100)}` });
+  for (let pct = stepPct; pct / 100 < maxProb; pct += stepPct) {
+    gridlines.push({ y: y(pct / 100), label: `${pct}` });
   }
 
   const lines = series.map((s) => {
@@ -87,18 +88,21 @@ export function chartGeometry(series: TeamSeries[]): { frame: ChartFrame; lines:
       marketPoints,
     };
   });
-  separateLabels(lines);
+  separateLabels(lines, variant === "mobile" ? 18 : 21);
 
   return { frame: { ...FRAME, gridlines }, lines };
 }
 
-const LABEL_GAP = 21;
+export function trimToPublished(points: TeamHistoryPoint[], publishedRunId: string): TeamHistoryPoint[] {
+  const index = points.findIndex((p) => p.runId === publishedRunId);
+  return index >= 0 ? points.slice(0, index + 1) : points;
+}
 
-function separateLabels(lines: { labelY: number; points: SeriesPoint[] }[]): void {
+function separateLabels(lines: { labelY: number; points: SeriesPoint[] }[], gap: number): void {
   const placed = lines.filter((line) => line.points.length).sort((a, b) => a.labelY - b.labelY);
   for (let i = 1; i < placed.length; i++) {
-    if (placed[i].labelY - placed[i - 1].labelY < LABEL_GAP) {
-      placed[i].labelY = placed[i - 1].labelY + LABEL_GAP;
+    if (placed[i].labelY - placed[i - 1].labelY < gap) {
+      placed[i].labelY = placed[i - 1].labelY + gap;
     }
   }
 }

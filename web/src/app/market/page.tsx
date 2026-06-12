@@ -6,6 +6,7 @@ import { orNull } from "@/lib/api";
 import { titleProb } from "@/lib/derive";
 import { formatPct1 } from "@/lib/format";
 import { LedgerList } from "@/components/runs/ledger-list";
+import { WorldsList } from "@/components/runs/worlds-list";
 import { rankedLedger } from "@/lib/ledger";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { divergenceRows, loadOddsDates, loadOddsDay, teamOddsSeries } from "@/lib/market-view";
@@ -110,31 +111,15 @@ export default async function MarketPage() {
             </>
           )}
           {agent.worlds.length > 0 && (
-            <div className="mt-10 max-w-[880px]">
+            <div className="mt-10">
               <div className="mb-3 font-mono text-[12px] uppercase tracking-[0.14em] text-cream-faint">
                 The worlds we priced
               </div>
-              {agent.worlds.map((world) => {
-                const weightForWorld = agent.scenario_weights.find((w) => w.name === world.name);
-                return (
-                  <div key={world.name} className="border-b border-hairline py-4">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="font-mono text-[15px]">{world.name}</span>
-                      <span className="font-mono text-[15px] text-gold">{Math.round(world.weight * 100)}%</span>
-                    </div>
-                    {weightForWorld?.rationale && (
-                      <p className="mt-1.5 max-w-[64ch] text-[14.5px] font-light text-cream-dim">
-                        {weightForWorld.rationale}
-                      </p>
-                    )}
-                    {world.title_probs?.[focusId] !== undefined && (
-                      <p className="mt-1.5 font-mono text-[12.5px] text-cream-faint">
-                        {focusName} title in this world: {formatPct1(world.title_probs[focusId])}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+              <WorldsList
+                agent={agent}
+                names={new Map(snapshot.teams.map((t) => [t.team_id, t.name]))}
+                focusId={focusId}
+              />
             </div>
           )}
         </section>

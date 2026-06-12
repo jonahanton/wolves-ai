@@ -16,7 +16,7 @@ import { formatUpdated } from "@/lib/format";
 import { loadLiveState } from "@/lib/live";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { loadRunRecords, loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
-import type { TeamSeries } from "@/lib/series";
+import { type TeamSeries, trimToPublished } from "@/lib/series";
 
 const SERIES_COLOURS = ["oklch(0.8 0.11 150)", "oklch(0.965 0.008 95 / 0.34)", "oklch(0.965 0.008 95 / 0.25)", "oklch(0.965 0.008 95 / 0.22)"];
 
@@ -42,7 +42,7 @@ export default async function LandingPage() {
     name: names[teamId] ?? teamId,
     featured: teamId === focusId,
     colour: teamId === focusId ? "oklch(0.69 0.19 25)" : SERIES_COLOURS[i % SERIES_COLOURS.length],
-    points: orNull(histories[i])?.points ?? [],
+    points: trimToPublished(orNull(histories[i])?.points ?? [], snapshot.run.run_id),
   }));
 
   const restHero = (
@@ -72,7 +72,12 @@ export default async function LandingPage() {
               dashed
             </span>
           </div>
-          <SeriesChart series={series} ariaLabel="Title probability over published runs" />
+          <div className="hidden sm:block">
+            <SeriesChart series={series} ariaLabel="Title probability over published runs" />
+          </div>
+          <div className="sm:hidden">
+            <SeriesChart series={series} ariaLabel="Title probability over published runs" variant="mobile" />
+          </div>
         </div>
       </div>
     </section>

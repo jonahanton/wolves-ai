@@ -9,6 +9,9 @@ interface LedgerListProps {
 export function LedgerList({ entries, showTiers = false }: LedgerListProps) {
   return (
     <div className="max-w-[760px] border-t border-hairline">
+      <div className="pt-2 pb-1 text-right font-mono text-[10.5px] uppercase tracking-[0.1em] text-cream-faint">
+        ✓ confirmed · &middot; probable
+      </div>
       {entries.map((entry) => (
         <div
           key={entry.id}

@@ -1,12 +1,16 @@
-import { chartGeometry, polyline, type TeamSeries } from "@/lib/series";
+import { chartGeometry, type ChartVariant, polyline, type TeamSeries } from "@/lib/series";
 
 interface SeriesChartProps {
   series: TeamSeries[];
   ariaLabel: string;
+  variant?: ChartVariant;
 }
 
-export function SeriesChart({ series, ariaLabel }: SeriesChartProps) {
-  const { frame, lines } = chartGeometry(series);
+export function SeriesChart({ series, ariaLabel, variant = "desktop" }: SeriesChartProps) {
+  const { frame, lines } = chartGeometry(series, variant);
+  const axisSize = variant === "mobile" ? 12 : 15;
+  const labelSize = variant === "mobile" ? 13 : 16;
+  const featuredSize = variant === "mobile" ? 14 : 18;
   const singlePoint = lines.every((line) => line.points.length <= 1);
 
   return (
@@ -21,7 +25,7 @@ export function SeriesChart({ series, ariaLabel }: SeriesChartProps) {
             className="stroke-hairline"
             strokeWidth="1"
           />
-          <text x="0" y={grid.y + 5} className="fill-cream-faint font-mono text-[15px]">
+          <text x="0" y={grid.y + 5} className="fill-cream-faint font-mono" fontSize={axisSize}>
             {grid.label}%
           </text>
         </g>
@@ -42,7 +46,7 @@ export function SeriesChart({ series, ariaLabel }: SeriesChartProps) {
               />
             )}
             {lastMarket && (
-              <text x={lastMarket.x + 12} y={lastMarket.y + 4} className="fill-cream-faint font-mono text-[13px]">
+              <text x={lastMarket.x + 10} y={lastMarket.y + 4} className="fill-cream-faint font-mono" fontSize={axisSize}>
                 market
               </text>
             )}
@@ -63,10 +67,11 @@ export function SeriesChart({ series, ariaLabel }: SeriesChartProps) {
             )}
             <circle cx={last.x} cy={last.y} r={last.agent ? 0 : line.featured ? 3.5 : 3} fill={line.colour} />
             <text
-              x={last.x + 12}
+              x={last.x + 10}
               y={line.labelY + 5}
               fill={line.colour}
-              className={`font-mono ${line.featured ? "text-[18px] font-medium" : "text-[16px]"}`}
+              fontSize={line.featured ? featuredSize : labelSize}
+              className={`font-mono ${line.featured ? "font-medium" : ""}`}
             >
               {line.label}
             </text>
@@ -74,11 +79,7 @@ export function SeriesChart({ series, ariaLabel }: SeriesChartProps) {
         );
       })}
       {singlePoint && (
-        <text
-          x={frame.left}
-          y={frame.height - 8}
-          className="fill-cream-faint font-mono text-[13px]"
-        >
+        <text x={frame.left} y={frame.height - 8} className="fill-cream-faint font-mono" fontSize={axisSize}>
           first published run · the line begins tomorrow
         </text>
       )}

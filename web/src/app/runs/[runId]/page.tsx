@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { ErrorState } from "@/components/shell/error-state";
 import { Kicker } from "@/components/shell/kicker";
+import { ClampedProse } from "@/components/runs/clamped-prose";
 import { LedgerList } from "@/components/runs/ledger-list";
+import { WorldsList } from "@/components/runs/worlds-list";
 import { backendGetText, orNull } from "@/lib/api";
 import { formatPct1, formatUpdated } from "@/lib/format";
 import { rankedLedger } from "@/lib/ledger";
@@ -88,31 +90,7 @@ export default async function RunPage({ params }: RunPageProps) {
       {agent && agent.worlds.length > 0 && (
         <section className="wrap border-t border-hairline py-14">
           <Kicker>The worlds it priced</Kicker>
-          <div className="max-w-[880px]">
-            {agent.worlds.map((world) => {
-              const weight = agent.scenario_weights.find((w) => w.name === world.name);
-              return (
-                <div key={world.name} className="border-b border-hairline py-4">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-mono text-[15px]">{world.name}</span>
-                    <span className="font-mono text-[15px] text-gold">{Math.round(world.weight * 100)}%</span>
-                  </div>
-                  {weight?.rationale && (
-                    <p className="mt-1.5 max-w-[64ch] text-[14.5px] font-light text-cream-dim">{weight.rationale}</p>
-                  )}
-                  {world.title_probs && (
-                    <p className="mt-1.5 font-mono text-[12.5px] text-cream-faint">
-                      {Object.entries(world.title_probs)
-                        .sort(([, a], [, b]) => b - a)
-                        .slice(0, 3)
-                        .map(([teamId, prob]) => `${names.get(teamId) ?? teamId} ${formatPct1(prob)}`)
-                        .join(" · ")}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <WorldsList agent={agent} names={names} focusId={focusId} />
         </section>
       )}
 
@@ -157,9 +135,9 @@ export default async function RunPage({ params }: RunPageProps) {
         <section className="wrap border-t border-hairline py-14">
           <Kicker>The argument, on the record</Kicker>
           <div className="max-w-[68ch] space-y-6 text-[15.5px] font-light leading-[1.65] text-cream-dim">
-            {agent.market_justification && <Justification title="v the market" text={agent.market_justification} />}
-            {agent.change_justification && <Justification title="v yesterday" text={agent.change_justification} />}
-            {agent.inconsistency_note && <Justification title="inconsistency" text={agent.inconsistency_note} />}
+            {agent.market_justification && <ClampedProse title="v the market" text={agent.market_justification} />}
+            {agent.change_justification && <ClampedProse title="v yesterday" text={agent.change_justification} />}
+            {agent.inconsistency_note && <ClampedProse title="inconsistency" text={agent.inconsistency_note} />}
             {agent.escalations.length > 0 && (
               <div>
                 <div className="mb-2 font-mono text-[12px] uppercase tracking-[0.14em] text-gold">
@@ -191,9 +169,7 @@ export default async function RunPage({ params }: RunPageProps) {
       {typeof journal === "string" && journal.length > 0 && (
         <section className="wrap border-t border-hairline py-14">
           <Kicker>The journal</Kicker>
-          <pre className="max-w-[72ch] whitespace-pre-wrap font-mono text-[13.5px] leading-[1.7] text-cream-dim">
-            {journal}
-          </pre>
+          <ClampedProse title="appended during the run" text={journal} mono />
         </section>
       )}
     </>
@@ -211,16 +187,4 @@ function headline(snapshot: Snapshot, moves: { name: string; deltaPp: number }[]
     : "The first published run.";
 }
 
-interface JustificationProps {
-  title: string;
-  text: string;
-}
 
-function Justification({ title, text }: JustificationProps) {
-  return (
-    <div>
-      <div className="mb-2 font-mono text-[12px] uppercase tracking-[0.14em] text-cream-faint">{title}</div>
-      <p className="whitespace-pre-line">{text}</p>
-    </div>
-  );
-}

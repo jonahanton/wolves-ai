@@ -20,11 +20,15 @@ export interface WormGeometry {
   midline: number;
 }
 
-const WIDTH = 880;
-const HEIGHT = 260;
-const PAD = { left: 52, right: 28, top: 18, bottom: 30 };
+const FRAMES = {
+  desktop: { width: 880, height: 260, left: 52, right: 28, top: 18, bottom: 30 },
+  mobile: { width: 420, height: 240, left: 40, right: 22, top: 18, bottom: 28 },
+} as const;
 
-export function wormGeometry(history: LiveHistory, match: number): WormGeometry | null {
+export type WormVariant = keyof typeof FRAMES;
+
+export function wormGeometry(history: LiveHistory, match: number, variant: WormVariant = "desktop"): WormGeometry | null {
+  const F = FRAMES[variant];
   const samples: { fixture: LiveHistoryFixture; at: number }[] = [];
   for (const point of history.points) {
     const fixture = point.fixtures.find((f) => f.match === match);
@@ -36,10 +40,10 @@ export function wormGeometry(history: LiveHistory, match: number): WormGeometry 
 
   const t0 = samples[0].at;
   const t1 = samples[samples.length - 1].at;
-  const plotW = WIDTH - PAD.left - PAD.right;
-  const plotH = HEIGHT - PAD.top - PAD.bottom;
-  const x = (t: number) => PAD.left + ((t - t0) / Math.max(1, t1 - t0)) * plotW;
-  const y = (p: number) => PAD.top + (1 - p) * plotH;
+  const plotW = F.width - F.left - F.right;
+  const plotH = F.height - F.top - F.bottom;
+  const x = (t: number) => F.left + ((t - t0) / Math.max(1, t1 - t0)) * plotW;
+  const y = (p: number) => F.top + (1 - p) * plotH;
 
   const points = samples.map((s) => ({
     x: x(s.at),
@@ -60,7 +64,7 @@ export function wormGeometry(history: LiveHistory, match: number): WormGeometry 
     }
   }
 
-  return { width: WIDTH, height: HEIGHT, points, goals, midline: y(0.5) };
+  return { width: F.width, height: F.height, points, goals, midline: y(0.5) };
 }
 
 export function wormPath(points: WormPoint[]): string {

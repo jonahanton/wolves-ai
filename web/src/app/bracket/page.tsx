@@ -60,9 +60,9 @@ export default async function BracketPage() {
 
       <section className="wrap border-t border-hairline py-14">
         <Kicker>Round by round · most likely occupants</Kicker>
-        <div className="-mx-[clamp(20px,4vw,44px)] flex snap-x snap-mandatory gap-5 overflow-x-auto px-[clamp(20px,4vw,44px)] pb-4">
+        <div className="-mx-[clamp(20px,4vw,44px)] flex snap-x snap-mandatory gap-5 overflow-x-auto px-[clamp(20px,4vw,44px)] pb-4 lg:mx-0 lg:grid lg:grid-cols-5 lg:gap-6 lg:overflow-visible lg:px-0">
           {rounds.map((round) => (
-            <div key={round.stage} className="w-[300px] flex-none snap-start">
+            <div key={round.stage} className="w-[290px] flex-none snap-start lg:w-auto">
               <div className="mb-3 font-mono text-[12px] uppercase tracking-[0.14em] text-cream-dim">
                 {round.label}
               </div>

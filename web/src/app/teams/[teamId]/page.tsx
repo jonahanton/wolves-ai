@@ -14,6 +14,7 @@ import { LedgerList } from "@/components/runs/ledger-list";
 import { rankedLedger } from "@/lib/ledger";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { loadTeamHistory } from "@/lib/runs";
+import { trimToPublished } from "@/lib/series";
 import { groupStandings, staircase } from "@/lib/team-view";
 
 interface TeamPageProps {
@@ -76,6 +77,9 @@ export default async function TeamPage({ params }: TeamPageProps) {
       {road.length > 0 && (
         <section className="wrap border-t border-hairline py-14">
           <Kicker>The road, drawn</Kicker>
+          <p className="mb-2 font-mono text-[12px] text-cream-faint">
+            the modal path · %&nbsp;= chance that opponent awaits
+          </p>
           <div className="max-w-[880px]">
             {road.map((step) => (
               <div
@@ -141,18 +145,28 @@ export default async function TeamPage({ params }: TeamPageProps) {
       {history && (
         <section className="wrap border-t border-hairline py-14">
           <Kicker>A number with a memory</Kicker>
-          <SeriesChart
-            series={[
+          {(() => {
+            const series = [
               {
                 teamId,
                 name: team.name,
                 featured: isFocus,
                 colour: isFocus ? "oklch(0.69 0.19 25)" : "oklch(0.965 0.008 95 / 0.5)",
-                points: history.points,
+                points: trimToPublished(history.points, snapshot.run.run_id),
               },
-            ]}
-            ariaLabel={`${team.name} title probability over published runs`}
-          />
+            ];
+            const label = `${team.name} title probability over published runs`;
+            return (
+              <>
+                <div className="hidden sm:block">
+                  <SeriesChart series={series} ariaLabel={label} />
+                </div>
+                <div className="sm:hidden">
+                  <SeriesChart series={series} ariaLabel={label} variant="mobile" />
+                </div>
+              </>
+            );
+          })()}
         </section>
       )}
     </>
