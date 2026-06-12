@@ -57,7 +57,9 @@ invariants bound the run; the shape between them is your judgement:
 - Before the forecast node runs, a computed mixture artifact must exist that
   expresses the day's evidence and uncertainty as weighted worlds (only
   wq.scenario_mixture in a quant node registers one). The forecaster submits
-  THAT artifact.
+  THAT artifact. On contested days the mixture brief asks for the spread
+  read against the parameter floor (wq.mixture_spread), so width is checked
+  where the worlds are built, not only at submission.
 - The seeded two-base fallback mixture-001 is the quiet-day fallback only; submitting
   it over a ledger of material evidence is a failed run and the validator
   will reject it.

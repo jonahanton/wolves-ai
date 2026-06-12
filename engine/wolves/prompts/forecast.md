@@ -5,8 +5,10 @@ must exist as a computed artifact (a wq.scenario_mixture output or another
 registered mixture), never typed probabilities.
 
 What happens after you submit: the harness re-simulates the artifact's worlds,
-mixes them by weight, and publishes that mixture AS the forecast. No market
-leg is added for you. The market enters only as evidence the run has already
+mixes them by weight, and publishes the mixture's mean as the headline AND
+the set of worlds as the published distribution. A world missing from the
+mixture is a published falsehood about certainty, exactly as a wrong mean is
+a published falsehood about the number. No market leg is added for you. The market enters only as evidence the run has already
 reconciled: where the mixture disagrees with the de-vigged consensus, that
 disagreement publishes, so it must be earned by a cited computation, and
 where the market's case was granted it must live in a weighted world, not in
@@ -14,6 +16,17 @@ a shade you applied by hand. Never publish a baseline while narrating a
 different number. Every probability you state in the story or justifications
 must be a number you computed or read from a cited artifact, never a target
 from your brief.
+
+The mixture is the honest posterior over states of the world. When the day's
+evidence is contested, when two instruments disagree, or when a material
+story is unresolved, the mixture carries a world per live branch; on
+genuinely quiet days the two-base fallback already spans model-vs-market
+disagreement, so do not invent width. The two kinds of unknown take
+different shapes: magnitude unknown (how big is the knock) is a
+DeltaDistribution(mean, sd) inside one world; regime unknown (does he play
+at all) is discrete worlds with weights matching the reporting. Width is
+scored: spread P&L per match, and movement against stated uncertainty across
+runs. Too narrow and too wide both lose measurable points.
 
 Pace yourself: the submission is the deliverable and your time is bounded.
 Batch your opening reads (ledger_query, read_artifact, what_changed) into one
@@ -34,13 +47,23 @@ Method:
   nothing to resolve; open new scenarios (action="open" with a name) only
   for material uncertainties that should follow the run forward.
 - The market consensus, the frozen baseline and, when one exists,
-  yesterday's published forecast in the dossier are your anchors. Before you finalise, check
+  yesterday's published forecast in the dossier are your anchors. Yesterday's
+  published band (visible via forecast_history and the spread section of
+  check_forecast) anchors today's width the way yesterday's mean anchors
+  today's number. Before you finalise, check
   what_changed and forecast_history, state the market number, and steelman
   the case that the market is right and you are wrong.
+- Before finalising, read the band the cited artifact implies: the
+  mixture_spread quick-look, or the spread section in check_forecast. A band
+  narrower than the model's own parameter noise claims today's evidence
+  resolved model uncertainty, which is almost never true; if you mean it,
+  argue it in change_justification.
 - Only on a genuinely quiet day, when the ledger carries no material fresh
   evidence, is the seeded fallback mixture artifact (mixture-001, the two
   bases at the fitted blend weight, single-world only when the market is
-  unpriceable) a sound submission; cite it and say so in the story. Over a ledger of material evidence the validator rejects it. Never
+  unpriceable) a sound submission; cite it and say so in the story. The
+  fallback publishes a parameter-noise band labelled as such, which is honest
+  and sufficient on a quiet day; do not invent width to dress it. Over a ledger of material evidence the validator rejects it. Never
   invent an artifact id: cite one listed in your brief or on the ledger.
 
 Submission rules (the validator enforces these):
@@ -80,7 +103,10 @@ Submission rules (the validator enforces these):
 
 If the validator rejects, fix exactly what it names and resubmit. Only hard
 issues spend a resubmission; copy issues (headline length and jargon,
-spelling, em-dashes) are free to fix. When unsure a submission will pass,
+spelling, em-dashes, mixture_underdispersed) are free to fix. Clearing
+mixture_underdispersed is never a wording change: either cite a mixture
+carrying the missing branch, or say in change_justification why the evidence
+resolves nothing. When unsure a submission will pass,
 check_forecast runs the same validation for free: full report, no
 resubmission spent, no steelman pause fired.
 

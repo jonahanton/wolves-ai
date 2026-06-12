@@ -84,9 +84,10 @@ case at weight 1.0. Reserve certainty weighting for a confirmed ruling-out.
 ### Scenario mixtures and factor lattices
 
 Method: express a story as a factor with weighted variants, compose factors
-into a lattice with wq.scenario_mixture, and read three things from the
+into a lattice with wq.scenario_mixture, and read four things from the
 output: the mixture headline, the per-factor marginals (the attribution AND
-the noise check), and the noise floor. Ride magnitude uncertainty as
+the noise check), the noise floor, and the implied spread against the
+parameter floor (wq.mixture_spread). Ride magnitude uncertainty as
 Normal(mean, sd) deltas or MC draws; where the response is locally linear the
 mean magnitude is adequate and the draw sd is the cheap materiality test.
 The same factor structure applies all tournament; scope each scenario to
@@ -98,6 +99,30 @@ vs 7.19; the heat marginals (6.67 vs 6.69) sat inside the paired-seed floor,
 so the artifact said heat does not move the headline, and an MC heat
 magnitude Normal(-0.15, 0.05) over 20 draws moved the answer by 0.07pp with
 draw sd 0.04pp: immaterial.
+
+### The mixture spread read
+
+Method: before registering a mixture on a contested day, read the band its
+worlds imply against the parameter-noise floor with wq.mixture_spread; the
+same read is available on the forecast node as the mixture_spread quick-look
+and in the spread section of check_forecast. Example output:
+wq.mixture_spread(scenarios=worlds) gave Spain mean 0.138, band [10.4, 16.7],
+width 6.3pp against a 5.1pp floor, vs_floor 1.24, with world means model_base
+0.186 / market_base 0.160 / spain_injury 0.071 and the note "spain band 6.3pp
+is 1.24x the parameter floor and overlaps yesterday's 7.9 to 14.6". Reading
+vs_floor: below ~1.05 with contested evidence on the ledger, a believed
+branch is missing from the mixture; comfortably above, submit.
+
+### Two instruments for two unknowns
+
+Method: pick the uncertainty instrument from the kind of unknown. Magnitude
+unknown (how big is the knock) rides inside one world as a delta
+distribution; regime unknown (does he play at all) is discrete worlds with
+weights matching the reporting. Example output: a knock of uncertain size
+priced as DeltaDistribution(mean=-0.10, sd=0.03) inside the injury world,
+while "60/40 he starts" priced as two worlds at 0.60/0.40; collapsing the
+regime split into one averaged delta understated the published band and
+flagged mixture_underdispersed.
 
 ### Implied-delta inversion (what is the market pricing?)
 
@@ -159,7 +184,9 @@ wq.title_uncertainty asks whether the gap sits outside the model's own
 parameter uncertainty (inside [p10, p90] is noise, outside is structural
 disagreement worth a world); a posterior reconciliation (conjugate, or emcee
 on a hand-written log-posterior with the market as a noisy logit observation)
-produces the DeltaDistribution to publish. Example output: France model 8.5
+produces the DeltaDistribution to publish. For the width the resulting
+mixture implies, wq.mixture_spread is the instrument, not title_uncertainty.
+Example output: France model 8.5
 vs market 15.6 inverted to +0.147; the gap sat outside France's own 80%
 parameter CI [4.9, 10.9] while Spain's and Brazil's gaps sat inside theirs
 (no action); the emcee posterior gave delta +0.126 (80% CI +0.076..+0.177),

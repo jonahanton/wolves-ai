@@ -41,18 +41,36 @@ discovering them:
   inverts a model-vs-market gap into strength units; wq.title_uncertainty()
   -> DataFrame [mean, p10, p50, p90] per team under the model's own
   parameter uncertainty (a gap outside [p10, p90] is structural, inside is
-  noise); wq.path_difficulty() -> DataFrame indexed by team with per-stage
+  noise; for the width a mixture implies, mixture_spread is the instrument,
+  not title_uncertainty, which stays the parameter-only diagnostic);
+  wq.path_difficulty() -> DataFrame indexed by team with per-stage
   expected opponent strength columns and a "difficulty" column (draw luck);
   wq.update_from_result(team, opponent, "win"|"draw"|"loss") -> the
   posterior strength delta one played match justifies.
 - wq.scenario_mixture(scenarios=[...], factors=[...]) integrates weighted
   worlds, attaches the noise floor, and REGISTERS a submit-ready mixture
   artifact; building the day's mixture for the forecaster means calling this,
-  nothing else makes a citable artifact. When that is your brief, start from
+  nothing else makes a citable artifact. The registered worlds and weights
+  also fix the published distribution, so weights are width decisions as
+  much as mean decisions; on contested days read wq.mixture_spread before
+  registering. When that is your brief, start from
   the previous run's worlds (previous_forecast lists them): reweight,
   collapse or extend them under today's refit, and rebuild from scratch only
   with an argued reason. If previous_forecast reports not_found there is no
   previous run; build today's worlds fresh from the two bases.
+- wq.mixture_spread(scenarios=... | factors=... | artifact=...) -> dict whose
+  "teams" value renders as a DataFrame (focus team plus top 8 by mixture
+  mean; teams= overrides) with columns mean, p10, p90, width_pp, floor_p10,
+  floor_p90, floor_width_pp (the parameter-noise-only reference band),
+  vs_floor (width_pp / floor_width_pp, the one number answering "is my width
+  above the model's own irreducible noise"), yesterday_p10/yesterday_p90
+  (None when the previous snapshot lacks the block), and one column per
+  world holding that world's mean; top level carries provenance, n_worlds,
+  n_sims_per_world, parameter_draws and a one-sentence note with the focus
+  team's verdict. Runs at exploration fidelity (20k sims per world).
+  vs_floor below ~1.05 with contested evidence on the ledger means a
+  believed branch is missing from the mixture; comfortably above means
+  submit.
 - wq.match_probs / wq.score_grid for one fixture; wq.posterior_draws(n) for
   strength uncertainty; wq.query(sql) over the research dataset (49k
   international results, Elo history, market closes); wq.load_ledger(),
