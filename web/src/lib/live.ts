@@ -84,16 +84,3 @@ export async function loadLiveHistory(date: string): Promise<ApiResult<LiveHisto
 export function isStale(state: LiveState, now: Date = new Date()): boolean {
   return now.getTime() > new Date(state.stale_after).getTime();
 }
-
-export function featuredLiveFixture(state: LiveState, focusId: string): LiveFixture | null {
-  const live = state.fixtures.filter((f) => f.status === "live");
-  if (live.length === 0) return null;
-  return live.find((f) => f.home_id === focusId || f.away_id === focusId) ?? live[0];
-}
-
-export function topTitleMovers(state: LiveState, limit: number): [string, number][] {
-  return Object.entries(state.title_deltas_pp)
-    .filter(([, delta]) => Math.abs(delta) >= 0.05)
-    .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
-    .slice(0, limit);
-}
