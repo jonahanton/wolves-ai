@@ -19,7 +19,7 @@ export function LiveHero({ state, fixture, focusId, names }: LiveHeroProps) {
   return (
     <section className="wrap pt-20 pb-14">
       <Kicker>
-        <span className="mr-2 inline-block h-[7px] w-[7px] animate-pulse rounded-pill bg-red align-middle" /> Live ·{" "}
+        <span className="mr-2 inline-block h-[7px] w-[7px] animate-pulse rounded-pill bg-red align-middle motion-reduce:animate-none" /> Live ·{" "}
         {fixture.minute !== null && fixture.minute !== undefined ? `${fixture.minute}'` : "in play"} · {fixture.city ?? ""}
       </Kicker>
       <h1 className="statement statement-hero">

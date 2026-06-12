@@ -55,7 +55,7 @@ export default async function LivePage() {
     <section className="wrap py-20">
       <Kicker>
         {anyLive && (
-          <span className="mr-2 inline-block h-[7px] w-[7px] animate-pulse rounded-pill bg-red align-middle" />
+          <span className="mr-2 inline-block h-[7px] w-[7px] animate-pulse rounded-pill bg-red align-middle motion-reduce:animate-none" />
         )}
         Live · {live.source}
       </Kicker>

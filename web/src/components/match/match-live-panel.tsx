@@ -26,7 +26,7 @@ export function MatchLivePanel({ initial, match, homeName, awayName }: MatchLive
           "Full time"
         ) : (
           <>
-            <span className="mr-2 inline-block h-[7px] w-[7px] animate-pulse rounded-pill bg-red align-middle" />
+            <span className="mr-2 inline-block h-[7px] w-[7px] animate-pulse rounded-pill bg-red align-middle motion-reduce:animate-none" />
             Live · {fixture.minute !== null && fixture.minute !== undefined ? `${fixture.minute}'` : "in play"}
           </>
         )}
