@@ -5,10 +5,11 @@ import json
 from tests.fakes import FakeS3Client, build_test_app, client_for
 
 
-def snapshot_body(team_id: str, champion_prob: float) -> str:
-    return json.dumps(
-        {"teams": [{"team_id": team_id, "champion_prob": champion_prob, "reach_probs": {"SF": champion_prob * 2}}]}
-    )
+def snapshot_body(team_id: str, champion_prob: float, *, markets: dict | None = None) -> str:
+    body = {"teams": [{"team_id": team_id, "champion_prob": champion_prob, "reach_probs": {"SF": champion_prob * 2}}]}
+    if markets is not None:
+        body["markets"] = markets
+    return json.dumps(body)
 
 
 async def test_history_extracts_the_team_series_oldest_first():
@@ -24,12 +25,21 @@ async def test_history_extracts_the_team_series_oldest_first():
     assert response.json() == {
         "teamId": "ENG",
         "points": [
-            {"runId": "run-20260609", "asOf": "2026-06-09", "championProb": 0.07, "reachProbs": {"SF": 0.14}},
+            {
+                "runId": "run-20260609",
+                "asOf": "2026-06-09",
+                "championProb": 0.07,
+                "reachProbs": {"SF": 0.14},
+                "marketProb": None,
+                "blendProb": None,
+            },
             {
                 "runId": "agent-20260610-234149",
                 "asOf": "2026-06-10",
                 "championProb": 0.09,
                 "reachProbs": {"SF": 0.18},
+                "marketProb": None,
+                "blendProb": None,
             },
         ],
     }
@@ -53,3 +63,13 @@ async def test_history_limit_keeps_only_the_newest_snapshots():
     async with client_for(build_test_app(s3=s3)) as client:
         response = await client.get("/teams/ENG/history", params={"limit": 2})
     assert [point["runId"] for point in response.json()["points"]] == ["run-20260609", "run-20260610"]
+
+
+async def test_history_carries_market_and_blend_probs_when_published():
+    markets = {"market_probs": {"ENG": 0.108}, "blend_probs": {"ENG": 0.097}}
+    s3 = FakeS3Client({"snapshots/2026/06/09/run-20260609.json": snapshot_body("ENG", 0.07, markets=markets)})
+    async with client_for(build_test_app(s3=s3)) as client:
+        response = await client.get("/teams/ENG/history")
+    point = response.json()["points"][0]
+    assert point["marketProb"] == 0.108
+    assert point["blendProb"] == 0.097

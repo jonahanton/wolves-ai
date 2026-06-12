@@ -69,6 +69,8 @@ class TeamHistoryPoint(WireModel):
     as_of: str
     champion_prob: float
     reach_probs: dict[str, float]
+    market_prob: float | None = None
+    blend_prob: float | None = None
 
 
 class TeamHistory(WireModel):
@@ -170,6 +172,26 @@ class ScheduleDrift(BaseModel):
     match: int
     scheduled_kickoff: str
     provider_kickoff: str
+
+
+class LiveHistoryFixture(BaseModel):
+    external_id: int
+    match: int | None
+    status: Literal["scheduled", "live", "finished", "abandoned"]
+    minute: int | None = None
+    home_goals: int | None = None
+    away_goals: int | None = None
+    forecast: LiveForecast | None = None
+
+
+class LiveHistoryPoint(BaseModel):
+    fetched_at: str
+    fixtures: list[LiveHistoryFixture]
+
+
+class LiveHistory(BaseModel):
+    date: str
+    points: list[LiveHistoryPoint]
 
 
 class LiveState(BaseModel):

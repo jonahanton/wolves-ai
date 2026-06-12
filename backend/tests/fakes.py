@@ -114,9 +114,7 @@ class FakeEcsClient:
 
     def list_tasks(self, **kwargs: Any) -> dict[str, Any]:
         self.list_calls.append(kwargs)
-        arns = [
-            task["taskArn"] for task in self.active_tasks if task.get("family", DAILY_FAMILY) == kwargs["family"]
-        ]
+        arns = [task["taskArn"] for task in self.active_tasks if task.get("family", DAILY_FAMILY) == kwargs["family"]]
         return {"taskArns": arns}
 
     def describe_tasks(self, **kwargs: Any) -> dict[str, Any]:
