@@ -41,6 +41,9 @@ class Settings(BaseSettings):
 
     odds_api_key: str = ""
     api_football_key: str = ""
+    # Canned fixtures are display-only: a demo pass never records results or
+    # publishes snapshots, so fake scores cannot leak into the forecast inputs.
+    fixtures_demo: bool = False
 
     data_dir: Path = REPO_ROOT / "data"
     focus_team: str = "england"

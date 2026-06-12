@@ -31,7 +31,7 @@ from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.source_memory import SourceMemory
 from wolves.agent.validator import ValidatorLimits
-from wolves.clients.api_football import ApiFootballClient, FakeFixturesClient, FixturesClient, MergedFixturesClient
+from wolves.clients.api_football import FakeFixturesClient, FixturesClient, MergedFixturesClient
 from wolves.clients.odds import (
     FakeOddsClient,
     FakePolymarketClient,
@@ -48,6 +48,7 @@ from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, N
 from wolves.graph.fakes import scripted_model
 from wolves.graph.observed_model import ObservedModel
 from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
+from wolves.live import build_fixtures_client
 from wolves.llm.anthropic import build_llm
 from wolves.llm.client import LLMClient
 from wolves.llm.observed import ObservedLLM
@@ -521,9 +522,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         web = build_web(settings, runtime)
         odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
         polymarket: PolymarketClient = GammaPolymarketClient()
-        fixtures: FixturesClient = (
-            ApiFootballClient(settings.api_football_key) if settings.api_football_key else FakeFixturesClient()
-        )
+        fixtures: FixturesClient = build_fixtures_client(settings)
         logger.info(
             "LIVE run %s: master=%s, workers=%s, ceiling=$%.2f",
             run_id,

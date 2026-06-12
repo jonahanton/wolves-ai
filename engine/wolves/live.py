@@ -29,12 +29,37 @@ from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.fitted import FittedStateStore
 from wolves.s3.layout import SNAPSHOT
 from wolves.s3.publish import SnapshotPublisher
-from wolves.sim.format import PlayedResult, load_format, load_results
+from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
 from wolves.sim.overlay import results_from_fixtures
 from wolves.sim.results_store import ResultsStore, played_match_records
 from wolves.snapshot import RunMeta, Snapshot
 
 logger = logging.getLogger(__name__)
+
+
+class ApiFootballKeyMissingError(Exception):
+    def __init__(self) -> None:
+        super().__init__("API_FOOTBALL_KEY is required for live polling; set FIXTURES_DEMO=1 for canned fixtures")
+
+
+class DemoFixturesNotLocalError(Exception):
+    def __init__(self, storage_mode: str) -> None:
+        self.storage_mode = storage_mode
+        super().__init__(f"demo fixtures require local storage, got {storage_mode!r}")
+
+
+def _started_results(fmt: FormatData, overlay: dict[int, PlayedResult], *, now: datetime) -> dict[int, PlayedResult]:
+    """Drop results for matches whose scheduled kickoff is still ahead; a game
+    that has not started cannot have finished, whatever the provider claims."""
+    schedule = {m.match: m.date for m in [*fmt.group_matches, *fmt.knockout]}
+    kept: dict[int, PlayedResult] = {}
+    for match, result in overlay.items():
+        scheduled = schedule.get(match)
+        if scheduled is not None and datetime.fromisoformat(scheduled) > now:
+            logger.warning("dropping result for match %d: scheduled kickoff %s is in the future", match, scheduled)
+            continue
+        kept[match] = result
+    return kept
 
 
 def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, list[PublishedWorld]]:
@@ -78,9 +103,7 @@ def publishable_results(
         return {match: result for match, result in overlay.items() if file_results.get(match) != result}
     forecast = {entry.match for entry in previous.matches}
     return {
-        match: result
-        for match, result in overlay.items()
-        if match in forecast or file_results.get(match) != result
+        match: result for match, result in overlay.items() if match in forecast or file_results.get(match) != result
     }
 
 
@@ -108,7 +131,7 @@ async def live_pass(
         logger.warning("live poll failed; keeping the previous live state: %s", exc)
         return False
     fetched_at = datetime.now(UTC)
-    overlay = results_from_fixtures(fmt, polled)
+    overlay = _started_results(fmt, results_from_fixtures(fmt, polled), now=fetched_at)
     store = ResultsStore(artifacts)
     known = store.load()
     # Fresh containers hold no snapshots; without this the continuity check
@@ -120,10 +143,13 @@ async def live_pass(
         file_results=load_results(settings.data_dir) | known.results,
         previous=previous,
     )
-    # Persist before simulating: daily and agent runs read the store, so a
-    # polled result must survive even when this pass publishes nothing.
-    finished = [f for f in polled if f.status == "finished"]
-    merged = store.record(overlay, fixtures=finished)
+    if settings.fixtures_demo:
+        merged = known
+    else:
+        # Persist before simulating: daily and agent runs read the store, so a
+        # polled result must survive even when this pass publishes nothing.
+        finished = [f for f in polled if f.status == "finished" and f.kickoff.astimezone(UTC) <= fetched_at]
+        merged = store.record(overlay, fixtures=finished)
     if forecaster is None:
         forecaster = Forecaster(settings)
     if not forecaster.is_fitted:
@@ -146,6 +172,9 @@ async def live_pass(
             drift.provider_kickoff,
         )
     live_states.put(state)
+    if settings.fixtures_demo:
+        logger.info("demo fixtures: live state updated for display; nothing recorded or published")
+        return False
     if not pending:
         logger.info("no new or corrected results; live snapshot publish is a no-op")
         return False
@@ -193,11 +222,13 @@ async def live_pass(
 
 
 def build_fixtures_client(settings: Settings) -> FixturesClient:
+    if settings.fixtures_demo:
+        if settings.storage_mode != "local":
+            raise DemoFixturesNotLocalError(settings.storage_mode)
+        return FakeFixturesClient()
     if settings.api_football_key:
         return ApiFootballClient(settings.api_football_key)
-    if settings.storage_mode != "local":
-        raise RuntimeError("API_FOOTBALL_KEY is required for cloud-backed live polling")
-    return FakeFixturesClient()
+    raise ApiFootballKeyMissingError()
 
 
 def near_kickoff(state: LiveState | None, *, now: datetime, horizon: timedelta) -> bool:
