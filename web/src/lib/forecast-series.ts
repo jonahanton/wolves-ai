@@ -38,9 +38,15 @@ export interface FixtureResultView {
   label: string;
 }
 
+export interface EstimateBreakdown {
+  t: number;
+  text: string;
+}
+
 export interface ForecastChartData {
   teams: TeamLine[];
   results: FixtureResultView[];
+  breakdown: Partial<Record<Outcome, EstimateBreakdown>>;
 }
 
 export interface ChartTeamInput {
@@ -129,7 +135,36 @@ export function assembleChartData(
       estimate: estimateLines(team.teamId, wolves, impact, now),
     };
   });
-  return { teams: lines, results: resultViews(results, names) };
+  return {
+    teams: lines,
+    results: resultViews(results, names),
+    breakdown: estimateBreakdowns(teams, impact, now),
+  };
+}
+
+function signedPts(delta: number): string {
+  const rounded = Math.round(delta * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded}pt`;
+}
+
+function estimateBreakdowns(
+  teams: ChartTeamInput[],
+  impact: Impact | null,
+  now: number,
+): Partial<Record<Outcome, EstimateBreakdown>> {
+  const focus = teams.find((team) => team.featured);
+  const stages = focus ? impact?.teams[focus.teamId] : undefined;
+  if (!focus || !stages) return {};
+  const breakdown: Partial<Record<Outcome, EstimateBreakdown>> = {};
+  for (const outcome of OUTCOMES) {
+    const stage = stages[outcome.key];
+    if (!stage) continue;
+    const parts: string[] = [];
+    if (Math.abs(stage.fromResultsPp) >= 0.05) parts.push(`${signedPts(stage.fromResultsPp)} results`);
+    if (Math.abs(stage.fromIngamePp) >= 0.05) parts.push(`${signedPts(stage.fromIngamePp)} in-game`);
+    if (parts.length) breakdown[outcome.key] = { t: now, text: `${focus.name} ${parts.join(" · ")}` };
+  }
+  return breakdown;
 }
 
 function resultViews(results: PlayedResultRow[], names: Record<string, string>): FixtureResultView[] {

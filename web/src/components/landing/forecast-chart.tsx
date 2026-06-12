@@ -427,6 +427,8 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
       }
     : null;
   const hoveredResults = hovered ? resultsAround(data.results, hovered.day) : [];
+  const breakdown = data.breakdown[outcome];
+  const hoveredBreakdown = hover && breakdown && breakdown.t === hover.t ? breakdown.text : null;
 
   return (
     <div ref={containerRef} className="relative">
@@ -467,6 +469,9 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
               </div>
             ))}
           </div>
+          {hoveredBreakdown && (
+            <div className="mt-2 font-mono text-[11.5px] text-cream-faint">{hoveredBreakdown}</div>
+          )}
           {hoveredResults.length > 0 && (
             <div className="mt-2.5 border-t border-hairline pt-2">
               <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-cream-faint">Results</div>

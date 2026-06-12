@@ -15,6 +15,7 @@ services:
       - RUNS_ROOT=/app/runs
       - DYNAMO_ENDPOINT=http://db:8000
       - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      - JOBS_ENABLED=${JOBS_ENABLED:-true}
     volumes:
       - ..:/app
       - /app/.venv

@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Impact } from "@/lib/impact";
 
 const POLL_MS = 60_000;
 
-// Polls only while matches are in play; the estimate moves on goals, not seconds.
+// A cold engine can outlast the server fetch; the client fills the gap once,
+// then polls only while matches are in play (the estimate moves on goals).
 export function useImpact(initial: Impact | null): Impact | null {
   const [impact, setImpact] = useState(initial);
-  const live = (initial?.fixtures.length ?? 0) > 0;
+  const recoveredRef = useRef(false);
+  const live = (impact?.fixtures.length ?? 0) > 0;
+  const recover = impact === null && !recoveredRef.current;
 
   useEffect(() => {
-    if (!live) return;
+    if (!live && !recover) return;
     let timer: ReturnType<typeof setTimeout>;
     let cancelled = false;
 
@@ -23,16 +26,17 @@ export function useImpact(initial: Impact | null): Impact | null {
         } catch {
           // keep the previous estimate; it is already labelled as such
         }
+        recoveredRef.current = true;
       }
-      if (!cancelled) timer = setTimeout(poll, POLL_MS);
+      if (!cancelled && live) timer = setTimeout(poll, POLL_MS);
     };
 
-    timer = setTimeout(poll, POLL_MS);
+    timer = setTimeout(poll, recover ? 0 : POLL_MS);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [live]);
+  }, [live, recover]);
 
   return impact;
 }

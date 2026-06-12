@@ -50,11 +50,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
     deps: Deps = app.state.deps
     alerts = Alerts(topic_arn=settings.alerts_topic_arn, region=settings.aws_region)
-    tasks = [
-        asyncio.create_task(deps.engine.run(refresh_interval_s=settings.engine_refresh_interval_s)),
-        asyncio.create_task(LiveLoop(engine=deps.engine, alerts=alerts).run()),
-        asyncio.create_task(ArchiveLoop(engine=deps.engine, alerts=alerts, hours=settings.archive_hours).run()),
-    ]
+    tasks = [asyncio.create_task(deps.engine.run(refresh_interval_s=settings.engine_refresh_interval_s))]
+    if settings.jobs_enabled:
+        archive = ArchiveLoop(engine=deps.engine, alerts=alerts, hours=settings.archive_hours)
+        tasks.append(asyncio.create_task(LiveLoop(engine=deps.engine, alerts=alerts).run()))
+        tasks.append(asyncio.create_task(archive.run()))
+    else:
+        logger.info("in-process jobs disabled (JOBS_ENABLED=0); live and archive loops parked")
     yield
     for task in tasks:
         task.cancel()

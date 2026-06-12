@@ -33,6 +33,7 @@ class Settings(BaseSettings):
 
     admin_token: str = ""
     run_history_limit: int = 50
+    jobs_enabled: bool = True
     engine_refresh_interval_s: float = 300.0
     alerts_topic_arn: str = ""
     archive_hours_utc: str = "8,14,18,22"
