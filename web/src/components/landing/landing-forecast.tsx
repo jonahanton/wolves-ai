@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ToggleTabs } from "@/components/charts/toggle-tabs";
 import { ForecastChart } from "@/components/landing/forecast-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
 import { LiveImpact } from "@/components/landing/live-impact";
 import { WhySection } from "@/components/landing/why-section";
 import { Kicker } from "@/components/shell/kicker";
-import { PhotoWall } from "@/components/walls/photo-wall";
 import { useImpact } from "@/hooks/use-impact";
 import type { TitleRank } from "@/lib/derive";
 import {
@@ -58,6 +57,15 @@ function ordinal(rank: number): string {
   return `${rank}${tail === 1 ? "st" : tail === 2 ? "nd" : tail === 3 ? "rd" : "th"}`;
 }
 
+function LiveTabLabel() {
+  return (
+    <span className="inline-flex items-baseline gap-2">
+      Live now
+      <span className="inline-block h-[6px] w-[6px] animate-pulse rounded-pill bg-red motion-reduce:animate-none" />
+    </span>
+  );
+}
+
 function focusFragment(impact: Impact | null, focusId: string): string | null {
   const champion = impact?.teams[focusId]?.champion;
   if (!impact || !champion) return null;
@@ -91,6 +99,11 @@ export function LandingForecast(props: LandingForecastProps) {
   const outcomeMeta = OUTCOMES.find((o) => o.key === outcome) ?? OUTCOMES[0];
   const singleRun = source === "wolves" && Math.max(...data.teams.map((t) => t.wolves[outcome].length), 0) <= 1;
   const live = (impact?.fixtures.length ?? 0) > 0;
+  const [panel, setPanel] = useState<"why" | "live">("why");
+  useEffect(() => {
+    if (live) setPanel("live");
+  }, [live]);
+  const activePanel = live ? panel : "why";
 
   const caption =
     source === "wolves"
@@ -154,19 +167,29 @@ export function LandingForecast(props: LandingForecastProps) {
         </div>
       </section>
 
-      <section className="relative border-t border-hairline py-[clamp(52px,8vh,96px)]">
-        <PhotoWall family="wc" />
-        <div className="wrap relative z-[1]">
-          {props.reasoning && (
+      <section className="relative border-t border-hairline py-[clamp(44px,7vh,84px)]">
+        <div className="wrap">
+          {live && (
+            <div className="mb-8 border-b border-hairline pb-1">
+              <ToggleTabs
+                options={[
+                  { key: "live" as const, label: <LiveTabLabel /> },
+                  { key: "why" as const, label: "Why" },
+                ]}
+                value={activePanel}
+                onChange={setPanel}
+                ariaLabel="Section"
+              />
+            </div>
+          )}
+
+          {activePanel === "why" && props.reasoning && (
             <WhySection reasoning={props.reasoning} runLabel={runLabel} evidence={props.evidence} />
           )}
 
-          {live && impact && (
-            <div className={props.reasoning ? "mt-[clamp(44px,7vh,72px)]" : ""}>
-              <Kicker>Live now</Kicker>
-              <div className="mt-5">
-                <LiveImpact impact={impact} focusId={focusId} />
-              </div>
+          {activePanel === "live" && impact && (
+            <div>
+              <LiveImpact impact={impact} focusId={focusId} />
               <p className="mt-4 max-w-[640px] font-mono text-[11.5px] leading-relaxed text-cream-faint">
                 The running estimate holds the current scores to full time and shifts the published forecast
                 by the same amount. The AI has not re-forecast.
