@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 import { ToggleTabs } from "@/components/charts/toggle-tabs";
 import { ForecastChart } from "@/components/landing/forecast-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
-import { LiveImpact } from "@/components/landing/live-impact";
 import { WhySection } from "@/components/landing/why-section";
 import { Kicker } from "@/components/shell/kicker";
 import { useImpact } from "@/hooks/use-impact";
@@ -57,15 +57,6 @@ function ordinal(rank: number): string {
   return `${rank}${tail === 1 ? "st" : tail === 2 ? "nd" : tail === 3 ? "rd" : "th"}`;
 }
 
-function LiveTabLabel() {
-  return (
-    <span className="inline-flex items-baseline gap-2">
-      Live now
-      <span className="inline-block h-[6px] w-[6px] animate-pulse rounded-pill bg-red motion-reduce:animate-none" />
-    </span>
-  );
-}
-
 function focusFragment(impact: Impact | null, focusId: string): string | null {
   const champion = impact?.teams[focusId]?.champion;
   if (!impact || !champion) return null;
@@ -99,45 +90,29 @@ export function LandingForecast(props: LandingForecastProps) {
   const outcomeMeta = OUTCOMES.find((o) => o.key === outcome) ?? OUTCOMES[0];
   const singleRun = source === "wolves" && Math.max(...data.teams.map((t) => t.wolves[outcome].length), 0) <= 1;
   const live = (impact?.fixtures.length ?? 0) > 0;
-  const [panel, setPanel] = useState<"why" | "live">("why");
-  useEffect(() => {
-    if (live) setPanel("live");
-  }, [live]);
-  const activePanel = live ? panel : "why";
+  const runLabelNb = runLabel.replace(/ /g, " ");
 
   const caption =
     source === "wolves"
       ? singleRun
-        ? "one full AI forecast published so far · a new point lands with every run"
+        ? "one full AI forecast so far · a new point lands with every run; the dotted line estimates between them"
         : "◆ full AI forecasts · the dotted line is our running estimate between them"
       : "bookmaker prices with the margin removed · stages below the winner are implied from those prices";
 
   return (
     <>
-      <section className="relative">
-        <HeroVideo />
-        <div className="wrap relative pt-[clamp(44px,7svh,80px)] pb-[clamp(18px,2.5vh,30px)]">
-          <Kicker>World Cup winner · run {runLabel.replace(/ /g, "\u00A0")}</Kicker>
-          <h1 className="statement mt-2">
-            {leader ? `${leader.name} ${formatPct1(leader.prob)}.` : "The field is open."}
-            {focus && focus.teamId !== leader?.teamId && (
-              <>
-                <br />
-                <b className="font-medium text-red">
-                  {focus.name} {formatPct1(focus.prob)} · {ordinal(focus.rank)}.
-                </b>
-              </>
-            )}
-          </h1>
-          {fragment && (
-            <p className="mt-3 font-mono text-[clamp(13px,1.8vw,15px)] tabular-nums text-cream-dim">{fragment}</p>
-          )}
-        </div>
-      </section>
+      <HeroVideo />
 
       <section className="relative">
-        <div className="wrap pt-[clamp(10px,1.5vh,20px)] pb-[clamp(44px,7vh,72px)]">
-          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2 border-b border-hairline pb-1">
+        <div className="wrap pt-[clamp(16px,2.5vh,30px)] pb-[clamp(40px,6vh,68px)]">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-1">
+            <Kicker className="mb-0!">World Cup winner</Kicker>
+            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-cream-faint">Run {runLabelNb}</span>
+          </div>
+          <div className="mt-3 mb-5 text-[clamp(19px,2.6vw,26px)] font-light tracking-[-0.01em] text-cream">
+            Chance of {outcomeMeta.phrase}
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-hairline pb-1">
             <ToggleTabs
               options={OUTCOMES.map((o) => ({
                 key: o.key,
@@ -154,50 +129,89 @@ export function LandingForecast(props: LandingForecastProps) {
             />
             <ToggleTabs options={SOURCES} value={source} onChange={setSource} ariaLabel="Forecast source" />
           </div>
-          <div className="mt-6 mb-2 font-mono text-[13px] uppercase tracking-[0.14em] text-cream-dim">
-            Chance of {outcomeMeta.phrase}
+          <div className="mt-5">
+            <ForecastChart
+              data={data}
+              source={source}
+              outcome={outcome}
+              ariaLabel={`Chance of ${outcomeMeta.phrase} over time, ${source === "wolves" ? "the Wolves forecast" : "the market"}`}
+            />
           </div>
-          <ForecastChart
-            data={data}
-            source={source}
-            outcome={outcome}
-            ariaLabel={`Chance of ${outcomeMeta.phrase} over time, ${source === "wolves" ? "the Wolves forecast" : "the market"}`}
-          />
           <div className="mt-3 font-mono text-[11.5px] text-cream-faint">{caption}</div>
         </div>
       </section>
 
-      <section className="relative border-t border-hairline py-[clamp(44px,7vh,84px)]">
-        <div className="wrap">
-          {live && (
-            <div className="mb-8 border-b border-hairline pb-1">
-              <ToggleTabs
-                options={[
-                  { key: "live" as const, label: <LiveTabLabel /> },
-                  { key: "why" as const, label: "Why" },
-                ]}
-                value={activePanel}
-                onChange={setPanel}
-                ariaLabel="Section"
-              />
-            </div>
-          )}
-
-          {activePanel === "why" && props.reasoning && (
-            <WhySection reasoning={props.reasoning} runLabel={runLabel} evidence={props.evidence} />
-          )}
-
-          {activePanel === "live" && impact && (
-            <div>
-              <LiveImpact impact={impact} focusId={focusId} />
-              <p className="mt-4 max-w-[640px] font-mono text-[11.5px] leading-relaxed text-cream-faint">
-                The running estimate holds the current scores to full time and shifts the published forecast
-                by the same amount. The AI has not re-forecast.
-              </p>
+      <section className="relative border-t border-hairline">
+        <div className="wrap py-[clamp(30px,5vh,56px)]">
+          <Kicker className="mb-[clamp(12px,1.8vh,18px)]!">Where it stands</Kicker>
+          <div className="max-w-[600px]">
+            {leader ? (
+              <>
+                <ScoreRow name={leader.name} value={formatPct1(leader.prob)} />
+                {focus && focus.teamId !== leader.teamId && (
+                  <ScoreRow name={focus.name} rank={ordinal(focus.rank)} value={formatPct1(focus.prob)} featured />
+                )}
+              </>
+            ) : (
+              <h1 className="statement">The field is open.</h1>
+            )}
+          </div>
+          {(fragment || live) && (
+            <div className="mt-[clamp(14px,2.2vh,22px)] flex flex-wrap items-baseline gap-x-5 gap-y-2">
+              {fragment && (
+                <span className="font-mono text-[clamp(12.5px,1.7vw,14.5px)] tabular-nums text-cream-dim">{fragment}</span>
+              )}
+              {live && (
+                <Link
+                  href="/live"
+                  className="group inline-flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.14em] text-red transition-colors hover:text-cream"
+                >
+                  <span className="inline-block h-[6px] w-[6px] animate-pulse rounded-pill bg-red motion-reduce:animate-none" />
+                  Live now
+                  <span className="transition-transform group-hover:translate-x-0.5">&#8594;</span>
+                </Link>
+              )}
             </div>
           )}
         </div>
       </section>
+
+      {props.reasoning && (
+        <section className="relative border-t border-hairline py-[clamp(44px,7vh,84px)]">
+          <div className="wrap">
+            <WhySection reasoning={props.reasoning} runLabel={runLabel} evidence={props.evidence} />
+          </div>
+        </section>
+      )}
     </>
+  );
+}
+
+interface ScoreRowProps {
+  name: string;
+  value: string;
+  rank?: string;
+  featured?: boolean;
+}
+
+function ScoreRow({ name, value, rank, featured = false }: ScoreRowProps) {
+  return (
+    <div className="flex items-baseline justify-between gap-5 border-b border-hairline py-[clamp(7px,1.2vh,12px)] last:border-b-0">
+      <span
+        className={`flex items-baseline gap-3 text-[clamp(30px,5.4vw,54px)] font-light tracking-[-0.02em] ${featured ? "text-red" : "text-cream"}`}
+      >
+        {name}
+        {rank && (
+          <span className="font-mono text-[clamp(11px,1.5vw,14px)] uppercase tracking-[0.12em] text-cream-faint">
+            {rank}
+          </span>
+        )}
+      </span>
+      <span
+        className={`shrink-0 text-[clamp(28px,4.8vw,48px)] font-light tabular-nums tracking-[-0.01em] ${featured ? "text-red" : "text-cream"}`}
+      >
+        {value}
+      </span>
+    </div>
   );
 }
