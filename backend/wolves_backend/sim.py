@@ -12,13 +12,15 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from wolves.forecast import Forecaster, ScorelinePerturbation
 from wolves.insights.explain import model_explain
+from wolves.insights.implied_reach import IMPLIED_SIMS, ImpliedReachPoint, ImpliedReachSeries, market_implied_reach
 from wolves.insights.market_gaps import market_gaps
 from wolves.insights.path_tree import team_path_tree
 from wolves.live_state import LiveStateStore
+from wolves.markets.series import load_series
 from wolves.run_policy import calendar_dates, day_policy
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.fitted import FittedStateStore
-from wolves.s3.layout import ODDS_SNAPSHOT
+from wolves.s3.layout import IMPLIED_REACH, ODDS_SNAPSHOT
 from wolves.sim.format import load_results
 from wolves.sim.outputs import build_team_reach
 from wolves.sim.results_store import played_match_records
@@ -233,6 +235,44 @@ class EngineService:
         fit = self._snapshot()
         self._require_team(fit.forecaster, team)
         return await self._cached(("explain", fit.revision, team), lambda: model_explain(fit.forecaster, team))
+
+    async def market_reach(self) -> ImpliedReachSeries:
+        """Market-implied reach per archive day, computed once and persisted beside the captures."""
+        fit = self._snapshot()
+        archive_dir = self._settings.runs_root / ODDS_SNAPSHOT.prefix
+        series = await asyncio.to_thread(load_series, archive_dir)
+        last_by_day: dict[str, Any] = {}
+        for point in series:
+            if point.outright_bookmakers:
+                last_by_day[point.captured_at[:10]] = point
+        points = [await self._implied_point(fit, day, point) for day, point in sorted(last_by_day.items())]
+        return ImpliedReachSeries(points=points)
+
+    async def _implied_point(self, fit: _Fit, day: str, point: Any) -> ImpliedReachPoint:
+        stored = await asyncio.to_thread(self._artifacts.get, IMPLIED_REACH, date=day)
+        if stored is not None:
+            persisted = ImpliedReachPoint.model_validate_json(stored)
+            if persisted.captured_at == point.captured_at:
+                return persisted
+        # Keyed without the fit revision: the point is a historical record, not a live read.
+        key = ("implied-reach", day, point.captured_at)
+        return await self._cached(key, lambda: self._implied(fit, day, point))
+
+    def _implied(self, fit: _Fit, day: str, point: Any) -> ImpliedReachPoint:
+        dates = match_dates(fit.forecaster.fmt)
+        results = {m: r for m, r in fit.results.items() if dates.get(m, "") <= day}
+        teams = market_implied_reach(
+            fit.forecaster.fmt,
+            fit.forecaster.state,
+            point.outright_bookmakers,
+            results=results,
+            n_sims=min(IMPLIED_SIMS, self._settings.publish_n_sims),
+        )
+        out = ImpliedReachPoint(
+            date=day, captured_at=point.captured_at, outright=point.outright_bookmakers, teams=teams
+        )
+        self._artifacts.put(IMPLIED_REACH, out.model_dump_json(), date=day)
+        return out
 
     async def market_gaps(self) -> MarketGaps:
         fit = self._snapshot()

@@ -124,6 +124,12 @@ FITTED_LATEST = ArtifactSpec(
     mutable=True,
     description="Pointer to the most recently published fitted state.",
 )
+IMPLIED_REACH = ArtifactSpec(
+    name="implied-reach",
+    pattern="odds-archive/{date}/implied-reach.json",
+    mutable=True,
+    description="Market-implied reach probabilities inverted from that day's last outright capture.",
+)
 ODDS_SNAPSHOT = ArtifactSpec(
     name="odds-snapshot",
     pattern="odds-archive/{date}/{time}.json",
@@ -219,6 +225,7 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     CHAMPION,
     FITTED_STATE,
     FITTED_LATEST,
+    IMPLIED_REACH,
     ODDS_SNAPSHOT,
     ODDS_SERIES_POINT,
     ODDS_CLOSE,
