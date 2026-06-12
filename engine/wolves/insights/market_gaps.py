@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from wolves.forecast import Forecaster
 from wolves.markets.blend import blend_probabilities
 from wolves.markets.series import load_series
+from wolves.sim.format import PlayedResult
 
 TOP_GAPS = 20
 
@@ -41,8 +42,15 @@ def _pp(a: float, b: float | None) -> float | None:
     return round((a - b) * 100.0, 2) if b is not None else None
 
 
-def market_gaps(forecaster: Forecaster, archive_dir: Path, *, n_sims: int = 50_000, seed: int = 0) -> MarketGaps:
-    model = forecaster.title_probs(n_sims=n_sims, seed=seed)
+def market_gaps(
+    forecaster: Forecaster,
+    archive_dir: Path,
+    *,
+    results: dict[int, PlayedResult] | None = None,
+    n_sims: int = 50_000,
+    seed: int = 0,
+) -> MarketGaps:
+    model = forecaster.title_probs(n_sims=n_sims, seed=seed, results=results)
     series = load_series(archive_dir)
     # A capture failure can leave a snapshot with an empty bookmaker leg;
     # the gap table reads the newest snapshot that actually has prices.

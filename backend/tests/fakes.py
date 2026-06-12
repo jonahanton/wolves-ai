@@ -173,7 +173,9 @@ def build_test_app(
 
 
 def engine_settings(runs_root: Path) -> EngineSettings:
-    return EngineSettings(_env_file=None, storage_mode="local", runs_root=runs_root, dynamo_endpoint="")
+    return EngineSettings(
+        _env_file=None, storage_mode="local", runs_root=runs_root, dynamo_endpoint="", publish_n_sims=2000
+    )
 
 
 def unbooted_engine(runs_root: Path) -> EngineService:
@@ -201,7 +203,7 @@ def published_engine(runs_root: Path) -> EngineService:
         as_of=date(2026, 6, 12),
         teams=teams,
         strengths=np.linspace(0.5, -0.5, len(teams)),
-        globals_={"intercept": 0.1, "home_adv": 0.2, "rho": 0.05},
+        globals_={"intercept": 0.1, "home_adv": 0.2, "rho": 0.05, "half_life_days": 1000.0},
     )
     FittedStateStore(ArtifactStore(settings)).publish(state, run_id="run-test")
     return EngineService(settings)

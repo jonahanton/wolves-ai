@@ -7,20 +7,32 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Literal
 
 from wolves.forecast import Forecaster, ScorelinePerturbation
+from wolves.insights.explain import model_explain
+from wolves.insights.market_gaps import market_gaps
+from wolves.insights.path_tree import team_path_tree
 from wolves.live_state import LiveStateStore
+from wolves.run_policy import calendar_dates, day_policy
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.fitted import FittedStateStore
+from wolves.s3.layout import ODDS_SNAPSHOT
 from wolves.sim.format import load_results
 from wolves.sim.outputs import build_team_reach
 from wolves.sim.results_store import played_match_records
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import date
+    from pathlib import Path
 
     from wolves.config import Settings as EngineSettings
+    from wolves.insights.explain import StrengthExplanation
+    from wolves.insights.market_gaps import MarketGaps
+    from wolves.insights.path_tree import PathTree
+    from wolves.run_policy import DayPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +173,60 @@ class EngineService:
     async def match_grid(self, match: int) -> dict[str, Any]:
         forecaster = self.forecaster
         return await self._cached(("grid", self._fitted_id, match), lambda: self._grid(forecaster, match))
+
+    async def team_paths(self, team: str, *, view: Literal["reach", "title"]) -> PathTree:
+        forecaster = self.forecaster
+        self._require_team(forecaster, team)
+        n_sims = self._settings.publish_n_sims
+        return await self._cached(
+            ("paths", self._fitted_id, team, view, n_sims),
+            lambda: team_path_tree(forecaster, team, view=view, results=self._results, n_sims=n_sims),
+        )
+
+    async def team_explain(self, team: str) -> StrengthExplanation:
+        forecaster = self.forecaster
+        self._require_team(forecaster, team)
+        return await self._cached(("explain", self._fitted_id, team), lambda: model_explain(forecaster, team))
+
+    async def market_gaps(self) -> MarketGaps:
+        forecaster = self.forecaster
+        archive_dir = self._settings.runs_root / ODDS_SNAPSHOT.prefix
+        marker = await asyncio.to_thread(self._latest_series_marker, archive_dir)
+        n_sims = self._settings.publish_n_sims
+        return await self._cached(
+            ("market-gaps", self._fitted_id, marker, n_sims),
+            lambda: market_gaps(forecaster, archive_dir, results=self._results, n_sims=n_sims),
+        )
+
+    async def run_policy(self) -> dict[str, Any]:
+        forecaster = self.forecaster
+        today = datetime.now(UTC).date()
+        return await self._cached(("run-policy", today.isoformat()), lambda: self._run_policy(forecaster, today))
+
+    def _run_policy(self, forecaster: Forecaster, today: date) -> dict[str, Any]:
+        fmt = forecaster.fmt
+        policies = [day_policy(self._settings, fmt, on=on) for on in calendar_dates(fmt)]
+        chosen = day_policy(self._settings, fmt, on=today)
+        return {"today": self._policy_block(chosen), "calendar": [self._policy_block(p) for p in policies]}
+
+    @staticmethod
+    def _policy_block(policy: DayPolicy) -> dict[str, Any]:
+        return {
+            "date": policy.on.isoformat(),
+            "phase": policy.phase,
+            "ceiling_usd": policy.ceiling_usd,
+            "big_teams": list(policy.big_teams),
+        }
+
+    @staticmethod
+    def _require_team(forecaster: Forecaster, team: str) -> None:
+        if team not in {t.id for t in forecaster.fmt.teams}:
+            raise KeyError(team)
+
+    @staticmethod
+    def _latest_series_marker(archive_dir: Path) -> str:
+        names = sorted(archive_dir.glob("*/*.series.json"))
+        return names[-1].name if names else ""
 
     def _engine_block(self, *, n_sims: int, seed: int) -> dict[str, Any]:
         state = self.forecaster.state

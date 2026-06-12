@@ -172,6 +172,18 @@ class MatchGrid(WireModel):
     fitted_run_id: str
 
 
+class DayPolicyOut(WireModel):
+    date: str
+    phase: str
+    ceiling_usd: float
+    big_teams: list[str]
+
+
+class RunPolicy(WireModel):
+    today: DayPolicyOut
+    calendar: list[DayPolicyOut]
+
+
 class Health(BaseModel):
     status: Literal["ok"]
     uptime_s: float
