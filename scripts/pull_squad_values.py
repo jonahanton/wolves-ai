@@ -97,9 +97,7 @@ def rewrite_totals(*, as_of: str) -> None:
         "source": f"sum of squad-players-{as_of}.json per team, Transfermarkt values, EUR millions",
         "valuesEurM": dict(sorted(totals.items())),
     }
-    (DATA_DIR / "ratings" / "squad-values.json").write_text(
-        json.dumps(payload, indent=1) + "\n", encoding="utf-8"
-    )
+    (DATA_DIR / "ratings" / "squad-values.json").write_text(json.dumps(payload, indent=1) + "\n", encoding="utf-8")
 
 
 def mirror_to_s3(players_path: Path, *, as_of: str) -> None:
