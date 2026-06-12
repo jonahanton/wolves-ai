@@ -2,6 +2,10 @@
 
 World Cup 2026 forecasting app.
 
+Every commit uses this git identity, on every machine:
+`Jonah Anton <88099788+jonahanton@users.noreply.github.com>` (GitHub `jonahanton`).
+If `git config user.name`/`user.email` differ, set them locally before committing.
+
 ## Commands
 
 - `make app/up` / `make app/down` to start/stop the stack. Never run `docker compose` directly.
