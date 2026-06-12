@@ -84,6 +84,10 @@ class EngineService:
         return self._forecaster is not None
 
     @property
+    def settings(self) -> EngineSettings:
+        return self._settings
+
+    @property
     def fitted_id(self) -> str:
         return self._fitted_id
 
@@ -168,6 +172,27 @@ class EngineService:
             "engine": self._engine_block(n_sims=n_sims, seed=seed),
             "baseline": baseline,
             "pinned": pinned,
+        }
+
+    async def scores_hold(self, held: list[Pin], *, n_sims: int, seed: int = 0) -> dict[str, Any]:
+        """Champion-probability deltas if every in-play score becomes the final one."""
+        if self._forecaster is None:
+            raise EngineNotReadyError
+        held_key = tuple(sorted((p.match, p.home_goals, p.away_goals) for p in held))
+        baseline = await self._cached(
+            ("reach", self._fitted_id, (), n_sims, seed), lambda: self._reach((), n_sims, seed)
+        )
+        held_reach = await self._cached(
+            ("reach", self._fitted_id, held_key, n_sims, seed), lambda: self._reach(held, n_sims, seed)
+        )
+        base = {team: reach["champion"] for team, reach in baseline.items()}
+        hold = {team: reach["champion"] for team, reach in held_reach.items()}
+        return {
+            "fitted_run_id": self._fitted_id,
+            "n_sims": n_sims,
+            "baseline": base,
+            "held": hold,
+            "deltas_pp": {team: round((hold[team] - base[team]) * 100.0, 2) for team in base},
         }
 
     async def match_grid(self, match: int) -> dict[str, Any]:
@@ -282,12 +307,16 @@ class EngineService:
                     return fixture.home_id, fixture.away_id, spec.stage
         raise MatchTeamsUnknownError(match)
 
+    async def run_blocking(self, fn: Callable[[], Any]) -> Any:
+        """Run one engine-heavy callable on a worker thread behind the sim semaphore."""
+        async with self._semaphore:
+            return await asyncio.to_thread(fn)
+
     async def _cached(self, key: tuple[Any, ...], compute: Callable[[], Any]) -> Any:
         if key in self._cache:
             self._cache.move_to_end(key)
             return self._cache[key]
-        async with self._semaphore:
-            value = await asyncio.to_thread(compute)
+        value = await self.run_blocking(compute)
         self._cache[key] = value
         if len(self._cache) > SIM_CACHE_SIZE:
             self._cache.popitem(last=False)

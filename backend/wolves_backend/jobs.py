@@ -1,0 +1,69 @@
+"""In-process homes for the former ECS live and archive tasks. Each pass runs
+on a worker thread behind the engine semaphore; failures alert via SNS and the
+loop carries on. The backend service must stay at desired_count 1: two tasks
+would double-poll the providers."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
+
+from wolves.forecast import Forecaster
+from wolves.live import build_fixtures_client, live_pass, near_kickoff
+from wolves.live_state import LiveStateStore
+from wolves.s3.artifacts import ArtifactStore
+
+if TYPE_CHECKING:
+    from wolves.config import Settings as EngineSettings
+    from wolves_backend.clients.alerts import Alerts
+    from wolves_backend.sim import EngineService
+
+logger = logging.getLogger(__name__)
+
+FAST_HORIZON = timedelta(hours=1)
+
+
+class LiveLoop:
+    """The wolves.live cadence, in-process: fast near kickoffs, slow when idle."""
+
+    def __init__(self, *, engine: EngineService, alerts: Alerts) -> None:
+        self._engine = engine
+        self._alerts = alerts
+        self._settings: EngineSettings = engine.settings
+        self._artifacts = ArtifactStore(self._settings)
+        self._forecaster: Forecaster | None = None
+
+    async def run(self) -> None:
+        while True:
+            try:
+                published = await self._engine.run_blocking(self._pass)
+            except Exception as exc:
+                logger.exception("live pass failed; continuing the loop")
+                await asyncio.to_thread(self._alerts.publish, "live", f"live pass failed: {exc}")
+                published = False
+            if published:
+                # A result landed: refit next pass, and let routes pick up the new artifact.
+                self._forecaster = None
+                await self._engine.refresh()
+            await asyncio.sleep(await asyncio.to_thread(self._interval))
+
+    def _pass(self) -> bool:
+        return asyncio.run(self._pass_async())
+
+    async def _pass_async(self) -> bool:
+        if self._forecaster is None:
+            self._forecaster = Forecaster(self._settings)
+        fixtures = build_fixtures_client(self._settings)
+        try:
+            return await live_pass(
+                self._settings, fixtures=fixtures, n_sims=self._settings.n_sims, forecaster=self._forecaster
+            )
+        finally:
+            await fixtures.aclose()
+
+    def _interval(self) -> float:
+        state = LiveStateStore(self._artifacts).load()
+        fast = near_kickoff(state, now=datetime.now(UTC), horizon=FAST_HORIZON)
+        return self._settings.live_poll_interval_s if fast else self._settings.live_idle_interval_s

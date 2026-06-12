@@ -19,9 +19,11 @@ from fastapi.responses import JSONResponse
 
 from wolves_backend.access_log import access_log_line
 from wolves_backend.auth import is_admin
+from wolves_backend.clients.alerts import Alerts
 from wolves_backend.config import Settings, get_settings
 from wolves_backend.deps import Deps, build_deps
 from wolves_backend.errors import UpstreamError
+from wolves_backend.jobs import LiveLoop
 from wolves_backend.routes.admin import router as admin_router
 from wolves_backend.routes.agent_state import router as agent_state_router
 from wolves_backend.routes.health import router as health_router
@@ -44,11 +46,18 @@ access_logger = logging.getLogger("wolves_backend.access")
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
-    runner = asyncio.create_task(app.state.deps.engine.run(refresh_interval_s=settings.engine_refresh_interval_s))
+    deps: Deps = app.state.deps
+    alerts = Alerts(topic_arn=settings.alerts_topic_arn, region=settings.aws_region)
+    tasks = [
+        asyncio.create_task(deps.engine.run(refresh_interval_s=settings.engine_refresh_interval_s)),
+        asyncio.create_task(LiveLoop(engine=deps.engine, alerts=alerts).run()),
+    ]
     yield
-    runner.cancel()
-    with suppress(asyncio.CancelledError):
-        await runner
+    for task in tasks:
+        task.cancel()
+    for task in tasks:
+        with suppress(asyncio.CancelledError):
+            await task
 
 
 def create_app(settings: Settings | None = None, *, deps: Deps | None = None) -> FastAPI:

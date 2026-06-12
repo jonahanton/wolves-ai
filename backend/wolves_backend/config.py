@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     admin_token: str = ""
     run_history_limit: int = 50
     engine_refresh_interval_s: float = 300.0
+    alerts_topic_arn: str = ""
 
     @property
     def subnet_ids(self) -> list[str]:

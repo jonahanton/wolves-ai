@@ -174,7 +174,7 @@ def build_test_app(
 
 def engine_settings(runs_root: Path) -> EngineSettings:
     return EngineSettings(
-        _env_file=None, storage_mode="local", runs_root=runs_root, dynamo_endpoint="", publish_n_sims=2000
+        _env_file=None, storage_mode="local", runs_root=runs_root, dynamo_endpoint="", n_sims=2000, publish_n_sims=2000
     )
 
 
