@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PillToggle } from "@/components/charts/pill-toggle";
+import { ToggleTabs } from "@/components/charts/toggle-tabs";
 import { WdlStrip } from "@/components/charts/wdl-strip";
 import { formatDeltaPts, formatPct1 } from "@/lib/format";
 import type { Impact, ImpactFixture, StageImpact } from "@/lib/impact";
@@ -81,7 +81,7 @@ function FixtureImpact({ fixture, impact, focusId }: FixtureImpactProps) {
       )}
       {playable.length > 1 && (
         <div className="mt-5">
-          <PillToggle
+          <ToggleTabs
             options={playable.map((side) => ({ key: side.key, label: side.label }))}
             value={teamId}
             onChange={setTeamId}

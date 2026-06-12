@@ -2,16 +2,16 @@
 
 import clsx from "clsx";
 
-interface PillToggleProps<T extends string> {
+interface ToggleTabsProps<T extends string> {
   options: { key: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
   ariaLabel: string;
 }
 
-export function PillToggle<T extends string>({ options, value, onChange, ariaLabel }: PillToggleProps<T>) {
+export function ToggleTabs<T extends string>({ options, value, onChange, ariaLabel }: ToggleTabsProps<T>) {
   return (
-    <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-1.5">
+    <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-x-5">
       {options.map((option) => {
         const active = option.key === value;
         return (
@@ -21,10 +21,8 @@ export function PillToggle<T extends string>({ options, value, onChange, ariaLab
             aria-pressed={active}
             onClick={() => onChange(option.key)}
             className={clsx(
-              "rounded-pill border px-3 py-1.5 font-mono text-[12px] uppercase tracking-[0.1em] transition-colors duration-200",
-              active
-                ? "border-gold/60 text-gold"
-                : "border-hairline text-cream-faint hover:border-cream-faint hover:text-cream-dim",
+              "border-b-2 px-0.5 pt-2.5 pb-2 font-mono text-[12px] uppercase tracking-[0.14em] transition-colors duration-200",
+              active ? "border-gold text-cream" : "border-transparent text-cream-faint hover:text-cream-dim",
             )}
           >
             {option.label}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Impact } from "@/lib/impact";
 
 const POLL_MS = 60_000;
@@ -9,9 +9,9 @@ const POLL_MS = 60_000;
 // then polls only while matches are in play (the estimate moves on goals).
 export function useImpact(initial: Impact | null): Impact | null {
   const [impact, setImpact] = useState(initial);
-  const recoveredRef = useRef(false);
+  const [recovered, setRecovered] = useState(false);
   const live = (impact?.fixtures.length ?? 0) > 0;
-  const recover = impact === null && !recoveredRef.current;
+  const recover = impact === null && !recovered;
 
   useEffect(() => {
     if (!live && !recover) return;
@@ -26,7 +26,7 @@ export function useImpact(initial: Impact | null): Impact | null {
         } catch {
           // keep the previous estimate; it is already labelled as such
         }
-        recoveredRef.current = true;
+        if (!cancelled) setRecovered(true);
       }
       if (!cancelled && live) timer = setTimeout(poll, POLL_MS);
     };

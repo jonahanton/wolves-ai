@@ -40,9 +40,8 @@ interface HoverState {
 }
 
 const DURATION = 400;
-const HEIGHT = 320;
-const MARGIN = { top: 16, right: 96, bottom: 30, left: 44 };
-const MOBILE_MARGIN = { top: 14, right: 74, bottom: 28, left: 36 };
+const MARGIN = { top: 26, right: 104, bottom: 32, left: 44 };
+const MOBILE_MARGIN = { top: 24, right: 78, bottom: 30, left: 36 };
 const MOBILE_BREAK = 560;
 const DAY_MS = 86_400_000;
 
@@ -74,6 +73,16 @@ function formatDay(t: number): string {
   return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
 }
 
+function formatStamp(t: number): string {
+  return new Date(t).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/London",
+  });
+}
+
 function formatTick(d: Date, first: boolean): string {
   const intraday = d.getHours() !== 0 || d.getMinutes() !== 0;
   if (!intraday) return formatDay(+d);
@@ -92,7 +101,8 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
   const lines = useMemo(() => activeLines(data, source, outcome), [data, source, outcome]);
 
   const margin = width < MOBILE_BREAK ? MOBILE_MARGIN : MARGIN;
-  const height = HEIGHT;
+  const empty = lines.length === 0;
+  const height = empty ? 200 : width < MOBILE_BREAK ? 320 : 420;
 
   const { x, y, hoverTimes } = useMemo(() => {
     const points = lines.flatMap((team) => [...team.points, ...team.estimate]);
@@ -132,6 +142,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
     svg.append("g").attr("class", "estimates");
     svg.append("g").attr("class", "markers");
     svg.append("g").attr("class", "labels");
+    svg.append("g").attr("class", "annotations");
     svg.append("g").attr("class", "hover-layer");
     scaffoldedRef.current = true;
   }, []);
@@ -139,6 +150,10 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
   useEffect(() => {
     if (!svgRef.current || !scaffoldedRef.current || width === 0) return;
     const svg = select(svgRef.current);
+    if (lines.length === 0) {
+      svg.selectAll("g > *").remove();
+      return;
+    }
     const crossfade = previousSourceRef.current !== source;
     previousSourceRef.current = source;
 
@@ -367,6 +382,38 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
       .attr("font-weight", (d) => (d.featured ? 500 : 400))
       .attr("dominant-baseline", "middle")
       .text((d) => (d.estimated ? `${d.text} est.` : d.text));
+    const anchors = lines.filter((team) => team.estimate.length > 1).map((team) => team.estimate[0].t);
+    const annotationsG = svg.select<SVGGElement>(".annotations");
+    annotationsG.selectAll("*").remove();
+    if (anchors.length) {
+      const anchorX = x(Math.max(...anchors));
+      annotationsG
+        .append("line")
+        .attr("x1", anchorX)
+        .attr("x2", anchorX)
+        .attr("y1", margin.top - 6)
+        .attr("y2", height - margin.bottom)
+        .attr("stroke", "oklch(0.8 0.13 78 / 0.35)")
+        .attr("stroke-dasharray", "3 4");
+      const caption = annotationsG
+        .append("text")
+        .attr("y", margin.top - 12)
+        .attr("font-family", "var(--font-spline-mono)")
+        .attr("font-size", 10.5)
+        .attr("letter-spacing", "0.1em");
+      caption
+        .append("tspan")
+        .attr("x", anchorX - 8)
+        .attr("text-anchor", "end")
+        .attr("fill", "oklch(0.8 0.13 78 / 0.85)")
+        .text("AI FORECASTS");
+      caption
+        .append("tspan")
+        .attr("x", anchorX + 8)
+        .attr("text-anchor", "start")
+        .attr("fill", AXIS_TEXT)
+        .text("ENGINE ESTIMATE");
+    }
   }, [lines, source, x, y, width, height, margin]);
 
   useEffect(() => {
@@ -408,6 +455,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
   const hovered = hover
     ? {
         day: new Date(hover.t).toISOString().slice(0, 10),
+        stamp: formatStamp(hover.t),
         rows: lines.flatMap((team) => {
           const run = team.points.find((p) => p.t === hover.t);
           const estimate = team.estimate.find((p) => p.t === hover.t);
@@ -451,11 +499,22 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
           onPointerLeave={() => setHover(null)}
         />
       </svg>
+      {empty && width > 0 && (
+        <p className="absolute inset-0 flex items-center font-mono text-[13px] text-cream-faint">
+          {source === "market" ? "no market prices held yet" : "no published forecasts yet"}
+        </p>
+      )}
       {hover && hovered && hovered.rows.length > 0 && (
         <ChartTooltip x={hover.clientX} y={hover.clientY}>
           <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-cream-faint">
-            {formatDay(hover.t)}
-            {hovered.rows.some((row) => row.estimated) && " · estimated"}
+            {hovered.stamp}
+          </div>
+          <div className="mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-gold">
+            {source === "market"
+              ? "Market prices"
+              : hovered.rows.some((row) => row.estimated)
+                ? "Engine estimate"
+                : `Full AI forecast${hovered.rows[0]?.runId ? ` · ${hovered.rows[0].runId}` : ""}`}
           </div>
           <div className="mt-2 space-y-1">
             {hovered.rows.map((row) => (

@@ -85,6 +85,7 @@ class ArchiveLoop:
     """The odds-archive schedule, in-process: one capture at each archive hour."""
 
     def __init__(self, *, engine: EngineService, alerts: Alerts, hours: tuple[int, ...]) -> None:
+        self._engine = engine
         self._settings: EngineSettings = engine.settings
         self._alerts = alerts
         self._hours = hours
@@ -98,6 +99,13 @@ class ArchiveLoop:
             except Exception as exc:
                 logger.exception("archive pass failed; waiting for the next slot")
                 await asyncio.to_thread(self._alerts.publish, "odds-archive", f"archive pass failed: {exc}")
+                continue
+            # Inverting the fresh capture here keeps reads instant; readers never pay the fit.
+            if self._engine.ready:
+                try:
+                    await self._engine.market_reach()
+                except Exception:
+                    logger.exception("implied-reach warm failed; the next read computes it")
 
     def _pass(self) -> None:
         asyncio.run(self._pass_async())

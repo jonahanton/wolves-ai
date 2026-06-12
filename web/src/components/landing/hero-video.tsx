@@ -18,7 +18,8 @@ export function HeroVideo() {
         alt=""
         className="hidden h-full w-full object-cover motion-reduce:block"
       />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.16_0.012_250/0.72),oklch(0.16_0.012_250/0.34)_38%,oklch(0.16_0.012_250/0.6)_62%,oklch(0.175_0.014_65)_96%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.16_0.012_250/0.85),oklch(0.16_0.012_250/0.55)_38%,oklch(0.16_0.012_250/0.72)_62%,oklch(0.175_0.014_65)_96%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(100deg,oklch(0.175_0.014_65/0.75),transparent_55%)]" />
     </div>
   );
 }

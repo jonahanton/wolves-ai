@@ -66,13 +66,21 @@ function historyValue(point: TeamHistoryPoint, outcome: Outcome): number | null 
   return point.reachProbs?.[outcome] ?? null;
 }
 
+// Run ids carry the start instant (agent-YYYYMMDD-HHMMSS); asOf is only a day.
+function runTime(runId: string, asOf: string): number {
+  const stamp = /^agent-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/.exec(runId);
+  if (!stamp) return Date.parse(asOf);
+  const [, y, mo, d, h, mi, sec] = stamp;
+  return Date.parse(`${y}-${mo}-${d}T${h}:${mi}:${sec}Z`);
+}
+
 function wolvesLines(history: TeamHistoryPoint[]): Record<Outcome, ChartPoint[]> {
   const lines = emptyOutcomes();
   const agentPoints = history.filter((p) => p.runId.startsWith("agent-"));
   for (const outcome of OUTCOMES) {
     lines[outcome.key] = agentPoints.flatMap((p) => {
       const value = historyValue(p, outcome.key);
-      return value === null ? [] : [{ t: Date.parse(p.asOf), value, runId: p.runId }];
+      return value === null ? [] : [{ t: runTime(p.runId, p.asOf), value, runId: p.runId }];
     });
   }
   return lines;
