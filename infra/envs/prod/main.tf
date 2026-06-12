@@ -179,6 +179,11 @@ module "backend_api" {
   memory                        = var.backend_memory
   desired_count                 = var.backend_desired_count
   log_retention_days            = var.log_retention_days
+  live_data_secret_arns         = module.engine.live_data_secret_arns
+  run_policy                    = var.run_policy
+  # Constructed rather than referenced: the alerting module reads this
+  # module's task role, so a resource reference here would be a cycle.
+  alerts_topic_arn = "arn:aws:sns:${var.region}:${data.aws_caller_identity.current.account_id}:${var.project}-alerts"
 }
 
 module "alerting" {

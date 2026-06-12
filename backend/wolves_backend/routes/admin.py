@@ -24,10 +24,10 @@ router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 
 DepsDep = Annotated[Deps, Depends(get_deps)]
 
+# The live loop runs in-process now; an ECS live task would double-poll the provider.
 RUN_COMMANDS = {
     "daily": ["wolves.run"],
     "agent": ["wolves.run_agent", "--live", "--confirm-spend"],
-    "live": ["wolves.live", "--loop", "--interval", "60"],
 }
 
 

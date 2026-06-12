@@ -102,7 +102,7 @@ class ScheduleUpdate(WireModel):
 
 class RunNowRequest(WireModel):
     force: StrictBool = False
-    mode: Literal["daily", "agent", "live"] = "daily"
+    mode: Literal["daily", "agent"] = "daily"
     ceiling_usd: float | None = Field(default=None, ge=0.01, le=8.0)
 
     @model_validator(mode="after")

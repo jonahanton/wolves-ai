@@ -53,3 +53,11 @@ output "task_execution_role_name" {
 output "security_group_id" {
   value = aws_security_group.engine.id
 }
+
+output "live_data_secret_arns" {
+  description = "API-Football and Odds API secret ARNs shared with the backend; the Anthropic key stays agent-only."
+  value = {
+    API_FOOTBALL_KEY = aws_secretsmanager_secret.engine_env["API_FOOTBALL_KEY"].arn
+    ODDS_API_KEY     = aws_secretsmanager_secret.engine_env["ODDS_API_KEY"].arn
+  }
+}

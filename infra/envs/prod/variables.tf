@@ -147,18 +147,20 @@ variable "backend_image_tag" {
   default     = "latest"
 }
 
+# 1 vCPU / 2GB: the backend hosts the fitted engine, interactive sims and the
+# in-process live and archive loops.
 variable "backend_cpu" {
   type    = number
-  default = 256
+  default = 1024
 }
 
 variable "backend_memory" {
   type    = number
-  default = 512
+  default = 2048
 }
 
 variable "backend_desired_count" {
-  description = "Backend API task count; 0 parks the service without destroying it. Zero by default so a first apply against an empty ECR and versionless secrets cannot crash-loop."
+  description = "Backend API task count; 0 parks the service without destroying it, and the module refuses anything above 1 (single-writer pin for the in-process loops)."
   type        = number
   default     = 0
 }

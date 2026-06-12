@@ -1,2 +1,2 @@
-alert_email = "jonahlouisanton@gmail.com"
+alert_email        = "jonahlouisanton@gmail.com"
 monthly_budget_usd = 75

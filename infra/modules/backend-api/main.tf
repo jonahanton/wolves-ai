@@ -53,6 +53,24 @@ data "aws_iam_policy_document" "backend_task" {
     resources = [var.bucket_arn, "${var.bucket_arn}/*"]
   }
 
+  # The in-process live loop and archive write these families; the agent
+  # plane's prefixes stay out of reach.
+  statement {
+    actions = ["s3:PutObject"]
+    resources = [
+      "${var.bucket_arn}/live/*",
+      "${var.bucket_arn}/odds-archive/*",
+      "${var.bucket_arn}/snapshots/*",
+      "${var.bucket_arn}/models/fitted/*",
+      "${var.bucket_arn}/runs/*",
+    ]
+  }
+
+  statement {
+    actions   = ["sns:Publish"]
+    resources = [var.alerts_topic_arn]
+  }
+
   statement {
     actions   = ["dynamodb:Query", "dynamodb:PutItem"]
     resources = [var.dynamo_table_arn]
@@ -188,24 +206,42 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "ENVIRONMENT", value = "production" },
         { name = "AWS_REGION", value = var.region },
         { name = "BUCKET", value = var.bucket_name },
+        { name = "STORAGE_MODE", value = "both" },
+        { name = "RUNS_ROOT", value = "/tmp/runs" },
         { name = "DYNAMO_TABLE", value = var.dynamo_table_name },
         { name = "SCHEDULE_NAME", value = var.schedule_name },
+        { name = "ALERTS_TOPIC_ARN", value = var.alerts_topic_arn },
         { name = "ECS_CLUSTER_ARN", value = var.cluster_arn },
         { name = "ECS_TASK_DEFINITION", value = var.engine_task_definition_family },
         { name = "ECS_AGENT_TASK_DEFINITION", value = var.agent_task_definition_family },
         { name = "ECS_LIVE_TASK_DEFINITION", value = var.live_task_definition_family },
         { name = "ECS_SUBNETS", value = join(",", var.subnets) },
         { name = "ECS_SECURITY_GROUP", value = var.engine_security_group_id },
+        { name = "AGENT_CEILING_OPENING_USD", value = tostring(var.run_policy.agent_ceiling_opening_usd) },
+        { name = "AGENT_CEILING_BIG_GROUP_USD", value = tostring(var.run_policy.agent_ceiling_big_group_usd) },
+        { name = "AGENT_CEILING_GROUP_USD", value = tostring(var.run_policy.agent_ceiling_group_usd) },
+        { name = "AGENT_CEILING_REST_USD", value = tostring(var.run_policy.agent_ceiling_rest_usd) },
+        { name = "AGENT_CEILING_R32_R16_USD", value = tostring(var.run_policy.agent_ceiling_r32_r16_usd) },
+        { name = "AGENT_CEILING_QF_FINAL_USD", value = tostring(var.run_policy.agent_ceiling_qf_final_usd) },
+        { name = "AGENT_CEILING_SINGLE_GAME_DISCOUNT_USD", value = tostring(var.run_policy.agent_ceiling_single_game_discount_usd) },
+        { name = "AGENT_BIG_TEAM_COUNT", value = tostring(var.run_policy.agent_big_team_count) },
+        { name = "LIVE_POLL_INTERVAL_S", value = tostring(var.run_policy.live_poll_interval_s) },
+        { name = "LIVE_STALE_AFTER_S", value = tostring(var.run_policy.live_stale_after_s) },
+        { name = "LIVE_IDLE_INTERVAL_S", value = tostring(var.run_policy.live_idle_interval_s) },
+        { name = "LIVE_IDLE_GRACE_HOURS", value = tostring(var.run_policy.live_idle_grace_hours) },
       ]
-      secrets = [
-        { name = "ADMIN_TOKEN", valueFrom = aws_secretsmanager_secret.admin_token.arn }
-      ]
+      secrets = concat(
+        [{ name = "ADMIN_TOKEN", valueFrom = aws_secretsmanager_secret.admin_token.arn }],
+        [for name, arn in var.live_data_secret_arns : { name = name, valueFrom = arn }],
+      )
+      # SIGTERM grace covers a live pass finishing its atomic writes.
+      stopTimeout = 120
       healthCheck = {
         command     = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')\""]
         interval    = 30
         timeout     = 5
         retries     = 3
-        startPeriod = 20
+        startPeriod = 60
       }
       logConfiguration = {
         logDriver = "awslogs"
@@ -223,8 +259,11 @@ resource "aws_ecs_service" "backend" {
   name            = "${var.project}-backend"
   cluster         = var.cluster_id
   task_definition = aws_ecs_task_definition.backend.arn
-  desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  # Never above 1: see the desired_count variable's single-writer pin.
+  # Rolling deploys briefly overlap two tasks; state.json is last-writer-wins
+  # and the results store merges, so that overlap is benign.
+  desired_count = var.desired_count
+  launch_type   = "FARGATE"
 
   deployment_circuit_breaker {
     enable   = true
