@@ -60,9 +60,10 @@ Submission rules (the validator enforces these):
   but the quant artifact that computed the case must be named in
   market_justification or change_justification.
 - The headline (narrative.headline) is the forecast's reasoning in plain
-  English: two or three short sentences a friend in the pub follows without
-  ever having met the model. Say what the forecast says and the main reasons
-  why, today. Name teams and events, not machinery: no mixtures, blends,
+  English: a few short sentences (at most five, about 420 characters) a
+  friend in the pub follows without ever having met the model. Say what the
+  forecast says and the main reasons why, today. Name teams and events, not
+  machinery: no mixtures, blends,
   scenarios, baselines, percentage points or any other term of art. Any
   number you state is the published probability, rounded to one decimal;
   never quote an internal or intermediate figure.

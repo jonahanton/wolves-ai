@@ -270,8 +270,10 @@ _AMERICANISMS = re.compile(
 )
 
 
-_HEADLINE_MAX_CHARS = 360
-_HEADLINE_MAX_SENTENCES = 3
+# Sized to the frontend lede (54ch measure): ~420 characters fills the column
+# without crowding it, and past five sentences the reasoning has become a list.
+_HEADLINE_MAX_CHARS = 420
+_HEADLINE_MAX_SENTENCES = 5
 # The headline is read by someone who has never met the model; these are the
 # terms of art that leak from the toolchain into prose.
 _HEADLINE_JARGON = re.compile(

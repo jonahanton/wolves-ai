@@ -129,19 +129,35 @@ def test_missing_headline_rejects(store: RunArtifactStore, ledger: EvidenceLedge
     assert "headline_missing" in _codes(_validate(submission, store, ledger))
 
 
-def test_jargon_in_the_headline_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
+def test_jargon_in_the_headline_flags_as_copy(store: RunArtifactStore, ledger: EvidenceLedger):
     headline = "The mixture shifts 2pp towards Spain after reweighting the injury scenario."
     submission = build_submission(narrative=build_narrative(headline=headline))
-    assert "headline_jargon" in _codes(_validate(submission, store, ledger))
+    report = _validate(submission, store, ledger)
+    jargon = [i for i in report.issues if i.code == "headline_jargon"]
+    assert jargon and all(i.severity == "copy" for i in jargon)
 
 
-def test_rambling_headline_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
-    headline = "Spain lead. England hold. France drift. Portugal rise. Brazil wobble."
+def test_rambling_headline_flags_as_copy(store: RunArtifactStore, ledger: EvidenceLedger):
+    headline = "Spain lead. England hold. France drift. Portugal rise. Brazil wobble. Italy fade."
     submission = build_submission(narrative=build_narrative(headline=headline))
-    assert "headline_too_long" in _codes(_validate(submission, store, ledger))
+    report = _validate(submission, store, ledger)
+    too_long = [i for i in report.issues if i.code == "headline_too_long"]
+    assert too_long and all(i.severity == "copy" for i in too_long)
 
 
-def test_plain_english_headline_passes(store: RunArtifactStore, ledger: EvidenceLedger):
-    headline = "Spain are still favourites at about one in six. England's chances edge up with Saka back in training."
+@pytest.mark.parametrize(
+    "headline",
+    [
+        "Spain are still favourites at about one in six. England's chances edge up with Saka back in training.",
+        (
+            "Spain remain the team to beat after another controlled win. England's chances edge up with Saka "
+            "back in full training and no fresh injuries in camp. France drift slightly as Mbappe sits out "
+            "again. The bookmakers broadly agree with this picture. Nothing else in today's news moves the "
+            "big contenders."
+        ),
+    ],
+    ids=["two-sentences", "five-sentences-within-budget"],
+)
+def test_headline_within_the_softened_budget_passes(store: RunArtifactStore, ledger: EvidenceLedger, headline: str):
     submission = build_submission(narrative=build_narrative(headline=headline))
     assert not {code for code in _codes(_validate(submission, store, ledger)) if code.startswith("headline")}
