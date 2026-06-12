@@ -15,7 +15,7 @@ services:
       - ADMIN_TOKEN=${ADMIN_TOKEN:-}
     volumes:
       - ..:/app
-      - /app/backend/.venv
+      - /app/.venv
     networks:
       - app-network
     healthcheck:

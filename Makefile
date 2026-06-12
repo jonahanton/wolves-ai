@@ -9,22 +9,21 @@ export
 setup: venv frontend/install
 
 venv:
-	rm -rf engine/.venv backend/.venv || true
-	cd engine && uv venv && uv pip install -e ".[dev]"
-	cd backend && uv venv && uv pip install -e ".[dev]"
-	@echo "Done. Activate with: source engine/.venv/bin/activate"
+	rm -rf .venv engine/.venv backend/.venv || true
+	uv sync --all-packages --all-extras
+	@echo "Done. Activate with: source .venv/bin/activate"
 
 lint:
-	cd engine && .venv/bin/ruff check .
-	cd backend && .venv/bin/ruff check .
+	cd engine && ../.venv/bin/ruff check .
+	cd backend && ../.venv/bin/ruff check .
 
 format:
-	cd engine && .venv/bin/ruff format . && .venv/bin/ruff check . --fix
-	cd backend && .venv/bin/ruff format . && .venv/bin/ruff check . --fix
+	cd engine && ../.venv/bin/ruff format . && ../.venv/bin/ruff check . --fix
+	cd backend && ../.venv/bin/ruff format . && ../.venv/bin/ruff check . --fix
 
 test:
-	cd engine && .venv/bin/pytest tests/ -q
-	cd backend && .venv/bin/pytest tests/ -q
+	cd engine && ../.venv/bin/pytest tests/ -q
+	cd backend && ../.venv/bin/pytest tests/ -q
 
 precommit:
 	pre-commit run --all-files
@@ -33,7 +32,6 @@ release:
 	@scripts/release.sh $(env)
 
 db/init:
-	cd engine && \
 	AWS_ACCESS_KEY_ID=$${AWS_ACCESS_KEY_ID:-local} AWS_SECRET_ACCESS_KEY=$${AWS_SECRET_ACCESS_KEY:-local} \
 	DYNAMO_ENDPOINT=$${DYNAMO_ENDPOINT:-http://localhost:$${DB_PORT:-8000}} \
 	.venv/bin/python -m wolves.s3.init
