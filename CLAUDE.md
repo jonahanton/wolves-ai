@@ -2,9 +2,11 @@
 
 World Cup 2026 forecasting app.
 
-Every commit uses this git identity, on every machine:
-`Jonah Anton <88099788+jonahanton@users.noreply.github.com>` (GitHub `jonahanton`).
-If `git config user.name`/`user.email` differ, set them locally before committing.
+This repo always uses the `jonahanton` GitHub account, on every machine. Some machines
+switch between two accounts via the gh CLI: before the first commit or push of a session,
+check `gh auth status` and `gh auth switch --user jonahanton` if the other account is
+active, and make sure `git config user.name`/`user.email` give
+`Jonah Anton <88099788+jonahanton@users.noreply.github.com>` (set locally if not).
 
 ## Commands
 
