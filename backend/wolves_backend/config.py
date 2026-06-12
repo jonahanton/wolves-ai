@@ -37,10 +37,15 @@ class Settings(BaseSettings):
     run_history_limit: int = 50
     engine_refresh_interval_s: float = 300.0
     alerts_topic_arn: str = ""
+    archive_hours_utc: str = "8,14,18,22"
 
     @property
     def subnet_ids(self) -> list[str]:
         return [subnet for subnet in self.ecs_subnets.split(",") if subnet]
+
+    @property
+    def archive_hours(self) -> tuple[int, ...]:
+        return tuple(int(hour) for hour in self.archive_hours_utc.split(",") if hour)
 
 
 @lru_cache

@@ -23,7 +23,7 @@ from wolves_backend.clients.alerts import Alerts
 from wolves_backend.config import Settings, get_settings
 from wolves_backend.deps import Deps, build_deps
 from wolves_backend.errors import UpstreamError
-from wolves_backend.jobs import LiveLoop
+from wolves_backend.jobs import ArchiveLoop, LiveLoop
 from wolves_backend.routes.admin import router as admin_router
 from wolves_backend.routes.agent_state import router as agent_state_router
 from wolves_backend.routes.health import router as health_router
@@ -51,6 +51,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     tasks = [
         asyncio.create_task(deps.engine.run(refresh_interval_s=settings.engine_refresh_interval_s)),
         asyncio.create_task(LiveLoop(engine=deps.engine, alerts=alerts).run()),
+        asyncio.create_task(ArchiveLoop(engine=deps.engine, alerts=alerts, hours=settings.archive_hours).run()),
     ]
     yield
     for task in tasks:
