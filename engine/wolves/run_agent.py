@@ -67,6 +67,7 @@ from wolves.s3.agent_state import build_agent_state_store
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.client import S3UnavailableError
+from wolves.s3.fitted import FittedStateStore
 from wolves.s3.layout import ARTICLE, RELEVANCE_FEEDBACK, RELEVANCE_MEMORY, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import load_format
@@ -625,6 +626,8 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     runtime.shutdown()
     if snapshot is not None:
         publisher.publish(snapshot, as_of=date.fromisoformat(as_of), started=started)
+        if deps.forecaster is not None and deps.forecaster.is_fitted:
+            FittedStateStore(ArtifactStore(settings)).publish(deps.forecaster.state, run_id=run_id)
     if state is not None:
         state.push(run_id=run_id)
     logger.info(

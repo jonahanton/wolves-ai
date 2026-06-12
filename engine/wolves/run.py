@@ -15,7 +15,9 @@ from wolves.gate.registry import ELO_CHAMPION_ID
 from wolves.markets.blend import blend_probabilities
 from wolves.markets.outright import build_clients, outright_consensus
 from wolves.observability.logging import configure_cli_logging
+from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
+from wolves.s3.fitted import FittedStateStore
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
 from wolves.sim.results_store import persisted_results, played_match_records
@@ -67,6 +69,8 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
     played_records = played_match_records(settings)
     if model_path:
         forecaster.fit(extra_results=played_records)
+        if run_id:
+            FittedStateStore(ArtifactStore(settings)).publish(forecaster.state, run_id=run_id)
         outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played)
         champion = ChampionBlock(
             id=forecaster.champion.model_id,
