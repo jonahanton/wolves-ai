@@ -11,6 +11,7 @@ export interface SeriesGeometry {
   name: string;
   featured: boolean;
   points: SeriesPoint[];
+  marketPoints: { x: number; y: number }[];
   label: string;
   labelY: number;
   colour: string;
@@ -68,6 +69,11 @@ export function chartGeometry(series: TeamSeries[]): { frame: ChartFrame; lines:
       y: y(p.championProb),
       agent: p.runId.startsWith("agent-"),
     }));
+    const marketPoints = s.featured
+      ? s.points
+          .filter((p) => p.marketProb !== null && p.marketProb !== undefined)
+          .map((p) => ({ x: x(xFor.get(`${p.asOf}|${p.runId}`) ?? 0), y: y(p.marketProb as number) }))
+      : [];
     return {
       teamId: s.teamId,
       name: s.name,
@@ -78,6 +84,7 @@ export function chartGeometry(series: TeamSeries[]): { frame: ChartFrame; lines:
         : abbreviate(s.name),
       labelY: points.length ? points[points.length - 1].y : 0,
       points,
+      marketPoints,
     };
   });
   separateLabels(lines);

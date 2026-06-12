@@ -68,7 +68,8 @@ export default async function LandingPage() {
               Chance of winning the World Cup
             </span>
             <span className="font-mono text-[12px] text-cream-faint">
-              ◆ <b className="text-cream-dim">agent run</b> · the published number
+              <span className="text-gold">◆</span> <b className="text-cream-dim">agent</b> · ● engine · market
+              dashed
             </span>
           </div>
           <SeriesChart series={series} ariaLabel="Title probability over published runs" />

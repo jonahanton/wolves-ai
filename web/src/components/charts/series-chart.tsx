@@ -29,8 +29,23 @@ export function SeriesChart({ series, ariaLabel }: SeriesChartProps) {
       {lines.map((line) => {
         const last = line.points[line.points.length - 1];
         if (!last) return null;
+        const lastMarket = line.marketPoints[line.marketPoints.length - 1];
         return (
           <g key={line.teamId}>
+            {line.marketPoints.length > 1 && (
+              <polyline
+                fill="none"
+                points={line.marketPoints.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")}
+                stroke="oklch(0.965 0.008 95 / 0.3)"
+                strokeWidth="1.4"
+                strokeDasharray="5 4"
+              />
+            )}
+            {lastMarket && (
+              <text x={lastMarket.x + 12} y={lastMarket.y + 4} className="fill-cream-faint font-mono text-[13px]">
+                market
+              </text>
+            )}
             {line.points.length > 1 && (
               <polyline
                 fill="none"
@@ -39,12 +54,14 @@ export function SeriesChart({ series, ariaLabel }: SeriesChartProps) {
                 strokeWidth={line.featured ? 2.2 : 1.6}
               />
             )}
-            {line.points
-              .filter((p) => p.agent)
-              .map((p, i) => (
-                <path key={i} d={`M${p.x},${p.y - 6} l5.5,6 -5.5,6 -5.5,-6z`} fill={line.colour} />
-              ))}
-            <circle cx={last.x} cy={last.y} r={line.featured ? 3.5 : 3} fill={line.colour} />
+            {line.points.map((p, i) =>
+              p.agent ? (
+                <path key={i} d={`M${p.x},${p.y - 6} l5.5,6 -5.5,6 -5.5,-6z`} fill="oklch(0.8 0.13 78)" />
+              ) : (
+                <circle key={i} cx={p.x} cy={p.y} r="2.6" fill={line.colour} />
+              ),
+            )}
+            <circle cx={last.x} cy={last.y} r={last.agent ? 0 : line.featured ? 3.5 : 3} fill={line.colour} />
             <text
               x={last.x + 12}
               y={line.labelY + 5}
