@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING
 # annotation when wiring the dependency.
 from fastapi import Request  # noqa: TC002
 
+from wolves.config import Settings as EngineSettings
 from wolves_backend.clients.bucket import Bucket
 from wolves_backend.clients.engine_tasks import EngineTasks
 from wolves_backend.clients.run_index import RunIndex
 from wolves_backend.clients.run_schedule import RunSchedule
+from wolves_backend.sim import EngineService
 from wolves_backend.snapshots import SnapshotSource
 from wolves_backend.storage import Storage
 
@@ -25,6 +27,7 @@ class Deps:
     run_index: RunIndex
     schedule: RunSchedule
     engine_tasks: EngineTasks
+    engine: EngineService
 
 
 def build_deps(settings: Settings) -> Deps:
@@ -51,6 +54,7 @@ def build_deps(settings: Settings) -> Deps:
             security_group=settings.ecs_security_group,
             region=settings.aws_region,
         ),
+        engine=EngineService(EngineSettings()),
     )
 
 

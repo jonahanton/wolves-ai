@@ -134,6 +134,44 @@ class StopResult(WireModel):
     stopped: str
 
 
+class PinIn(WireModel):
+    match: int = Field(ge=1, le=104)
+    home_goals: int = Field(ge=0, le=9)
+    away_goals: int = Field(ge=0, le=9)
+
+
+class SimulateRequest(WireModel):
+    pins: list[PinIn] = Field(default_factory=list, max_length=8)
+    n_sims: int = Field(default=10_000, ge=1_000, le=20_000)
+    seed: int = Field(default=0, ge=0, le=2**31 - 1)
+
+
+class EngineBlock(WireModel):
+    fitted_run_id: str
+    model_id: str
+    as_of: str
+    n_sims: int
+    seed: int
+
+
+class SimulateResponse(WireModel):
+    engine: EngineBlock
+    baseline: dict[str, dict[str, float]]
+    pinned: dict[str, dict[str, float]]
+
+
+class MatchGrid(WireModel):
+    match: int
+    stage: str
+    home_id: str
+    away_id: str
+    grid: list[list[float]]
+    p_home: float
+    p_draw: float
+    p_away: float
+    fitted_run_id: str
+
+
 class Health(BaseModel):
     status: Literal["ok"]
     uptime_s: float
