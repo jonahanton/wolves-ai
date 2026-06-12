@@ -56,9 +56,7 @@ def _games_day_policy(settings: Settings, fmt: FormatData, big: frozenset[str], 
     playing = {m.home for m in group_games} | {m.away for m in group_games}
     big_playing = tuple(sorted(playing & big))
     # Semis and final are exempt: their single game is the whole stake.
-    single_knockout = (
-        len(knockout_games) + len(group_games) == 1 and not knockout_stages & {"sf", "final"}
-    )
+    single_knockout = len(knockout_games) + len(group_games) == 1 and not knockout_stages & {"sf", "final"}
 
     if knockout_stages & _LATE_STAGES:
         phase: Phase = "qf_final"
