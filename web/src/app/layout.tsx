@@ -24,6 +24,12 @@ const splineMono = localFont({
   display: "swap",
 });
 
+const fraunces = localFont({
+  src: [{ path: "../fonts/fraunces-latin.woff2", weight: "340 600", style: "normal" }],
+  variable: "--font-fraunces",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "The Wolves",
   description: "The Wolves' World Cup Superforecaster",
@@ -38,7 +44,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-GB" className={`${albert.variable} ${splineMono.variable}`}>
+    <html lang="en-GB" className={`${albert.variable} ${splineMono.variable} ${fraunces.variable}`}>
       <body className="flex min-h-svh flex-col">
         <SiteNav />
         <main className="flex-1">{children}</main>

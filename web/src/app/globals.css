@@ -16,6 +16,7 @@
 
   --font-sans: var(--font-albert);
   --font-mono: var(--font-spline-mono);
+  --font-serif: var(--font-fraunces);
   --font-mono--font-feature-settings: "tnum";
 
   --radius-*: initial;
@@ -70,6 +71,17 @@
 
 @utility statement-hero {
   font-size: clamp(40px, 7.6vw, 84px);
+}
+
+@utility chart-title {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 130, "SOFT" 0, "WONK" 0;
+  font-weight: 430;
+  font-size: clamp(28px, 1.4rem + 2.4vw, 48px);
+  line-height: 1.04;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
 }
 
 @utility kicker {

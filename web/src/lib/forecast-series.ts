@@ -86,6 +86,28 @@ function wolvesLines(history: TeamHistoryPoint[]): Record<Outcome, ChartPoint[]>
   return lines;
 }
 
+// Captures arrive at irregular real times (and the odd near-duplicate). Snapping
+// to a regular grid and keeping the latest per slot gives an honest, even cadence.
+const MARKET_SLOT_MS = 6 * 3_600_000;
+const ESTIMATE_SLOT_MS = 3_600_000;
+
+function regularCaptures(points: ImpliedReachPoint[]): ImpliedReachPoint[] {
+  const bySlot = new Map<number, ImpliedReachPoint>();
+  for (const point of [...points].sort((a, b) => Date.parse(a.captured_at) - Date.parse(b.captured_at))) {
+    const slot = Math.round(Date.parse(point.captured_at) / MARKET_SLOT_MS) * MARKET_SLOT_MS;
+    bySlot.set(slot, { ...point, captured_at: new Date(slot).toISOString() });
+  }
+  return [...bySlot.values()].sort((a, b) => Date.parse(a.captured_at) - Date.parse(b.captured_at));
+}
+
+function regularSeriesPoints(points: ChartPoint[]): ChartPoint[] {
+  const bySlot = new Map<number, ChartPoint>();
+  for (const point of [...points].sort((a, b) => a.t - b.t)) {
+    bySlot.set(Math.round(point.t / ESTIMATE_SLOT_MS) * ESTIMATE_SLOT_MS, point);
+  }
+  return [...bySlot.values()].sort((a, b) => a.t - b.t);
+}
+
 function marketLines(teamId: string, points: ImpliedReachPoint[]): Record<Outcome, ChartPoint[]> {
   const lines = emptyOutcomes();
   for (const outcome of OUTCOMES) {
@@ -111,11 +133,13 @@ function estimateLines(
     const anchor = wolves[outcome.key].at(-1);
     const stage = stages[outcome.key];
     if (!anchor || !stage) continue;
-    const seriesPoints = impact.series.flatMap((point) => {
-      const value = point.teams[teamId]?.[outcome.key];
-      const t = Date.parse(point.fetchedAt);
-      return value === undefined || t <= anchor.t ? [] : [{ t, value }];
-    });
+    const seriesPoints = regularSeriesPoints(
+      impact.series.flatMap((point) => {
+        const value = point.teams[teamId]?.[outcome.key];
+        const t = Date.parse(point.fetchedAt);
+        return value === undefined || t <= anchor.t ? [] : [{ t, value }];
+      }),
+    );
     const moved = Math.abs(stage.estimated - stage.agent) >= 0.0005;
     if (!seriesPoints.length && !moved) continue;
     lines[outcome.key] = [anchor, ...seriesPoints, { t: now, value: stage.estimated }];
@@ -131,6 +155,7 @@ export function assembleChartData(
   names: Record<string, string>,
   now: number,
 ): ForecastChartData {
+  const captures = regularCaptures(marketReach);
   const lines = teams.map((team) => {
     const wolves = wolvesLines(team.history);
     return {
@@ -139,7 +164,7 @@ export function assembleChartData(
       colour: team.colour,
       featured: team.featured,
       wolves,
-      market: marketLines(team.teamId, marketReach),
+      market: marketLines(team.teamId, captures),
       estimate: estimateLines(team.teamId, wolves, impact, now),
     };
   });

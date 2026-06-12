@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { OutcomeTabs } from "@/components/charts/outcome-tabs";
 import { ToggleTabs } from "@/components/charts/toggle-tabs";
 import { ForecastChart } from "@/components/landing/forecast-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
@@ -105,37 +106,31 @@ export function LandingForecast(props: LandingForecastProps) {
 
       <section className="relative">
         <div className="wrap pt-[clamp(14px,2.5vh,28px)] pb-[clamp(32px,5vh,56px)]">
-          <div className="flex items-baseline justify-between gap-x-8">
-            <Kicker className="mb-0!">World Cup winner</Kicker>
+          <div className="flex items-center justify-between gap-x-8">
+            <span className="flex items-center gap-2.5">
+              <span aria-hidden className="h-[3px] w-7 bg-red" />
+              <span className="kicker">World Cup 2026</span>
+            </span>
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-cream-faint">Run {runLabelNb}</span>
           </div>
-          <h1 className="mt-3 mb-5 text-[clamp(24px,3.6vw,38px)] font-light tracking-[-0.015em] text-cream">
-            Chance of {outcomeMeta.phrase}
-          </h1>
-          <ForecastChart
-            data={data}
-            source={source}
-            outcome={outcome}
-            ariaLabel={`Chance of ${outcomeMeta.phrase} over time, ${source === "wolves" ? "the Wolves forecast" : "the market"}`}
-          />
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-x-8 gap-y-4 border-t border-hairline pt-4">
-            <ToggleTabs
-              options={OUTCOMES.map((o) => ({
-                key: o.key,
-                label: (
-                  <>
-                    <span className="sm:hidden">{o.short}</span>
-                    <span className="hidden sm:inline">{o.label}</span>
-                  </>
-                ),
-              }))}
+          <h1 className="chart-title mt-3 text-cream">Chance of {outcomeMeta.phrase}</h1>
+          <div className="mt-5 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-hairline pb-1">
+            <OutcomeTabs
+              options={OUTCOMES.map((o) => ({ key: o.key, label: o.label, short: o.short }))}
               value={outcome}
               onChange={setOutcome}
-              ariaLabel="Outcome"
             />
             <ToggleTabs options={SOURCES} value={source} onChange={setSource} ariaLabel="Forecast source" />
           </div>
-          <div className="mt-4 font-mono text-[11.5px] text-cream-faint">{caption}</div>
+          <div className="mt-5">
+            <ForecastChart
+              data={data}
+              source={source}
+              outcome={outcome}
+              ariaLabel={`Chance of ${outcomeMeta.phrase} over time, ${source === "wolves" ? "the Wolves forecast" : "the market"}`}
+            />
+          </div>
+          <div className="mt-3 font-mono text-[11.5px] text-cream-faint">{caption}</div>
         </div>
       </section>
 
