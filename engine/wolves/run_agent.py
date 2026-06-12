@@ -368,6 +368,23 @@ def _quant_findings(deps: AgentDeps) -> list[QuantFindingOut]:
     return findings
 
 
+def _ledger_entries(ledger: EvidenceLedger, articles: ArticleCache) -> list[LedgerEntryOut]:
+    """Publish ledger entries with article titles joined from the cache."""
+    entries: list[LedgerEntryOut] = []
+    for e in ledger.all():
+        article = articles.get(e.source_url)
+        entries.append(
+            LedgerEntryOut(
+                **{
+                    **e.model_dump(mode="json"),
+                    "created_at": e.created_at.isoformat(),
+                    "title": article.title if article else None,
+                }
+            )
+        )
+    return entries
+
+
 def _build_snapshot(
     *,
     settings: Settings,
@@ -408,10 +425,7 @@ def _build_snapshot(
     agent_block = AgentBlock(
         narrative=NarrativeBlock(**submission.narrative.model_dump()),
         artifact_id=submission.artifact_id,
-        ledger_entries=[
-            LedgerEntryOut(**{**e.model_dump(mode="json"), "created_at": e.created_at.isoformat()})
-            for e in deps.ledger.all()
-        ],
+        ledger_entries=_ledger_entries(deps.ledger, deps.articles),
         scenario_weights=[ScenarioWeightOut(**w.model_dump()) for w in submission.scenario_weights],
         worlds=[
             WorldOut(

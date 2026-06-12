@@ -142,6 +142,7 @@ export interface LedgerEntryOut {
   id: string;
   claim: string;
   source_url: string;
+  title: string | null;
   status: string;
   mechanism: string;
   proposed_delta: number;

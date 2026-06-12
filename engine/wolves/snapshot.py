@@ -149,6 +149,9 @@ class LedgerEntryOut(BaseModel):
     id: str
     claim: str
     source_url: str
+    # Joined from the article cache at snapshot build so the frontend can
+    # name sources without exposing internal ledger machinery.
+    title: str | None = None
     status: str
     mechanism: str
     proposed_delta: float = 0.0
