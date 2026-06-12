@@ -1,6 +1,6 @@
 export function HeroVideo() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[min(38svh,360px)] overflow-hidden">
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[min(30svh,300px)] overflow-hidden">
       <video
         muted
         loop

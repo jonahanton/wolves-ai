@@ -96,16 +96,16 @@ export function LandingForecast(props: LandingForecastProps) {
     source === "wolves"
       ? singleRun
         ? "one full AI forecast published so far · a new point lands with every run"
-        : "◆ full AI forecasts · the dotted line is the engine's estimate between runs"
+        : "◆ full AI forecasts · the dotted line is our running estimate between them"
       : "bookmaker prices with the margin removed · stages below the winner are implied from those prices";
 
   return (
     <>
       <section className="relative">
         <HeroVideo />
-        <div className="wrap relative pt-[clamp(56px,9svh,104px)] pb-[clamp(28px,4vh,44px)]">
+        <div className="wrap relative pt-[clamp(44px,7svh,80px)] pb-[clamp(18px,2.5vh,30px)]">
           <Kicker>World Cup winner · run {runLabel.replace(/ /g, "\u00A0")}</Kicker>
-          <h1 className="statement statement-hero mt-2">
+          <h1 className="statement mt-2">
             {leader ? `${leader.name} ${formatPct1(leader.prob)}.` : "The field is open."}
             {focus && focus.teamId !== leader?.teamId && (
               <>
@@ -123,7 +123,7 @@ export function LandingForecast(props: LandingForecastProps) {
       </section>
 
       <section className="relative">
-        <div className="wrap pt-[clamp(20px,3vh,36px)] pb-[clamp(44px,7vh,72px)]">
+        <div className="wrap pt-[clamp(10px,1.5vh,20px)] pb-[clamp(44px,7vh,72px)]">
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2 border-b border-hairline pb-1">
             <ToggleTabs
               options={OUTCOMES.map((o) => ({
@@ -168,8 +168,8 @@ export function LandingForecast(props: LandingForecastProps) {
                 <LiveImpact impact={impact} focusId={focusId} />
               </div>
               <p className="mt-4 max-w-[640px] font-mono text-[11.5px] leading-relaxed text-cream-faint">
-                Estimates hold the current scores to full time in the match engine and shift the published
-                forecast by the same amount. The AI has not re-forecast.
+                The running estimate holds the current scores to full time and shifts the published forecast
+                by the same amount. The AI has not re-forecast.
               </p>
             </div>
           )}

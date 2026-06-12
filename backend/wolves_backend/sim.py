@@ -414,7 +414,8 @@ class EngineService:
 
     def _played(self, fit: _Fit) -> list[dict[str, Any]]:
         fmt = fit.forecaster.fmt
-        dates = match_dates(fmt)
+        dates = {m.match: m.date for m in fmt.group_matches}
+        dates.update({m.match: m.date for m in fmt.knockout})
         group_teams = {m.match: (m.home, m.away) for m in fmt.group_matches}
         stages = {m.match: m.stage for m in fmt.knockout}
         live = LiveStateStore(self._artifacts).load()

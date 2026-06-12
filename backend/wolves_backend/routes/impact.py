@@ -92,7 +92,10 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
     selected = _selected_teams(teams, agent_reach, in_play, snapshot["focus"]["team_id"])
 
     today = datetime.now(UTC).date().isoformat()
-    states = await day_states(deps.storage, today, bound=MAX_SERIES_POINTS)
+    polled = await day_states(deps.storage, today, bound=MAX_SERIES_POINTS)
+    # The landing series reads at tournament scale; one point per hour is the shape.
+    by_hour = {state.fetched_at[:13]: state for state in polled}
+    states = list(by_hour.values())
     legs: dict[str, Leg] = {
         "then": Leg(results_until=results_until, fitted_run_id=run["run_id"]),
         "now": Leg(),

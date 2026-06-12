@@ -34,7 +34,7 @@ export interface TeamLine {
 }
 
 export interface FixtureResultView {
-  date: string;
+  t: number;
   label: string;
 }
 
@@ -175,9 +175,12 @@ function estimateBreakdowns(
   return breakdown;
 }
 
+// A result becomes news roughly two hours after kickoff.
+const RESULT_KNOWN_AFTER_MS = 2 * 3_600_000;
+
 function resultViews(results: PlayedResultRow[], names: Record<string, string>): FixtureResultView[] {
   return results.map((row) => ({
-    date: row.date,
+    t: Date.parse(row.date) + RESULT_KNOWN_AFTER_MS,
     label: `${teamName(row.homeId, names)} ${row.homeGoals}-${row.awayGoals} ${teamName(row.awayId, names)}`,
   }));
 }
@@ -187,8 +190,6 @@ function teamName(teamId: string | null, names: Record<string, string>): string 
   return names[teamId] ?? teamId;
 }
 
-export function resultsAround(results: FixtureResultView[], dayIso: string): FixtureResultView[] {
-  const day = new Date(`${dayIso}T00:00:00Z`);
-  const before = new Date(day.getTime() - 86_400_000).toISOString().slice(0, 10);
-  return results.filter((row) => row.date === dayIso || row.date === before);
+export function resultsBetween(results: FixtureResultView[], from: number, to: number): FixtureResultView[] {
+  return results.filter((row) => row.t > from && row.t <= to).sort((a, b) => a.t - b.t);
 }

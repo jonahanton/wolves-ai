@@ -27,12 +27,12 @@ def write_agent_snapshot(runs_root, fmt) -> None:
     path.write_text(json.dumps(snapshot), encoding="utf-8")
 
 
-def live_state(fmt, *, home_goals: int) -> dict:
+def live_state(fmt, *, home_goals: int, fetched_at: str = "2026-06-12T15:00:00+00:00") -> dict:
     opener = fmt.group_matches[0]
     return {
         "schema_version": 1,
-        "generated_at": "2026-06-12T15:00:00+00:00",
-        "fetched_at": "2026-06-12T15:00:00+00:00",
+        "generated_at": fetched_at,
+        "fetched_at": fetched_at,
         "stale_after": "2026-06-12T15:02:00+00:00",
         "live_match_count": 1,
         "fixtures": [
@@ -64,7 +64,9 @@ async def test_impact_estimates_in_game_movement_on_the_agent_scale(tmp_path):
     today = datetime.now(UTC).date().isoformat()
     history = tmp_path / "live" / "history" / today
     history.mkdir(parents=True)
-    (history / "140500.json").write_text(json.dumps(live_state(fmt, home_goals=0)), encoding="utf-8")
+    (history / "140500.json").write_text(
+        json.dumps(live_state(fmt, home_goals=0, fetched_at="2026-06-12T14:05:00+00:00")), encoding="utf-8"
+    )
     (history / "150000.json").write_text(json.dumps(live_state(fmt, home_goals=9)), encoding="utf-8")
 
     app = build_test_app(storage_dir=tmp_path, engine=engine)

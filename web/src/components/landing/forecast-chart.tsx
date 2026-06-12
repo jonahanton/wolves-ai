@@ -12,7 +12,7 @@ import {
   type ChartPoint,
   type ForecastChartData,
   type Outcome,
-  resultsAround,
+  resultsBetween,
   type Source,
   type TeamLine,
 } from "@/lib/forecast-series";
@@ -103,7 +103,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
 
   const margin = width < MOBILE_BREAK ? MOBILE_MARGIN : MARGIN;
   const empty = lines.length === 0;
-  const height = empty ? 200 : width < MOBILE_BREAK ? 320 : 420;
+  const height = empty ? 200 : width < MOBILE_BREAK ? 340 : 480;
 
   const { x, y, hoverTimes } = useMemo(() => {
     const points = lines.flatMap((team) => [...team.points, ...team.estimate]);
@@ -418,7 +418,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
         .attr("x", anchorX + 8)
         .attr("text-anchor", "start")
         .attr("fill", AXIS_TEXT)
-        .text("ENGINE ESTIMATE");
+        .text("RUNNING ESTIMATE");
     }
   }, [lines, source, x, y, width, height, margin]);
 
@@ -460,7 +460,6 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
 
   const hovered = hover
     ? {
-        day: new Date(hover.t).toISOString().slice(0, 10),
         stamp: formatStamp(hover.t),
         rows: lines.flatMap((team) => {
           const run = team.points.find((p) => p.t === hover.t);
@@ -480,7 +479,13 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
         }),
       }
     : null;
-  const hoveredResults = hovered ? resultsAround(data.results, hovered.day) : [];
+  // New information only: everything landed since the previous run or capture.
+  const anchorTimes = hover ? [...new Set(lines.flatMap((team) => team.points.map((p) => p.t)))].sort() : [];
+  const previousAnchor = hover
+    ? anchorTimes.filter((t) => (anchorTimes.includes(hover.t) ? t < hover.t : t <= hover.t)).at(-1)
+    : undefined;
+  const hoveredResults =
+    hover && previousAnchor !== undefined ? resultsBetween(data.results, previousAnchor, hover.t) : [];
   const breakdown = data.breakdown[outcome];
   const hoveredBreakdown = hover && breakdown && breakdown.t === hover.t ? breakdown.text : null;
 
@@ -519,7 +524,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
             {source === "market"
               ? "Market prices"
               : hovered.rows.some((row) => row.estimated)
-                ? "Engine estimate"
+                ? "Running estimate"
                 : `Full AI forecast${hovered.rows[0]?.runId ? ` · ${hovered.rows[0].runId}` : ""}`}
           </div>
           <div className="mt-2 space-y-1">
@@ -539,9 +544,11 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
           )}
           {hoveredResults.length > 0 && (
             <div className="mt-2.5 border-t border-hairline pt-2">
-              <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-cream-faint">Results</div>
+              <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-cream-faint">
+                New results since the last {source === "market" ? "capture" : "run"}
+              </div>
               {hoveredResults.map((row) => (
-                <div key={`${row.date}-${row.label}`} className="mt-1 font-mono text-[12px] text-cream-dim">
+                <div key={`${row.t}-${row.label}`} className="mt-1 font-mono text-[12px] text-cream-dim">
                   {row.label}
                 </div>
               ))}
