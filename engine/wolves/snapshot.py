@@ -180,6 +180,8 @@ class WorldOut(BaseModel):
     weight: float
     perturbations: list[dict] = Field(default_factory=list)
     title_probs: dict[str, float] = Field(default_factory=dict)
+    # Match id -> {home, draw, away}; the surface the spread P&L is scored on.
+    match_probs: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
 class QuantFindingOut(BaseModel):
@@ -208,6 +210,9 @@ class CalibrationSummary(BaseModel):
     log_loss: dict[str, float] = Field(default_factory=dict)
     adjustment_pnl: float | None = None
     governor_scale: float = 1.0
+    spread_pnl: float | None = None
+    band_coverage: float | None = None
+    movement_ratio: float | None = None
 
 
 class AgentBlock(BaseModel):
@@ -244,6 +249,27 @@ class TeamInterval(BaseModel):
     team_id: str
     lo: float
     hi: float
+
+
+class TeamDistributions(BaseModel):
+    """Per-stage epistemic spread for one team: open cells carry the quantile
+    vector, settled cells carry the outcome as a flag, never both."""
+
+    quantiles: dict[str, list[float]] = Field(default_factory=dict)
+    settled: dict[str, int] = Field(default_factory=dict)
+
+
+class DistributionsBlock(BaseModel):
+    """How settled each published number is: weighted (world x parameter-draw)
+    quantiles per team per stage. The headline stays the mean; this block is
+    epistemic dispersion, never an outcome range."""
+
+    quantile_levels: list[float] = Field(default_factory=list)
+    provenance: str = "parameters_only"
+    n_worlds: int = 1
+    width_floored: bool = False
+    sidecar: str = ""
+    teams: dict[str, TeamDistributions] = Field(default_factory=dict)
 
 
 class MarketsBlock(BaseModel):
@@ -285,3 +311,4 @@ class Snapshot(BaseModel):
     champion: ChampionBlock | None = None
     intervals: list[TeamInterval] = Field(default_factory=list)
     markets: MarketsBlock | None = None
+    distributions: DistributionsBlock | None = None

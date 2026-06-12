@@ -12,6 +12,11 @@ OUTCOMES = ("home", "draw", "away")
 _UNIFORM = {o: 1.0 / 3.0 for o in OUTCOMES}
 
 
+class WorldProbs(BaseModel):
+    weight: float
+    probs: dict[str, float]
+
+
 class MatchForecast(BaseModel):
     match_id: str
     date: str
@@ -21,6 +26,7 @@ class MatchForecast(BaseModel):
     market_probs: dict[str, float] | None = None
     frozen_sim_probs: dict[str, float] | None = None
     adjusted: bool = False
+    world_probs: list[WorldProbs] = Field(default_factory=list)
 
 
 class MatchScore(BaseModel):
@@ -30,6 +36,7 @@ class MatchScore(BaseModel):
     brier: dict[str, float] = Field(default_factory=dict)
     log_loss: dict[str, float] = Field(default_factory=dict)
     adjustment_pnl: float | None = None
+    spread_pnl: float | None = None
 
 
 def brier_score(probs: dict[str, float], outcome: str) -> float:
@@ -38,6 +45,36 @@ def brier_score(probs: dict[str, float], outcome: str) -> float:
 
 def log_loss(probs: dict[str, float], outcome: str) -> float:
     return -math.log(max(probs.get(outcome, 0.0), 1e-9))
+
+
+def ranked_probability_score(probs: dict[str, float], outcome: str) -> float:
+    """RPS over the ordered (home, draw, away) scale; the last cumulative term is always zero."""
+    cdf = 0.0
+    observed = 0.0
+    total = 0.0
+    for o in OUTCOMES[:-1]:
+        cdf += probs.get(o, 0.0)
+        observed += 1.0 if o == outcome else 0.0
+        total += (cdf - observed) ** 2
+    return total
+
+
+def spread_pnl(worlds: list[WorldProbs], outcome: str) -> float | None:
+    """RPS the modal (max-weight) world would have scored minus the mixture's
+    RPS, so positive means hedging across worlds was earned.
+
+    RPS on W/D/L stands in for CRPS on goal difference: the W/D/L
+    probabilities are the published, scored surface, while per-world
+    goal-difference distributions are never published. A single world or a
+    degenerate weight vector prices no spread, so the P&L is None, never 0."""
+    if len(worlds) < 2:
+        return None
+    total_weight = sum(w.weight for w in worlds)
+    if total_weight <= 0.0:
+        return None
+    mixture = {o: sum(w.weight * w.probs.get(o, 0.0) for w in worlds) / total_weight for o in OUTCOMES}
+    modal = max(worlds, key=lambda w: w.weight)
+    return ranked_probability_score(modal.probs, outcome) - ranked_probability_score(mixture, outcome)
 
 
 def score_match(forecast: MatchForecast, outcome: str) -> MatchScore:
@@ -63,6 +100,7 @@ def score_match(forecast: MatchForecast, outcome: str) -> MatchScore:
         brier=briers,
         log_loss=losses,
         adjustment_pnl=pnl,
+        spread_pnl=spread_pnl(forecast.world_probs, outcome),
     )
 
 
@@ -74,6 +112,15 @@ def governor_scale(scores: list[MatchScore], *, window: int = 20) -> float:
     if trailing and sum(trailing) < 0.0:
         return 0.5
     return 1.0
+
+
+def total_spread_pnl(scores: list[MatchScore], *, window: int = 20) -> float | None:
+    """Trailing-window spread P&L for the calibration block; None when no
+    scored match carried per-world probabilities."""
+    spreads = [s.spread_pnl for s in scores[-window:] if s.spread_pnl is not None]
+    if not spreads:
+        return None
+    return sum(spreads)
 
 
 def summarise_scores(scores: list[MatchScore], *, window: int = 20) -> str:
@@ -95,6 +142,9 @@ def summarise_scores(scores: list[MatchScore], *, window: int = 20) -> str:
     if pnls:
         parts.append(f"Adjustment P&L over {len(pnls)} adjusted matches: {sum(pnls):+.3f} log-loss saved.")
         parts.append(f"Governor delta-cap scale: {governor_scale(scores, window=window):.1f}.")
+    spreads = [s.spread_pnl for s in recent if s.spread_pnl is not None]
+    if spreads:
+        parts.append(f"Spread P&L over {len(spreads)} matches: {sum(spreads):+.3f} RPS saved by hedging.")
     return " ".join(parts)
 
 

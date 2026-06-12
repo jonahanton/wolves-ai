@@ -168,6 +168,7 @@ export interface WorldOut {
   weight: number;
   perturbations: Record<string, unknown>[];
   title_probs?: Record<string, number>;
+  match_probs?: Record<string, Record<string, number>>;
 }
 
 export interface QuantFindingOut {
@@ -194,6 +195,9 @@ export interface CalibrationSummary {
   log_loss: Record<string, number>;
   adjustment_pnl: number | null;
   governor_scale: number;
+  spread_pnl?: number | null;
+  band_coverage?: number | null;
+  movement_ratio?: number | null;
 }
 
 export interface AgentBlock {
@@ -227,6 +231,20 @@ export interface TeamInterval {
   hi: number;
 }
 
+export interface TeamDistributions {
+  quantiles: Record<string, number[]>;
+  settled: Record<string, number>;
+}
+
+export interface DistributionsBlock {
+  quantile_levels: number[];
+  provenance: string;
+  n_worlds: number;
+  width_floored: boolean;
+  sidecar: string;
+  teams: Record<string, TeamDistributions>;
+}
+
 export interface MarketsBlock {
   model_probs?: Record<string, number>;
   market_probs?: Record<string, number>;
@@ -246,6 +264,7 @@ export interface Snapshot {
   champion?: ChampionBlock | null;
   intervals?: TeamInterval[];
   markets?: MarketsBlock | null;
+  distributions?: DistributionsBlock | null;
 }
 
 export function teamNames(snapshot: Snapshot): Map<string, string> {

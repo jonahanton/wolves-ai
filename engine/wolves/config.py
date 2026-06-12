@@ -117,6 +117,7 @@ class Settings(BaseSettings):
     escalation_reference_p: float = 0.10
     governor_window: int = 20
     governor_shrink_weight: float = 0.5
+    dispersion_governor_min_n: int = 20
     extremising_d: float = 1.0
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
@@ -135,6 +136,10 @@ class Settings(BaseSettings):
     @property
     def calibration_path(self) -> Path:
         return self.runs_root / CALIBRATION.key()
+
+    @property
+    def stream_path(self) -> Path:
+        return self.runs_root / "agent-state" / "stream.jsonl"
 
 
 @lru_cache

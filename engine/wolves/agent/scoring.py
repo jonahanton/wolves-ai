@@ -9,7 +9,14 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from wolves.agent.calibration import CalibrationLedger, MatchForecast, MatchScore, score_match, summarise_scores
+from wolves.agent.calibration import (
+    CalibrationLedger,
+    MatchForecast,
+    MatchScore,
+    WorldProbs,
+    score_match,
+    summarise_scores,
+)
 from wolves.agent.memory import RunMemory
 from wolves.config import Settings
 from wolves.sim.format import PlayedResult, load_results
@@ -72,12 +79,19 @@ def score_resolved_matches(
                 if isinstance(team, str):
                     adjusted_teams.add(team)
 
+    worlds = previous.agent.worlds if previous.agent is not None else []
+
     scores: list[MatchScore] = []
     for entry in previous.matches:
         result = results.get(entry.match)
         if entry.p_draw is None or result is None or str(entry.match) in already:
             continue
         frozen = baseline_entries.get(entry.match)
+        per_world = [
+            WorldProbs(weight=world.weight, probs=world.match_probs[str(entry.match)])
+            for world in worlds
+            if str(entry.match) in world.match_probs
+        ]
         forecast = MatchForecast(
             match_id=str(entry.match),
             date=entry.date,
@@ -86,6 +100,7 @@ def score_resolved_matches(
             model_probs=_probs(entry),
             frozen_sim_probs=_probs(frozen) if frozen else None,
             adjusted=bool({entry.home_id, entry.away_id} & adjusted_teams),
+            world_probs=per_world,
         )
         score = score_match(forecast, _outcome(result))
         ledger.append(score)
