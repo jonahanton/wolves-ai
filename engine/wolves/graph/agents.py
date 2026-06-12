@@ -20,7 +20,7 @@ from wolves.agent.tools.meta import read_artifact, think, todo
 from wolves.agent.tools.model import calibration_readback, model_explain
 from wolves.agent.tools.retrieval import get_odds, get_results_and_fixtures, rank_relevance, web_fetch, web_search
 from wolves.agent.tools.simulation import perturbation_impact, run_scenario, run_simulation, team_path_tree
-from wolves.agent.tools.submission import submit_forecast
+from wolves.agent.tools.submission import check_forecast, submit_forecast
 from wolves.agent.tools.workbench import data_query, run_python, team_dossier
 from wolves.graph.contracts import CritiqueOutput, ForecastOutput, GraphPatch, NodeKind, QuantOutput, ResearchOutput
 from wolves.prompts import prompt
@@ -74,6 +74,7 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         scenario_update.SPEC,
         read_journal.SPEC,
         write_journal.SPEC,
+        check_forecast.SPEC,
         submit_forecast.SPEC,
         *_FREE_SPECS,
     ],

@@ -78,7 +78,11 @@ Submission rules (the validator enforces these):
   or an explicit inconsistency_note when yesterday's weighting was simply
   wrong.
 
-If the validator rejects, fix exactly what it names and resubmit.
+If the validator rejects, fix exactly what it names and resubmit. Only hard
+issues spend a resubmission; copy issues (headline length and jargon,
+spelling, em-dashes) are free to fix. When unsure a submission will pass,
+check_forecast runs the same validation for free: full report, no
+resubmission spent, no steelman pause fired.
 
 Before submitting, write the journal (write_journal): what moved, what you
 checked and discarded, what tomorrow's run should look at first. Pass lessons

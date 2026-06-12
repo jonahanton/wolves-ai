@@ -4,61 +4,31 @@ from typing import Any
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
-from wolves.agent.validator import validate_submission
+from wolves.agent.tools.submission._validation import validation_report
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
 
-_BASELINE_SIMS = 50_000
 
-
-def _baseline_titles(deps: AgentDeps) -> dict[str, float] | None:
-    if deps.forecaster is None:
-        return None
-    return deps.forecaster.title_probs(n_sims=_BASELINE_SIMS, seed=0)
-
-
-def _market_titles(deps: AgentDeps) -> dict[str, float] | None:
-    from wolves.markets.series import load_series
-
-    series = load_series(deps.settings.runs_root / "odds-archive")
-    latest = next((p for p in reversed(series) if p.outright_bookmakers), None)
-    return latest.outright_bookmakers if latest else None
-
-
-def _previous_titles(deps: AgentDeps) -> dict[str, float] | None:
-    from datetime import date
-
-    from wolves.insights.what_changed import load_latest_snapshot
-
-    if not deps.as_of:
-        return None
-    previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=date.fromisoformat(deps.as_of))
-    if previous is None:
-        return None
-    return {t.team_id: t.champion_prob for t in previous.teams}
+def _remaining_hard(deps: AgentDeps) -> int:
+    return max(deps.settings.agent_submit_retries + 1 - deps.submission.validation_failures, 0)
 
 
 async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
-    report = validate_submission(
-        args,
-        artifacts=deps.artifacts,
-        ledger=deps.ledger,
-        limits=deps.limits,
-        baseline_titles=_baseline_titles(deps),
-        previous_titles=_previous_titles(deps),
-        market_titles=_market_titles(deps),
-        focus_team=deps.settings.focus_team,
-    )
+    report = validation_report(args, deps)
     if not report.ok:
         # Copy issues are repair prompts; only hard issues spend a retry.
         if report.hard_issues:
             deps.submission.validation_failures += 1
+            cost_note = f"{_remaining_hard(deps)} hard resubmissions remain"
+        else:
+            cost_note = f"copy issues only, no hard retry spent; {_remaining_hard(deps)} hard resubmissions remain"
         deps.runtime.emit("validation", deps.actor, f"submission rejected: {report.summary()[:200]}")
         return ToolResult(
             ok=False,
             payload=None,
             error=ToolError(
-                type="validation_failed", message=f"Submission rejected. Fix and resubmit: {report.summary()}"
+                type="validation_failed",
+                message=f"Submission rejected. Fix and resubmit: {report.summary()} ({cost_note}).",
             ),
         )
 
@@ -90,7 +60,8 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
                 message=(
                     "A resubmission past the escalation must carry the steelman in change_justification and "
                     "name its grounds: ledger ids in evidence_ids for news-driven moves, or the computing "
-                    "artifact in market_justification for analysis-driven ones."
+                    f"artifact in market_justification for analysis-driven ones. "
+                    f"({_remaining_hard(deps)} hard resubmissions remain.)"
                 ),
             ),
         )
@@ -112,7 +83,8 @@ SPEC = ToolSpec(
         "threshold against the frozen baseline trigger one steelman pass before acceptance; moves "
         "against the previous published forecast need change_justification or an explicit "
         "inconsistency_note; gaps beyond threshold against the de-vigged market need "
-        "market_justification naming the computation that earns them."
+        "market_justification naming the computation that earns them. check_forecast previews this "
+        "validation for free."
     ),
     args_model=ForecastSubmission,
     fn=_submit_forecast,
