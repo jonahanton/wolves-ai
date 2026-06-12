@@ -77,7 +77,7 @@ async def test_results_until_replays_the_baseline_without_later_results(tmp_path
     app = build_test_app(storage_dir=tmp_path, engine=engine)
     fmt = engine.forecaster.fmt
     day_before = "2026-06-10"
-    assert fmt.group_matches[0].date > day_before
+    assert fmt.group_matches[0].date[:10] > day_before
     async with client_for(app) as client:
         with_result = (await client.post("/simulate", json={"nSims": N_SIMS})).json()
         without = (await client.post("/simulate", json={"nSims": N_SIMS, "resultsUntil": day_before})).json()

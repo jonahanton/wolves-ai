@@ -80,9 +80,9 @@ class _Fit:
 
 
 def match_dates(fmt: FormatData) -> dict[int, str]:
-    """Scheduled ISO date per match number, group and knockout alike."""
-    dates = {m.match: m.date for m in fmt.group_matches}
-    dates.update({m.match: m.date for m in fmt.knockout})
+    """Scheduled ISO date per match number, group and knockout alike; day precision."""
+    dates = {m.match: m.date[:10] for m in fmt.group_matches}
+    dates.update({m.match: m.date[:10] for m in fmt.knockout})
     return dates
 
 

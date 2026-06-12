@@ -27,7 +27,7 @@ async def test_results_serve_scores_with_schedule_dates_and_teams(tmp_path):
     first = next(row for row in rows if row["match"] == 1)
     assert first["homeId"] == schedule[1].home
     assert first["awayId"] == schedule[1].away
-    assert first["date"] == schedule[1].date
+    assert first["date"] == schedule[1].date[:10]
     assert first["stage"] == "group"
     assert (first["homeGoals"], first["awayGoals"]) == (2, 0)
     assert rows == sorted(rows, key=lambda row: (row["date"], row["match"]), reverse=True)
