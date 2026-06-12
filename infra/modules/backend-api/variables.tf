@@ -94,9 +94,7 @@ variable "memory" {
   type = number
 }
 
-# Single-writer pin: the backend hosts the in-process live loop and odds
-# archive, so two tasks would double-poll providers and double-burn Odds API
-# credits. 0 parks the service; anything above 1 is refused.
+# Single-writer pin: the in-process loops must never run twice; 0 still parks the service.
 variable "desired_count" {
   type = number
 

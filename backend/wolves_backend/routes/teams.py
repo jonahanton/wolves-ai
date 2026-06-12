@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from wolves.data.store import DatasetNotFoundError
 
-# FastAPI resolves response annotations at runtime, so these stay real imports.
+# TC001: FastAPI resolves response annotations at runtime.
 from wolves.insights.explain import StrengthExplanation  # noqa: TC001
 from wolves.insights.path_tree import PathTree  # noqa: TC001
 from wolves_backend.deps import Deps, get_deps

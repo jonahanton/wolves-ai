@@ -53,8 +53,7 @@ data "aws_iam_policy_document" "backend_task" {
     resources = [var.bucket_arn, "${var.bucket_arn}/*"]
   }
 
-  # The in-process live loop and archive write these families; the agent
-  # plane's prefixes stay out of reach.
+  # Only the in-process loops' families; the agent plane's prefixes stay out of reach.
   statement {
     actions = ["s3:PutObject"]
     resources = [
@@ -258,9 +257,7 @@ resource "aws_ecs_service" "backend" {
   name            = "${var.project}-backend"
   cluster         = var.cluster_id
   task_definition = aws_ecs_task_definition.backend.arn
-  # Never above 1: see the desired_count variable's single-writer pin.
-  # Rolling deploys briefly overlap two tasks; state.json is last-writer-wins
-  # and the results store merges, so that overlap is benign.
+  # Single-writer pin lives on the variable; deploy overlap is benign (merge-on-write stores).
   desired_count = var.desired_count
   launch_type   = "FARGATE"
 

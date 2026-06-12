@@ -1,7 +1,4 @@
-"""In-process homes for the former ECS live and archive tasks. Each pass runs
-on a worker thread behind the engine semaphore; failures alert via SNS and the
-loop carries on. The backend service must stay at desired_count 1: two tasks
-would double-poll the providers."""
+"""In-process homes for the former ECS live and archive tasks; single-writer by design."""
 
 from __future__ import annotations
 

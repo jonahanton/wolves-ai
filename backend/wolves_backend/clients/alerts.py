@@ -12,8 +12,7 @@ PUBLISH_INTERVAL_S = 3600.0
 
 
 class Alerts:
-    """SNS publisher for in-process job failures; a repeating failure alerts
-    at most once an hour per job, and no topic means log-only."""
+    """SNS publisher for job failures; hourly-limited per job, log-only without a topic."""
 
     def __init__(self, *, topic_arn: str, region: str, client: Any | None = None) -> None:
         self._topic_arn = topic_arn

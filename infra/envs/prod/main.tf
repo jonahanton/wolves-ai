@@ -172,8 +172,7 @@ module "backend_api" {
   log_retention_days            = var.log_retention_days
   live_data_secret_arns         = module.engine.live_data_secret_arns
   run_policy                    = var.run_policy
-  # Constructed rather than referenced: the alerting module reads this
-  # module's task role, so a resource reference here would be a cycle.
+  # Constructed, not referenced: a module reference here would cycle through alerting.
   alerts_topic_arn = "arn:aws:sns:${var.region}:${data.aws_caller_identity.current.account_id}:${var.project}-alerts"
 }
 
@@ -192,8 +191,7 @@ module "alerting" {
   github_ops_role_arn   = module.release_oidc.ops_role_arn
   github_ops_role_name  = module.release_oidc.ops_role_name
   cluster_arn           = aws_ecs_cluster.this.arn
-  # The live and archive families came home to the backend process; only the
-  # ECS-launched families can still fail as tasks.
+  # Only ECS-launched families can fail as tasks; live and archive are in-process now.
   engine_task_definition_families = [
     module.engine.task_definition_family,
     module.engine.agent_task_definition_family,

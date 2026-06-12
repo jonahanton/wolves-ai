@@ -1,6 +1,4 @@
-"""In-process deterministic engine: one fitted Forecaster shared by every route.
-Engine calls run in worker threads behind a small semaphore so numpy never
-blocks the event loop; sims are LRU-cached per fitted state and results set."""
+"""One fitted Forecaster for every route: thread-pooled behind a semaphore, LRU-cached."""
 
 from __future__ import annotations
 
