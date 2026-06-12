@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { OutcomeTabs } from "@/components/charts/outcome-tabs";
-import { ToggleTabs } from "@/components/charts/toggle-tabs";
+import { MarketIcon, OutcomeIcon, WolfIcon } from "@/components/charts/chart-icons";
+import { IconChoice } from "@/components/charts/icon-choice";
 import { ForecastChart } from "@/components/landing/forecast-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
 import { WhySection } from "@/components/landing/why-section";
@@ -37,19 +37,6 @@ interface LandingForecastProps {
   reasoning: string | null;
   evidence: LedgerEntryOut[];
 }
-
-const SOURCES: { key: Source; label: React.ReactNode }[] = [
-  {
-    key: "wolves",
-    label: (
-      <>
-        <span className="sm:hidden">Wolves</span>
-        <span className="hidden sm:inline">Wolves forecast</span>
-      </>
-    ),
-  },
-  { key: "market", label: "Market" },
-];
 
 function ordinal(rank: number): string {
   const tail = rank % 10;
@@ -89,38 +76,18 @@ export function LandingForecast(props: LandingForecastProps) {
   );
   const fragment = focusFragment(impact, focusId);
   const outcomeMeta = OUTCOMES.find((o) => o.key === outcome) ?? OUTCOMES[0];
-  const singleRun = source === "wolves" && Math.max(...data.teams.map((t) => t.wolves[outcome].length), 0) <= 1;
   const live = (impact?.fixtures.length ?? 0) > 0;
   const runLabelNb = runLabel.replace(/ /g, " ");
-
-  const caption =
-    source === "wolves"
-      ? singleRun
-        ? "one full AI forecast so far · a new point lands with every run; the dotted line estimates between them"
-        : "◆ full AI forecasts · the dotted line is our running estimate between them"
-      : "bookmaker prices with the margin removed · stages below the winner are implied from those prices";
 
   return (
     <>
       <HeroVideo />
 
       <section className="relative">
-        <div className="wrap pt-[clamp(14px,2.5vh,28px)] pb-[clamp(32px,5vh,56px)]">
-          <div className="flex items-center justify-between gap-x-8">
-            <span className="flex items-center gap-2.5">
-              <span aria-hidden className="h-[3px] w-7 bg-red" />
-              <span className="kicker">World Cup 2026</span>
-            </span>
+        <div className="wrap pt-[clamp(18px,3vh,36px)] pb-[clamp(32px,5vh,56px)]">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-1">
+            <h1 className="chart-title text-cream">Chance of {outcomeMeta.phrase}</h1>
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-cream-faint">Run {runLabelNb}</span>
-          </div>
-          <h1 className="chart-title mt-3 text-cream">Chance of {outcomeMeta.phrase}</h1>
-          <div className="mt-5 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-hairline pb-1">
-            <OutcomeTabs
-              options={OUTCOMES.map((o) => ({ key: o.key, label: o.label, short: o.short }))}
-              value={outcome}
-              onChange={setOutcome}
-            />
-            <ToggleTabs options={SOURCES} value={source} onChange={setSource} ariaLabel="Forecast source" />
           </div>
           <div className="mt-5">
             <ForecastChart
@@ -130,7 +97,23 @@ export function LandingForecast(props: LandingForecastProps) {
               ariaLabel={`Chance of ${outcomeMeta.phrase} over time, ${source === "wolves" ? "the Wolves forecast" : "the market"}`}
             />
           </div>
-          <div className="mt-3 font-mono text-[11.5px] text-cream-faint">{caption}</div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-hairline pt-4">
+            <IconChoice
+              options={OUTCOMES.map((o) => ({ key: o.key, label: o.label, icon: <OutcomeIcon outcome={o.key} /> }))}
+              value={outcome}
+              onChange={setOutcome}
+              ariaLabel="Outcome"
+            />
+            <IconChoice
+              options={[
+                { key: "wolves" as const, label: "Wolves forecast", icon: <WolfIcon /> },
+                { key: "market" as const, label: "Market", icon: <MarketIcon /> },
+              ]}
+              value={source}
+              onChange={setSource}
+              ariaLabel="Forecast source"
+            />
+          </div>
         </div>
       </section>
 

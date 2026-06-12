@@ -14,11 +14,14 @@ import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
 
 // One red protagonist (the focus team); the rest of the field recedes to greys.
 const SERIES_COLOURS = [
-  "oklch(0.965 0.008 95 / 0.52)",
-  "oklch(0.965 0.008 95 / 0.36)",
-  "oklch(0.965 0.008 95 / 0.27)",
+  "oklch(0.965 0.008 95 / 0.5)",
+  "oklch(0.965 0.008 95 / 0.4)",
+  "oklch(0.965 0.008 95 / 0.32)",
+  "oklch(0.965 0.008 95 / 0.26)",
   "oklch(0.965 0.008 95 / 0.22)",
+  "oklch(0.965 0.008 95 / 0.19)",
 ];
+const CHART_TEAM_COUNT = 6;
 
 export default async function LandingPage() {
   const [result, indexResult, marketReachResult, resultsResult] = await Promise.all([
@@ -42,7 +45,7 @@ export default async function LandingPage() {
   const focusId = agentSnapshot.focus.team_id;
   const names = Object.fromEntries(agentSnapshot.teams.map((t) => [t.team_id, t.name]));
 
-  const agentBoard = titleBoard(agentSnapshot, 4);
+  const agentBoard = titleBoard(agentSnapshot, CHART_TEAM_COUNT);
   const chartTeamIds = [...new Set([...agentBoard.map((row) => row.teamId), focusId])];
   const [impactResult, ...histories] = await Promise.all([
     loadImpact(chartTeamIds),

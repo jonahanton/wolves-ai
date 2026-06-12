@@ -4,7 +4,7 @@ import { bisector } from "d3-array";
 import { easeCubicInOut } from "d3-ease";
 import { scaleLinear, scaleTime } from "d3-scale";
 import { select } from "d3-selection";
-import { area as d3Area, curveMonotoneX, line as d3Line } from "d3-shape";
+import { curveMonotoneX, line as d3Line } from "d3-shape";
 import "d3-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
@@ -115,7 +115,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
 
   const margin = width < MOBILE_BREAK ? MOBILE_MARGIN : MARGIN;
   const empty = lines.length === 0;
-  const height = empty ? 200 : width < MOBILE_BREAK ? 360 : 500;
+  const height = empty ? 190 : width < MOBILE_BREAK ? 300 : 408;
 
   const { x, y, hoverTimes } = useMemo(() => {
     const points = lines.flatMap((team) => [...team.points, ...team.estimate]);
@@ -152,14 +152,9 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
   useEffect(() => {
     if (!svgRef.current || scaffoldedRef.current) return;
     const svg = select(svgRef.current);
-    const defs = svg.append("defs");
-    const grad = defs.append("linearGradient").attr("id", "featuredArea").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 1);
-    grad.append("stop").attr("offset", 0).attr("stop-color", "oklch(0.69 0.19 25)").attr("stop-opacity", 0.18);
-    grad.append("stop").attr("offset", 1).attr("stop-color", "oklch(0.69 0.19 25)").attr("stop-opacity", 0);
     svg.append("g").attr("class", "gridlines");
     svg.append("g").attr("class", "y-axis");
     svg.append("g").attr("class", "x-axis");
-    svg.append("g").attr("class", "areas");
     svg.append("g").attr("class", "series");
     svg.append("g").attr("class", "estimates");
     svg.append("g").attr("class", "markers");
@@ -259,29 +254,6 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
       .x((p) => x(p.t))
       .y((p) => y(p.value))
       .curve(curveMonotoneX);
-    const areaGen = d3Area<ChartPoint>()
-      .x((p) => x(p.t))
-      .y0(baseY)
-      .y1((p) => y(p.value))
-      .curve(curveMonotoneX);
-
-    // The featured team's visible path runs through its forecasts then onto the
-    // running estimate; the area carries that whole line so red has real weight.
-    const visiblePath = (team: ActiveLine): ChartPoint[] =>
-      team.estimate.length > 1 ? [...team.points.slice(0, -1), ...team.estimate] : team.points;
-    const areaSeries = lines.filter((team) => team.featured && visiblePath(team).length > 1);
-    svg
-      .select<SVGGElement>(".areas")
-      .selectAll<SVGPathElement, ActiveLine>("path")
-      .data(areaSeries, (d) => d.teamId)
-      .join(
-        (enter) => enter.append("path").attr("fill", "url(#featuredArea)").attr("d", (d) => areaGen(visiblePath(d))),
-        (update) =>
-          update.call((u) =>
-            u.transition().duration(DURATION).ease(easeCubicInOut).attr("d", (d) => areaGen(visiblePath(d))),
-          ),
-        (exit) => exit.remove(),
-      );
 
     const seriesG = svg.select<SVGGElement>(".series");
     const paths = seriesG
@@ -296,7 +268,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
       .attr("fill", "none")
       .attr("stroke-linecap", "round")
       .attr("stroke-linejoin", "round")
-      .attr("stroke-width", (d) => (d.featured ? 2.6 : 1.5))
+      .attr("stroke-width", (d) => (d.featured ? 2.9 : 1.5))
       .attr("stroke", (d) => d.colour)
       .attr("d", (d) => lineGen(d.points))
       .attr("opacity", 1);
@@ -314,7 +286,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
         .duration(DURATION)
         .ease(easeCubicInOut)
         .attr("stroke", (d) => d.colour)
-        .attr("stroke-width", (d) => (d.featured ? 2.6 : 1.5))
+        .attr("stroke-width", (d) => (d.featured ? 2.9 : 1.5))
         .attr("opacity", 1)
         .attr("d", (d) => lineGen(d.points));
     }
@@ -332,7 +304,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
       .append("path")
       .attr("fill", "none")
       .attr("stroke-linecap", "round")
-      .attr("stroke-width", (d) => (d.featured ? 2.4 : 1.6))
+      .attr("stroke-width", (d) => (d.featured ? 2.7 : 1.6))
       .attr("stroke-dasharray", (d) => (d.featured ? "0.1 6.5" : "0.1 5.5"))
       .attr("stroke", (d) => d.colour)
       .attr("d", (d) => lineGen(d.estimate))
