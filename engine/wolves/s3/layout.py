@@ -202,6 +202,11 @@ RELEVANCE_FEEDBACK = ArtifactSpec(
     mutable=True,
     description="Relevance scores joined with eventual ledger citation, for tier calibration.",
 )
+SQUAD_PLAYERS = ArtifactSpec(
+    name="squad-players",
+    pattern="ratings/squad-players/{date}.json",
+    description="Per-player Transfermarkt squad valuations pulled on date; provenance of the squad-value totals.",
+)
 CALIBRATION = ArtifactSpec(
     name="calibration",
     pattern="agent-state/calibration.jsonl",
@@ -237,6 +242,7 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     ARTICLE,
     RELEVANCE_MEMORY,
     RELEVANCE_FEEDBACK,
+    SQUAD_PLAYERS,
     CALIBRATION,
 )
 

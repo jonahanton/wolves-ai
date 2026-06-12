@@ -49,6 +49,20 @@ class TeamRecord(BaseModel):
     squad_value_eur_m: float | None = None
 
 
+class SquadPlayerRecord(BaseModel):
+    """One announced-squad player with the Transfermarkt crowd valuation."""
+
+    team: str
+    app_team_id: str
+    name: str
+    position: str
+    position_group: str
+    shirt_number: int | None = None
+    value_eur_m: float | None = None
+    transfermarkt_id: int
+    as_of: date
+
+
 class DatasetManifest(BaseModel):
     dataset_id: str
     built_at: str
