@@ -1,8 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* The palette is the night set and nothing else; wiping the defaults
-     keeps every colour in the app on these tokens. */
+  /* wiping the defaults keeps every colour on the night tokens */
   --color-*: initial;
   --color-night: oklch(0.175 0.014 65);
   --color-night-2: oklch(0.215 0.016 65);

@@ -1,4 +1,3 @@
-// One directory per family; families are never mixed in a wall.
 export type WallFamily = "wc" | "euros";
 
 const COUNTS: Record<WallFamily, number> = { wc: 8, euros: 12 };

@@ -1,5 +1,4 @@
-// Mirrors the backend WireModel routes (camelCase on the wire:
-// alias_generator=to_camel in backend/wolves_backend/models.py).
+// Mirrors the backend WireModel routes; this wire is camelCase.
 import { type ApiResult, backendGet } from "@/lib/api";
 
 export interface RunRecord {

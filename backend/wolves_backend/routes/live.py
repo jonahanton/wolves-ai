@@ -18,8 +18,7 @@ DepsDep = Annotated[Deps, Depends(get_deps)]
 LIVE_STATE_KEY = "live/state.json"
 LIVE_HISTORY_PREFIX = "live/history/"
 DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-# A 60s poll loop produces ~600 points across a long match day; evenly
-# sampled to this bound the worm keeps its shape at a fraction of the bytes.
+# Evenly sampling a long day keeps the worm's shape at a fraction of the bytes.
 MAX_HISTORY_POINTS = 360
 
 

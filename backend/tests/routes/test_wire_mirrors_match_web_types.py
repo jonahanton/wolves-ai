@@ -1,6 +1,4 @@
-"""Pins the web TS mirrors to the backend wire models: camelCase aliases for
-WireModel routes, raw snake_case for the live family. Parses the TS source so
-drift on either side fails here."""
+"""Pins the web TS mirrors to the backend wire models by parsing the TS source."""
 
 from __future__ import annotations
 

@@ -78,8 +78,7 @@ export function RoadSection({ snapshot, now }: RoadSectionProps) {
   );
 }
 
-// reach_probs are "reach this round"; the step's chance of surviving it is
-// the next round's reach, and the final step's is the championship itself.
+// A step's survival chance is the next round's reach probability.
 function nextRound(round: string): string {
   const order = ["r32", "r16", "qf", "sf", "final"];
   const index = order.indexOf(round);

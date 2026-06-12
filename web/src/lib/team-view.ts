@@ -25,7 +25,6 @@ export function staircase(reachProbs: Record<string, number>): StaircaseStep[] {
   }));
 }
 
-// Group standings carry the five-way finish keys, not the focus Finish union.
 export interface StandingRow {
   teamId: string;
   winGroup: number;
@@ -56,9 +55,7 @@ export interface WhatIfDelta {
   qualifiedDeltaPp: number;
 }
 
-// what_if outcomes carry the five-way group-finish keys only (no champion);
-// the consequences readable from this fixture are group-shaped. Deltas are
-// versus the probability-weighted baseline, so the rows sum to zero.
+// Outcomes carry group-finish keys only; deltas are v the weighted baseline.
 export function whatIfDeltas(fixture: WhatIfFixture): WhatIfDelta[] {
   const qualified = (probs: Record<string, number>) =>
     (probs.win_group ?? 0) + (probs.runner_up ?? 0) + (probs.third_qualified ?? 0);

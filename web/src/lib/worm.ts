@@ -1,4 +1,3 @@
-// Pure transform: a day's live history -> worm chart geometry for one match.
 import type { LiveHistory, LiveHistoryFixture } from "@/lib/live";
 
 export interface WormPoint {

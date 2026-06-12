@@ -1,5 +1,4 @@
-// Mirrors backend/wolves_backend/models.py LiveState (plain BaseModel: the
-// wire is snake_case, unlike the camelCased WireModel routes).
+// Mirrors the backend live models; this wire is snake_case, not camelCase.
 import { type ApiResult, backendGet } from "@/lib/api";
 
 export type LiveSource = "pre_match" | "in_match" | "settled";

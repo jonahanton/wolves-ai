@@ -10,7 +10,7 @@ export function statusMark(status: string): string {
   return status === "confirmed" ? "✓" : "·";
 }
 
-// Relevance is partly null on real runs; nulls rank last, newest first within.
+// Null relevance ranks last, newest first within.
 export function rankedLedger(snapshot: Snapshot, limit: number, teamId?: string): LedgerEntryOut[] {
   const entries = snapshot.agent?.ledger_entries ?? [];
   const filtered = teamId ? entries.filter((entry) => entry.team_id === teamId) : entries;

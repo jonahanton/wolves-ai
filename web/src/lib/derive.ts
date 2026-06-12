@@ -10,8 +10,7 @@ export interface BoardRow {
   hi: number | null;
 }
 
-// The published number is teams[].champion_prob whichever loop produced the
-// run (agents publish unblended; markets is the transparency block).
+// Agents publish unblended: teams[].champion_prob is the published number.
 export function titleProb(snapshot: Snapshot, teamId: string): number | null {
   return snapshot.teams.find((t) => t.team_id === teamId)?.champion_prob ?? null;
 }
@@ -61,8 +60,6 @@ function possessive(name: string): string {
   return name.endsWith("s") ? `${name}'` : `${name}'s`;
 }
 
-// "New York/New Jersey" reads as a slash pile in display copy; the first
-// segment is the city as spoken.
 export function shortCity(city: string): string {
   return city.split("/")[0].trim();
 }

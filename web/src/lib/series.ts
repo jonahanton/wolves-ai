@@ -1,4 +1,3 @@
-// Pure data-to-geometry transforms for the SVG series chart.
 import type { TeamHistoryPoint } from "@/lib/runs";
 
 export interface SeriesPoint {

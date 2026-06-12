@@ -5,8 +5,7 @@ import type { LiveState } from "@/lib/live";
 
 const POLL_MS = 30_000;
 
-// cache: "no-cache" makes the browser revalidate with If-None-Match, so the
-// 30s poll rides the proxy's ETag contract and 304s cost nothing.
+// no-cache revalidates with If-None-Match, so polls ride the ETag contract.
 export function useLiveState(initial: LiveState | null): LiveState | null {
   const [state, setState] = useState(initial);
 
@@ -20,7 +19,7 @@ export function useLiveState(initial: LiveState | null): LiveState | null {
           const response = await fetch("/api/live", { cache: "no-cache" });
           if (response.ok && !cancelled) setState((await response.json()) as LiveState);
         } catch {
-          // Keep the previous state; the staleness banner covers honesty.
+          // keep the previous state; the staleness banner covers it
         }
       }
       timer = setTimeout(poll, POLL_MS);
