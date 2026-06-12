@@ -1,3 +1,5 @@
+import { formatPct } from "@/lib/format";
+
 interface WdlStripProps {
   win: number;
   draw: number | null;
@@ -18,11 +20,11 @@ export function WdlStrip({ win, draw, lose, winLabel = "win", loseLabel = "lose"
       </div>
       <div className="mt-2.5 flex max-w-[880px] justify-between font-mono text-[13px] text-cream-faint">
         <span>
-          {winLabel} {Math.round(win * 100)}%
+          {winLabel} {formatPct(win)}
         </span>
-        {draw !== null && <span>draw {Math.round(draw * 100)}%</span>}
+        {draw !== null && <span>draw {formatPct(draw)}</span>}
         <span>
-          {loseLabel} {Math.round(lose * 100)}%
+          {loseLabel} {formatPct(lose)}
         </span>
       </div>
     </div>
