@@ -61,6 +61,11 @@ SNAPSHOT_LATEST = ArtifactSpec(
     mutable=True,
     description="Full copy of the most recently published snapshot.",
 )
+SNAPSHOT_SIDECAR = ArtifactSpec(
+    name="snapshot-sidecar",
+    pattern="snapshots/{date}/{run_id}.{dataset}.json",
+    description="One auxiliary dataset published beside a snapshot, immutable per run; date is YYYY/MM/DD.",
+)
 RUN_JOURNAL = ArtifactSpec(
     name="run-journal",
     pattern="runs/{run_id}/journal.md",
@@ -218,6 +223,7 @@ CALIBRATION = ArtifactSpec(
 LAYOUT: tuple[ArtifactSpec, ...] = (
     SNAPSHOT,
     SNAPSHOT_LATEST,
+    SNAPSHOT_SIDECAR,
     RUN_JOURNAL,
     RUN_ARTIFACT,
     RUN_ARTIFACT_INDEX,
