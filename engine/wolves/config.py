@@ -91,7 +91,10 @@ class Settings(BaseSettings):
     graph_max_critic_nodes: int = 3
     graph_research_timeout_s: int = 300
     graph_quant_timeout_s: int = 1800
-    graph_forecast_timeout_s: int = 600
+    graph_forecast_timeout_s: int = 900
+    # One extra window for a forecast node that times out mid-steelman,
+    # demonstrably one round from acceptance.
+    graph_forecast_grace_s: int = 180
     graph_critic_timeout_s: int = 180
     graph_research_request_limit: int = 32
     graph_quant_request_limit: int = 48

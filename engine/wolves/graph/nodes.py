@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import dataclasses
+import logging
+from collections.abc import Coroutine
+from typing import Any
 
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
@@ -13,6 +17,8 @@ from wolves.graph.artifacts import ArtifactKind, RunArtifactStore
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
 from wolves.graph.observed_model import CACHE_SETTINGS, ObservedModel
 from wolves.toolkit._budget_gate import BudgetGate
+
+logger = logging.getLogger(__name__)
 
 _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
     "research": "evidence",
@@ -92,6 +98,33 @@ def _timeout(kind: NodeKind, settings: Settings) -> int:
     }[kind]
 
 
+async def _bounded(run: Coroutine[Any, Any, Any], *, brief: Brief, deps: AgentDeps, settings: Settings) -> Any:
+    """Wall-clock the node run. A forecast node that times out mid-steelman
+    (escalation fired, acceptance pending) is demonstrably one round from
+    done, so it gets one bounded grace window instead of dying short; the
+    shield keeps the first timeout from cancelling the underlying run."""
+    timeout = _timeout(brief.kind, settings)
+    if brief.kind != "forecast" or settings.graph_forecast_grace_s <= 0:
+        return await asyncio.wait_for(run, timeout=timeout)
+    task = asyncio.ensure_future(run)
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
+    except TimeoutError:
+        if not (deps.submission.escalation_fired and deps.submission.accepted is None):
+            raise
+        logger.warning(
+            "forecast node %s timed out mid-steelman; granting %ds grace",
+            brief.node_id,
+            settings.graph_forecast_grace_s,
+        )
+        return await asyncio.wait_for(task, timeout=settings.graph_forecast_grace_s)
+    finally:
+        if not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+
 async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStore, model: Model) -> NodeOutcome:
     """Run one worker node to a typed artifact. Total: every failure, including
     CapExceeded surfacing in whatever shape pydantic-ai wraps it, degrades to a
@@ -111,7 +144,7 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         model = ObservedModel(model.wrapped, runtime=deps.runtime, actor=brief.node_id, hold_back_micros=hold_back)
     try:
         retrievals = _retrievals_digest(node_deps) if brief.kind == "research" else ""
-        result = await asyncio.wait_for(
+        result = await _bounded(
             node_agent(brief.kind).run(
                 _kickoff(brief, store, tool_budget=_tool_budget(brief.kind, settings), retrievals=retrievals),
                 deps=node_deps,
@@ -119,7 +152,9 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
                 model_settings=CACHE_SETTINGS,
                 usage_limits=UsageLimits(request_limit=_request_limit(brief.kind, settings)),
             ),
-            timeout=_timeout(brief.kind, settings),
+            brief=brief,
+            deps=node_deps,
+            settings=settings,
         )
     except Exception as exc:
         return NodeOutcome(node_id=brief.node_id, kind=brief.kind, ok=False, error=f"{type(exc).__name__}: {exc}")
