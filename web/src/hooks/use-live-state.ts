@@ -22,7 +22,7 @@ export function useLiveState(initial: LiveState | null): LiveState | null {
           // keep the previous state; the staleness banner covers it
         }
       }
-      timer = setTimeout(poll, POLL_MS);
+      if (!cancelled) timer = setTimeout(poll, POLL_MS);
     };
 
     timer = setTimeout(poll, POLL_MS);

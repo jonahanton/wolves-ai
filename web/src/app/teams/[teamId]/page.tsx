@@ -56,7 +56,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
         <h1 className="statement statement-hero">
           <b className={`font-medium ${isFocus ? "text-red" : ""}`}>{team.name}.</b>
           <br />
-          {published !== null ? formatPct1(published) : "—"}
+          {published !== null ? formatPct1(published) : ""}
           {gapPp !== null && (
             <span className="text-cream-faint"> {gapDescription(gapPp)}</span>
           )}

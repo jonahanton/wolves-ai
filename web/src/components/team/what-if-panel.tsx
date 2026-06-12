@@ -14,7 +14,7 @@ export function WhatIfPanel({ fixture, opponentName }: WhatIfPanelProps) {
   return (
     <div className="max-w-[880px]">
       <p className="lede mb-5">
-        One result, three tournaments. What the {opponentName} game does to the bracket, versus today&apos;s number.
+        {`One result, three tournaments. What the ${opponentName} game does to the bracket, versus today's number.`}
       </p>
       <div className="grid gap-px sm:grid-cols-3">
         {deltas.map((delta) => (

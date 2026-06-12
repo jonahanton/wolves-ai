@@ -18,7 +18,7 @@ export function LedgerList({ entries, showTiers = false }: LedgerListProps) {
           className="flex justify-between gap-4 border-b border-hairline py-3.5 text-[15.5px] font-light text-cream-dim"
         >
           <span className="line-clamp-2">
-            {entry.claim} — {sourceHost(entry.source_url)}
+            {entry.claim} · {sourceHost(entry.source_url)}
             {showTiers && tierLabel(entry.source_tier) && (
               <span className="ml-2 rounded-pill border border-hairline px-2 py-0.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-cream-faint">
                 {tierLabel(entry.source_tier)}
