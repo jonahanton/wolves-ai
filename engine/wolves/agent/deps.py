@@ -44,6 +44,10 @@ class SubmissionState:
     validation_failures: int = 0
     escalation_fired: bool = False
     escalations: list[str] = field(default_factory=list)
+    # The submission that validated clean but was withheld by the escalation
+    # pause; the last resort when the steelman round never completes.
+    last_clean: ForecastSubmission | None = None
+    last_clean_escalations: list[str] = field(default_factory=list)
 
 
 @dataclass

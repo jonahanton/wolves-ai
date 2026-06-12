@@ -34,6 +34,8 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
 
     if report.escalations and not deps.submission.escalation_fired:
         deps.submission.escalation_fired = True
+        deps.submission.last_clean = args
+        deps.submission.last_clean_escalations = report.escalations
         deps.runtime.emit("escalation", deps.actor, f"escalation: {'; '.join(report.escalations)[:200]}")
         return ToolResult(
             payload={

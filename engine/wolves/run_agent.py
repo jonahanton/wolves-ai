@@ -19,7 +19,7 @@ from wolves.agent.article_cache import ArticleCache
 from wolves.agent.attribution import decompose
 from wolves.agent.calibration import CalibrationLedger
 from wolves.agent.consensus import publish_scale
-from wolves.agent.deps import AgentDeps
+from wolves.agent.deps import AgentDeps, SubmissionState
 from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger
@@ -314,6 +314,20 @@ async def _publish_fallback(
         logger.error("deterministic fallback publish failed", exc_info=True)
 
 
+def _prefer_last_clean(result: GraphRunResult, state: SubmissionState, *, run_id: str) -> GraphRunResult:
+    """A submission that validated clean and was withheld only by the
+    escalation pause beats the deterministic fallback when the steelman
+    round never completed."""
+    if result.submission is not None or state.last_clean is None:
+        return result
+    logger.warning(
+        "run %s: steelman round interrupted after a clean submission; publishing the last clean forecast", run_id
+    )
+    result.submission = state.last_clean
+    result.escalations = state.last_clean_escalations or None
+    return result
+
+
 def _markets_block(deps: AgentDeps, outputs, market: dict[str, float]) -> MarketsBlock | None:
     if not market or deps.forecaster is None:
         return None
@@ -574,7 +588,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     deps.artifacts = store
     market: dict[str, float] = {}
     try:
-        result = await run_graph(deps, as_of=as_of, models=models)
+        result = _prefer_last_clean(await run_graph(deps, as_of=as_of, models=models), deps.submission, run_id=run_id)
         if result.submission is not None and deps.forecaster is not None:
             # Fetched before the clients close: feeds the transparency MarketsBlock.
             try:
