@@ -31,9 +31,9 @@ export function WhatIfPanel({ fixture, opponentName }: WhatIfPanelProps) {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-cream-faint">title</span>
-                <span className={delta.championDeltaPp >= 0 ? "text-green" : "text-red"}>
-                  {signed(delta.championDeltaPp)}
+                <span className="text-cream-faint">qualify</span>
+                <span className={delta.qualifiedDeltaPp >= 0 ? "text-green" : "text-red"}>
+                  {signed(delta.qualifiedDeltaPp)}
                 </span>
               </div>
             </div>

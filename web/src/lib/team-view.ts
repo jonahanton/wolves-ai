@@ -52,21 +52,22 @@ export function groupStandings(snapshot: Snapshot, group: string): StandingRow[]
 export interface WhatIfDelta {
   outcome: string;
   prob: number;
-  championDeltaPp: number;
   winGroupDeltaPp: number;
+  qualifiedDeltaPp: number;
 }
 
-// Deltas are versus the probability-weighted baseline across the fixture's
-// outcomes, so the three rows sum to zero by construction.
+// what_if outcomes carry the five-way group-finish keys only (no champion);
+// the consequences readable from this fixture are group-shaped. Deltas are
+// versus the probability-weighted baseline, so the rows sum to zero.
 export function whatIfDeltas(fixture: WhatIfFixture): WhatIfDelta[] {
-  const baseline = (key: string) =>
-    fixture.outcomes.reduce((sum, outcome) => sum + outcome.prob * (outcome.finish_probs[key] ?? 0), 0);
-  const champBase = baseline("champion");
-  const groupBase = baseline("win_group");
+  const qualified = (probs: Record<string, number>) =>
+    (probs.win_group ?? 0) + (probs.runner_up ?? 0) + (probs.third_qualified ?? 0);
+  const groupBase = fixture.outcomes.reduce((sum, o) => sum + o.prob * (o.finish_probs.win_group ?? 0), 0);
+  const qualifiedBase = fixture.outcomes.reduce((sum, o) => sum + o.prob * qualified(o.finish_probs), 0);
   return fixture.outcomes.map((outcome) => ({
     outcome: outcome.outcome,
     prob: outcome.prob,
-    championDeltaPp: ((outcome.finish_probs.champion ?? 0) - champBase) * 100,
     winGroupDeltaPp: ((outcome.finish_probs.win_group ?? 0) - groupBase) * 100,
+    qualifiedDeltaPp: (qualified(outcome.finish_probs) - qualifiedBase) * 100,
   }));
 }
