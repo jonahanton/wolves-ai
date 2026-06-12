@@ -17,8 +17,9 @@ DepsDep = Annotated[Deps, Depends(get_deps)]
 @router.post("/simulate")
 async def simulate(body: SimulateRequest, deps: DepsDep) -> SimulateResponse:
     pins = [Pin(match=p.match, home_goals=p.home_goals, away_goals=p.away_goals) for p in body.pins]
+    until = body.results_until.isoformat() if body.results_until is not None else None
     try:
-        payload = await deps.engine.simulate_pins(pins, n_sims=body.n_sims, seed=body.seed)
+        payload = await deps.engine.simulate_pins(pins, n_sims=body.n_sims, seed=body.seed, results_until=until)
     except MatchAlreadyPlayedError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except UnknownMatchError as exc:

@@ -68,3 +68,19 @@ async def test_pin_payloads_are_capped(tmp_path):
 
     assert too_many.status_code == 400
     assert silly_score.status_code == 400
+
+
+async def test_results_until_replays_the_baseline_without_later_results(tmp_path):
+    engine = published_engine(tmp_path)
+    ResultsStore(ArtifactStore(engine._settings)).record({1: PlayedResult(match=1, home_goals=9, away_goals=0)})
+    await engine.boot()
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    fmt = engine.forecaster.fmt
+    day_before = "2026-06-10"
+    assert fmt.group_matches[0].date > day_before
+    async with client_for(app) as client:
+        with_result = (await client.post("/simulate", json={"nSims": N_SIMS})).json()
+        without = (await client.post("/simulate", json={"nSims": N_SIMS, "resultsUntil": day_before})).json()
+
+    home = fmt.group_matches[0].home
+    assert with_result["baseline"][home]["r32"] > without["baseline"][home]["r32"]

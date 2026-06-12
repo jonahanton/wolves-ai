@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date  # noqa: TC003  pydantic resolves field annotations at runtime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StringConstraints, field_validator, model_validator
@@ -149,6 +150,7 @@ class SimulateRequest(WireModel):
     pins: list[PinIn] = Field(default_factory=list, max_length=8)
     n_sims: int = Field(default=10_000, ge=1_000, le=20_000)
     seed: int = Field(default=0, ge=0, le=2**31 - 1)
+    results_until: date | None = None
 
 
 class EngineBlock(WireModel):
@@ -175,6 +177,21 @@ class MatchGrid(WireModel):
     p_draw: float
     p_away: float
     fitted_run_id: str
+
+
+class PlayedResultOut(WireModel):
+    match: int
+    date: str
+    stage: str
+    home_id: str | None
+    away_id: str | None
+    home_goals: int
+    away_goals: int
+    winner: str | None
+
+
+class ResultsOut(WireModel):
+    results: list[PlayedResultOut]
 
 
 class DayPolicyOut(WireModel):

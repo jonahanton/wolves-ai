@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from wolves.insights.market_gaps import MarketGaps
     from wolves.insights.path_tree import PathTree
     from wolves.run_policy import DayPolicy
-    from wolves.sim.format import PlayedResult
+    from wolves.sim.format import FormatData, PlayedResult
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,13 @@ class _Fit:
     fitted_id: str
     results: dict[int, PlayedResult]
     revision: int
+
+
+def match_dates(fmt: FormatData) -> dict[int, str]:
+    """Scheduled ISO date per match number, group and knockout alike."""
+    dates = {m.match: m.date for m in fmt.group_matches}
+    dates.update({m.match: m.date for m in fmt.knockout})
+    return dates
 
 
 class EngineService:
@@ -169,19 +176,30 @@ class EngineService:
         with self._lock:
             self._fit = _Fit(forecaster, fitted_id, results, fit.revision + 1)
 
-    async def simulate_pins(self, pins: list[Pin], *, n_sims: int, seed: int) -> dict[str, Any]:
+    async def simulate_pins(
+        self, pins: list[Pin], *, n_sims: int, seed: int, results_until: str | None = None
+    ) -> dict[str, Any]:
         """CRN-paired baseline and pinned reach probabilities from one fitted state."""
         fit = self._snapshot()
         for pin in pins:
             if pin.match in fit.results:
                 raise MatchAlreadyPlayedError(pin.match)
-        baseline = await self._reach_cached(fit, (), n_sims=n_sims, seed=seed)
-        pinned = await self._reach_cached(fit, pins, n_sims=n_sims, seed=seed) if pins else baseline
+        baseline = await self._reach_cached(fit, (), n_sims=n_sims, seed=seed, results_until=results_until)
+        pinned = (
+            await self._reach_cached(fit, pins, n_sims=n_sims, seed=seed, results_until=results_until)
+            if pins
+            else baseline
+        )
         return {
             "engine": self._engine_block(fit, n_sims=n_sims, seed=seed),
             "baseline": baseline,
             "pinned": pinned,
         }
+
+    async def played_results(self) -> list[dict[str, Any]]:
+        """Final scores joined with the schedule, newest first."""
+        fit = self._snapshot()
+        return await self._cached(("results", fit.revision), lambda: self._played(fit))
 
     async def scores_hold(self, held: list[Pin], *, n_sims: int, seed: int = 0) -> dict[str, Any]:
         """Champion-probability deltas if every in-play score becomes the final one."""
@@ -234,10 +252,11 @@ class EngineService:
         )
 
     async def _reach_cached(
-        self, fit: _Fit, pins: list[Pin] | tuple[()], *, n_sims: int, seed: int
+        self, fit: _Fit, pins: list[Pin] | tuple[()], *, n_sims: int, seed: int, results_until: str | None = None
     ) -> dict[str, dict[str, float]]:
-        key = ("reach", fit.revision, tuple(sorted((p.match, p.home_goals, p.away_goals) for p in pins)), n_sims, seed)
-        return await self._cached(key, lambda: self._reach(fit, pins, n_sims, seed))
+        pin_key = tuple(sorted((p.match, p.home_goals, p.away_goals) for p in pins))
+        key = ("reach", fit.revision, pin_key, n_sims, seed, results_until)
+        return await self._cached(key, lambda: self._reach(fit, pins, n_sims, seed, results_until))
 
     def _run_policy(self, forecaster: Forecaster, today: date) -> dict[str, Any]:
         fmt = forecaster.fmt
@@ -275,19 +294,52 @@ class EngineService:
             "seed": seed,
         }
 
-    def _reach(self, fit: _Fit, pins: list[Pin] | tuple[()], n_sims: int, seed: int) -> dict[str, dict[str, float]]:
+    def _reach(
+        self, fit: _Fit, pins: list[Pin] | tuple[()], n_sims: int, seed: int, results_until: str | None
+    ) -> dict[str, dict[str, float]]:
         perturbations = tuple(
             ScorelinePerturbation(match=p.match, home_goals=p.home_goals, away_goals=p.away_goals, reason="api pin")
             for p in pins
         )
+        results = fit.results
+        if results_until is not None:
+            dates = match_dates(fit.forecaster.fmt)
+            results = {m: r for m, r in results.items() if dates.get(m, "") <= results_until}
         result = fit.forecaster.simulate(
             n_sims=n_sims,
             seed=seed,
             perturbations=perturbations,
-            results=fit.results,
+            results=results,
             parameter_uncertainty=False,
         )
         return build_team_reach(fit.forecaster.fmt, result)
+
+    def _played(self, fit: _Fit) -> list[dict[str, Any]]:
+        fmt = fit.forecaster.fmt
+        dates = match_dates(fmt)
+        group_teams = {m.match: (m.home, m.away) for m in fmt.group_matches}
+        stages = {m.match: m.stage for m in fmt.knockout}
+        live = LiveStateStore(self._artifacts).load()
+        live_teams = (
+            {f.match: (f.home_id, f.away_id) for f in live.fixtures if f.match is not None} if live is not None else {}
+        )
+        rows = []
+        for match, result in fit.results.items():
+            home_id, away_id = group_teams.get(match) or live_teams.get(match) or (None, None)
+            rows.append(
+                {
+                    "match": match,
+                    "date": dates.get(match, ""),
+                    "stage": stages.get(match, "group"),
+                    "home_id": home_id,
+                    "away_id": away_id,
+                    "home_goals": result.home_goals,
+                    "away_goals": result.away_goals,
+                    "winner": result.winner,
+                }
+            )
+        rows.sort(key=lambda row: (row["date"], row["match"]), reverse=True)
+        return rows
 
     def _grid(self, fit: _Fit, match: int) -> dict[str, Any]:
         home, away, stage = self._fixture_teams(fit.forecaster, match)

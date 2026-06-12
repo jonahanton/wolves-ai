@@ -30,6 +30,7 @@ from wolves_backend.routes.health import router as health_router
 from wolves_backend.routes.live import router as live_router
 from wolves_backend.routes.market import router as market_router
 from wolves_backend.routes.odds import router as odds_router
+from wolves_backend.routes.results import router as results_router
 from wolves_backend.routes.runs import router as runs_router
 from wolves_backend.routes.simulate import router as simulate_router
 from wolves_backend.routes.snapshots import router as snapshots_router
@@ -108,6 +109,7 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
 
     app.include_router(health_router)
     app.include_router(simulate_router)
+    app.include_router(results_router)
     app.include_router(live_router)
     app.include_router(snapshots_router)
     app.include_router(runs_router)
