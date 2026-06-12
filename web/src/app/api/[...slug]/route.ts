@@ -9,7 +9,18 @@ const FORWARDED_REQUEST_HEADERS = ["content-type", "if-none-match", "if-modified
 const FORWARDED_RESPONSE_HEADERS = ["content-type", "etag", "cache-control", "last-modified"];
 const ADMIN_PREFIX = "admin";
 
-const PUBLIC_PREFIXES = ["snapshots", "live", "runs", "teams", "odds", "agent-state", "healthz"] as const;
+const PUBLIC_PREFIXES = [
+  "snapshots",
+  "live",
+  "runs",
+  "teams",
+  "odds",
+  "agent-state",
+  "healthz",
+  "results",
+  "market",
+  "impact",
+] as const;
 
 function isAllowed(slug: string[], method: string): boolean {
   const prefix = slug[0];

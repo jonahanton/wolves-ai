@@ -62,17 +62,18 @@ def _fixture_block(fixture: LiveFixture) -> dict[str, Any]:
 def _selected_teams(
     requested: str | None, agent_reach: dict[str, dict[str, float]], in_play: list[LiveFixture], focus: str
 ) -> list[str]:
+    teams = [team for f in in_play for team in (f.home_id, f.away_id) if team is not None]
+    if focus not in teams:
+        teams.append(focus)
     if requested:
         names = [team.strip() for team in requested.split(",") if team.strip()]
         unknown = sorted(set(names) - set(agent_reach))
         if unknown:
             raise HTTPException(status_code=404, detail=f"no agent forecast for team(s) {', '.join(unknown)}")
-        return names[:MAX_TEAMS]
-    teams = [team for f in in_play for team in (f.home_id, f.away_id) if team is not None]
-    if focus not in teams:
-        teams.append(focus)
-    by_champion = sorted(agent_reach, key=lambda team: -agent_reach[team].get("champion", 0.0))
-    teams.extend(team for team in by_champion[:4] if team not in teams)
+        teams.extend(team for team in names if team not in teams)
+    else:
+        by_champion = sorted(agent_reach, key=lambda team: -agent_reach[team].get("champion", 0.0))
+        teams.extend(team for team in by_champion[:4] if team not in teams)
     return [team for team in teams if team in agent_reach][:MAX_TEAMS]
 
 

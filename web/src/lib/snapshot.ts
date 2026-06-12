@@ -132,6 +132,7 @@ export interface MatchProbs {
 }
 
 export interface NarrativeBlock {
+  headline?: string;
   focus_story: string;
   slot_rationales: Record<string, string>;
   travel_memo: string;

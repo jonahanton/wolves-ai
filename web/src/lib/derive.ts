@@ -32,32 +32,41 @@ export function titleBoard(snapshot: Snapshot, limit: number): BoardRow[] {
     }));
 }
 
+export interface TitleRank {
+  teamId: string;
+  name: string;
+  prob: number;
+  rank: number;
+}
+
 export interface HeroStatement {
-  lead: string;
-  focusLine: string;
+  leader: TitleRank | null;
+  focus: TitleRank | null;
 }
 
 export function deriveHero(snapshot: Snapshot): HeroStatement {
-  const leader = titleBoard(snapshot, 1)[0];
-  const focusId = snapshot.focus.team_id;
-  const focusName = snapshot.teams.find((t) => t.team_id === focusId)?.name ?? focusId;
-
-  const ours = titleProb(snapshot, focusId);
-  const market = snapshot.markets?.market_probs?.[focusId] ?? null;
-  const gapPp = ours !== null && market !== null ? (ours - market) * 100 : null;
-
-  let focusLine = `${focusName} holding.`;
-  if (gapPp !== null && gapPp <= -1.5) focusLine = `${focusName} priced below the market.`;
-  else if (gapPp !== null && gapPp >= 1.5) focusLine = `${focusName} backed above the market.`;
-
+  const ranked = snapshot.teams
+    .filter((t) => t.champion_prob !== undefined)
+    .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
+    .map((team, index) => ({
+      teamId: team.team_id,
+      name: team.name,
+      prob: team.champion_prob ?? 0,
+      rank: index + 1,
+    }));
   return {
-    lead: leader ? `${possessive(leader.name)} to lose.` : "The field is open.",
-    focusLine,
+    leader: ranked[0] ?? null,
+    focus: ranked.find((team) => team.teamId === snapshot.focus.team_id) ?? null,
   };
 }
 
-function possessive(name: string): string {
-  return name.endsWith("s") ? `${name}'` : `${name}'s`;
+// Older runs predate the plain-English headline; fall back to the story's opening.
+export function agentReasoning(snapshot: Snapshot): string | null {
+  const narrative = snapshot.agent?.narrative;
+  if (!narrative) return null;
+  if (narrative.headline?.trim()) return narrative.headline.trim();
+  const opening = narrative.focus_story.split(/(?<=\.)\s+/).slice(0, 2).join(" ").trim();
+  return opening || null;
 }
 
 export function shortCity(city: string): string {

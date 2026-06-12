@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { BoardRowItem } from "@/components/charts/board-row";
-import { SeriesChart } from "@/components/charts/series-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
-import { LandingHero } from "@/components/landing/landing-hero";
+import { LandingForecast } from "@/components/landing/landing-forecast";
 import { MachineSection } from "@/components/landing/machine-section";
 import { MarketSection } from "@/components/landing/market-section";
 import { RoadSection } from "@/components/landing/road-section";
@@ -11,81 +10,75 @@ import { Kicker } from "@/components/shell/kicker";
 import { PhotoWall } from "@/components/walls/photo-wall";
 import { FestivalBand } from "@/components/walls/festival-band";
 import { orNull } from "@/lib/api";
-import { deriveHero, titleBoard } from "@/lib/derive";
+import { agentReasoning, deriveHero, titleBoard } from "@/lib/derive";
+import type { ChartTeamInput } from "@/lib/forecast-series";
 import { formatUpdated } from "@/lib/format";
-import { loadLiveState } from "@/lib/live";
-import { loadLatestSnapshot } from "@/lib/load-snapshot";
+import { loadImpact } from "@/lib/impact";
+import { rankedLedger } from "@/lib/ledger";
+import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
+import { loadMarketReach } from "@/lib/market-reach";
+import { loadResults } from "@/lib/results";
 import { loadRunRecords, loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
-import { type TeamSeries, trimToPublished } from "@/lib/series";
 
 const SERIES_COLOURS = ["oklch(0.8 0.11 150)", "oklch(0.965 0.008 95 / 0.34)", "oklch(0.965 0.008 95 / 0.25)", "oklch(0.965 0.008 95 / 0.22)"];
 
 export default async function LandingPage() {
-  const [result, liveResult, indexResult, recordsResult] = await Promise.all([
+  const [result, indexResult, recordsResult, marketReachResult, resultsResult] = await Promise.all([
     loadLatestSnapshot(),
-    loadLiveState(),
     loadSnapshotIndex(),
     loadRunRecords(),
+    loadMarketReach(),
+    loadResults(),
   ]);
   if (!result.ok) return <ErrorState error={result.error} context="World Cup Superforecaster" />;
   const snapshot = result.data;
+  const now = new Date();
 
-  const hero = deriveHero(snapshot);
+  // The hero and chart speak for the agent's full forecast; live runs may be newer.
+  const agentRef = orNull(indexResult)?.snapshots.find((ref) => ref.kind === "agent");
+  const agentSnapshot =
+    snapshot.run.kind === "agent" || !agentRef
+      ? snapshot
+      : (orNull(await loadSnapshot(agentRef.runId)) ?? snapshot);
+
+  const hero = deriveHero(agentSnapshot);
   const board = titleBoard(snapshot, 6);
   const focusId = snapshot.focus.team_id;
   const names = Object.fromEntries(snapshot.teams.map((t) => [t.team_id, t.name]));
 
-  const chartTeams = [...new Set([...board.slice(0, 4).map((row) => row.teamId), focusId])];
-  const histories = await Promise.all(chartTeams.map((teamId) => loadTeamHistory(teamId)));
-  const series: TeamSeries[] = chartTeams.map((teamId, i) => ({
+  const agentBoard = titleBoard(agentSnapshot, 4);
+  const chartTeamIds = [...new Set([...agentBoard.map((row) => row.teamId), focusId])];
+  const [impactResult, ...histories] = await Promise.all([
+    loadImpact(chartTeamIds),
+    ...chartTeamIds.map((teamId) => loadTeamHistory(teamId)),
+  ] as const);
+  const chartTeams: ChartTeamInput[] = chartTeamIds.map((teamId, i) => ({
     teamId,
     name: names[teamId] ?? teamId,
     featured: teamId === focusId,
     colour: teamId === focusId ? "oklch(0.69 0.19 25)" : SERIES_COLOURS[i % SERIES_COLOURS.length],
-    points: trimToPublished(orNull(histories[i])?.points ?? [], snapshot.run.run_id),
+    history: orNull(histories[i])?.points ?? [],
   }));
-
-  const restHero = (
-    <section className="relative">
-      <HeroVideo />
-      <div className="wrap relative pt-[clamp(90px,18svh,170px)] pb-[clamp(56px,9vh,100px)]">
-        <Kicker>World Cup Superforecaster · run {formatUpdated(snapshot.run.created_at)}</Kicker>
-        <h1 className="statement statement-hero">
-          {hero.lead}
-          <br />
-          <b className="font-medium text-red">{hero.focusLine}</b>
-        </h1>
-        <p className="lede mt-[18px]">
-          Tens of thousands of simulated tournaments a day, an AI superforecaster reading the news, the market
-          keeping us honest.
-        </p>
-        <div className="mt-3 font-mono text-[11px] uppercase tracking-[0.12em] text-cream-faint">
-          Euros 2024 · the Wolves
-        </div>
-        <div className="mt-[clamp(30px,5vh,52px)]">
-          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-            <span className="font-mono text-[13px] uppercase tracking-[0.14em] text-cream-dim">
-              Chance of winning the World Cup
-            </span>
-            <span className="font-mono text-[12px] text-cream-faint">
-              <span className="text-gold">◆</span> <b className="text-cream-dim">agent</b> · ● engine · market
-              dashed
-            </span>
-          </div>
-          <div className="hidden sm:block">
-            <SeriesChart series={series} ariaLabel="Title probability over published runs" />
-          </div>
-          <div className="sm:hidden">
-            <SeriesChart series={series} ariaLabel="Title probability over published runs" variant="mobile" />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
 
   return (
     <>
-      <LandingHero initialLive={orNull(liveResult)} focusId={focusId} names={names} restHero={restHero} />
+      <section className="relative">
+        <HeroVideo />
+        <LandingForecast
+          now={now.getTime()}
+          leader={hero.leader}
+          focus={hero.focus}
+          runLabel={formatUpdated(agentSnapshot.run.created_at)}
+          teams={chartTeams}
+          marketReach={orNull(marketReachResult)?.points ?? []}
+          results={orNull(resultsResult)?.results ?? []}
+          initialImpact={orNull(impactResult)}
+          names={names}
+          focusId={focusId}
+          reasoning={agentReasoning(agentSnapshot)}
+          evidence={rankedLedger(agentSnapshot, 5)}
+        />
+      </section>
 
       <section className="relative border-t border-hairline py-[clamp(60px,10vh,120px)]">
         <PhotoWall family="wc" />
@@ -117,7 +110,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      <RoadSection snapshot={snapshot} now={new Date()} />
+      <RoadSection snapshot={snapshot} now={now} />
 
       <FestivalBand family="euros" tag="Euros 2024 · the Wolves" />
 
