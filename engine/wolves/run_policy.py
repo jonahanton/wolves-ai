@@ -105,7 +105,7 @@ def _first_group_date(fmt: FormatData) -> date:
     return date.fromisoformat(min(m.date[:10] for m in fmt.group_matches))
 
 
-def _calendar_dates(fmt: FormatData) -> list[date]:
+def calendar_dates(fmt: FormatData) -> list[date]:
     stamps = sorted({m.date[:10] for m in fmt.group_matches} | {m.date[:10] for m in fmt.knockout})
     first = date.fromisoformat(stamps[0])
     last = date.fromisoformat(stamps[-1]) + timedelta(days=1)
@@ -118,7 +118,7 @@ def main() -> None:
     settings = Settings()
     fmt = load_format(settings.data_dir)
     print(f"{'date':<12}{'games':>6}{'phase':>11}{'ceiling':>9}  big teams playing")
-    for on in _calendar_dates(fmt):
+    for on in calendar_dates(fmt):
         policy = day_policy(settings, fmt, on=on)
         games = len(_group_games_on(fmt, on)) + sum(1 for m in fmt.knockout if m.date[:10] == on.isoformat())
         print(

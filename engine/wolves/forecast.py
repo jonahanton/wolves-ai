@@ -187,6 +187,10 @@ class Forecaster:
         self._state = self.model.fit(dataset, as_of=as_of or datetime.now(UTC).date())
         return self._state
 
+    def restore(self, state: FittedState) -> None:
+        """Adopt a previously fitted state, e.g. the published artifact."""
+        self._state = state
+
     @property
     def is_fitted(self) -> bool:
         return self._state is not None

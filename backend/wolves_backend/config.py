@@ -27,18 +27,23 @@ class Settings(BaseSettings):
 
     ecs_cluster_arn: str = ""
     ecs_task_definition: str = "wolves-engine-daily"
-    ecs_archive_task_definition: str = ""
     ecs_agent_task_definition: str = ""
-    ecs_live_task_definition: str = ""
     ecs_subnets: str = ""
     ecs_security_group: str = ""
 
     admin_token: str = ""
     run_history_limit: int = 50
+    engine_refresh_interval_s: float = 300.0
+    alerts_topic_arn: str = ""
+    archive_hours_utc: str = "8,14,18,22"
 
     @property
     def subnet_ids(self) -> list[str]:
         return [subnet for subnet in self.ecs_subnets.split(",") if subnet]
+
+    @property
+    def archive_hours(self) -> tuple[int, ...]:
+        return tuple(int(hour) for hour in self.archive_hours_utc.split(",") if hour)
 
 
 @lru_cache

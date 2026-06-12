@@ -6,6 +6,7 @@ import re
 
 from pydantic.alias_generators import to_camel
 
+from wolves import live_state
 from wolves_backend import models
 from wolves_backend.config import REPO_ROOT
 
@@ -20,17 +21,11 @@ def _ts_interface_fields(source: str, name: str) -> set[str]:
 
 def test_live_mirrors_carry_the_wire_field_names():
     source = (WEB_LIB / "live.ts").read_text(encoding="utf-8")
-    names = [
-        "LiveForecast",
-        "LiveFixture",
-        "ScheduleDrift",
-        "LiveState",
-        "LiveHistoryPoint",
-        "LiveHistoryFixture",
-        "LiveHistory",
-    ]
-    for name in names:
-        wire = set(getattr(models, name).model_fields)
+    engine_owned = ["LiveForecast", "LiveFixture", "ScheduleDrift", "LiveState"]
+    backend_owned = ["LiveHistoryPoint", "LiveHistoryFixture", "LiveHistory"]
+    for name in engine_owned + backend_owned:
+        owner = live_state if name in engine_owned else models
+        wire = set(getattr(owner, name).model_fields)
         assert _ts_interface_fields(source, name) == wire, f"{name} drifted"
 
 

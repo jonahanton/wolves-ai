@@ -113,6 +113,17 @@ CHAMPION = ArtifactSpec(
     mutable=True,
     description="The gate-promoted model record that produces published numbers.",
 )
+FITTED_STATE = ArtifactSpec(
+    name="fitted-state",
+    pattern="models/fitted/{run_id}.json",
+    description="Serialised FittedState behind one published run; the backend boots from this.",
+)
+FITTED_LATEST = ArtifactSpec(
+    name="fitted-latest",
+    pattern="models/fitted/latest.json",
+    mutable=True,
+    description="Pointer to the most recently published fitted state.",
+)
 ODDS_SNAPSHOT = ArtifactSpec(
     name="odds-snapshot",
     pattern="odds-archive/{date}/{time}.json",
@@ -206,6 +217,8 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     DATASET_MANIFEST,
     DATASET_LATEST,
     CHAMPION,
+    FITTED_STATE,
+    FITTED_LATEST,
     ODDS_SNAPSHOT,
     ODDS_SERIES_POINT,
     ODDS_CLOSE,

@@ -26,6 +26,7 @@ from wolves.live_state import LiveState, LiveStateStore, build_live_state
 from wolves.observability.logging import configure_cli_logging
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
+from wolves.s3.fitted import FittedStateStore
 from wolves.s3.layout import SNAPSHOT
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import PlayedResult, load_format, load_results
@@ -180,6 +181,7 @@ async def live_pass(
         matches=outputs.matches,
     )
     s3_key = publisher.publish(snapshot, as_of=now.date(), started=started)
+    FittedStateStore(artifacts).publish(forecaster.state, run_id=run_id)
     logger.info(
         "live run %s applied %d new result(s) across %d world(s) (s3_key=%s)",
         run_id,

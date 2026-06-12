@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from wolves.data.teams import registry_team_key
 from wolves.forecast import DEFAULT_SIMS, Forecaster, Perturbation
+from wolves.sim.format import PlayedResult
 from wolves.sim.mc import SimResult
 
 STAGES = ("r32", "r16", "qf", "sf", "final")
@@ -74,10 +75,13 @@ def team_path_tree(
     *,
     view: Literal["reach", "title"] = "reach",
     perturbations: tuple[Perturbation, ...] = (),
+    results: dict[int, PlayedResult] | None = None,
     n_sims: int = DEFAULT_SIMS * 5,
     seed: int = 0,
 ) -> PathTree:
-    result = forecaster.simulate(n_sims=n_sims, seed=seed, perturbations=perturbations, parameter_uncertainty=False)
+    result = forecaster.simulate(
+        n_sims=n_sims, seed=seed, perturbations=perturbations, results=results, parameter_uncertainty=False
+    )
     ids = [t.id for t in forecaster.fmt.teams]
     team_idx = ids.index(team)
     ranks = _strength_ranks(forecaster)

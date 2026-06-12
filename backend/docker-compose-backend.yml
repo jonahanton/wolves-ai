@@ -11,11 +11,13 @@ services:
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-local}
       - STORAGE_DIR=/app/runs
+      - STORAGE_MODE=local
+      - RUNS_ROOT=/app/runs
       - DYNAMO_ENDPOINT=http://db:8000
       - ADMIN_TOKEN=${ADMIN_TOKEN:-}
     volumes:
       - ..:/app
-      - /app/backend/.venv
+      - /app/.venv
     networks:
       - app-network
     healthcheck:

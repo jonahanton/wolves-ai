@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from wolves.config import Settings
 
 GROUPS = "ABCDEFGHIJKL"
 
@@ -100,7 +104,7 @@ def load_format(data_dir: Path) -> FormatData:
     )
 
 
-def load_results(data_dir: Path) -> dict[int, PlayedResult]:
+def load_results(data_dir: Path, *, settings: Settings | None = None) -> dict[int, PlayedResult]:
     """Played results keyed by match number: the static file unioned with
     results persisted from live polling, the persisted side winning."""
     # Imported lazily: results_store needs PlayedResult from this module.
@@ -112,4 +116,4 @@ def load_results(data_dir: Path) -> dict[int, PlayedResult]:
         PlayedResult(match=r["match"], home_goals=r["homeGoals"], away_goals=r["awayGoals"], winner=r.get("winner"))
         for r in raw["results"]
     ]
-    return {r.match: r for r in results} | persisted_results(get_settings())
+    return {r.match: r for r in results} | persisted_results(settings or get_settings())

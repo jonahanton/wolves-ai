@@ -11,7 +11,6 @@ on:
         options:
           - daily
           - agent
-          - live
       ceiling_usd:
         description: Agent spend ceiling in USD (blank uses the engine default)
         required: false
@@ -30,7 +29,6 @@ env:
   AWS_REGION: eu-west-2
   ECS_CLUSTER: wolves
   TASK_FAMILY: wolves-engine-daily
-  ARCHIVE_TASK_FAMILY: wolves-engine-archive
 
 jobs:
   run:
@@ -45,7 +43,7 @@ jobs:
       - name: Refuse to overlap an active engine task
         if: ${{ !inputs.force }}
         run: |
-          for family in "$TASK_FAMILY" "$ARCHIVE_TASK_FAMILY"; do
+          for family in "$TASK_FAMILY"; do
             active=$(aws ecs list-tasks \
               --cluster "$ECS_CLUSTER" \
               --family "$family" \
@@ -68,7 +66,6 @@ jobs:
           case "$MODE" in
             daily) command='["wolves.run"]' ;;
             agent) command='["wolves.run_agent","--live","--confirm-spend"]' ;;
-            live) command='["wolves.live","--loop","--interval","60"]' ;;
             *) echo "unknown mode: $MODE" >&2; exit 2 ;;
           esac
           if [ -n "$CEILING_USD" ] && [ "$MODE" != "agent" ]; then

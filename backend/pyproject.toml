@@ -9,7 +9,11 @@ dependencies = [
     "pydantic>=2.11.0",
     "pydantic-settings>=2.10.0",
     "boto3>=1.35.0",
+    "wolves",
 ]
+
+[tool.uv.sources]
+wolves = { workspace = true }
 
 [project.optional-dependencies]
 dev = [
@@ -38,7 +42,7 @@ select = ["E", "F", "I", "N", "UP", "B", "A", "SIM", "TCH", "RUF"]
 "tests/**" = ["N803"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["wolves_backend"]
+known-first-party = ["wolves_backend", "wolves"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

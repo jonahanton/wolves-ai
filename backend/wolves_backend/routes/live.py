@@ -2,24 +2,39 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
+import logging
 import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import ValidationError
 
+from wolves.live_state import LiveState
+from wolves.s3.layout import LIVE_STATE
 from wolves_backend.deps import Deps, get_deps
-from wolves_backend.models import LiveHistory, LiveHistoryFixture, LiveHistoryPoint, LiveState
+from wolves_backend.models import LiveHistory, LiveHistoryFixture, LiveHistoryPoint
+from wolves_backend.sim import Pin
 
 router = APIRouter(prefix="/live")
 
+logger = logging.getLogger(__name__)
+
 DepsDep = Annotated[Deps, Depends(get_deps)]
 
-LIVE_STATE_KEY = "live/state.json"
+LIVE_STATE_KEY = LIVE_STATE.key()
 LIVE_HISTORY_PREFIX = "live/history/"
 DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Evenly sampling a long day keeps the worm's shape at a fraction of the bytes.
 MAX_HISTORY_POINTS = 360
+
+
+def _held_pins(state: LiveState) -> list[Pin]:
+    return [
+        Pin(match=f.match, home_goals=f.home_goals, away_goals=f.away_goals)
+        for f in state.fixtures
+        if f.status == "live" and f.match is not None and f.home_goals is not None and f.away_goals is not None
+    ]
 
 
 @router.get("", response_model=LiveState)
@@ -28,14 +43,24 @@ async def state(request: Request, deps: DepsDep) -> Response:
     if raw is None:
         raise HTTPException(status_code=404, detail="no live state available")
     try:
-        LiveState.model_validate_json(raw)
+        live = LiveState.model_validate_json(raw)
     except ValidationError as exc:
         raise HTTPException(status_code=502, detail="live state is malformed") from exc
-    etag = f'"{hashlib.md5(raw.encode("utf-8")).hexdigest()}"'
+    # Always re-serialised compactly so the ETag is stable across engine readiness.
+    payload = json.loads(raw)
+    held = _held_pins(live)
+    if held and deps.engine.ready:
+        # Scores-hold is garnish; a sim failure must never take down /live.
+        try:
+            payload["scores_hold"] = await deps.engine.scores_hold(held, n_sims=deps.engine.settings.n_sims)
+        except Exception:
+            logger.exception("scores-hold failed; serving the raw live state")
+    body = json.dumps(payload, separators=(",", ":"))
+    etag = f'"{hashlib.md5(body.encode("utf-8")).hexdigest()}"'
     headers = {"ETag": etag, "Cache-Control": "no-cache"}
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
-    return Response(content=raw, media_type="application/json", headers=headers)
+    return Response(content=body, media_type="application/json", headers=headers)
 
 
 @router.get("/history/{date}")
