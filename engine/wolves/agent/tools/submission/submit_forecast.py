@@ -50,7 +50,9 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         focus_team=deps.settings.focus_team,
     )
     if not report.ok:
-        deps.submission.validation_failures += 1
+        # Copy issues are repair prompts; only hard issues spend a retry.
+        if report.hard_issues:
+            deps.submission.validation_failures += 1
         deps.runtime.emit("validation", deps.actor, f"submission rejected: {report.summary()[:200]}")
         return ToolResult(
             ok=False,

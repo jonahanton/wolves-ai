@@ -1,11 +1,12 @@
-"""Deterministic submit validator: provenance and coherence are hard; large
-moves escalate to a steelman, never to a cap on conclusions."""
+"""Deterministic submit validator: provenance and coherence are hard; copy
+issues are repair prompts that never cost a retry; large moves escalate to a
+steelman, never to a cap on conclusions."""
 
 from __future__ import annotations
 
 import itertools
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
@@ -29,15 +30,23 @@ class ValidatorLimits(BaseModel):
     justification_threshold_pp: float = 1.0
 
 
+IssueSeverity = Literal["hard", "copy"]
+
+
 class ValidationIssue(BaseModel):
     code: str
     message: str
+    severity: IssueSeverity = "hard"
 
 
 class ValidationReport(BaseModel):
     ok: bool
     issues: list[ValidationIssue] = Field(default_factory=list)
     escalations: list[str] = Field(default_factory=list)
+
+    @property
+    def hard_issues(self) -> list[ValidationIssue]:
+        return [i for i in self.issues if i.severity == "hard"]
 
     def summary(self) -> str:
         return "; ".join(f"[{i.code}] {i.message}" for i in self.issues)
@@ -107,6 +116,10 @@ def validate_submission(
 
 def _issue(code: str, message: str) -> ValidationIssue:
     return ValidationIssue(code=code, message=message)
+
+
+def _copy_issue(code: str, message: str) -> ValidationIssue:
+    return ValidationIssue(code=code, message=message, severity="copy")
 
 
 def _artifact_payload(
@@ -244,7 +257,7 @@ def _check_narrative(submission: ForecastSubmission) -> list[ValidationIssue]:
 
 def _check_em_dashes(submission: ForecastSubmission) -> list[ValidationIssue]:
     if EM_DASH in submission.model_dump_json():
-        return [_issue("em_dash", "em-dashes are not allowed anywhere in the submission")]
+        return [_copy_issue("em_dash", "em-dashes are not allowed anywhere in the submission")]
     return []
 
 
@@ -275,14 +288,14 @@ def _check_headline(submission: ForecastSubmission) -> list[ValidationIssue]:
         return [_issue("headline_missing", "narrative.headline is required: the forecast's reasoning in plain English")]
     issues: list[ValidationIssue] = []
     if len(headline) > _HEADLINE_MAX_CHARS:
-        issues.append(_issue("headline_too_long", f"headline must stay under {_HEADLINE_MAX_CHARS} characters"))
+        issues.append(_copy_issue("headline_too_long", f"headline must stay under {_HEADLINE_MAX_CHARS} characters"))
     sentences = [part for part in re.split(r"[.!?]+", headline) if part.strip()]
     if len(sentences) > _HEADLINE_MAX_SENTENCES:
-        issues.append(_issue("headline_too_long", f"headline must be at most {_HEADLINE_MAX_SENTENCES} sentences"))
+        issues.append(_copy_issue("headline_too_long", f"headline must be at most {_HEADLINE_MAX_SENTENCES} sentences"))
     found = sorted({m.group(0).lower() for m in _HEADLINE_JARGON.finditer(headline)})
     if found:
         issues.append(
-            _issue(
+            _copy_issue(
                 "headline_jargon",
                 f"the headline is plain English for a reader who has never met the model; rephrase: {', '.join(found)}",
             )
@@ -305,7 +318,7 @@ def _check_focus_story(submission: ForecastSubmission, focus_team: str | None) -
         ]
     if display not in first_sentence:
         return [
-            _issue(
+            _copy_issue(
                 "focus_story_buried",
                 f"focus_story must open with {display}; other teams are supporting cast, not the lead",
             )
@@ -316,5 +329,5 @@ def _check_focus_story(submission: ForecastSubmission, focus_team: str | None) -
 def _check_british_english(submission: ForecastSubmission) -> list[ValidationIssue]:
     found = sorted({m.group(0).lower() for m in _AMERICANISMS.finditer(submission.model_dump_json())})
     if found:
-        return [_issue("american_spelling", f"use British English; replace: {', '.join(found)}")]
+        return [_copy_issue("american_spelling", f"use British English; replace: {', '.join(found)}")]
     return []
