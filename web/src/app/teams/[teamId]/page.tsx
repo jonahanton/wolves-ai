@@ -10,7 +10,8 @@ import { WhatIfPanel } from "@/components/team/what-if-panel";
 import { orNull } from "@/lib/api";
 import { fixturesFor, nextFixtureFor, shortCity, titleProb } from "@/lib/derive";
 import { formatPct1 } from "@/lib/format";
-import { rankedLedger, sourceHost, statusMark } from "@/lib/ledger";
+import { LedgerList } from "@/components/runs/ledger-list";
+import { rankedLedger } from "@/lib/ledger";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { loadTeamHistory } from "@/lib/runs";
 import { groupStandings, staircase } from "@/lib/team-view";
@@ -130,20 +131,8 @@ export default async function TeamPage({ params }: TeamPageProps) {
             </div>
           )}
           {ledger.length > 0 && (
-            <div className="mt-7 max-w-[760px] border-t border-hairline">
-              {ledger.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex justify-between gap-4 border-b border-hairline py-3.5 text-[15.5px] font-light text-cream-dim"
-                >
-                  <span className="line-clamp-2">
-                    {entry.claim} — {sourceHost(entry.source_url)}
-                  </span>
-                  <span className="whitespace-nowrap font-mono text-[12px] text-cream-faint">
-                    {entry.id} {statusMark(entry.status)}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-7">
+              <LedgerList entries={ledger} />
             </div>
           )}
         </section>

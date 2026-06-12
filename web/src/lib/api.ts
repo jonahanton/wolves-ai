@@ -32,6 +32,21 @@ export async function backendGet<T>(path: string): Promise<ApiResult<T>> {
   }
 }
 
+export async function backendGetText(path: string): Promise<ApiResult<string>> {
+  try {
+    const response = await fetch(new URL(path, BACKEND_URL), {
+      cache: "no-store",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      return { ok: false, error: { category: categorise(response.status), status: response.status } };
+    }
+    return { ok: true, data: await response.text() };
+  } catch {
+    return { ok: false, error: { category: "offline" } };
+  }
+}
+
 export function orNull<T>(result: ApiResult<T>): T | null {
   return result.ok ? result.data : null;
 }

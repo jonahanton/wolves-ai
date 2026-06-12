@@ -7,7 +7,8 @@ import { Kicker } from "@/components/shell/kicker";
 import { WhatIfPanel } from "@/components/team/what-if-panel";
 import { orNull } from "@/lib/api";
 import { formatKickoff, formatPct } from "@/lib/format";
-import { rankedLedger, sourceHost, statusMark } from "@/lib/ledger";
+import { LedgerList } from "@/components/runs/ledger-list";
+import { rankedLedger } from "@/lib/ledger";
 import { loadLiveHistory, loadLiveState } from "@/lib/live";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { wormGeometry } from "@/lib/worm";
@@ -97,21 +98,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       {caseEntries.length > 0 && (
         <section className="wrap border-t border-hairline py-14">
           <Kicker>The case file</Kicker>
-          <div className="max-w-[760px] border-t border-hairline">
-            {caseEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className="flex justify-between gap-4 border-b border-hairline py-3.5 text-[15.5px] font-light text-cream-dim"
-              >
-                <span className="line-clamp-2">
-                  {entry.claim} — {sourceHost(entry.source_url)}
-                </span>
-                <span className="whitespace-nowrap font-mono text-[12px] text-cream-faint">
-                  {entry.id} {statusMark(entry.status)}
-                </span>
-              </div>
-            ))}
-          </div>
+          <LedgerList entries={caseEntries} />
         </section>
       )}
     </>

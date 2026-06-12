@@ -5,7 +5,8 @@ import { Kicker } from "@/components/shell/kicker";
 import { orNull } from "@/lib/api";
 import { titleProb } from "@/lib/derive";
 import { formatPct1 } from "@/lib/format";
-import { rankedLedger, sourceHost, statusMark } from "@/lib/ledger";
+import { LedgerList } from "@/components/runs/ledger-list";
+import { rankedLedger } from "@/lib/ledger";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 import { divergenceRows, loadOddsDates, loadOddsDay, teamOddsSeries } from "@/lib/market-view";
 
@@ -149,21 +150,7 @@ export default async function MarketPage() {
       {agent && rankedLedger(snapshot, 5).length > 0 && (
         <section className="wrap border-t border-hairline py-14">
           <Kicker>Evidence on file</Kicker>
-          <div className="max-w-[760px] border-t border-hairline">
-            {rankedLedger(snapshot, 5).map((entry) => (
-              <div
-                key={entry.id}
-                className="flex justify-between gap-4 border-b border-hairline py-3.5 text-[15.5px] font-light text-cream-dim"
-              >
-                <span className="line-clamp-2">
-                  {entry.claim} — {sourceHost(entry.source_url)}
-                </span>
-                <span className="whitespace-nowrap font-mono text-[12px] text-cream-faint">
-                  {entry.id} {statusMark(entry.status)}
-                </span>
-              </div>
-            ))}
-          </div>
+          <LedgerList entries={rankedLedger(snapshot, 5)} />
         </section>
       )}
     </>

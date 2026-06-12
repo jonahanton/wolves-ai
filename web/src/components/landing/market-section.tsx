@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Kicker } from "@/components/shell/kicker";
 import { PhotoWall } from "@/components/walls/photo-wall";
-import { rankedLedger, sourceHost, statusMark } from "@/lib/ledger";
+import { LedgerList } from "@/components/runs/ledger-list";
+import { rankedLedger } from "@/lib/ledger";
 import type { Snapshot } from "@/lib/snapshot";
 
 interface MarketSectionProps {
@@ -66,20 +67,8 @@ export function MarketSection({ snapshot }: MarketSectionProps) {
           </>
         )}
         {sources.length > 0 && (
-          <div className="mt-[clamp(22px,3vh,34px)] max-w-[760px] border-t border-hairline">
-            {sources.map((entry) => (
-              <div
-                key={entry.id}
-                className="flex justify-between gap-4 border-b border-hairline py-3.5 text-[15.5px] font-light text-cream-dim"
-              >
-                <span className="line-clamp-2">
-                  {entry.claim} — {sourceHost(entry.source_url)}
-                </span>
-                <span className="whitespace-nowrap font-mono text-[12px] text-cream-faint">
-                  {entry.id} {statusMark(entry.status)}
-                </span>
-              </div>
-            ))}
+          <div className="mt-[clamp(22px,3vh,34px)]">
+            <LedgerList entries={sources} />
           </div>
         )}
       </div>
