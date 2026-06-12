@@ -4,38 +4,33 @@ export interface BoardRow {
   teamId: string;
   name: string;
   prob: number;
-  model: number | null;
   market: number | null;
+  blend: number | null;
   lo: number | null;
   hi: number | null;
 }
 
+// The published number is teams[].champion_prob whichever loop produced the
+// run (agents publish unblended; markets is the transparency block).
 export function titleProb(snapshot: Snapshot, teamId: string): number | null {
-  const blend = snapshot.markets?.blend_probs?.[teamId];
-  if (blend !== undefined) return blend;
   return snapshot.teams.find((t) => t.team_id === teamId)?.champion_prob ?? null;
 }
 
 export function titleBoard(snapshot: Snapshot, limit: number): BoardRow[] {
-  const names = new Map(snapshot.teams.map((t) => [t.team_id, t.name]));
   const intervals = new Map((snapshot.intervals ?? []).map((i) => [i.team_id, i]));
-  const blend = snapshot.markets?.blend_probs;
-  const ranked: (readonly [string, number])[] = blend
-    ? Object.entries(blend).sort(([, a], [, b]) => b - a)
-    : snapshot.teams
-        .filter((t) => t.champion_prob !== undefined)
-        .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
-        .map((t) => [t.team_id, t.champion_prob ?? 0] as const);
-
-  return ranked.slice(0, limit).map(([teamId, prob]) => ({
-    teamId,
-    name: names.get(teamId) ?? teamId,
-    prob,
-    model: snapshot.markets?.model_probs?.[teamId] ?? null,
-    market: snapshot.markets?.market_probs?.[teamId] ?? null,
-    lo: intervals.get(teamId)?.lo ?? null,
-    hi: intervals.get(teamId)?.hi ?? null,
-  }));
+  return snapshot.teams
+    .filter((t) => t.champion_prob !== undefined)
+    .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
+    .slice(0, limit)
+    .map((team) => ({
+      teamId: team.team_id,
+      name: team.name,
+      prob: team.champion_prob ?? 0,
+      market: snapshot.markets?.market_probs?.[team.team_id] ?? null,
+      blend: snapshot.markets?.blend_probs?.[team.team_id] ?? null,
+      lo: intervals.get(team.team_id)?.lo ?? null,
+      hi: intervals.get(team.team_id)?.hi ?? null,
+    }));
 }
 
 export interface HeroStatement {
@@ -64,6 +59,12 @@ export function deriveHero(snapshot: Snapshot): HeroStatement {
 
 function possessive(name: string): string {
   return name.endsWith("s") ? `${name}'` : `${name}'s`;
+}
+
+// "New York/New Jersey" reads as a slash pile in display copy; the first
+// segment is the city as spoken.
+export function shortCity(city: string): string {
+  return city.split("/")[0].trim();
 }
 
 export function nextFixtureFor(snapshot: Snapshot, teamId: string, now: Date): MatchProbs | null {
