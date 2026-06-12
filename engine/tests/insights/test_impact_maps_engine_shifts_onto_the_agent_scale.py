@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from wolves_backend.impact import estimated_stages, shifted, stage_impacts
+from wolves.insights.impact import estimated_stages, shifted, stage_impacts
 
 AGENT = {"r32": 0.95, "champion": 0.10}
 

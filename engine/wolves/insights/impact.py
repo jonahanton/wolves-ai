@@ -1,13 +1,4 @@
-"""Transplant engine-measured changes onto the agent's published scale.
-
-The engine baseline and the agent's published numbers differ in level by
-construction (agents publish unblended mixtures), so engine probabilities are
-never shown as the agent's. The engine measures change instead: CRN-paired
-simulations from one fitted state give three legs (results as the agent saw
-them, results now, in-play scores held to full time), and each leg's log-odds
-shift is applied to the agent's published probability. Components are read
-sequentially: results first, then the in-game shift on top.
-"""
+"""Transplant engine-measured shifts onto the agent's published scale in log odds."""
 
 from __future__ import annotations
 
@@ -18,11 +9,11 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 STAGES = ("r32", "r16", "qf", "sf", "final", "champion")
-PROB_CLAMP = 1e-4
+PROB_FLOOR = 1e-4
 
 
 def _logit(p: float) -> float:
-    clamped = min(max(p, PROB_CLAMP), 1.0 - PROB_CLAMP)
+    clamped = min(max(p, PROB_FLOOR), 1.0 - PROB_FLOOR)
     return math.log(clamped / (1.0 - clamped))
 
 
@@ -41,7 +32,12 @@ def stage_impacts(
     now: Mapping[str, float],
     held: Mapping[str, float],
 ) -> dict[str, dict[str, float]]:
-    """Per-stage estimates on the agent scale, split into results and in-game components."""
+    """Per-stage estimates on the agent scale, split into results and in-game components.
+
+    The then leg simulates under the agent run's own fitted state with the results it
+    saw, so the results component carries both attribution channels (bracket and refit);
+    the in-game component is the current scores held to full time on top.
+    """
     impacts = {}
     for stage in STAGES:
         published = agent.get(stage)

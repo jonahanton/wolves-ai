@@ -126,9 +126,8 @@ FITTED_LATEST = ArtifactSpec(
 )
 IMPLIED_REACH = ArtifactSpec(
     name="implied-reach",
-    pattern="odds-archive/{date}/implied-reach.json",
-    mutable=True,
-    description="Market-implied reach probabilities inverted from that day's last outright capture.",
+    pattern="odds-archive/{date}/{time}.implied.json",
+    description="Market-implied reach probabilities inverted from one outright capture.",
 )
 ODDS_SNAPSHOT = ArtifactSpec(
     name="odds-snapshot",

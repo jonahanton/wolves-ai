@@ -12,7 +12,7 @@ async def test_admin_stop_answers_while_the_sim_semaphore_is_saturated(tmp_path,
     engine = published_engine(tmp_path)
     await engine.boot()
 
-    def slow_reach(fit, pins, n_sims, seed, results_until):
+    def slow_reach(fit, forecaster, pins, n_sims, seed, results_until):
         time.sleep(0.5)
         return {}
 

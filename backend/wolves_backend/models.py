@@ -238,6 +238,7 @@ class Impact(WireModel):
     agent_as_of: str
     agent_created_at: str
     fitted_run_id: str
+    then_basis: str
     n_sims: int
     teams: dict[str, dict[str, StageImpact]]
     fixtures: list[ImpactFixture]

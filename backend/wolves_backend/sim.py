@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 MAX_CONCURRENT_SIMS = 2
 SIM_CACHE_SIZE = 128
+MAX_IMPLIED_CAPTURES = 120
 
 
 class EngineNotReadyError(Exception):
@@ -67,6 +68,16 @@ class Pin:
         self.match = match
         self.home_goals = home_goals
         self.away_goals = away_goals
+
+
+@dataclass(frozen=True)
+class Leg:
+    """One named simulation: optional score pins, a results cutoff, and the
+    fitted state to simulate under (a published run's, else the current fit)."""
+
+    pins: tuple[Pin, ...] = ()
+    results_until: str | None = None
+    fitted_run_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -198,17 +209,36 @@ class EngineService:
             "pinned": pinned,
         }
 
-    async def reach_legs(
-        self, legs: dict[str, tuple[tuple[Pin, ...], str | None]], *, n_sims: int, seed: int = 0
-    ) -> dict[str, Any]:
+    async def reach_legs(self, legs: dict[str, Leg], *, n_sims: int, seed: int = 0) -> dict[str, Any]:
         """Named CRN-paired reach simulations, all served from one fitted snapshot."""
         fit = self._snapshot()
-        reaches = {}
-        for name, (pins, results_until) in legs.items():
+        reaches, bases = {}, {}
+        for name, leg in legs.items():
+            forecaster = await self._run_forecaster(leg.fitted_run_id) if leg.fitted_run_id else None
+            basis = f"run:{leg.fitted_run_id}" if forecaster is not None else "current"
             reaches[name] = await self._reach_cached(
-                fit, list(pins), n_sims=n_sims, seed=seed, results_until=results_until
+                fit,
+                list(leg.pins),
+                n_sims=n_sims,
+                seed=seed,
+                results_until=leg.results_until,
+                forecaster=forecaster,
+                basis=basis,
             )
-        return {"fitted_run_id": fit.fitted_id, "legs": reaches}
+            bases[name] = basis
+        return {"fitted_run_id": fit.fitted_id, "legs": reaches, "bases": bases}
+
+    async def _run_forecaster(self, run_id: str) -> Forecaster | None:
+        """A forecaster restored from that run's published fitted state, when one exists."""
+        return await self._cached(("run-fit", run_id), lambda: self._restore(run_id))
+
+    def _restore(self, run_id: str) -> Forecaster | None:
+        state = self._fitted_store.load(run_id=run_id)
+        if state is None:
+            return None
+        forecaster = Forecaster(self._settings)
+        forecaster.restore(state)
+        return forecaster
 
     async def played_results(self) -> list[dict[str, Any]]:
         """Final scores joined with the schedule, newest first."""
@@ -249,28 +279,29 @@ class EngineService:
         return await self._cached(("explain", fit.revision, team), lambda: model_explain(fit.forecaster, team))
 
     async def market_reach(self) -> ImpliedReachSeries:
-        """Market-implied reach per archive day, computed once and persisted beside the captures."""
+        """Market-implied reach per archive capture, computed once and persisted beside it."""
         fit = self._snapshot()
         archive_dir = self._settings.runs_root / ODDS_SNAPSHOT.prefix
         series = await asyncio.to_thread(load_series, archive_dir)
-        last_by_day: dict[str, Any] = {}
-        for point in series:
-            if point.outright_bookmakers:
-                last_by_day[point.captured_at[:10]] = point
-        points = [await self._implied_point(fit, day, point) for day, point in sorted(last_by_day.items())]
+        captures = [p for p in series if p.outright_bookmakers][-MAX_IMPLIED_CAPTURES:]
+        points = [await self._implied_point(fit, point) for point in captures]
         return ImpliedReachSeries(points=points)
 
-    async def _implied_point(self, fit: _Fit, day: str, point: Any) -> ImpliedReachPoint:
-        stored = await asyncio.to_thread(self._artifacts.get, IMPLIED_REACH, date=day)
-        if stored is not None:
-            persisted = ImpliedReachPoint.model_validate_json(stored)
-            if persisted.captured_at == point.captured_at:
-                return persisted
-        # Keyed without the fit revision: the point is a historical record, not a live read.
-        key = ("implied-reach", day, point.captured_at)
-        return await self._cached(key, lambda: self._implied(fit, day, point))
+    @staticmethod
+    def _capture_parts(point: Any) -> tuple[str, str]:
+        day = point.captured_at[:10]
+        return day, point.captured_at[11:19].replace(":", "")
 
-    def _implied(self, fit: _Fit, day: str, point: Any) -> ImpliedReachPoint:
+    async def _implied_point(self, fit: _Fit, point: Any) -> ImpliedReachPoint:
+        day, time = self._capture_parts(point)
+        stored = await asyncio.to_thread(self._artifacts.get, IMPLIED_REACH, date=day, time=time)
+        if stored is not None:
+            return ImpliedReachPoint.model_validate_json(stored)
+        # Keyed without the fit revision: the point is a historical record, not a live read.
+        return await self._cached(("implied-reach", point.captured_at), lambda: self._implied(fit, point))
+
+    def _implied(self, fit: _Fit, point: Any) -> ImpliedReachPoint:
+        day, time = self._capture_parts(point)
         dates = match_dates(fit.forecaster.fmt)
         results = {m: r for m, r in fit.results.items() if dates.get(m, "") <= day}
         teams = market_implied_reach(
@@ -283,7 +314,7 @@ class EngineService:
         out = ImpliedReachPoint(
             date=day, captured_at=point.captured_at, outright=point.outright_bookmakers, teams=teams
         )
-        self._artifacts.put(IMPLIED_REACH, out.model_dump_json(), date=day)
+        self._artifacts.put(IMPLIED_REACH, out.model_dump_json(), date=day, time=time)
         return out
 
     async def market_gaps(self) -> MarketGaps:
@@ -304,11 +335,20 @@ class EngineService:
         )
 
     async def _reach_cached(
-        self, fit: _Fit, pins: list[Pin] | tuple[()], *, n_sims: int, seed: int, results_until: str | None = None
+        self,
+        fit: _Fit,
+        pins: list[Pin] | tuple[()],
+        *,
+        n_sims: int,
+        seed: int,
+        results_until: str | None = None,
+        forecaster: Forecaster | None = None,
+        basis: str = "current",
     ) -> dict[str, dict[str, float]]:
         pin_key = tuple(sorted((p.match, p.home_goals, p.away_goals) for p in pins))
-        key = ("reach", fit.revision, pin_key, n_sims, seed, results_until)
-        return await self._cached(key, lambda: self._reach(fit, pins, n_sims, seed, results_until))
+        key = ("reach", fit.revision, basis, pin_key, n_sims, seed, results_until)
+        chosen = forecaster if forecaster is not None else fit.forecaster
+        return await self._cached(key, lambda: self._reach(fit, chosen, pins, n_sims, seed, results_until))
 
     def _run_policy(self, forecaster: Forecaster, today: date) -> dict[str, Any]:
         fmt = forecaster.fmt
@@ -347,7 +387,13 @@ class EngineService:
         }
 
     def _reach(
-        self, fit: _Fit, pins: list[Pin] | tuple[()], n_sims: int, seed: int, results_until: str | None
+        self,
+        fit: _Fit,
+        forecaster: Forecaster,
+        pins: list[Pin] | tuple[()],
+        n_sims: int,
+        seed: int,
+        results_until: str | None,
     ) -> dict[str, dict[str, float]]:
         perturbations = tuple(
             ScorelinePerturbation(match=p.match, home_goals=p.home_goals, away_goals=p.away_goals, reason="api pin")
@@ -355,16 +401,16 @@ class EngineService:
         )
         results = fit.results
         if results_until is not None:
-            dates = match_dates(fit.forecaster.fmt)
+            dates = match_dates(forecaster.fmt)
             results = {m: r for m, r in results.items() if dates.get(m, "") <= results_until}
-        result = fit.forecaster.simulate(
+        result = forecaster.simulate(
             n_sims=n_sims,
             seed=seed,
             perturbations=perturbations,
             results=results,
             parameter_uncertainty=False,
         )
-        return build_team_reach(fit.forecaster.fmt, result)
+        return build_team_reach(forecaster.fmt, result)
 
     def _played(self, fit: _Fit) -> list[dict[str, Any]]:
         fmt = fit.forecaster.fmt

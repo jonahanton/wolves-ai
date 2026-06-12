@@ -97,3 +97,47 @@ async def test_impact_requires_a_published_agent_forecast(tmp_path):
         response = await client.get("/impact")
 
     assert response.status_code == 404
+
+
+async def test_then_leg_simulates_under_the_agent_runs_own_fitted_state(tmp_path):
+    from dataclasses import replace
+
+    import numpy as np
+
+    from wolves.s3.artifacts import ArtifactStore
+    from wolves.s3.fitted import FittedStateStore
+
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    strengths = engine.forecaster.state.strengths - 0.3
+    strengths[np.argmax(strengths)] += 0.6
+    shifted = replace(engine.forecaster.state, strengths=strengths)
+    store = FittedStateStore(ArtifactStore(engine.settings))
+    store.publish(shifted, run_id="agent-20260611-133152")
+    # Publishing repoints latest; the current fit must stay the original state.
+    store.publish(engine.forecaster.state, run_id="run-test")
+    await engine.refresh()
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        response = await client.get("/impact")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["thenBasis"] == "run:agent-20260611-133152"
+    moved = [team for team, stages in body["teams"].items() if stages["champion"]["fromResultsPp"] != 0.0]
+    assert moved, "a refit between the agent run and now must show in the results component"
+
+
+async def test_then_leg_falls_back_to_the_current_fit_without_an_artifact(tmp_path):
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    write_agent_snapshot(tmp_path, engine.forecaster.fmt)
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        response = await client.get("/impact")
+
+    assert response.status_code == 200
+    assert response.json()["thenBasis"] == "current"

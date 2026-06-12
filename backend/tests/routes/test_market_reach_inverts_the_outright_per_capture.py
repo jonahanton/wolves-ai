@@ -40,15 +40,14 @@ async def test_reach_serves_implied_stage_probabilities_and_persists_them(tmp_pa
 
     assert response.status_code == 200
     points = response.json()["points"]
-    assert [p["date"] for p in points] == ["2026-06-10"]
-    point = points[0]
-    assert point["captured_at"] == "2026-06-10T14:00:00+00:00"
+    assert [p["captured_at"] for p in points] == ["2026-06-10T08:00:00+00:00", "2026-06-10T14:00:00+00:00"]
+    point = points[-1]
     assert point["outright"] == outright
     reach = point["teams"][favourite]
     assert all(reach[a] >= reach[b] for a, b in pairwise(STAGE_ORDER))
     assert abs(reach["champion"] - outright[favourite]) < 0.05
 
-    persisted = tmp_path / "odds-archive" / "2026-06-10" / "implied-reach.json"
+    persisted = tmp_path / "odds-archive" / "2026-06-10" / "140000.implied.json"
     assert json.loads(persisted.read_text())["captured_at"] == "2026-06-10T14:00:00+00:00"
 
 

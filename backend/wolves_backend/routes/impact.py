@@ -1,8 +1,4 @@
-"""Estimated movement of the agent's published forecast, measured by the engine.
-
-Results on the run's own as_of date count as new: agent runs publish in the
-morning, before that day's kickoffs.
-"""
+"""Estimated movement of the agent's published forecast, measured by the engine."""
 
 from __future__ import annotations
 
@@ -13,13 +9,13 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
 
+from wolves.insights.impact import estimated_stages, stage_impacts
 from wolves.live_state import LiveFixture, LiveState
 from wolves.s3.layout import LIVE_STATE
 from wolves_backend.deps import Deps, get_deps
-from wolves_backend.impact import estimated_stages, stage_impacts
 from wolves_backend.live_history import day_states
 from wolves_backend.models import Impact
-from wolves_backend.sim import Pin
+from wolves_backend.sim import Leg, Pin
 
 router = APIRouter()
 
@@ -97,10 +93,10 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
 
     today = datetime.now(UTC).date().isoformat()
     states = await day_states(deps.storage, today, bound=MAX_SERIES_POINTS)
-    legs: dict[str, tuple[tuple[Pin, ...], str | None]] = {
-        "then": ((), results_until),
-        "now": ((), None),
-        "held": (held, None),
+    legs: dict[str, Leg] = {
+        "then": Leg(results_until=results_until, fitted_run_id=run["run_id"]),
+        "now": Leg(),
+        "held": Leg(pins=held),
     }
     point_leg: list[str] = []
     leg_by_pins: dict[tuple[tuple[int, int, int], ...], str] = {}
@@ -111,7 +107,7 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
         if name is None:
             name = f"s{len(leg_by_pins)}"
             leg_by_pins[key] = name
-            legs[name] = (pins, None)
+            legs[name] = Leg(pins=pins)
         point_leg.append(name)
 
     n_sims = deps.engine.settings.n_sims
@@ -123,6 +119,7 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
         "agent_as_of": as_of,
         "agent_created_at": run["created_at"],
         "fitted_run_id": result["fitted_run_id"],
+        "then_basis": result["bases"]["then"],
         "n_sims": n_sims,
         "teams": {team: stage_impacts(agent_reach[team], then[team], now[team], held_reach[team]) for team in selected},
         "fixtures": [_fixture_block(f) for f in in_play],
