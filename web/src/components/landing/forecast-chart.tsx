@@ -83,11 +83,12 @@ function formatStamp(t: number): string {
   });
 }
 
-function formatTick(d: Date, first: boolean): string {
+function formatTick(d: Date, previous: Date | undefined): string {
   const intraday = d.getHours() !== 0 || d.getMinutes() !== 0;
   if (!intraday) return formatDay(+d);
   const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-  return first ? `${formatDay(+d)} ${time}` : time;
+  const newDay = !previous || previous.getDate() !== d.getDate();
+  return newDay ? `${formatDay(+d)} ${time}` : time;
 }
 
 export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChartProps) {
@@ -109,13 +110,16 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
     const times = points.map((p) => p.t);
     const lo = times.length ? Math.min(...times) : 0;
     const hi = times.length ? Math.max(...times) : DAY_MS;
-    const pad = Math.max((hi - lo) * 0.04, DAY_MS / 3);
+    const pad = Math.max((hi - lo) * 0.04, DAY_MS / 12);
     const xScale = scaleTime()
       .domain([lo - pad, hi + pad])
       .range([margin.left, Math.max(margin.left + 1, width - margin.right)]);
-    const maxValue = Math.max(0.04, ...points.map((p) => p.value)) * 1.25;
+    const values = points.map((p) => p.value);
+    const maxValue = Math.max(0.04, ...values);
+    const minValue = values.length ? Math.min(...values) : 0;
+    const yLo = Math.max(0, minValue - (maxValue - minValue) * 0.6 - 0.004);
     const yScale = scaleLinear()
-      .domain([0, maxValue])
+      .domain([yLo, maxValue + (maxValue - yLo) * 0.18])
       .range([height - margin.bottom, margin.top]);
     const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
     return { x: xScale, y: yScale, hoverTimes: uniqueTimes };
@@ -157,7 +161,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
     const crossfade = previousSourceRef.current !== source;
     previousSourceRef.current = source;
 
-    const yTicks = y.ticks(4).filter((tick) => tick > 0);
+    const yTicks = y.ticks(4).filter((tick) => tick >= y.domain()[0]);
     svg
       .select<SVGGElement>(".gridlines")
       .selectAll<SVGLineElement, number>("line")
@@ -210,7 +214,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
       .attr("font-size", 11)
       .attr("fill", AXIS_TEXT)
       .attr("x", (d) => x(d))
-      .text((d, i) => formatTick(d, i === 0));
+      .text((d, i) => formatTick(d, xTicks[i - 1]));
 
     const lineGen = d3Line<ChartPoint>()
       .x((p) => x(p.t))
@@ -381,7 +385,7 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
       .attr("font-size", width < MOBILE_BREAK ? 11 : 12)
       .attr("font-weight", (d) => (d.featured ? 500 : 400))
       .attr("dominant-baseline", "middle")
-      .text((d) => (d.estimated ? `${d.text} est.` : d.text));
+      .text((d) => d.text);
     const anchors = lines.filter((team) => team.estimate.length > 1).map((team) => team.estimate[0].t);
     const annotationsG = svg.select<SVGGElement>(".annotations");
     annotationsG.selectAll("*").remove();
@@ -401,12 +405,14 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
         .attr("font-family", "var(--font-spline-mono)")
         .attr("font-size", 10.5)
         .attr("letter-spacing", "0.1em");
-      caption
-        .append("tspan")
-        .attr("x", anchorX - 8)
-        .attr("text-anchor", "end")
-        .attr("fill", "oklch(0.8 0.13 78 / 0.85)")
-        .text("AI FORECASTS");
+      if (anchorX - margin.left > 116) {
+        caption
+          .append("tspan")
+          .attr("x", anchorX - 8)
+          .attr("text-anchor", "end")
+          .attr("fill", "oklch(0.8 0.13 78 / 0.85)")
+          .text("AI FORECASTS");
+      }
       caption
         .append("tspan")
         .attr("x", anchorX + 8)

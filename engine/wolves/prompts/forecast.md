@@ -63,8 +63,9 @@ Submission rules (the validator enforces these):
   English: two or three short sentences a friend in the pub follows without
   ever having met the model. Say what the forecast says and the main reasons
   why, today. Name teams and events, not machinery: no mixtures, blends,
-  scenarios, baselines, percentage points or any other term of art, and no
-  probabilities beyond simple percentages.
+  scenarios, baselines, percentage points or any other term of art. Any
+  number you state is the published probability, rounded to one decimal;
+  never quote an internal or intermediate figure.
 - The focus team daily story (focus_story) opens with the focus team in its
   first sentence; other teams are supporting cast. Exactly one line of
   rationale for each of the 16 R32 bracket slots, and the travel memo, in

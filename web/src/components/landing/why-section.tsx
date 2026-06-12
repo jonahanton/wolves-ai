@@ -15,7 +15,7 @@ export function WhySection({ reasoning, runLabel, evidence }: WhySectionProps) {
       <p className="mt-3 text-[clamp(17px,2.2vw,21px)] font-light leading-[1.45] text-cream">{reasoning}</p>
       {evidence.length > 0 && (
         <details className="group mt-5">
-          <summary className="cursor-pointer list-none font-mono text-[12.5px] uppercase tracking-[0.14em] text-cream-faint transition-colors hover:text-cream-dim">
+          <summary className="cursor-pointer list-none font-mono text-[12.5px] uppercase tracking-[0.14em] text-cream-dim transition-colors hover:text-cream">
             <span className="mr-2 inline-block transition-transform group-open:rotate-90">›</span>
             The evidence it weighed
           </summary>

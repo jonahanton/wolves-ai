@@ -38,8 +38,16 @@ interface LandingForecastProps {
   evidence: LedgerEntryOut[];
 }
 
-const SOURCES: { key: Source; label: string }[] = [
-  { key: "wolves", label: "Wolves forecast" },
+const SOURCES: { key: Source; label: React.ReactNode }[] = [
+  {
+    key: "wolves",
+    label: (
+      <>
+        <span className="sm:hidden">Wolves</span>
+        <span className="hidden sm:inline">Wolves forecast</span>
+      </>
+    ),
+  },
   { key: "market", label: "Market" },
 ];
 
@@ -56,7 +64,7 @@ function focusFragment(impact: Impact | null, focusId: string): string | null {
   const parts: string[] = [];
   if (Math.abs(champion.fromResultsPp) >= 0.05) {
     const since = new Date(impact.agentAsOf).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-    parts.push(`${formatDeltaPts(champion.fromResultsPp)} since ${since}`);
+    parts.push(`${formatDeltaPts(champion.fromResultsPp)}pt since ${since}`);
   }
   if (Math.abs(champion.fromIngamePp) >= 0.05) {
     const fixture = impact.fixtures.find((f) => f.homeId === focusId || f.awayId === focusId);
@@ -64,7 +72,7 @@ function focusFragment(impact: Impact | null, focusId: string): string | null {
       fixture && fixture.homeGoals !== null
         ? ` ${fixture.homeGoals}-${fixture.awayGoals}${fixture.minute !== null ? ` ${fixture.minute}′` : ""}`
         : "";
-    parts.push(`est. ${formatDeltaPts(champion.fromIngamePp)} in-game${score}`);
+    parts.push(`est. ${formatDeltaPts(champion.fromIngamePp)}pt in-game${score}`);
   }
   return parts.length ? parts.join(" · ") : null;
 }
@@ -87,7 +95,7 @@ export function LandingForecast(props: LandingForecastProps) {
   const caption =
     source === "wolves"
       ? singleRun
-        ? "one full AI forecast published so far · a new line point lands with every run"
+        ? "one full AI forecast published so far · a new point lands with every run"
         : "◆ full AI forecasts · the dotted line is the engine's estimate between runs"
       : "bookmaker prices with the margin removed · stages below the winner are implied from those prices";
 
@@ -96,7 +104,7 @@ export function LandingForecast(props: LandingForecastProps) {
       <section className="relative">
         <HeroVideo />
         <div className="wrap relative pt-[clamp(56px,9svh,104px)] pb-[clamp(28px,4vh,44px)]">
-          <Kicker>World Cup winner · run {runLabel}</Kicker>
+          <Kicker>World Cup winner · run {runLabel.replace(/ /g, "\u00A0")}</Kicker>
           <h1 className="statement statement-hero mt-2">
             {leader ? `${leader.name} ${formatPct1(leader.prob)}.` : "The field is open."}
             {focus && focus.teamId !== leader?.teamId && (
@@ -118,7 +126,15 @@ export function LandingForecast(props: LandingForecastProps) {
         <div className="wrap pt-[clamp(20px,3vh,36px)] pb-[clamp(44px,7vh,72px)]">
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2 border-b border-hairline pb-1">
             <ToggleTabs
-              options={OUTCOMES.map((o) => ({ key: o.key, label: o.label }))}
+              options={OUTCOMES.map((o) => ({
+                key: o.key,
+                label: (
+                  <>
+                    <span className="sm:hidden">{o.short}</span>
+                    <span className="hidden sm:inline">{o.label}</span>
+                  </>
+                ),
+              }))}
               value={outcome}
               onChange={setOutcome}
               ariaLabel="Outcome"

@@ -10,11 +10,11 @@ import type { TeamHistoryPoint } from "@/lib/runs";
 export type Outcome = "champion" | "final" | "sf" | "qf";
 export type Source = "wolves" | "market";
 
-export const OUTCOMES: { key: Outcome; label: string; phrase: string }[] = [
-  { key: "champion", label: "Winner", phrase: "winning the World Cup" },
-  { key: "final", label: "Final", phrase: "reaching the final" },
-  { key: "sf", label: "Semi-final", phrase: "reaching the semi-finals" },
-  { key: "qf", label: "Quarter-final", phrase: "reaching the quarter-finals" },
+export const OUTCOMES: { key: Outcome; label: string; short: string; phrase: string }[] = [
+  { key: "champion", label: "Winner", short: "Winner", phrase: "winning the World Cup" },
+  { key: "final", label: "Final", short: "Final", phrase: "reaching the final" },
+  { key: "sf", label: "Semi-final", short: "SF", phrase: "reaching the semi-finals" },
+  { key: "qf", label: "Quarter-final", short: "QF", phrase: "reaching the quarter-finals" },
 ];
 
 export interface ChartPoint {

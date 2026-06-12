@@ -12,7 +12,7 @@ import { loadMarketReach } from "@/lib/market-reach";
 import { loadResults } from "@/lib/results";
 import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
 
-const SERIES_COLOURS = ["oklch(0.8 0.11 150)", "oklch(0.965 0.008 95 / 0.34)", "oklch(0.965 0.008 95 / 0.25)", "oklch(0.965 0.008 95 / 0.22)"];
+const SERIES_COLOURS = ["oklch(0.6 0.06 250)", "oklch(0.965 0.008 95 / 0.34)", "oklch(0.965 0.008 95 / 0.25)", "oklch(0.965 0.008 95 / 0.22)"];
 
 export default async function LandingPage() {
   const [result, indexResult, marketReachResult, resultsResult] = await Promise.all([

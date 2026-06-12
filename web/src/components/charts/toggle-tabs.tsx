@@ -3,7 +3,7 @@
 import clsx from "clsx";
 
 interface ToggleTabsProps<T extends string> {
-  options: { key: T; label: string }[];
+  options: { key: T; label: React.ReactNode }[];
   value: T;
   onChange: (value: T) => void;
   ariaLabel: string;
