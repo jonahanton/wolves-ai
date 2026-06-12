@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import logging
 
-from pydantic_ai import UnexpectedModelBehavior
+from pydantic_ai import Agent, UnexpectedModelBehavior, capture_run_messages
+from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, RetryPromptPart, ToolCallPart
 from pydantic_ai.models import Model
 
 from wolves.config import Settings
@@ -10,18 +12,93 @@ from wolves.graph.agents import master_agent
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import GraphPatch, NodeKind, NodePatch
 from wolves.graph.observed_model import CACHE_SETTINGS
+from wolves.observability.runtime import ObservedRuntime
 
 logger = logging.getLogger(__name__)
 
+_RAW_OUTPUT_MAX_CHARS = 4000
 
-async def plan_wave(prompt: str, *, model: Model) -> GraphPatch:
-    """One master planning turn over the blackboard summary."""
-    try:
-        result = await master_agent().run(prompt, model=model, model_settings=CACHE_SETTINGS)
-    except UnexpectedModelBehavior as exc:
-        logger.warning("master patch failed output validation repeatedly: %s", exc)
-        return GraphPatch(stop=True, reason="master output failed validation; ending planning")
+_SIMPLIFIED_PREAMBLE = (
+    "The previous planning turn failed output validation. Return a minimal valid GraphPatch: "
+    "either ops for the next wave, or stop=true with a short reason."
+)
+
+
+def _raw_output(message: ModelMessage | None) -> str:
+    if not isinstance(message, ModelResponse):
+        return ""
+    chunks = [part.args_as_json_str() for part in message.parts if isinstance(part, ToolCallPart)]
+    return "\n".join(chunks)[:_RAW_OUTPUT_MAX_CHARS]
+
+
+def _emit_output_retries(runtime: ObservedRuntime, messages: list[ModelMessage]) -> None:
+    """Mirror in-call output retries to events.jsonl so a live failure is diagnosable after the fact."""
+    for index, message in enumerate(messages):
+        if not isinstance(message, ModelRequest):
+            continue
+        for part in message.parts:
+            if not isinstance(part, RetryPromptPart):
+                continue
+            error = part.content if isinstance(part.content, str) else json.dumps(part.content, default=repr)
+            raw = _raw_output(messages[index - 1] if index else None)
+            logger.warning("master output failed validation; retrying in-call: %s", error)
+            runtime.emit(
+                "master_output_retry",
+                "master",
+                "master output failed validation; retried in-call",
+                raw_output=raw,
+                validation_error=error,
+            )
+
+
+def _emit_output_failure(
+    runtime: ObservedRuntime, exc: UnexpectedModelBehavior, *, attempt: str, raw_output: str
+) -> None:
+    logger.warning("master %s planning turn exhausted output retries: %s", attempt, exc)
+    runtime.emit(
+        "master_output_failure",
+        "master",
+        f"master {attempt} planning turn exhausted output retries",
+        attempt=attempt,
+        error=str(exc),
+        cause=repr(exc.__cause__) if exc.__cause__ is not None else None,
+        raw_output=raw_output,
+    )
+
+
+async def _planning_turn(
+    agent: Agent[None, GraphPatch], prompt: str, *, model: Model, runtime: ObservedRuntime, attempt: str
+) -> GraphPatch:
+    with capture_run_messages() as messages:
+        try:
+            result = await agent.run(prompt, model=model, model_settings=CACHE_SETTINGS)
+        except UnexpectedModelBehavior as exc:
+            # The final failing attempt never earns a retry prompt, so its raw
+            # output only survives on the failure event.
+            _emit_output_retries(runtime, messages)
+            _emit_output_failure(
+                runtime, exc, attempt=attempt, raw_output=_raw_output(messages[-1] if messages else None)
+            )
+            raise
+    _emit_output_retries(runtime, messages)
     return result.output
+
+
+async def plan_wave(
+    prompt: str, *, board_summary: str, model: Model, settings: Settings, runtime: ObservedRuntime
+) -> GraphPatch:
+    """One master planning turn over the blackboard summary. An exhausted turn
+    gets one fresh, simplified retry before planning degrades to a stop."""
+    agent = master_agent(settings.graph_master_output_retries)
+    try:
+        return await _planning_turn(agent, prompt, model=model, runtime=runtime, attempt="primary")
+    except UnexpectedModelBehavior:
+        pass
+    simplified = f"{_SIMPLIFIED_PREAMBLE}\n\nBlackboard:\n{board_summary}"
+    try:
+        return await _planning_turn(agent, simplified, model=model, runtime=runtime, attempt="simplified")
+    except UnexpectedModelBehavior:
+        return GraphPatch(stop=True, reason="master output failed validation twice; ending planning")
 
 
 def _kind_cap(kind: NodeKind, settings: Settings) -> int:

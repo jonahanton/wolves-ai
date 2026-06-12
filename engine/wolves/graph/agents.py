@@ -105,9 +105,11 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
 
 
 @cache
-def master_agent() -> Agent[None, GraphPatch]:
+def master_agent(output_retries: int) -> Agent[None, GraphPatch]:
     """The planner: pure structured output over the blackboard summary, no tools."""
-    agent: Agent[None, GraphPatch] = Agent(output_type=GraphPatch, system_prompt=prompt("master"), retries=2)
+    agent: Agent[None, GraphPatch] = Agent(
+        output_type=GraphPatch, system_prompt=prompt("master"), output_retries=output_retries
+    )
 
     @agent.output_validator
     def _ops_or_stop(patch: GraphPatch) -> GraphPatch:

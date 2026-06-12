@@ -101,9 +101,16 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
 
     with deps.runtime.run_trace(title=f"forecast {as_of}"):
         for wave in range(settings.graph_max_waves):
-            prompt = board.summary() if wave else f"{_kickoff(deps, as_of)}\n\nBlackboard:\n{board.summary()}"
+            board_summary = board.summary()
+            prompt = board_summary if wave else f"{_kickoff(deps, as_of)}\n\nBlackboard:\n{board_summary}"
             try:
-                patch = await plan_wave(prompt, model=models.master)
+                patch = await plan_wave(
+                    prompt,
+                    board_summary=board_summary,
+                    model=models.master,
+                    settings=settings,
+                    runtime=deps.runtime,
+                )
             except Exception as exc:
                 if not _cap_exceeded(exc):
                     raise

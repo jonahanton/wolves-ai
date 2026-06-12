@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     agent_submit_retries: int = 3
 
     graph_max_waves: int = 8
+    # In-call output validation retries for the master's structured patch; a
+    # live run ended planning after a truncated reply burned the old budget of 2.
+    graph_master_output_retries: int = 4
     graph_max_nodes: int = 16
     graph_max_wave_workers: int = 5
     graph_max_research_nodes: int = 6
