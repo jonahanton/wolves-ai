@@ -36,6 +36,15 @@ class TodoItem(BaseModel):
 
 
 @dataclass
+class ValidatorAnchors:
+    """Validator reference distributions resolved once per run: the frozen
+    baseline is a 50k-sim recompute, far too slow to repeat per attempt."""
+
+    baseline_titles: dict[str, float] | None
+    market_titles: dict[str, float] | None
+
+
+@dataclass
 class SubmissionState:
     """Run-level submission outcome. Shared by reference across per-node deps
     copies so the forecast node's submit tool writes where the runner reads."""
@@ -48,6 +57,7 @@ class SubmissionState:
     # pause; the last resort when the steelman round never completes.
     last_clean: ForecastSubmission | None = None
     last_clean_escalations: list[str] = field(default_factory=list)
+    anchors: ValidatorAnchors | None = None
 
 
 @dataclass

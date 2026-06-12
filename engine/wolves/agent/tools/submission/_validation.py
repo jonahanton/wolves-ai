@@ -1,14 +1,23 @@
 """Shared validator invocation for the submission tools: resolves the anchor
 distributions (frozen baseline, previous published forecast, de-vigged market)
-and runs the deterministic validator over a submission."""
+and runs the deterministic validator over a submission. The baseline and
+market anchors resolve once per run, cached on the shared SubmissionState."""
 
 from __future__ import annotations
 
 from wolves.agent.contracts import ForecastSubmission
-from wolves.agent.deps import AgentDeps
+from wolves.agent.deps import AgentDeps, ValidatorAnchors
 from wolves.agent.validator import ValidationReport, validate_submission
 
 _BASELINE_SIMS = 50_000
+
+
+def _anchors(deps: AgentDeps) -> ValidatorAnchors:
+    if deps.submission.anchors is None:
+        deps.submission.anchors = ValidatorAnchors(
+            baseline_titles=_baseline_titles(deps), market_titles=_market_titles(deps)
+        )
+    return deps.submission.anchors
 
 
 def _baseline_titles(deps: AgentDeps) -> dict[str, float] | None:
@@ -39,13 +48,14 @@ def _previous_titles(deps: AgentDeps) -> dict[str, float] | None:
 
 
 def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationReport:
+    anchors = _anchors(deps)
     return validate_submission(
         args,
         artifacts=deps.artifacts,
         ledger=deps.ledger,
         limits=deps.limits,
-        baseline_titles=_baseline_titles(deps),
+        baseline_titles=anchors.baseline_titles,
         previous_titles=_previous_titles(deps),
-        market_titles=_market_titles(deps),
+        market_titles=anchors.market_titles,
         focus_team=deps.settings.focus_team,
     )
