@@ -96,6 +96,9 @@ def _dev_submission(as_of: str, focus: str) -> dict:
     return {
         "artifact_id": "mixture-001",
         "narrative": {
+            "headline": (
+                f"Spain remain the team to beat, with {focus} close behind. Nothing in today's news moves the picture."
+            ),
             "focus_story": (
                 f"The {focus} camp is calm: the keeper trained in full and the market still makes them "
                 "third favourites behind Spain and France."

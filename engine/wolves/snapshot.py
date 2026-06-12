@@ -139,6 +139,7 @@ def run_day(meta: RunMeta) -> str:
 
 
 class NarrativeBlock(BaseModel):
+    headline: str = ""
     focus_story: str
     slot_rationales: dict[str, str] = Field(default_factory=dict)
     travel_memo: str

@@ -38,6 +38,7 @@ R32_MATCHES = [str(m) for m in range(73, 89)]
 
 def build_narrative(**overrides: Any) -> Narrative:
     fields: dict[str, Any] = {
+        "headline": "Spain remain the team to beat. England's odds hold steady with the squad fully fit.",
         "focus_story": "England are settled and the squad trained in full ahead of Croatia.",
         "slot_rationales": {m: f"Slot {m}: favourite advances on rating gap." for m in R32_MATCHES},
         "travel_memo": "Win the group and England stay east; second means a longer hop west.",

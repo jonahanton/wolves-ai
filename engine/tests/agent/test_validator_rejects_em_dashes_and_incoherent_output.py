@@ -122,3 +122,26 @@ def test_rumour_cited_weight_rejects(store: RunArtifactStore, ledger: EvidenceLe
     )
     submission = build_submission(scenario_weights=[{"name": "unrest", "weight": 1.0, "ledger_ids": ["led-0002"]}])
     assert "rumour_cited" in _codes(_validate(submission, store, ledger))
+
+
+def test_missing_headline_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
+    submission = build_submission(narrative=build_narrative(headline=""))
+    assert "headline_missing" in _codes(_validate(submission, store, ledger))
+
+
+def test_jargon_in_the_headline_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
+    headline = "The mixture shifts 2pp towards Spain after reweighting the injury scenario."
+    submission = build_submission(narrative=build_narrative(headline=headline))
+    assert "headline_jargon" in _codes(_validate(submission, store, ledger))
+
+
+def test_rambling_headline_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
+    headline = "Spain lead. England hold. France drift. Portugal rise. Brazil wobble."
+    submission = build_submission(narrative=build_narrative(headline=headline))
+    assert "headline_too_long" in _codes(_validate(submission, store, ledger))
+
+
+def test_plain_english_headline_passes(store: RunArtifactStore, ledger: EvidenceLedger):
+    headline = "Spain are still favourites at about one in six. England's chances edge up with Saka back in training."
+    submission = build_submission(narrative=build_narrative(headline=headline))
+    assert not {code for code in _codes(_validate(submission, store, ledger)) if code.startswith("headline")}

@@ -101,6 +101,7 @@ def validate_submission(
     issues += _check_em_dashes(submission)
     issues += _check_british_english(submission)
     issues += _check_focus_story(submission, focus_team)
+    issues += _check_headline(submission)
     return ValidationReport(ok=not issues, issues=issues, escalations=escalations)
 
 
@@ -254,6 +255,39 @@ _AMERICANISMS = re.compile(
     r"organiz\w+|analyz\w+|capitaliz\w+|honor(s|ed)?|behavior[s]?|soccer)\b",
     re.IGNORECASE,
 )
+
+
+_HEADLINE_MAX_CHARS = 360
+_HEADLINE_MAX_SENTENCES = 3
+# The headline is read by someone who has never met the model; these are the
+# terms of art that leak from the toolchain into prose.
+_HEADLINE_JARGON = re.compile(
+    r"\b(mixture[s]?|blend(s|ed|ing)?|unblended|scenario[s]?|perturbation[s]?|artifact[s]?|"
+    r"de-?vig(ged|ging)?|log[- ]?odds|posterior[s]?|bayes\w*|calibration|n_sims|sims?\b|"
+    r"percentage points?|\d+\s?pp|basis points?|escalation[s]?|baseline[s]?)\b",
+    re.IGNORECASE,
+)
+
+
+def _check_headline(submission: ForecastSubmission) -> list[ValidationIssue]:
+    headline = submission.narrative.headline.strip()
+    if not headline:
+        return [_issue("headline_missing", "narrative.headline is required: the forecast's reasoning in plain English")]
+    issues: list[ValidationIssue] = []
+    if len(headline) > _HEADLINE_MAX_CHARS:
+        issues.append(_issue("headline_too_long", f"headline must stay under {_HEADLINE_MAX_CHARS} characters"))
+    sentences = [part for part in re.split(r"[.!?]+", headline) if part.strip()]
+    if len(sentences) > _HEADLINE_MAX_SENTENCES:
+        issues.append(_issue("headline_too_long", f"headline must be at most {_HEADLINE_MAX_SENTENCES} sentences"))
+    found = sorted({m.group(0).lower() for m in _HEADLINE_JARGON.finditer(headline)})
+    if found:
+        issues.append(
+            _issue(
+                "headline_jargon",
+                f"the headline is plain English for a reader who has never met the model; rephrase: {', '.join(found)}",
+            )
+        )
+    return issues
 
 
 def _check_focus_story(submission: ForecastSubmission, focus_team: str | None) -> list[ValidationIssue]:
