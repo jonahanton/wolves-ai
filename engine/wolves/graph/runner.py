@@ -150,10 +150,12 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 budget_exhausted = True
                 break
 
-        retries_left = submission_state.validation_failures <= settings.agent_submit_retries
-        if submission_state.accepted is None and retries_left and not _budget_at_caps(deps.runtime):
-            # The reserve held back above funds this last forecast even when the
-            # wave loop stopped for budget; a cap mid-submit degrades, not raises.
+        if submission_state.accepted is None and not _budget_at_caps(deps.runtime):
+            # The final chance runs regardless of spent retries: a run that
+            # burned its hard resubmissions still beats the deterministic
+            # fallback. The reserve held back above funds this last forecast
+            # even when the wave loop stopped for budget; a cap mid-submit
+            # degrades, not raises.
             op = NodePatch(
                 node_id="runner-demand-submit",
                 kind="forecast",
