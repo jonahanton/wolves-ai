@@ -64,7 +64,7 @@ export default async function TeamPage({ params }: TeamPageProps) {
         {market !== null && (
           <p className="lede mt-[18px]">
             The market has {team.name} at {(market * 100).toFixed(1)}%
-            {gapPp !== null ? `; we publish ${(gapPp > 0 ? "+" : "−") + Math.abs(gapPp).toFixed(1)}pp ${gapPp > 0 ? "above" : "below"} it.` : "."}
+            {gapPp !== null ? `; we publish ${Math.abs(gapPp).toFixed(1)}pp ${gapPp > 0 ? "above" : "below"} it.` : "."}
           </p>
         )}
       </section>
@@ -124,7 +124,9 @@ export default async function TeamPage({ params }: TeamPageProps) {
         <section className="wrap border-t border-hairline py-14">
           <Kicker>The case</Kicker>
           {story && (
-            <p className="max-w-[52ch] text-[clamp(18px,2.4vw,22px)] font-light leading-[1.55]">&ldquo;{story}&rdquo;</p>
+            <p className="line-clamp-[8] max-w-[52ch] text-[clamp(18px,2.4vw,22px)] font-light leading-[1.55]">
+              &ldquo;{story}&rdquo;
+            </p>
           )}
           {story && (
             <div className="mt-3.5 font-mono text-[12.5px] text-cream-faint">
