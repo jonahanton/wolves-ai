@@ -6,6 +6,8 @@ import { formatKickoff, formatMatchDate } from "@/lib/format";
 import { loadLiveState } from "@/lib/live";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
 
+const COUNT_WORDS: Record<number, string> = { 1: "One game on.", 2: "Two games on.", 3: "Three games on.", 4: "Four games on." };
+
 export default async function LivePage() {
   const [liveResult, snapshotResult] = await Promise.all([loadLiveState(), loadLatestSnapshot()]);
 
@@ -60,7 +62,7 @@ export default async function LivePage() {
       <h1 className="statement">
         {anyLive ? (
           <>
-            {live.live_match_count === 1 ? "One game on." : `${live.live_match_count} games on.`}
+            {COUNT_WORDS[live.live_match_count] ?? `${live.live_match_count} games on.`}
             <br />
             <b className="font-medium">The bracket is moving.</b>
           </>
