@@ -1,35 +1,59 @@
-import { DailyStory } from "@/components/today/daily-story";
-import { EvidenceFeed } from "@/components/today/evidence-feed";
-import { FinishSummary } from "@/components/today/finish-summary";
-import { MarketsCard } from "@/components/today/markets-card";
-import { NextFixtureCard } from "@/components/today/next-fixture-card";
-import { RunHeader } from "@/components/today/run-header";
-import { TodayBoard } from "@/components/today/today-board";
-import { focusStory, ledgerEntries } from "@/lib/agent-fields";
-import { summariseSnapshot } from "@/lib/derive";
-import { buildMarketsView } from "@/lib/markets";
+import { ErrorState } from "@/components/shell/error-state";
+import { Kicker } from "@/components/shell/kicker";
+import { deriveHero, titleBoard } from "@/lib/derive";
+import { formatPct1, formatUpdated } from "@/lib/format";
 import { loadLatestSnapshot } from "@/lib/load-snapshot";
-import { nextEnglandFixture } from "@/lib/schedule";
-import { teamNames } from "@/lib/snapshot";
 
-export const dynamic = "force-dynamic";
+export default async function LandingPage() {
+  const result = await loadLatestSnapshot();
+  if (!result.ok) return <ErrorState error={result.error} context="World Cup Superforecaster" />;
+  const snapshot = result.data;
 
-export default async function TodayPage() {
-  const snapshot = await loadLatestSnapshot();
-  const names = teamNames(snapshot);
-  const fixture = nextEnglandFixture(new Date());
-  const focusName = names.get(snapshot.focus.team_id) ?? snapshot.focus.team_id;
-  const mood = (snapshot.focus.finish_probs.win_group ?? 0) >= 0.5 ? "happy" : "neutral";
+  const hero = deriveHero(snapshot);
+  const board = titleBoard(snapshot, 6);
+  const focusId = snapshot.focus.team_id;
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
-      <RunHeader run={snapshot.run} mood={mood} />
-      <TodayBoard summary={summariseSnapshot(snapshot)} heroProb={snapshot.focus.reach_probs.r32 ?? 0} />
-      {fixture && <NextFixtureCard fixture={fixture} names={names} />}
-      <FinishSummary focus={snapshot.focus} name={focusName} />
-      <MarketsCard view={buildMarketsView(snapshot, names)} />
-      <DailyStory story={focusStory(snapshot)} />
-      <EvidenceFeed entries={ledgerEntries(snapshot)} />
-    </main>
+    <>
+      <section className="wrap pt-24 pb-16">
+        <Kicker>World Cup Superforecaster · run {formatUpdated(snapshot.run.created_at)}</Kicker>
+        <h1 className="statement statement-hero">
+          {hero.lead}
+          <br />
+          <b className="font-medium text-red">{hero.focusLine}</b>
+        </h1>
+        <p className="lede mt-[18px]">
+          Fifty thousand simulated tournaments a day, an AI superforecaster reading the news, the market keeping us
+          honest.
+        </p>
+      </section>
+
+      <section className="wrap border-t border-hairline py-16">
+        <Kicker>The field</Kicker>
+        <div className="max-w-[880px] border-t border-hairline">
+          {board.map((row, index) => (
+            <div
+              key={row.teamId}
+              className="grid grid-cols-[34px_1fr_auto_auto] items-baseline gap-x-5 border-b border-hairline py-4"
+            >
+              <span className="font-mono text-[13px] text-cream-faint">{String(index + 1).padStart(2, "0")}</span>
+              <span className={`text-[clamp(19px,2.8vw,24px)] ${row.teamId === focusId ? "font-medium text-red" : ""}`}>
+                {row.name}
+              </span>
+              <span className="font-mono text-[13px] text-cream-faint">
+                {row.model !== null && row.market !== null
+                  ? `${(row.model * 100).toFixed(1)} / ${(row.market * 100).toFixed(1)}`
+                  : ""}
+              </span>
+              <span className="font-mono text-[clamp(19px,2.8vw,24px)]">{formatPct1(row.prob)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex max-w-[880px] justify-between font-mono text-[12.5px] text-cream-faint">
+          <span>model / market</span>
+          <span>blend</span>
+        </div>
+      </section>
+    </>
   );
 }

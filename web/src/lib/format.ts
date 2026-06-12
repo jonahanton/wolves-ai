@@ -13,6 +13,11 @@ export function formatPctBare(prob: number): string {
   return `${pct}`;
 }
 
+
+export function formatPct1(prob: number): string {
+  return `${(prob * 100).toFixed(1)}%`;
+}
+
 export function frequencyFrame(prob: number): string | null {
   if (prob <= 0) return null;
   if (prob < 0.01) return "under 1 in 100 sims";

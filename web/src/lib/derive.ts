@@ -1,56 +1,84 @@
-import type { Snapshot } from "@/lib/snapshot";
+import type { MatchProbs, Snapshot } from "@/lib/snapshot";
 
-export interface SnapshotSummary {
-  runId: string;
-  createdAt: string;
-  metrics: Record<string, number>;
-}
-
-export interface DeltaChip {
-  key: string;
-  label: string;
+export interface BoardRow {
+  teamId: string;
+  name: string;
   prob: number;
-  deltaPts: number;
+  model: number | null;
+  market: number | null;
+  lo: number | null;
+  hi: number | null;
 }
 
-const REACH_LABELS: Record<string, string> = {
-  r32: "Reach last 32",
-  r16: "Reach last 16",
-  qf: "Reach quarters",
-  sf: "Reach semis",
-  final: "Reach final",
-  champion: "Win it all",
-};
-
-export function summariseSnapshot(snapshot: Snapshot): SnapshotSummary {
-  const metrics: Record<string, number> = {};
-  for (const [stage, prob] of Object.entries(snapshot.focus.reach_probs)) {
-    metrics[`reach:${stage}`] = prob;
-  }
-  for (const path of snapshot.focus.paths) {
-    metrics[`city:${path.city}`] = path.prob;
-  }
-  return { runId: snapshot.run.run_id, createdAt: snapshot.run.created_at, metrics };
+export function titleProb(snapshot: Snapshot, teamId: string): number | null {
+  const blend = snapshot.markets?.blend_probs?.[teamId];
+  if (blend !== undefined) return blend;
+  return snapshot.teams.find((t) => t.team_id === teamId)?.champion_prob ?? null;
 }
 
-function labelFor(key: string): string {
-  const [kind, rest] = key.split(":", 2);
-  if (kind === "reach") return REACH_LABELS[rest] ?? rest;
-  return `R32 in ${rest}`;
+export function titleBoard(snapshot: Snapshot, limit: number): BoardRow[] {
+  const names = new Map(snapshot.teams.map((t) => [t.team_id, t.name]));
+  const intervals = new Map((snapshot.intervals ?? []).map((i) => [i.team_id, i]));
+  const blend = snapshot.markets?.blend_probs;
+  const ranked: (readonly [string, number])[] = blend
+    ? Object.entries(blend).sort(([, a], [, b]) => b - a)
+    : snapshot.teams
+        .filter((t) => t.champion_prob !== undefined)
+        .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
+        .map((t) => [t.team_id, t.champion_prob ?? 0] as const);
+
+  return ranked.slice(0, limit).map(([teamId, prob]) => ({
+    teamId,
+    name: names.get(teamId) ?? teamId,
+    prob,
+    model: snapshot.markets?.model_probs?.[teamId] ?? null,
+    market: snapshot.markets?.market_probs?.[teamId] ?? null,
+    lo: intervals.get(teamId)?.lo ?? null,
+    hi: intervals.get(teamId)?.hi ?? null,
+  }));
 }
 
-export function computeDeltas(
-  current: SnapshotSummary,
-  previous: SnapshotSummary,
-  { minPts = 0.5, limit = 4 }: { minPts?: number; limit?: number } = {},
-): DeltaChip[] {
-  const chips: DeltaChip[] = [];
-  for (const [key, prob] of Object.entries(current.metrics)) {
-    const before = previous.metrics[key];
-    if (before === undefined) continue;
-    const deltaPts = (prob - before) * 100;
-    if (Math.abs(deltaPts) < minPts) continue;
-    chips.push({ key, label: labelFor(key), prob, deltaPts });
-  }
-  return chips.sort((a, b) => Math.abs(b.deltaPts) - Math.abs(a.deltaPts)).slice(0, limit);
+export interface HeroStatement {
+  lead: string;
+  focusLine: string;
+}
+
+export function deriveHero(snapshot: Snapshot): HeroStatement {
+  const leader = titleBoard(snapshot, 1)[0];
+  const focusId = snapshot.focus.team_id;
+  const focusName = snapshot.teams.find((t) => t.team_id === focusId)?.name ?? focusId;
+
+  const ours = titleProb(snapshot, focusId);
+  const market = snapshot.markets?.market_probs?.[focusId] ?? null;
+  const gapPp = ours !== null && market !== null ? (ours - market) * 100 : null;
+
+  let focusLine = `${focusName} holding.`;
+  if (gapPp !== null && gapPp <= -1.5) focusLine = `${focusName} priced below the market.`;
+  else if (gapPp !== null && gapPp >= 1.5) focusLine = `${focusName} backed above the market.`;
+
+  return {
+    lead: leader ? `${possessive(leader.name)} to lose.` : "The field is open.",
+    focusLine,
+  };
+}
+
+function possessive(name: string): string {
+  return name.endsWith("s") ? `${name}'` : `${name}'s`;
+}
+
+export function nextFixtureFor(snapshot: Snapshot, teamId: string, now: Date): MatchProbs | null {
+  const future = (snapshot.matches ?? [])
+    .filter((m) => (m.home_id === teamId || m.away_id === teamId) && new Date(m.date) >= now)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return future[0] ?? null;
+}
+
+export function fixturesFor(snapshot: Snapshot, teamId: string): MatchProbs[] {
+  return (snapshot.matches ?? [])
+    .filter((m) => m.home_id === teamId || m.away_id === teamId)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function matchesOn(snapshot: Snapshot, day: string): MatchProbs[] {
+  return (snapshot.matches ?? []).filter((m) => m.date.startsWith(day)).sort((a, b) => a.date.localeCompare(b.date));
 }

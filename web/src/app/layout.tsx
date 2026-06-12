@@ -1,59 +1,48 @@
 import type { Metadata, Viewport } from "next";
-import { Funnel_Display, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
-import { TabBar } from "@/components/shell/tab-bar";
-import { ThemeProvider, themeInitScript } from "@/components/theme-provider";
+import { SiteFooter } from "@/components/shell/site-footer";
+import { SiteNav } from "@/components/shell/site-nav";
 import "./globals.css";
 
-// Switzer and Funnel Display both carry uniform-width digits, which the global
-// tabular-nums rule depends on; swap fonts only for faces that keep that true.
-const sans = localFont({
-  src: "../fonts/Switzer-Variable.woff2",
-  variable: "--font-sans",
-  weight: "100 900",
+const albert = localFont({
+  src: [
+    { path: "../fonts/albert-sans-300.woff2", weight: "300" },
+    { path: "../fonts/albert-sans-400.woff2", weight: "400" },
+    { path: "../fonts/albert-sans-500.woff2", weight: "500" },
+    { path: "../fonts/albert-sans-600.woff2", weight: "600" },
+  ],
+  variable: "--font-albert",
   display: "swap",
 });
 
-const display = Funnel_Display({
-  variable: "--font-display",
-  subsets: ["latin"],
-});
-
-const mono = Geist_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
+const splineMono = localFont({
+  src: [
+    { path: "../fonts/spline-sans-mono-400.woff2", weight: "400" },
+    { path: "../fonts/spline-sans-mono-500.woff2", weight: "500" },
+  ],
+  variable: "--font-spline-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "The Wolves' World Cup Superforecaster",
-  description: "Forecasting WC26 knockout fixtures, during the groups",
+  title: "The Wolves",
+  description: "The Wolves' World Cup Superforecaster",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#1c1a17",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${sans.variable} ${display.variable} ${mono.variable} h-full antialiased`}
-      suppressHydrationWarning
-    >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
-      <body className="min-h-full flex flex-col">
-        <ThemeProvider>
-          <div className="flex flex-1 flex-col pb-24">{children}</div>
-          <TabBar />
-        </ThemeProvider>
+    <html lang="en-GB" className={`${albert.variable} ${splineMono.variable}`}>
+      <body className="flex min-h-svh flex-col">
+        <SiteNav />
+        <main className="flex-1">{children}</main>
+        <SiteFooter />
       </body>
     </html>
   );

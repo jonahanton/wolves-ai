@@ -7,6 +7,15 @@ const FORWARDED_REQUEST_HEADERS = ["content-type", "if-none-match", "if-modified
 const FORWARDED_RESPONSE_HEADERS = ["content-type", "etag", "cache-control", "last-modified"];
 const ADMIN_PREFIX = "admin";
 
+const PUBLIC_PREFIXES = ["snapshots", "live", "runs", "teams", "odds", "agent-state", "healthz"] as const;
+
+function isAllowed(slug: string[], method: string): boolean {
+  const prefix = slug[0];
+  if (prefix === ADMIN_PREFIX) return true;
+  if (!(PUBLIC_PREFIXES as readonly string[]).includes(prefix)) return false;
+  return method === "GET" || method === "HEAD";
+}
+
 function forwardedResponseHeaders(response: Response): Headers {
   const headers = new Headers();
   for (const name of FORWARDED_RESPONSE_HEADERS) {
@@ -23,6 +32,9 @@ interface RouteContext {
 
 async function proxyRequest(request: NextRequest, context: RouteContext): Promise<Response> {
   const { slug } = await context.params;
+  if (!isAllowed(slug, request.method)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   const url = new URL(slug.map(encodeURIComponent).join("/"), BACKEND_URL);
 
   // Prevent SSRF: encoding blocks absolute or protocol-relative segments and the
