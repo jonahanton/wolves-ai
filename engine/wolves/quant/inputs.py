@@ -25,6 +25,8 @@ def _example_queries(focus_team: str) -> dict[str, str]:
         f"WHERE home_team = '{focus_team}' OR away_team = '{focus_team}' ORDER BY date DESC LIMIT 10",
         "market_closes": "SELECT * FROM market_closes WHERE tournament = 'wc2022' LIMIT 5",
         "elo_history": f"SELECT * FROM elo_history WHERE team = '{focus_team}' ORDER BY year",
+        "squad_players": "SELECT name, position, value_eur_m FROM squad_players "
+        f"WHERE team = '{focus_team}' ORDER BY value_eur_m DESC NULLS LAST LIMIT 10",
     }
 
 
