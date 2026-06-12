@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BoardRowItem } from "@/components/charts/board-row";
 import { SeriesChart } from "@/components/charts/series-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
@@ -103,9 +104,9 @@ export default async function LandingPage() {
           <div className="mt-4 flex max-w-[880px] justify-between font-mono text-[12.5px] text-cream-faint">
             <span className="hidden sm:inline">published number · mkt = de-vigged market</span>
             <span className="sm:hidden">published</span>
-            <a href="/teams" className="border-b border-hairline pb-0.5">
+            <Link href="/teams" className="border-b border-hairline pb-0.5">
               all 48 teams
-            </a>
+            </Link>
           </div>
         </div>
       </section>
