@@ -206,6 +206,44 @@ class RunPolicy(WireModel):
     calendar: list[DayPolicyOut]
 
 
+class StageImpact(WireModel):
+    agent: float
+    estimated: float
+    from_results_pp: float
+    from_ingame_pp: float
+
+
+class ImpactFixture(WireModel):
+    match: int | None
+    home_id: str | None
+    away_id: str | None
+    home_name: str
+    away_name: str
+    home_goals: int | None
+    away_goals: int | None
+    minute: int | None
+    status: str
+    p_home: float | None
+    p_draw: float | None
+    p_away: float | None
+
+
+class ImpactSeriesPoint(WireModel):
+    fetched_at: str
+    teams: dict[str, dict[str, float]]
+
+
+class Impact(WireModel):
+    agent_run_id: str
+    agent_as_of: str
+    agent_created_at: str
+    fitted_run_id: str
+    n_sims: int
+    teams: dict[str, dict[str, StageImpact]]
+    fixtures: list[ImpactFixture]
+    series: list[ImpactSeriesPoint]
+
+
 class Health(BaseModel):
     status: Literal["ok"]
     uptime_s: float

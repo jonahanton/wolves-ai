@@ -27,6 +27,7 @@ from wolves_backend.jobs import ArchiveLoop, LiveLoop
 from wolves_backend.routes.admin import router as admin_router
 from wolves_backend.routes.agent_state import router as agent_state_router
 from wolves_backend.routes.health import router as health_router
+from wolves_backend.routes.impact import router as impact_router
 from wolves_backend.routes.live import router as live_router
 from wolves_backend.routes.market import router as market_router
 from wolves_backend.routes.odds import router as odds_router
@@ -110,6 +111,7 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
     app.include_router(health_router)
     app.include_router(simulate_router)
     app.include_router(results_router)
+    app.include_router(impact_router)
     app.include_router(live_router)
     app.include_router(snapshots_router)
     app.include_router(runs_router)

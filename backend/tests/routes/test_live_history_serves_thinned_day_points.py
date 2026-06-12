@@ -4,7 +4,7 @@ import json
 from typing import Any
 
 from tests.fakes import build_test_app, client_for
-from wolves_backend.routes.live import MAX_HISTORY_POINTS, _sample
+from wolves_backend.live_history import MAX_HISTORY_POINTS, sample
 
 
 def _state_body(minute: int, p_home: float, **overrides: Any) -> dict[str, Any]:
@@ -89,7 +89,7 @@ async def test_history_rejects_a_non_date_path(tmp_path):
 
 def test_sampling_bounds_a_long_day_and_keeps_both_ends():
     keys = [f"{i:06d}" for i in range(1000)]
-    sampled = _sample(keys, MAX_HISTORY_POINTS)
+    sampled = sample(keys, MAX_HISTORY_POINTS)
     assert len(sampled) == MAX_HISTORY_POINTS
     assert sampled[0] == keys[0]
     assert sampled[-1] == keys[-1]

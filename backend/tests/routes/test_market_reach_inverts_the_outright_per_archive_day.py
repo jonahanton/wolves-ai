@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 
 from tests.fakes import build_test_app, client_for, published_engine
 from wolves.markets.inverse import title_probabilities
@@ -44,7 +45,7 @@ async def test_reach_serves_implied_stage_probabilities_and_persists_them(tmp_pa
     assert point["captured_at"] == "2026-06-10T14:00:00+00:00"
     assert point["outright"] == outright
     reach = point["teams"][favourite]
-    assert all(reach[a] >= reach[b] for a, b in zip(STAGE_ORDER, STAGE_ORDER[1:], strict=False))
+    assert all(reach[a] >= reach[b] for a, b in pairwise(STAGE_ORDER))
     assert abs(reach["champion"] - outright[favourite]) < 0.05
 
     persisted = tmp_path / "odds-archive" / "2026-06-10" / "implied-reach.json"

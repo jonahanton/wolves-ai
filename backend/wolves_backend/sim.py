@@ -198,6 +198,18 @@ class EngineService:
             "pinned": pinned,
         }
 
+    async def reach_legs(
+        self, legs: dict[str, tuple[tuple[Pin, ...], str | None]], *, n_sims: int, seed: int = 0
+    ) -> dict[str, Any]:
+        """Named CRN-paired reach simulations, all served from one fitted snapshot."""
+        fit = self._snapshot()
+        reaches = {}
+        for name, (pins, results_until) in legs.items():
+            reaches[name] = await self._reach_cached(
+                fit, list(pins), n_sims=n_sims, seed=seed, results_until=results_until
+            )
+        return {"fitted_run_id": fit.fitted_id, "legs": reaches}
+
     async def played_results(self) -> list[dict[str, Any]]:
         """Final scores joined with the schedule, newest first."""
         fit = self._snapshot()

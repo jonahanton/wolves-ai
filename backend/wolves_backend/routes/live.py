@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import logging
-import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -13,6 +11,7 @@ from pydantic import ValidationError
 from wolves.live_state import LiveState
 from wolves.s3.layout import LIVE_STATE
 from wolves_backend.deps import Deps, get_deps
+from wolves_backend.live_history import DATE_PATTERN, day_states
 from wolves_backend.models import LiveHistory, LiveHistoryFixture, LiveHistoryPoint
 from wolves_backend.sim import Pin
 
@@ -23,10 +22,6 @@ logger = logging.getLogger(__name__)
 DepsDep = Annotated[Deps, Depends(get_deps)]
 
 LIVE_STATE_KEY = LIVE_STATE.key()
-LIVE_HISTORY_PREFIX = "live/history/"
-DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-# Evenly sampling a long day keeps the worm's shape at a fraction of the bytes.
-MAX_HISTORY_POINTS = 360
 
 
 def _held_pins(state: LiveState) -> list[Pin]:
@@ -67,31 +62,13 @@ async def state(request: Request, deps: DepsDep) -> Response:
 async def history(date: str, deps: DepsDep) -> LiveHistory:
     if not DATE_PATTERN.fullmatch(date):
         raise HTTPException(status_code=400, detail="invalid date")
-    keys = sorted(await deps.storage.list_keys(f"{LIVE_HISTORY_PREFIX}{date}/"))
-    keys = _sample(keys, MAX_HISTORY_POINTS)
-    if not keys:
+    states = await day_states(deps.storage, date)
+    if not states:
         raise HTTPException(status_code=404, detail="no live history for date")
-    bodies = await asyncio.gather(*(deps.storage.read(key) for key in keys))
-    points = [point for body in bodies if body is not None if (point := _thin(body)) is not None]
-    if not points:
-        raise HTTPException(status_code=404, detail="no live history for date")
-    return LiveHistory(date=date, points=points)
+    return LiveHistory(date=date, points=[_thin(state) for state in states])
 
 
-def _sample(keys: list[str], bound: int) -> list[str]:
-    if len(keys) <= bound:
-        return keys
-    step = len(keys) / bound
-    sampled = [keys[int(i * step)] for i in range(bound)]
-    sampled[-1] = keys[-1]
-    return sampled
-
-
-def _thin(body: str) -> LiveHistoryPoint | None:
-    try:
-        state = LiveState.model_validate_json(body)
-    except ValidationError:
-        return None
+def _thin(state: LiveState) -> LiveHistoryPoint:
     return LiveHistoryPoint(
         fetched_at=state.fetched_at,
         fixtures=[
