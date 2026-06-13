@@ -159,7 +159,8 @@ Submission rules (the validator enforces these):
 
 If the validator rejects, fix exactly what it names and resubmit. Only hard
 issues spend a resubmission; copy issues (headline length and jargon,
-spelling, em-dashes, mixture_underdispersed) are free to fix. Clearing
+spelling, em-dashes, mixture_underdispersed, missing or jargon-laden
+team_stories and news_impacts) are free to fix. Clearing
 mixture_underdispersed is never a wording change: either cite a mixture
 carrying the missing branch, or say in change_justification why the evidence
 resolves nothing. When unsure a submission will pass,
