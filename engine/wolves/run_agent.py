@@ -280,6 +280,7 @@ def _build_deps(
         limits=ValidatorLimits(
             escalation_threshold_pp=settings.escalation_threshold_pp,
             escalation_reference_p=settings.escalation_reference_p,
+            weight_dilution_min_combined=settings.weight_dilution_min_combined,
         ),
     )
 

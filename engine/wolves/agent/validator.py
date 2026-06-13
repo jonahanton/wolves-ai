@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.forecast_artifact import ForecastArtifactError, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger
+from wolves.agent.mixture_hygiene import diluted_groups
 
 if TYPE_CHECKING:
     from wolves.graph.artifacts import RunArtifactStore
@@ -28,6 +29,7 @@ class ValidatorLimits(BaseModel):
     escalation_threshold_pp: float = 2.0
     escalation_reference_p: float = 0.10
     justification_threshold_pp: float = 1.0
+    weight_dilution_min_combined: float = 0.25
 
 
 IssueSeverity = Literal["hard", "copy"]
@@ -77,6 +79,7 @@ def validate_submission(
     if payload is not None:
         issues += _check_coherence(payload)
         issues += _check_evidence_priced(submission, payload, ledger)
+        issues += _check_weight_dilution(payload, limits)
         if baseline_titles is not None:
             escalations += _diff_escalations(payload, baseline_titles, limits, against="baseline")
         if previous_titles is not None and not (
@@ -136,6 +139,28 @@ def _check_mixture_dispersion(
             f"the cited mixture's focus-team band is {focus_vs_floor}x the parameter-noise floor while the "
             "ledger holds material evidence; widen via a world you believe in, or say in "
             "change_justification why the evidence resolves nothing",
+        )
+    ]
+
+
+def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[ValidationIssue]:
+    """Copy-severity nudge: near-duplicate worlds split a vote and bias the mix."""
+    weights: dict[str, float] = payload.get("weights") or {}
+    worlds_block: dict[str, dict] = payload.get("worlds") or {}
+    worlds = {
+        name: (weights.get(name, 0.0), worlds_block[name].get("perturbations", []))
+        for name in worlds_block
+        if name not in _BASE_WORLDS
+    }
+    diluted = diluted_groups(worlds, min_combined_weight=limits.weight_dilution_min_combined)
+    if not diluted:
+        return []
+    described = "; ".join(f"{' and '.join(names)} ({weight:g} combined)" for names, weight in diluted)
+    return [
+        _copy_issue(
+            "weight_dilution",
+            "these worlds shift the same teams the same way, so splitting their weight out-votes a single "
+            f"opposing world; merge them or argue why they are genuinely distinct branches: {described}",
         )
     ]
 

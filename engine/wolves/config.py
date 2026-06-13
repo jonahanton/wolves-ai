@@ -121,6 +121,7 @@ class Settings(BaseSettings):
     distribution_quantiles: list[float] = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
     distribution_bins: int = 20
     dispersion_floor_enabled: bool = True
+    weight_dilution_min_combined: float = 0.25
     extremising_d: float = 1.0
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
