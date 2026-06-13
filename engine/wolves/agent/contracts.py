@@ -9,7 +9,7 @@ LedgerStatus = Literal["confirmed", "probable", "rumour"]
 
 class TeamStory(BaseModel):
     summary: str
-    what_moved: str
+    why: str
 
 
 class Narrative(BaseModel):

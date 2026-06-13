@@ -147,7 +147,7 @@ def _check_mixture_dispersion(
 
 _STORY_TOP_N = 10
 _STORY_SUMMARY_MAX = 200
-_STORY_WHAT_MOVED_MAX = 480
+_STORY_WHY_MAX = 480
 
 
 def _check_team_stories(submission: ForecastSubmission, payload: dict) -> list[ValidationIssue]:
@@ -167,14 +167,14 @@ def _check_team_stories(submission: ForecastSubmission, payload: dict) -> list[V
             )
         )
     for team, story in stories.items():
-        jargon = sorted({m.group(0).lower() for m in _HEADLINE_JARGON.finditer(f"{story.summary} {story.what_moved}")})
+        jargon = sorted({m.group(0).lower() for m in _HEADLINE_JARGON.finditer(f"{story.summary} {story.why}")})
         if jargon:
             issues.append(
                 _copy_issue(
                     "team_story_jargon", f"team_stories[{team}] is plain English; rephrase: {', '.join(jargon)}"
                 )
             )
-        if len(story.summary) > _STORY_SUMMARY_MAX or len(story.what_moved) > _STORY_WHAT_MOVED_MAX:
+        if len(story.summary) > _STORY_SUMMARY_MAX or len(story.why) > _STORY_WHY_MAX:
             issues.append(
                 _copy_issue("team_story_too_long", f"team_stories[{team}] is over length; tighten the entry")
             )

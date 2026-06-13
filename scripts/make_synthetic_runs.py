@@ -213,9 +213,9 @@ QUIET_NARRATIVE = {
     "slot_rationales": {}, "travel_memo": "No travel implications today.",
     "team_stories": {
         "spain": {"summary": "Spain stay clear favourites on a quiet day.",
-                  "what_moved": "Nothing fresh moved Spain today. The model and the markets agree they are the team to beat, and we leave them on top."},
+                  "why": "Nothing fresh moved Spain today. The model and the markets agree they are the team to beat, and we leave them on top."},
         "england": {"summary": "England hold as clear semi-final contenders.",
-                    "what_moved": "No squad news for England today. A light market premium keeps them just behind the top two, where our model also has them."},
+                    "why": "No squad news for England today. A light market premium keeps them just behind the top two, where our model also has them."},
     },
 }
 QUIET_DRIVERS = {}
@@ -277,11 +277,11 @@ DISAGREE_NARRATIVE = {
     "slot_rationales": {}, "travel_memo": "No travel implications today.",
     "team_stories": {
         "france": {"summary": "France edge up on a market premium and a knockout lean.",
-                   "what_moved": "The markets price France a touch above our model, and we lean slightly their way in a possible meeting with Brazil. Together that nudges them up, though the move is small."},
+                   "why": "The markets price France a touch above our model, and we lean slightly their way in a possible meeting with Brazil. Together that nudges them up, though the move is small."},
         "netherlands": {"summary": "The Netherlands soften with a starter in doubt.",
-                        "what_moved": "One Netherlands starter is doubtful and their depth there is uncertain, so we mark them down a little. Otherwise our model and the markets broadly agree."},
+                        "why": "One Netherlands starter is doubtful and their depth there is uncertain, so we mark them down a little. Otherwise our model and the markets broadly agree."},
         "england": {"summary": "England hold station just behind the top tier.",
-                    "what_moved": "No fresh news for England. They sit just behind a tight top group, where both our model and the markets place them."},
+                    "why": "No fresh news for England. They sit just behind a tight top group, where both our model and the markets place them."},
     },
 }
 DISAGREE_DRIVERS = {
@@ -324,9 +324,9 @@ INJURY_NARRATIVE = {
     "slot_rationales": {}, "travel_memo": "No travel implications today.",
     "team_stories": {
         "portugal": {"summary": "Portugal split on whether their forward plays.",
-                     "what_moved": "Their key forward looks likely to miss the group stage, which pulls Portugal back. We keep real weight on him being passed fit, so the number sits between the two."},
+                     "why": "Their key forward looks likely to miss the group stage, which pulls Portugal back. We keep real weight on him being passed fit, so the number sits between the two."},
         "england": {"summary": "England are unaffected and hold their place.",
-                    "what_moved": "Nothing in today's Portugal news touches England. They hold their place in the chasing pack on the model."},
+                    "why": "Nothing in today's Portugal news touches England. They hold their place in the chasing pack on the model."},
     },
 }
 INJURY_DRIVERS = {

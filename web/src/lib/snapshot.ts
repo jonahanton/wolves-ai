@@ -133,7 +133,7 @@ export interface MatchProbs {
 
 export interface TeamStoryOut {
   summary: string;
-  what_moved: string;
+  why: string;
 }
 
 export interface NarrativeBlock {

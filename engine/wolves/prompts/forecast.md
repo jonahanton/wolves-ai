@@ -141,15 +141,18 @@ Submission rules (the validator enforces these):
   rationale for each of the 16 R32 bracket slots, and the travel memo, in
   British English spelling with no em-dashes anywhere.
 - team_stories carries a short plain-English story per team for the leaders of
-  your own mixture and any team your ledger materially moved. Write one for the
-  top ten teams by your submitted mixture, plus any team with a confirmed or
+  your own mixture and any team your evidence bears on. Write one for the top
+  ten teams by your submitted mixture, plus any team with a confirmed or
   probable ledger item, over-generating by a margin since the published
   ranking is not known yet and reorders slightly after you submit. Each is
-  {summary, what_moved}: summary one plain sentence for a resting caption (at
-  most ~140 characters, names teams not machinery), what_moved a short
-  paragraph (at most three sentences, ~360 characters) on why the number sits
-  where it does, what the news did or did not move, the same focus_story
-  calibre and the same jargon ban as the headline.
+  {summary, why}: summary one plain sentence for a resting caption (at most
+  ~140 characters, names teams not machinery), why a short paragraph (at most
+  three sentences, ~360 characters) explaining why the number sits where it
+  does today. The reference is the model and the market, not yesterday: say
+  what your ratings make of the team, where the market disagrees and which way
+  you leant, and what today's news did or did not change. A team with no news
+  and no market gap is a clean read of those two, and the why says so. Same
+  focus_story calibre and the same jargon ban as the headline.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the
   computation, then resubmit, revised or unchanged.

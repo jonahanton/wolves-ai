@@ -68,39 +68,39 @@ IMPACTS = {
 TEAM_STORIES = {
     "spain": {
         "summary": "Spain are the favourites, with Rodri fit and Yamal back from injury.",
-        "what_moved": "Rodri is confirmed at peak fitness and Yamal is back, so nothing today dents Spain. Our model and the markets both place them top, and we leave them there as clear favourites.",
+        "why": "Rodri is confirmed at peak fitness and Yamal is back, so nothing today dents Spain. Our model and the markets both place them top, and we leave them there as clear favourites.",
     },
     "france": {
         "summary": "France are the closest challengers, on a market premium well above our model.",
-        "what_moved": "Our model rates France near 8% on qualifying form alone. The markets have held them around 16% all window, a premium we read as tournament pedigree the model cannot see, and we weight the markets heavily, landing in between.",
+        "why": "Our model rates France near 8% on qualifying form alone. The markets have held them around 16% all window, a premium we read as tournament pedigree the model cannot see, and we weight the markets heavily, landing in between.",
     },
     "portugal": {
         "summary": "Portugal are genuine semi-final contenders, a little ahead of our model.",
-        "what_moved": "The markets price Portugal a touch above our model, and we grant most of that premium. No fresh news moved them today, so they sit just behind the leading group.",
+        "why": "The markets price Portugal a touch above our model, and we grant most of that premium. With no news bearing on them, they sit just behind the leading group.",
     },
     "england": {
         "summary": "England are genuine semi-final contenders, backed by squad depth.",
-        "what_moved": "Our model has England near 7% on form, below the bookmakers' 11%. We read the gap as squad depth and tournament experience the ratings miss, and weight the markets, so they settle just under the top tier.",
+        "why": "Our model has England near 7% on form, below the bookmakers' 11%. We read the gap as squad depth and tournament experience the ratings miss, and weight the markets, so they settle just under the top tier.",
     },
     "argentina": {
         "summary": "Argentina are the leading South American threat, their keeper now fit.",
-        "what_moved": "Martinez passed his medical and is fit to play, removing the one doubt over Argentina. The markets sit a little below our model, and we split the difference, leaving them as the strongest South American side.",
+        "why": "Martinez passed his medical and is fit to play, removing the one doubt over Argentina. The markets sit a little below our model, and we split the difference, leaving them as the strongest South American side.",
     },
     "brazil": {
         "summary": "Brazil stay in the leading pack despite an opening-match doubt.",
-        "what_moved": "Neymar is out of the opener and Alisson is managing his return, but neither changes the tournament picture much. Our model and the markets broadly agree on Brazil.",
+        "why": "Neymar is out of the opener and Alisson is managing his return, but neither changes the tournament picture much. Our model and the markets broadly agree on Brazil.",
     },
     "germany": {
         "summary": "Germany hold firm with Neuer back in full training.",
-        "what_moved": "Neuer has cleared his calf injury and is back in full training, a small steadying lift. Otherwise the markets price Germany a shade below our model, and we land close to both.",
+        "why": "Neuer has cleared his calf injury and is back in full training, a small steadying lift. Otherwise the markets price Germany a shade below our model, and we land close to both.",
     },
     "netherlands": {
         "summary": "The Netherlands open shorthanded after two midfielders were ruled out.",
-        "what_moved": "Xavi Simons and Jerdy Schouten are out for the tournament with knee injuries, which pulls our estimate down. Beyond that our model and the markets broadly agree on the Netherlands.",
+        "why": "Xavi Simons and Jerdy Schouten are out for the tournament with knee injuries, which pulls our estimate down. Beyond that our model and the markets broadly agree on the Netherlands.",
     },
     "japan": {
         "summary": "Japan open shorthanded after losing two key players.",
-        "what_moved": "Endo and Mitoma are out of the squad, thinning Japan's midfield and attack. The losses pull them back a little, though the side keeps enough cover to limit the fall.",
+        "why": "Endo and Mitoma are out of the squad, thinning Japan's midfield and attack. The losses pull them back a little, though the side keeps enough cover to limit the fall.",
     },
 }
 

@@ -140,7 +140,7 @@ def run_day(meta: RunMeta) -> str:
 
 class TeamStoryOut(BaseModel):
     summary: str
-    what_moved: str
+    why: str
 
 
 class NarrativeBlock(BaseModel):
