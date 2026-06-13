@@ -138,11 +138,17 @@ def run_day(meta: RunMeta) -> str:
     return meta.as_of or meta.created_at[:10]
 
 
+class TeamStoryOut(BaseModel):
+    summary: str
+    what_moved: str
+
+
 class NarrativeBlock(BaseModel):
     headline: str = ""
     focus_story: str
     slot_rationales: dict[str, str] = Field(default_factory=dict)
     travel_memo: str
+    team_stories: dict[str, TeamStoryOut] = Field(default_factory=dict)
 
 
 class LedgerEntryOut(BaseModel):
@@ -170,6 +176,17 @@ class ScenarioWeightOut(BaseModel):
     scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
     rationale: str = ""
+
+
+class MarketGapOut(BaseModel):
+    """A published per-team market stance; direction is the sign of the gap."""
+
+    team_id: str
+    model_prob: float
+    market_prob: float
+    gap_pp: float
+    floor_multiple: float | None = None
+    direction: str
 
 
 class WorldOut(BaseModel):

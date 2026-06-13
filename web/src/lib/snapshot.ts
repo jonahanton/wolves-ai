@@ -131,11 +131,17 @@ export interface MatchProbs {
   modal_score?: string | null;
 }
 
+export interface TeamStoryOut {
+  summary: string;
+  what_moved: string;
+}
+
 export interface NarrativeBlock {
   headline?: string;
   focus_story: string;
   slot_rationales: Record<string, string>;
   travel_memo: string;
+  team_stories?: Record<string, TeamStoryOut>;
 }
 
 export interface LedgerEntryOut {
@@ -161,6 +167,15 @@ export interface ScenarioWeightOut {
   scenario_id: string | null;
   ledger_ids: string[];
   rationale?: string;
+}
+
+export interface MarketGapOut {
+  team_id: string;
+  model_prob: number;
+  market_prob: number;
+  gap_pp: number;
+  floor_multiple: number | null;
+  direction: string;
 }
 
 export interface WorldOut {

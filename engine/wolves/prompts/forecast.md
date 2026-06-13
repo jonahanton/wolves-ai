@@ -103,6 +103,12 @@ Submission rules (the validator enforces these):
   whose mixture diverges from the de-vigged market beyond the escalation
   threshold, each with the computation that earns the gap, in either
   direction.
+- market_gaps carries the typed numbers behind any market stance you took:
+  one entry {team_id, model_prob, market_prob, gap_pp, floor_multiple} per
+  team you named in market_justification, copied from the gap table
+  (wq.market_gaps), never retyped from memory. It is a list that is empty on
+  a quiet day with no market stance; never invent a gap for a team you did
+  not weigh against the market.
 - A resubmission past an escalation carries the steelman in
   change_justification and names its grounds: ledger ids in evidence_ids
   for news-driven moves, or the computing artifact in market_justification
@@ -122,6 +128,16 @@ Submission rules (the validator enforces these):
   first sentence; other teams are supporting cast. Exactly one line of
   rationale for each of the 16 R32 bracket slots, and the travel memo, in
   British English spelling with no em-dashes anywhere.
+- team_stories carries a short plain-English story per team for the leaders of
+  your own mixture and any team your ledger materially moved. Write one for the
+  top ten teams by your submitted mixture, plus any team with a confirmed or
+  probable ledger item, over-generating by a margin since the published
+  ranking is not known yet and reorders slightly after you submit. Each is
+  {summary, what_moved}: summary one plain sentence for a resting caption (at
+  most ~140 characters, names teams not machinery), what_moved a short
+  paragraph (at most three sentences, ~360 characters) on why the number sits
+  where it does, what the news did or did not move, the same focus_story
+  calibre and the same jargon ban as the headline.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the
   computation, then resubmit, revised or unchanged.

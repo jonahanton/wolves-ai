@@ -9,10 +9,14 @@ from wolves.snapshot import (
     CalibrationSummary,
     ChampionBlock,
     DistributionsBlock,
+    MarketGapOut,
     MarketsBlock,
+    NarrativeBlock,
+    ScenarioWeightOut,
     Snapshot,
     TeamDistributions,
     TeamInterval,
+    TeamStoryOut,
     WorldOut,
 )
 
@@ -34,6 +38,10 @@ def _ts_has_field(name: str) -> bool:
         TeamDistributions,
         WorldOut,
         CalibrationSummary,
+        NarrativeBlock,
+        TeamStoryOut,
+        ScenarioWeightOut,
+        MarketGapOut,
     ],
 )
 def test_every_field_appears_in_the_ts_mirror(model) -> None:

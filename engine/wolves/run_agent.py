@@ -389,6 +389,17 @@ def _quant_findings(deps: AgentDeps) -> list[QuantFindingOut]:
     return findings
 
 
+def _select_team_stories(submission, outputs, ledger: EvidenceLedger, *, limit: int) -> dict[str, dict]:
+    """Surface the top published board plus material-news teams the agent wrote for."""
+    written = submission.narrative.team_stories
+    if not written:
+        return {}
+    ranked = sorted(outputs.teams, key=lambda t: t.champion_prob, reverse=True)
+    surfaced = {t.team_id for t in ranked[:limit]}
+    surfaced |= {e.team_id for e in ledger.all() if e.status in ("confirmed", "probable") and e.team_id}
+    return {team: story.model_dump() for team, story in written.items() if team in surfaced}
+
+
 def _ledger_entries(ledger: EvidenceLedger, articles: ArticleCache) -> list[LedgerEntryOut]:
     """Publish ledger entries with article titles joined from the cache."""
     entries: list[LedgerEntryOut] = []
@@ -480,8 +491,16 @@ def _build_snapshot(
 
     attribution = _attribution_block(deps, outputs)
     conditionals = artifact.payload.get("conditionals") or {}
+    narrative = NarrativeBlock(
+        **{
+            **submission.narrative.model_dump(),
+            "team_stories": _select_team_stories(
+                submission, outputs, deps.ledger, limit=settings.story_team_count
+            ),
+        }
+    )
     agent_block = AgentBlock(
-        narrative=NarrativeBlock(**submission.narrative.model_dump()),
+        narrative=narrative,
         artifact_id=submission.artifact_id,
         ledger_entries=_ledger_entries(deps.ledger, deps.articles),
         scenario_weights=[ScenarioWeightOut(**w.model_dump()) for w in submission.scenario_weights],

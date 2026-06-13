@@ -80,6 +80,7 @@ def validate_submission(
         issues += _check_coherence(payload)
         issues += _check_evidence_priced(submission, payload, ledger)
         issues += _check_weight_dilution(payload, limits)
+        issues += _check_team_stories(submission, payload)
         if baseline_titles is not None:
             escalations += _diff_escalations(payload, baseline_titles, limits, against="baseline")
         if previous_titles is not None and not (
@@ -141,6 +142,42 @@ def _check_mixture_dispersion(
             "change_justification why the evidence resolves nothing",
         )
     ]
+
+
+_STORY_TOP_N = 10
+_STORY_SUMMARY_MAX = 200
+_STORY_WHAT_MOVED_MAX = 480
+
+
+def _check_team_stories(submission: ForecastSubmission, payload: dict) -> list[ValidationIssue]:
+    """Copy-severity: once the agent writes stories, cover the mixture leaders, jargon-free, in length."""
+    stories = submission.narrative.team_stories
+    if not stories:
+        return []
+    issues: list[ValidationIssue] = []
+    mixture: dict[str, float] = payload.get("mixture") or {}
+    leaders = [t for t, _ in sorted(mixture.items(), key=lambda kv: -kv[1])[:_STORY_TOP_N]]
+    missing = [t for t in leaders if t not in stories]
+    if missing:
+        issues.append(
+            _copy_issue(
+                "team_stories_missing",
+                f"write a team_stories entry for each leader of your own mixture: missing {', '.join(missing[:6])}",
+            )
+        )
+    for team, story in stories.items():
+        jargon = sorted({m.group(0).lower() for m in _HEADLINE_JARGON.finditer(f"{story.summary} {story.what_moved}")})
+        if jargon:
+            issues.append(
+                _copy_issue(
+                    "team_story_jargon", f"team_stories[{team}] is plain English; rephrase: {', '.join(jargon)}"
+                )
+            )
+        if len(story.summary) > _STORY_SUMMARY_MAX or len(story.what_moved) > _STORY_WHAT_MOVED_MAX:
+            issues.append(
+                _copy_issue("team_story_too_long", f"team_stories[{team}] is over length; tighten the entry")
+            )
+    return issues
 
 
 def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[ValidationIssue]:
