@@ -15,8 +15,9 @@
   --color-slate: oklch(0.6 0.06 250);
 
   --font-sans: var(--font-albert);
-  --font-mono: var(--font-spline-mono);
+  --font-mono: var(--font-hanken);
   --font-serif: var(--font-fraunces);
+  --font-display: var(--font-hanken);
   --font-mono--font-feature-settings: "tnum";
 
   --radius-*: initial;
@@ -84,8 +85,17 @@
   text-wrap: balance;
 }
 
+@utility hero-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(24px, 0.9rem + 2.2vw, 42px);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
 @utility kicker {
-  font-family: var(--font-spline-mono);
+  font-family: var(--font-plex-mono);
   font-size: 12.5px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
