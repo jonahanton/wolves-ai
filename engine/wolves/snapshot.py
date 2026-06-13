@@ -138,11 +138,17 @@ def run_day(meta: RunMeta) -> str:
     return meta.as_of or meta.created_at[:10]
 
 
+class TeamStoryOut(BaseModel):
+    summary: str
+    why: str
+
+
 class NarrativeBlock(BaseModel):
     headline: str = ""
     focus_story: str
     slot_rationales: dict[str, str] = Field(default_factory=dict)
     travel_memo: str
+    team_stories: dict[str, TeamStoryOut] = Field(default_factory=dict)
 
 
 class LedgerEntryOut(BaseModel):
@@ -170,6 +176,28 @@ class ScenarioWeightOut(BaseModel):
     scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
     rationale: str = ""
+    camp: str = ""
+    label: str = ""
+    summary: str = ""
+
+
+class CampOut(BaseModel):
+    key: str
+    label: str = ""
+    summary: str = ""
+    weight: float = 0.0
+    order: int = 0
+
+
+class MarketGapOut(BaseModel):
+    """A published per-team market stance; direction is the sign of the gap."""
+
+    team_id: str
+    model_prob: float
+    market_prob: float
+    gap_pp: float
+    floor_multiple: float | None = None
+    direction: str
 
 
 class WorldOut(BaseModel):
@@ -216,6 +244,16 @@ class CalibrationSummary(BaseModel):
     movement_ratio: float | None = None
 
 
+class ProvenanceOut(BaseModel):
+    news_considered: int = 0
+    news_material: int = 0
+    news_excluded: int = 0
+    market_disagreements: int = 0
+    noise_floor_pp: float = 0.0
+    n_worlds: int = 1
+    n_camps: int = 1
+
+
 class AgentBlock(BaseModel):
     """Agent-run extras; absent on sim-only snapshots. Additive by design."""
 
@@ -223,6 +261,7 @@ class AgentBlock(BaseModel):
     artifact_id: str = ""
     ledger_entries: list[LedgerEntryOut] = Field(default_factory=list)
     scenario_weights: list[ScenarioWeightOut] = Field(default_factory=list)
+    camps: list[CampOut] = Field(default_factory=list)
     worlds: list[WorldOut] = Field(default_factory=list)
     quant_findings: list[QuantFindingOut] = Field(default_factory=list)
     escalations: list[str] = Field(default_factory=list)
@@ -232,6 +271,7 @@ class AgentBlock(BaseModel):
     attribution: AttributionOut | None = None
     governor: GovernorOut | None = None
     calibration: CalibrationSummary | None = None
+    provenance: ProvenanceOut | None = None
 
 
 class ChampionBlock(BaseModel):
@@ -260,6 +300,34 @@ class TeamDistributions(BaseModel):
     settled: dict[str, int] = Field(default_factory=dict)
 
 
+class NewsItemOut(BaseModel):
+    """One sourced news item joined to its price; impact is the agent's why."""
+
+    ledger_id: str
+    claim: str
+    mechanism: str
+    source_url: str
+    title: str | None = None
+    hostname: str = ""
+    status: str = ""
+    signed_delta_pp: float | None = None
+    material: bool = False
+    excluded_reason: str | None = None
+    impact: str | None = None
+
+
+class TeamDriver(BaseModel):
+    """Per-camp chances, any market stance, sourced news and disagreement shape for one team."""
+
+    camp_probs: dict[str, float] = Field(default_factory=dict)
+    market_gap: MarketGapOut | None = None
+    news: list[NewsItemOut] = Field(default_factory=list)
+    has_story: bool = False
+    higher_camp: str | None = None
+    spread_pp: float = 0.0
+    noise_floor_pp: float = 0.0
+
+
 class DistributionsBlock(BaseModel):
     """Confidence in each published number: weighted (world x parameter-draw)
     quantiles per team per stage. The headline stays the mean; this block is
@@ -273,6 +341,7 @@ class DistributionsBlock(BaseModel):
     width_floored: bool = False
     sidecar: str = ""
     teams: dict[str, TeamDistributions] = Field(default_factory=dict)
+    drivers: dict[str, TeamDriver] = Field(default_factory=dict)
 
 
 class MarketsBlock(BaseModel):

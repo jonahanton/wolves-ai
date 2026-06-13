@@ -9,6 +9,7 @@ import re
 import sys
 import time
 from datetime import UTC, date, datetime, timedelta
+from urllib.parse import urlparse
 
 from pydantic import BaseModel
 from pydantic_ai.models import Model
@@ -46,7 +47,15 @@ from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
 from wolves.forecast import Forecaster
 from wolves.graph.artifacts import RunArtifactStore
-from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, NodePatch, QuantOutput, ResearchOutput
+from wolves.graph.contracts import (
+    ForecastOutput,
+    GraphPatch,
+    LedgerEvidence,
+    NodePatch,
+    PricedItem,
+    QuantOutput,
+    ResearchOutput,
+)
 from wolves.graph.fakes import scripted_model
 from wolves.graph.observed_model import ObservedModel
 from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
@@ -81,14 +90,19 @@ from wolves.snapshot import (
     AgentBlock,
     AttributionOut,
     CalibrationSummary,
+    CampOut,
     GovernorOut,
     LedgerEntryOut,
+    MarketGapOut,
     MarketsBlock,
     NarrativeBlock,
+    NewsItemOut,
+    ProvenanceOut,
     QuantFindingOut,
     RunMeta,
     ScenarioWeightOut,
     Snapshot,
+    TeamDriver,
     WorldOut,
     run_day,
 )
@@ -389,6 +403,36 @@ def _quant_findings(deps: AgentDeps) -> list[QuantFindingOut]:
     return findings
 
 
+def _select_team_stories(submission, outputs, ledger: EvidenceLedger, *, limit: int) -> dict[str, dict]:
+    """Surface the top published board plus material-news teams the agent wrote for."""
+    written = submission.narrative.team_stories
+    if not written:
+        return {}
+    ranked = sorted(outputs.teams, key=lambda t: t.champion_prob, reverse=True)
+    surfaced = {t.team_id for t in ranked[:limit]}
+    surfaced |= {e.team_id for e in ledger.all() if e.status in ("confirmed", "probable") and e.team_id}
+    return {team: story.model_dump() for team, story in written.items() if team in surfaced}
+
+
+def _build_camps(submission) -> list[CampOut]:
+    """Declared camps with weight summed from member worlds; an unset camp is its own."""
+    by_camp: dict[str, float] = {}
+    for w in submission.scenario_weights:
+        by_camp[w.camp or w.name] = by_camp.get(w.camp or w.name, 0.0) + w.weight
+    declared = {c.key: c for c in submission.camps}
+    keys = list(declared) + [k for k in by_camp if k not in declared]
+    return [
+        CampOut(
+            key=key,
+            label=declared[key].label if key in declared else "",
+            summary=declared[key].summary if key in declared else "",
+            weight=round(by_camp.get(key, 0.0), 6),
+            order=declared[key].order if key in declared else i,
+        )
+        for i, key in enumerate(keys)
+    ]
+
+
 def _ledger_entries(ledger: EvidenceLedger, articles: ArticleCache) -> list[LedgerEntryOut]:
     """Publish ledger entries with article titles joined from the cache."""
     entries: list[LedgerEntryOut] = []
@@ -419,6 +463,141 @@ def _world_match_probs(
             if m.stage == "group" and m.p_draw is not None and m.match not in played
         }
     return per_world
+
+
+def _priced_items(deps: AgentDeps) -> dict[str, PricedItem]:
+    """Typed prices keyed by ledger id, last writer wins across quant nodes."""
+    if deps.artifacts is None:
+        return {}
+    priced: dict[str, PricedItem] = {}
+    for record in deps.artifacts.all():
+        if record.kind != "quant":
+            continue
+        artifact = deps.artifacts.get(record.id)
+        if artifact is None:
+            continue
+        for raw in artifact.payload.get("priced_items") or []:
+            item = PricedItem.model_validate(raw)
+            priced[item.ledger_id] = item
+    return priced
+
+
+def _per_world_champion(
+    forecaster, per_world_results: dict[str, SimResult], *, n_sims: int, seed: int, played: dict
+) -> dict[str, dict[str, float]]:
+    """Per-world champion probability per team; the camp means group these."""
+    per_world: dict[str, dict[str, float]] = {}
+    for name, sim_result in per_world_results.items():
+        outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played, result=sim_result)
+        per_world[name] = {t.team_id: t.champion_prob for t in outputs.teams}
+    return per_world
+
+
+def _camp_of_world(submission) -> dict[str, str]:
+    return {w.name: (w.camp or w.name) for w in submission.scenario_weights}
+
+
+def _camp_probs(team: str, per_world_champion, weights, camp_of) -> dict[str, float]:
+    """Within-camp weighted mean of the team's per-world champion means."""
+    num: dict[str, float] = {}
+    den: dict[str, float] = {}
+    for world, champ in per_world_champion.items():
+        camp = camp_of.get(world, world)
+        num[camp] = num.get(camp, 0.0) + weights.get(world, 0.0) * champ.get(team, 0.0)
+        den[camp] = den.get(camp, 0.0) + weights.get(world, 0.0)
+    return {camp: round(num[camp] / den[camp], 6) for camp in num if den[camp] > 0}
+
+
+def _team_news(
+    team: str, ledger: EvidenceLedger, articles: ArticleCache, priced: dict[str, PricedItem], impacts: dict[str, str]
+) -> list[NewsItemOut]:
+    out: list[NewsItemOut] = []
+    for e in ledger.all():
+        if e.team_id != team:
+            continue
+        price = priced.get(e.id)
+        article = articles.get(e.source_url)
+        out.append(
+            NewsItemOut(
+                ledger_id=e.id,
+                claim=e.claim,
+                mechanism=e.mechanism,
+                source_url=e.source_url,
+                title=article.title if article else None,
+                hostname=urlparse(e.source_url).hostname or "",
+                status=e.status,
+                signed_delta_pp=price.signed_delta_pp if price else None,
+                material=price.material if price else False,
+                excluded_reason=price.excluded_reason if price else None,
+                impact=impacts.get(e.id),
+            )
+        )
+    return out
+
+
+def _build_drivers(
+    submission,
+    *,
+    per_world_champion: dict[str, dict[str, float]],
+    weights: dict[str, float],
+    ledger: EvidenceLedger,
+    articles: ArticleCache,
+    priced: dict[str, PricedItem],
+    noise_floor_pp: float,
+) -> dict[str, TeamDriver]:
+    """One driver record per team with news or more than one camp; the chart reads this."""
+    camp_of = _camp_of_world(submission)
+    gaps = {g.team_id: g for g in submission.market_gaps}
+    impacts = submission.news_impacts
+    teams = {e.team_id for e in ledger.all() if e.team_id}
+    teams |= {t for champ in per_world_champion.values() for t in champ}
+    drivers: dict[str, TeamDriver] = {}
+    for team in teams:
+        camp_probs = _camp_probs(team, per_world_champion, weights, camp_of)
+        news = _team_news(team, ledger, articles, priced, impacts)
+        gap = gaps.get(team)
+        market_gap = (
+            MarketGapOut(
+                **gap.model_dump(),
+                direction="market_higher" if gap.market_prob >= gap.model_prob else "market_lower",
+            )
+            if gap
+            else None
+        )
+        has_story = market_gap is not None or any(n.material for n in news)
+        means = [champ.get(team, 0.0) for champ in per_world_champion.values()]
+        spread_pp = round((max(means) - min(means)) * 100, 2) if means else 0.0
+        higher_camp = max(camp_probs, key=camp_probs.get) if has_story and camp_probs else None
+        if not news and len(camp_probs) <= 1 and market_gap is None:
+            continue
+        drivers[team] = TeamDriver(
+            camp_probs=camp_probs,
+            market_gap=market_gap,
+            news=news,
+            has_story=has_story,
+            higher_camp=higher_camp,
+            spread_pp=spread_pp,
+            noise_floor_pp=noise_floor_pp,
+        )
+    return drivers
+
+
+def _provenance(
+    submission, ledger: EvidenceLedger, priced: dict[str, PricedItem], *, n_worlds: int, noise_floor_pp: float
+) -> ProvenanceOut:
+    entries = ledger.all()
+    material = sum(1 for p in priced.values() if p.material)
+    excluded = sum(1 for p in priced.values() if p.excluded_reason)
+    camps = {(w.camp or w.name) for w in submission.scenario_weights} or {"baseline"}
+    return ProvenanceOut(
+        news_considered=len(entries),
+        news_material=material,
+        news_excluded=excluded,
+        market_disagreements=len(submission.market_gaps),
+        noise_floor_pp=noise_floor_pp,
+        n_worlds=n_worlds,
+        n_camps=len(camps),
+    )
 
 
 def _build_snapshot(
@@ -475,16 +654,43 @@ def _build_snapshot(
         anchor_result=anchor_result,
         effective_d=effective_d,
         stream_records=load_stream(settings),
+        champion_prob={t.team_id: t.champion_prob for t in outputs.teams},
     )
     match_probs = _world_match_probs(deps.forecaster, per_world_results, n_sims=n_sims, seed=seed, played=played)
 
+    priced = _priced_items(deps)
+    floored = next((p.noise_floor_pp for p in priced.values() if p.noise_floor_pp is not None), None)
+    noise_floor_pp = round(floored if floored is not None else settings.market_movement_noise_floor_pp, 2)
+    per_world_champion = _per_world_champion(
+        deps.forecaster, per_world_results, n_sims=n_sims, seed=seed, played=played
+    )
+    distributions.drivers = _build_drivers(
+        submission,
+        per_world_champion=per_world_champion,
+        weights=weights,
+        ledger=deps.ledger,
+        articles=deps.articles,
+        priced=priced,
+        noise_floor_pp=noise_floor_pp,
+    )
+    provenance = _provenance(submission, deps.ledger, priced, n_worlds=len(worlds), noise_floor_pp=noise_floor_pp)
+
     attribution = _attribution_block(deps, outputs)
     conditionals = artifact.payload.get("conditionals") or {}
+    narrative = NarrativeBlock(
+        **{
+            **submission.narrative.model_dump(),
+            "team_stories": _select_team_stories(
+                submission, outputs, deps.ledger, limit=settings.story_team_count
+            ),
+        }
+    )
     agent_block = AgentBlock(
-        narrative=NarrativeBlock(**submission.narrative.model_dump()),
+        narrative=narrative,
         artifact_id=submission.artifact_id,
         ledger_entries=_ledger_entries(deps.ledger, deps.articles),
         scenario_weights=[ScenarioWeightOut(**w.model_dump()) for w in submission.scenario_weights],
+        camps=_build_camps(submission),
         worlds=[
             WorldOut(
                 name=w.name,
@@ -504,6 +710,7 @@ def _build_snapshot(
         attribution=attribution,
         governor=governor,
         calibration=_calibration_block(settings),
+        provenance=provenance,
     )
     snapshot = Snapshot(
         run=RunMeta(

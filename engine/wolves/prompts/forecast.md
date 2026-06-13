@@ -98,11 +98,29 @@ Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned
   scorelines are what-if instruments and never publish.
 - Scenario weights sum to 1 and each carries a one-line rationale: the
-  argument for that world in a sentence.
+  argument for that world in a sentence. Each also carries a camp key grouping
+  it on the honest axis the worlds actually span (model vs market, a live
+  injury story, whatever the day's worlds divide on), a three to six word
+  plain label, and a one-sentence jargon-free summary. Declare each camp once
+  in camps {key, label, summary, order}, in plain English a reader follows. A
+  world on its own axis leaves camp empty and stands as its own camp; a quiet
+  one-world day needs no camps at all.
 - market_justification names, by team id (e.g. "south-korea"), every team
   whose mixture diverges from the de-vigged market beyond the escalation
   threshold, each with the computation that earns the gap, in either
   direction.
+- market_gaps carries the typed numbers behind any market stance you took:
+  one entry {team_id, model_prob, market_prob, gap_pp, floor_multiple} per
+  team you named in market_justification, copied from the gap table
+  (wq.market_gaps), never retyped from memory. It is a list that is empty on
+  a quiet day with no market stance; never invent a gap for a team you did
+  not weigh against the market.
+- news_impacts explains, in one plain sentence keyed by ledger id, why a
+  material news item moved the number by the amount the quant priced. The
+  quant has already priced each item before you submit, so you are explaining
+  a number that exists, not guessing one: read the priced delta, then say in
+  football terms why a move that size is reasonable. One sentence per material
+  item, jargon-free, no raw figure restated as machinery.
 - A resubmission past an escalation carries the steelman in
   change_justification and names its grounds: ledger ids in evidence_ids
   for news-driven moves, or the computing artifact in market_justification
@@ -122,6 +140,18 @@ Submission rules (the validator enforces these):
   first sentence; other teams are supporting cast. Exactly one line of
   rationale for each of the 16 R32 bracket slots, and the travel memo, in
   British English spelling with no em-dashes anywhere.
+- team_stories carries a short plain-English story per team for the leaders of
+  your own mixture and any team your evidence bears on. Write one for the top
+  ten teams by your submitted mixture, plus any team with a confirmed or
+  probable ledger item, over-generating by a margin since the published
+  ranking is not known yet and reorders slightly after you submit. Each is
+  {summary, why}: summary one plain sentence for a resting caption (at most
+  ~140 characters, names teams not machinery), why a short paragraph (at most
+  three sentences, ~360 characters) explaining why the number sits where it
+  does: what your ratings make of the team, where the market disagrees and
+  which way you leant, and what today's news did to it. A team with no news
+  and no market gap is a clean read of model and market, and the why says so.
+  Same focus_story calibre and the same jargon ban as the headline.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the
   computation, then resubmit, revised or unchanged.
@@ -131,7 +161,8 @@ Submission rules (the validator enforces these):
 
 If the validator rejects, fix exactly what it names and resubmit. Only hard
 issues spend a resubmission; copy issues (headline length and jargon,
-spelling, em-dashes, mixture_underdispersed) are free to fix. Clearing
+spelling, em-dashes, mixture_underdispersed, missing or jargon-laden
+team_stories and news_impacts) are free to fix. Clearing
 mixture_underdispersed is never a wording change: either cite a mixture
 carrying the missing branch, or say in change_justification why the evidence
 resolves nothing. When unsure a submission will pass,

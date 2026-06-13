@@ -81,6 +81,8 @@ class CellShape(BaseModel):
     histogram: list[float]
     world_bins: dict[str, list[float]]
     components: dict[str, dict[str, float]]
+    our_call: float | None = None
+    component_mean: float | None = None
 
 
 class DistributionsSidecar(BaseModel):

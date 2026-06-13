@@ -171,6 +171,12 @@ Discipline:
   a script whose only job is to pretty-print numbers from an earlier script.
 - Put the single most decision-relevant number in headline_value when there
   is one; list the rest as findings in plain sentences.
+- When you price ledger items with wq.impact, also record each in priced_items
+  {ledger_id, signed_delta_pp, material, excluded_reason, noise_floor_pp}: the
+  signed pp title delta you read, whether it cleared the noise floor
+  (material), and the reason you set it aside otherwise. Leave signed_delta_pp
+  null for an item you did not price, never zero. This is the machine-readable
+  twin of your prose, copied from the tool output, not retyped.
 - Respect the brief's inputs: read the artifacts you were given, do not
   invent data.
 

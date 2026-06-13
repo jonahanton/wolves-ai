@@ -6,13 +6,22 @@ from pathlib import Path
 import pytest
 
 from wolves.snapshot import (
+    AgentBlock,
     CalibrationSummary,
+    CampOut,
     ChampionBlock,
     DistributionsBlock,
+    MarketGapOut,
     MarketsBlock,
+    NarrativeBlock,
+    NewsItemOut,
+    ProvenanceOut,
+    ScenarioWeightOut,
     Snapshot,
     TeamDistributions,
+    TeamDriver,
     TeamInterval,
+    TeamStoryOut,
     WorldOut,
 )
 
@@ -34,6 +43,15 @@ def _ts_has_field(name: str) -> bool:
         TeamDistributions,
         WorldOut,
         CalibrationSummary,
+        NarrativeBlock,
+        TeamStoryOut,
+        ScenarioWeightOut,
+        MarketGapOut,
+        CampOut,
+        AgentBlock,
+        NewsItemOut,
+        TeamDriver,
+        ProvenanceOut,
     ],
 )
 def test_every_field_appears_in_the_ts_mirror(model) -> None:

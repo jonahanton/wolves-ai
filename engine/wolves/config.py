@@ -120,6 +120,7 @@ class Settings(BaseSettings):
     dispersion_governor_min_n: int = 20
     distribution_quantiles: list[float] = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
     distribution_bins: int = 20
+    story_team_count: int = 8
     dispersion_floor_enabled: bool = True
     weight_dilution_min_combined: float = 0.25
     extremising_d: float = 1.0
