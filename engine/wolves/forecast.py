@@ -54,7 +54,13 @@ class DeltaDistribution(BaseModel):
 
     The simulator integrates it by inflating the parameter covariance, so each
     sim world draws its own magnitude; fixture-level calls (score_grid,
-    match_probs) price the mean only."""
+    match_probs) price the mean only.
+
+    Contract: sd is effect-size uncertainty conditional on the world being true
+    ("I believe Yamal lifts Spain, but not how much"), never a generic
+    band-widener. The fitted covariance already owns the analyst's uncertainty
+    about the team's baseline strength; sd must not re-add it, or the published
+    band double-counts the same variance."""
 
     mean: float
     sd: float = Field(ge=0.0)

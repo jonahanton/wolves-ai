@@ -260,9 +260,11 @@ class TeamDistributions(BaseModel):
 
 
 class DistributionsBlock(BaseModel):
-    """How settled each published number is: weighted (world x parameter-draw)
+    """Confidence in each published number: weighted (world x parameter-draw)
     quantiles per team per stage. The headline stays the mean; this block is
-    epistemic dispersion, never an outcome range."""
+    epistemic dispersion ("how settled the number is"), never the aleatory
+    outcome range ("the tournament could still go any way"), which is a
+    separate named quantity."""
 
     quantile_levels: list[float] = Field(default_factory=list)
     provenance: str = "parameters_only"
