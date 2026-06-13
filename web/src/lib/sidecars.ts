@@ -36,7 +36,20 @@ export interface MatchWdlDraws {
   matches: Record<string, MatchWdl>;
 }
 
-export type SidecarName = "bracket-samples" | "pairing-matrices" | "match-wdl-draws";
+export interface CellShape {
+  bin_edges: number[];
+  histogram: number[];
+  world_bins: Record<string, number[]>;
+  components: Record<string, Record<string, number>>;
+}
+
+export interface DistributionsSidecar {
+  quantile_levels: number[];
+  provenance: string;
+  teams: Record<string, Record<string, CellShape>>;
+}
+
+export type SidecarName = "distributions" | "bracket-samples" | "pairing-matrices" | "match-wdl-draws";
 
 export async function loadSidecar<T>(runId: string, name: SidecarName): Promise<ApiResult<T>> {
   return backendGet<T>(`/snapshots/${encodeURIComponent(runId)}/sidecars/${name}`);
