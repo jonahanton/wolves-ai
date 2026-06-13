@@ -50,9 +50,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en-GB" className={`${albert.variable} ${plexMono.variable} ${fraunces.variable} ${hanken.variable}`}>
-      <body className="flex min-h-svh flex-col">
+      <body>
         <SiteNav />
-        <main className="flex-1">{children}</main>
+        <main>{children}</main>
       </body>
     </html>
   );

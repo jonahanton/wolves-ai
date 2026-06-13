@@ -8,8 +8,8 @@ interface FestivalBandProps {
 export function FestivalBand({ family, tag }: FestivalBandProps) {
   return (
     <div className="relative overflow-hidden border-t border-hairline">
-      <div className="grid grid-flow-dense auto-rows-[clamp(100px,15vw,200px)] grid-cols-3 sm:grid-cols-6">
-        {wallTiles(family, 16).map((tile, index) => (
+      <div className="grid grid-flow-dense auto-rows-[clamp(56px,8vw,96px)] grid-cols-5 sm:grid-cols-9 lg:grid-cols-12">
+        {wallTiles(family, 36).map((tile, index) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={index}

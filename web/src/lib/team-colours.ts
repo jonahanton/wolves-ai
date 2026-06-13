@@ -1,9 +1,9 @@
-export interface TeamColours {
+interface TeamColours {
   primary: string;
   secondary: string;
 }
 
-// Kit colours lifted into the 0.6-0.8 lightness band for the night background; England's primary is the site accent.
+// Kit colours lifted into the 0.6-0.8 lightness band for the night background; England play in white (cream), not the site red.
 const TEAM_COLOURS: Record<string, TeamColours> = {
   algeria: { primary: "oklch(0.66 0.13 150)", secondary: "oklch(0.78 0.02 95)" },
   argentina: { primary: "oklch(0.78 0.09 230)", secondary: "oklch(0.8 0.13 88)" },
@@ -22,7 +22,7 @@ const TEAM_COLOURS: Record<string, TeamColours> = {
   czechia: { primary: "oklch(0.65 0.18 25)", secondary: "oklch(0.65 0.12 255)" },
   ecuador: { primary: "oklch(0.8 0.16 95)", secondary: "oklch(0.6 0.13 262)" },
   egypt: { primary: "oklch(0.62 0.2 25)", secondary: "oklch(0.78 0.02 95)" },
-  england: { primary: "oklch(0.69 0.19 25)", secondary: "oklch(0.78 0.02 95)" },
+  england: { primary: "oklch(0.965 0.008 95)", secondary: "oklch(0.65 0.18 25)" },
   france: { primary: "oklch(0.65 0.14 260)", secondary: "oklch(0.65 0.18 25)" },
   germany: { primary: "oklch(0.78 0.02 95)", secondary: "oklch(0.66 0.12 150)" },
   ghana: { primary: "oklch(0.78 0.02 95)", secondary: "oklch(0.78 0.14 88)" },
@@ -57,14 +57,14 @@ const TEAM_COLOURS: Record<string, TeamColours> = {
 
 const FALLBACK: TeamColours = { primary: "oklch(0.6 0.06 250)", secondary: "oklch(0.7 0.03 250)" };
 
-export function teamColour(teamId: string): TeamColours {
+function teamColour(teamId: string): TeamColours {
   return TEAM_COLOURS[teamId] ?? FALLBACK;
 }
 
-const CREAM = "oklch(0.965 0.008 95)";
-
-// England's kit colour is the site red, which clashes with the accent; on the
-// forecast it reads as cream instead.
 export function chartColour(teamId: string): string {
-  return teamId === "england" ? CREAM : teamColour(teamId).primary;
+  return teamColour(teamId).primary;
+}
+
+export function teamCode(name: string): string {
+  return name.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
 }

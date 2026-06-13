@@ -9,10 +9,12 @@ import "d3-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import { type ChartPoint, type ForecastChartData, type TeamLine } from "@/lib/forecast-series";
+import { teamCode } from "@/lib/team-colours";
 
 interface ForecastChartProps {
   data: ForecastChartData;
   selectedTeamId: string;
+  othersCount: number;
   onSelectTeam: (teamId: string) => void;
   ariaLabel: string;
 }
@@ -25,8 +27,8 @@ interface HoverState {
 
 const DURATION = 400;
 const DRAW_MS = 560;
-const MARGIN = { top: 22, right: 104, bottom: 36, left: 14 };
-const MOBILE_MARGIN = { top: 18, right: 84, bottom: 34, left: 10 };
+const MARGIN = { top: 22, right: 150, bottom: 36, left: 14 };
+const MOBILE_MARGIN = { top: 18, right: 110, bottom: 34, left: 10 };
 const MOBILE_BREAK = 560;
 const DAY_MS = 86_400_000;
 
@@ -34,11 +36,6 @@ const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.42)";
 const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
 const GRID_LINE = "oklch(0.965 0.008 95 / 0.1)";
 const GUIDE = "oklch(0.965 0.008 95 / 0.24)";
-const FIELD_LINE = "oklch(0.965 0.008 95 / 0.1)";
-
-function abbreviate(name: string): string {
-  return name.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
-}
 
 function formatValue(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -58,7 +55,7 @@ function formatStamp(t: number): string {
   });
 }
 
-export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }: ForecastChartProps) {
+export function ForecastChart({ data, selectedTeamId, othersCount, onSelectTeam, ariaLabel }: ForecastChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const scaffoldedRef = useRef(false);
@@ -68,10 +65,15 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
   const [hover, setHover] = useState<HoverState | null>(null);
 
   const allLines = useMemo(() => data.teams.filter((team) => team.points.length > 0), [data.teams]);
-  const topLines = useMemo(() => allLines.filter((team) => team.tier === "top"), [allLines]);
-  const fieldLines = useMemo(() => allLines.filter((team) => team.tier === "field"), [allLines]);
-  const tailLines = useMemo(() => allLines.filter((team) => team.tier === "tail"), [allLines]);
-  const lines = useMemo(() => [...topLines, ...fieldLines], [topLines, fieldLines]);
+  const topLines = useMemo(
+    () => allLines.filter((team) => team.tier === "top" || team.teamId === selectedTeamId),
+    [allLines, selectedTeamId],
+  );
+  const tailLines = useMemo(
+    () => allLines.filter((team) => team.tier === "rest" && team.teamId !== selectedTeamId),
+    [allLines, selectedTeamId],
+  );
+  const lines = topLines;
 
   const envelope = useMemo(() => {
     if (tailLines.length === 0) return [];
@@ -88,7 +90,7 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
 
   const margin = width < MOBILE_BREAK ? MOBILE_MARGIN : MARGIN;
   const empty = lines.length === 0;
-  const height = empty ? 180 : width < MOBILE_BREAK ? 280 : 372;
+  const height = empty ? 180 : width < MOBILE_BREAK ? 300 : 392;
 
   const { x, y, runTimes } = useMemo(() => {
     const linePoints = lines.flatMap((team) => team.points);
@@ -124,7 +126,6 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
     svg.append("g").attr("class", "x-axis");
     svg.append("g").attr("class", "baseline");
     svg.append("g").attr("class", "envelope");
-    svg.append("g").attr("class", "field");
     svg.append("g").attr("class", "series");
     svg.append("g").attr("class", "ends");
     svg.append("g").attr("class", "hover-layer");
@@ -229,34 +230,7 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
       .y((p) => y(p.value))
       .curve(curveMonotoneX);
 
-    const isField = (team: TeamLine) => team.tier === "field" && team.teamId !== selectedTeamId;
-    const fieldDrawn = lines.filter((team) => isField(team) && team.points.length > 1);
-    const fieldPaths = svg
-      .select<SVGGElement>(".field")
-      .selectAll<SVGPathElement, TeamLine>("path")
-      .data(fieldDrawn, (d) => d.teamId)
-      .join(
-        (enter) =>
-          enter
-            .append("path")
-            .attr("fill", "none")
-            .attr("d", (d) => lineGen(d.points))
-            .attr("stroke-linecap", "round")
-            .attr("stroke-linejoin", "round")
-            .attr("stroke", FIELD_LINE)
-            .attr("stroke-width", 1.3)
-            .attr("opacity", playIntro ? 1 : 0)
-            .call((e) => (playIntro ? e : e.transition().duration(DURATION).ease(easeCubicInOut).attr("opacity", 1))),
-        (update) =>
-          update.call((u) =>
-            u.transition().duration(DURATION).ease(easeCubicInOut).attr("d", (d) => lineGen(d.points)).attr("opacity", 1),
-          ),
-        (exit) => exit.call((x2) => x2.transition().duration(DURATION).ease(easeCubicInOut).attr("opacity", 0).remove()),
-      )
-      .style("cursor", "pointer")
-      .on("click", (_e, d) => onSelectTeam(d.teamId));
-
-    const focusLines = lines.filter((team) => !isField(team) && team.points.length > 1);
+    const focusLines = lines.filter((team) => team.points.length > 1);
     const paths = svg
       .select<SVGGElement>(".series")
       .selectAll<SVGPathElement, TeamLine>("path")
@@ -293,9 +267,6 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
           });
       };
       paths.each(function () {
-        draw(this);
-      });
-      fieldPaths.each(function () {
         draw(this);
       });
     }
@@ -376,7 +347,7 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
       const group = byValue.get(value) ?? { value, anchorY: y(last.value), anchorX: x(last.t), teams: [] };
       group.teams.push({
         teamId: team.teamId,
-        code: abbreviate(team.name),
+        code: teamCode(team.name),
         colour: team.colour,
         emphasised: team.teamId === selectedTeamId,
         raw: last.value,
@@ -384,13 +355,31 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
       byValue.set(value, group);
     }
     for (const group of byValue.values()) group.teams.sort((a, b) => b.raw - a.raw);
-    const groups = [...byValue.values()].sort((a, b) => a.anchorY - b.anchorY);
-    const gap = width < MOBILE_BREAK ? 40 : 46;
-    for (let i = 1; i < groups.length; i++) {
-      if (groups[i].anchorY - groups[i - 1].anchorY < gap) groups[i].anchorY = groups[i - 1].anchorY + gap;
+    const teamGroups = [...byValue.values()].map((g) => ({ ...g, kind: "team" as const }));
+
+    const othersGroup =
+      envelope.length > 0
+        ? [{ kind: "others" as const, anchorY: y(envelope.at(-1)!.hi), anchorX: x(envelope.at(-1)!.t), value: "", teams: [] }]
+        : [];
+
+    const rows = [...teamGroups, ...othersGroup].sort((a, b) => a.anchorY - b.anchorY);
+    const teamGap = width < MOBILE_BREAK ? 36 : 42;
+    const othersGap = width < MOBILE_BREAK ? 22 : 26;
+    const gapBefore = (i: number) => (rows[i].kind === "others" ? othersGap : teamGap);
+
+    const top = margin.top;
+    const bottom = height - margin.bottom - 8;
+    for (let i = 1; i < rows.length; i++) {
+      const minY = rows[i - 1].anchorY + gapBefore(i);
+      if (rows[i].anchorY < minY) rows[i].anchorY = minY;
     }
-    return groups;
-  }, [topLines, selectedTeamId, x, y, width, empty]);
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const maxY = i === rows.length - 1 ? bottom : rows[i + 1].anchorY - gapBefore(i + 1);
+      if (rows[i].anchorY > maxY) rows[i].anchorY = maxY;
+    }
+    if (rows.length) rows[0].anchorY = Math.max(rows[0].anchorY, top);
+    return rows;
+  }, [topLines, selectedTeamId, x, y, width, empty, envelope, height, margin]);
 
   function onPointerMove(event: React.PointerEvent<SVGRectElement>) {
     if (!runTimes.length || !svgRef.current) return;
@@ -400,21 +389,13 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
     setHover({ clientX: event.clientX, clientY: event.clientY, t: runTimes[index] });
   }
 
-  const othersLabelY = useMemo(() => {
-    if (envelope.length === 0) return 0;
-    const natural = y(envelope.at(-1)!.hi);
-    const lastLabelY = endLabels.at(-1)?.anchorY ?? -Infinity;
-    const gap = width < MOBILE_BREAK ? 26 : 30;
-    return Math.max(natural, lastLabelY + gap);
-  }, [envelope, endLabels, y, width]);
-
   const hovered = hover
     ? {
         stamp: formatStamp(hover.t),
         rows: topLines.flatMap((team) => {
           const point = team.points.find((p) => p.t === hover.t);
           if (!point) return [];
-          return [{ teamId: team.teamId, code: abbreviate(team.name), colour: team.colour, value: point.value }];
+          return [{ teamId: team.teamId, code: teamCode(team.name), colour: team.colour, value: point.value }];
         }),
       }
     : null;
@@ -441,6 +422,17 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
         />
       </svg>
       {endLabels.map((group) => {
+        if (group.kind === "others") {
+          return (
+            <span
+              key="others"
+              className="pointer-events-none absolute -translate-y-1/2 font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint transition-opacity duration-300"
+              style={{ left: group.anchorX + 13, top: group.anchorY, opacity: intro ? 1 : 0 }}
+            >
+              +{othersCount} others
+            </span>
+          );
+        }
         const emphasised = group.teams.some((t) => t.emphasised);
         return (
           <div
@@ -453,11 +445,11 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
                 key={team.teamId}
                 type="button"
                 onClick={() => onSelectTeam(team.teamId)}
-                className="flex flex-col items-start gap-y-1 transition-opacity hover:opacity-100"
+                className="flex flex-col items-start gap-y-0 transition-opacity hover:opacity-100"
                 style={{ color: team.colour }}
               >
-                <span className="font-display text-[13px] font-bold tracking-[0.01em]">{team.code}</span>
-                <span className="font-display text-[clamp(18px,1.9vw,24px)] font-extrabold tabular-nums tracking-[-0.02em]">
+                <span className="font-display text-[14px] font-bold leading-none tracking-[0.01em]">{team.code}</span>
+                <span className="font-display text-[clamp(20px,2.2vw,28px)] font-extrabold tabular-nums tracking-[-0.02em]">
                   {group.value}
                 </span>
               </button>
@@ -465,14 +457,6 @@ export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }:
           </div>
         );
       })}
-      {envelope.length > 0 && width > 0 && (
-        <span
-          className="pointer-events-none absolute -translate-y-1/2 font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint transition-opacity duration-300"
-          style={{ left: x(envelope.at(-1)!.t) + 13, top: othersLabelY, opacity: intro ? 1 : 0 }}
-        >
-          +{tailLines.length} others
-        </span>
-      )}
       {empty && width > 0 && (
         <p className="absolute inset-0 flex items-center font-display text-[14px] text-cream-faint">
           no published forecasts yet

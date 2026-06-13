@@ -7,7 +7,7 @@ export interface ChartPoint {
   runId?: string;
 }
 
-export type TeamTier = "top" | "field" | "tail";
+export type TeamTier = "top" | "rest";
 
 export interface TeamLine {
   teamId: string;

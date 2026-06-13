@@ -1,10 +1,8 @@
 import { orNull } from "@/lib/api";
 import { loadSnapshot } from "@/lib/load-snapshot";
 import type { SnapshotRef } from "@/lib/runs";
-import type { Snapshot } from "@/lib/snapshot";
 
-// A full agent run publishes a distributions block; the lighter intermediate
-// agent runs do not, and are excluded from the headline timeline.
+// Lighter intermediate runs lack a distributions block; exclude them from the headline timeline.
 export async function loadFullRunIds(index: SnapshotRef[]): Promise<Set<string>> {
   const agentRefs = index.filter((ref) => ref.kind === "agent");
   const snapshots = await Promise.all(
@@ -12,7 +10,7 @@ export async function loadFullRunIds(index: SnapshotRef[]): Promise<Set<string>>
   );
   const ids = new Set<string>();
   for (const { ref, snapshot } of snapshots) {
-    if ((snapshot as Snapshot | null)?.distributions) ids.add(ref.runId);
+    if (snapshot?.distributions) ids.add(ref.runId);
   }
   return ids;
 }

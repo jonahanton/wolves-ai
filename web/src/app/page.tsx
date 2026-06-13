@@ -12,7 +12,6 @@ import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
 import { chartColour } from "@/lib/team-colours";
 
 const CHART_TEAM_COUNT = 7;
-const FIELD_FLOOR = 0.01;
 
 export default async function LandingPage() {
   const [result, indexResult, resultsResult] = await Promise.all([
@@ -34,19 +33,14 @@ export default async function LandingPage() {
   const focusId = agentSnapshot.focus.team_id;
   const names = Object.fromEntries(agentSnapshot.teams.map((t) => [t.team_id, t.name]));
 
-  const board = titleBoard(agentSnapshot, CHART_TEAM_COUNT);
+  const fullBoard = titleBoard(agentSnapshot, agentSnapshot.teams.length);
+  const board = fullBoard.slice(0, CHART_TEAM_COUNT);
   const leaderId = board[0]?.teamId ?? focusId;
   const topIds = new Set([...board.map((row) => row.teamId), focusId]);
-  const probOf = new Map(agentSnapshot.teams.map((t) => [t.team_id, t.champion_prob ?? 0]));
   const allIds = agentSnapshot.teams
-    .filter((t) => (t.champion_prob ?? 0) > 0)
+    .filter((t) => t.champion_prob !== undefined)
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
     .map((t) => t.team_id);
-
-  const tierOf = (teamId: string): "top" | "field" | "tail" => {
-    if (topIds.has(teamId)) return "top";
-    return (probOf.get(teamId) ?? 0) >= FIELD_FLOOR ? "field" : "tail";
-  };
 
   const [fullRunIds, ...histories] = await Promise.all([
     loadFullRunIds(index),
@@ -57,7 +51,7 @@ export default async function LandingPage() {
     teamId,
     name: names[teamId] ?? teamId,
     featured: teamId === leaderId,
-    tier: tierOf(teamId),
+    tier: topIds.has(teamId) ? "top" : "rest",
     colour: chartColour(teamId),
     history: (orNull(histories[i])?.points ?? []).filter((p) => fullRunIds.has(p.runId)),
   }));
@@ -71,8 +65,9 @@ export default async function LandingPage() {
         names={names}
         leaderId={leaderId}
         board={board}
+        fullBoard={fullBoard}
       />
-      <div className="max-h-[clamp(200px,30vh,340px)] overflow-hidden">
+      <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">
         <FestivalBand family="euros" tag="Euros 2024 · the Wolves" />
       </div>
     </>
