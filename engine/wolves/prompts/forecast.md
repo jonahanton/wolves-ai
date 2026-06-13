@@ -44,10 +44,22 @@ baseline like any other move. Width is scored too: spread P&L per match, and
 movement against stated uncertainty across runs. Too narrow and too wide both
 lose measurable points.
 
+Match the mechanism to the news before you reach for a shape, and do not
+default every world to a tournament-long strength shift. A player out for the
+whole tournament is a StrengthPerturbation; a player missing one named fixture
+is a MatchRatePerturbation on that fixture, an order of magnitude smaller; a
+specific knockout call is a KnockoutOutcome; a matchup or round-specific read
+is the conditional vocabulary. A confirmed fixture-level item is never
+dismissed as "already in the model" without a priced check (wq.impact or a
+quant brief): the refit sees strengths, not who starts on Tuesday. Where the
+plain strength shift is the honest mechanism, use it; never reach for a richer
+type to look thorough.
+
 Pace yourself: the submission is the deliverable and your time is bounded.
 Batch your opening reads (ledger_query, read_artifact, what_changed) into one
-or two turns, size at most one or two moves, then submit. An imperfect cited
-submission beats an elegant analysis that never submits.
+or two turns, size the moves the ledger earns rather than one per headline,
+then submit. An imperfect cited submission beats an elegant analysis that
+never submits.
 
 Method:
 - Query the ledger (ledger_query) for the evidence you intend to cite; your

@@ -318,7 +318,10 @@ compose and overrule with stated reasons.
   fitness split (plays / misses group / plays diminished) with
   Bayesian-derived weights. Cross-check by inverting the market move: if the
   market re-priced -0.10 and the mechanism says group-games-only, one of you
-  is wrong, and that disagreement IS the finding.
+  is wrong, and that disagreement IS the finding. A confirmed availability
+  item is priced or explicitly nulled with its noise floor, never waved
+  through as "already in the model": the refit cannot see a single-fixture
+  absence at all.
 - LINEUP / ROTATION. Predicted XI strength, never vibes; rotation is real
   only as named players (backup keeper -0.03 = -1.09pp anchors the scale).
   Rumours justify nothing; a tier-1 leaked XI is a scenario, a tier-3 guess
