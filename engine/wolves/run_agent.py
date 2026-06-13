@@ -659,11 +659,8 @@ def _build_snapshot(
     match_probs = _world_match_probs(deps.forecaster, per_world_results, n_sims=n_sims, seed=seed, played=played)
 
     priced = _priced_items(deps)
-    noise_floor_pp = round(
-        next((p.noise_floor_pp for p in priced.values() if p.noise_floor_pp is not None), 0.0)
-        or settings.market_movement_noise_floor_pp,
-        2,
-    )
+    floored = next((p.noise_floor_pp for p in priced.values() if p.noise_floor_pp is not None), None)
+    noise_floor_pp = round(floored if floored is not None else settings.market_movement_noise_floor_pp, 2)
     per_world_champion = _per_world_champion(
         deps.forecaster, per_world_results, n_sims=n_sims, seed=seed, played=played
     )
