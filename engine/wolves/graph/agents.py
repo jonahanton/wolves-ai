@@ -19,7 +19,13 @@ from wolves.agent.tools.memory import (
 from wolves.agent.tools.meta import read_artifact, think, todo
 from wolves.agent.tools.model import calibration_readback, model_explain
 from wolves.agent.tools.retrieval import get_odds, get_results_and_fixtures, rank_relevance, web_fetch, web_search
-from wolves.agent.tools.simulation import perturbation_impact, run_scenario, run_simulation, team_path_tree
+from wolves.agent.tools.simulation import (
+    mixture_spread,
+    perturbation_impact,
+    run_scenario,
+    run_simulation,
+    team_path_tree,
+)
 from wolves.agent.tools.submission import check_forecast, submit_forecast
 from wolves.agent.tools.workbench import data_query, run_python, team_dossier
 from wolves.graph.contracts import CritiqueOutput, ForecastOutput, GraphPatch, NodeKind, QuantOutput, ResearchOutput
@@ -60,6 +66,7 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         ledger_query.SPEC,
         run_simulation.SPEC,
         run_scenario.SPEC,
+        mixture_spread.SPEC,
         perturbation_impact.SPEC,
         team_path_tree.SPEC,
         model_explain.SPEC,

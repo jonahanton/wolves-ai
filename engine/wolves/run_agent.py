@@ -113,6 +113,12 @@ def _dev_submission(as_of: str, focus: str) -> dict:
         },
         "scenario_weights": [],
         "evidence_ids": ["led-0001"],
+        # The keeper story resolved as confirmed fit, so the narrow band is
+        # argued rather than widened; also the dev walk's answer to the
+        # mixture_underdispersed nudge.
+        "change_justification": (
+            "The keeper is confirmed fit, so the day's one open story resolved and no extra width is owed."
+        ),
     }
 
 

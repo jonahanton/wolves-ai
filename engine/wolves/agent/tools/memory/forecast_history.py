@@ -15,12 +15,23 @@ class ForecastHistoryArgs(BaseModel):
     window: int = 14
 
 
+def _champion_band(snapshot: Snapshot, team: str) -> tuple[float, float] | None:
+    block = snapshot.distributions
+    if block is None or 0.1 not in block.quantile_levels or 0.9 not in block.quantile_levels:
+        return None
+    dist = block.teams.get(team)
+    if dist is None or "champion" not in dist.quantiles:
+        return None
+    quantiles = dist.quantiles["champion"]
+    return quantiles[block.quantile_levels.index(0.1)], quantiles[block.quantile_levels.index(0.9)]
+
+
 async def _forecast_history(args: ForecastHistoryArgs, deps: AgentDeps) -> ToolResult[Any]:
     snapshot_dir = deps.settings.runs_root / "snapshots"
     series: list[dict[str, Any]] = []
     if snapshot_dir.exists():
         for path in sorted(snapshot_dir.rglob("*.json")):
-            if path.name == "latest.json":
+            if path.name == "latest.json" or path.name.count(".") > 1:
                 continue
             try:
                 snapshot = Snapshot.model_validate_json(path.read_text(encoding="utf-8"))
@@ -35,6 +46,9 @@ async def _forecast_history(args: ForecastHistoryArgs, deps: AgentDeps) -> ToolR
                 "kind": snapshot.run.kind,
                 "p_title": team.champion_prob,
             }
+            band = _champion_band(snapshot, args.team)
+            if band is not None:
+                point["q10"], point["q90"] = band
             agent = snapshot.agent
             if agent is not None and agent.narrative.focus_story and args.team == snapshot.focus.team_id:
                 point["story"] = agent.narrative.focus_story[:160]
@@ -47,7 +61,8 @@ SPEC = ToolSpec(
     name="forecast_history",
     description=(
         "The published title-probability series for one team across recent runs, with the "
-        "recorded story where one exists. Use it to keep today's move coherent with the record."
+        "q10-q90 band where the snapshot carries one and the recorded story where one exists. "
+        "Use it to keep today's move, and today's width, coherent with the record."
     ),
     args_model=ForecastHistoryArgs,
     fn=_forecast_history,

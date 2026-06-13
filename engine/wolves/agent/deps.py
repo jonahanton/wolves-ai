@@ -58,6 +58,8 @@ class SubmissionState:
     last_clean: ForecastSubmission | None = None
     last_clean_escalations: list[str] = field(default_factory=list)
     anchors: ValidatorAnchors | None = None
+    # Spread rows are a multi-world resimulation; cached per cited artifact.
+    spread_by_artifact: dict[str, dict | None] = field(default_factory=dict)
 
 
 @dataclass

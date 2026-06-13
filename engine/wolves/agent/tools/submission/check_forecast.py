@@ -4,7 +4,7 @@ from typing import Any
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools.submission._validation import validation_report
+from wolves.agent.tools.submission._validation import spread_section, validation_report
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolResult
 
@@ -17,6 +17,7 @@ async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResu
             "issues": [issue.model_dump() for issue in report.issues],
             "escalations": report.escalations,
             "would_pause_for_steelman": bool(report.escalations) and not deps.submission.escalation_fired,
+            "spread": spread_section(deps, args.artifact_id),
         }
     )
 

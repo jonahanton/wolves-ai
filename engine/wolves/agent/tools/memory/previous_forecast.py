@@ -23,7 +23,7 @@ def _recent_runs(deps: AgentDeps, limit: int = 10) -> list[dict[str, str]]:
     if not snapshot_dir.exists():
         return runs
     for path in snapshot_dir.rglob("*.json"):
-        if path.name == "latest.json":
+        if path.name == "latest.json" or path.name.count(".") > 1:
             continue
         try:
             snapshot = Snapshot.model_validate_json(path.read_text(encoding="utf-8"))

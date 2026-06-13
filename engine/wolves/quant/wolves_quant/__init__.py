@@ -44,6 +44,7 @@ from wolves.quant.wolves_quant._sim import (
     title_uncertainty,
     update_from_result,
 )
+from wolves.quant.wolves_quant._spread import mixture_spread
 from wolves.quant.wolves_quant._state import finalise as _finalise
 
 __all__ = [
@@ -71,6 +72,7 @@ __all__ = [
     "market_gaps",
     "market_movement",
     "match_probs",
+    "mixture_spread",
     "model_explain",
     "noise_floor",
     "path_difficulty",

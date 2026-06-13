@@ -52,6 +52,9 @@ class ValidationReport(BaseModel):
         return "; ".join(f"[{i.code}] {i.message}" for i in self.issues)
 
 
+UNDERDISPERSED_VS_FLOOR = 1.05
+
+
 def validate_submission(
     submission: ForecastSubmission,
     *,
@@ -62,6 +65,7 @@ def validate_submission(
     previous_titles: dict[str, float] | None = None,
     market_titles: dict[str, float] | None = None,
     focus_team: str | None = None,
+    focus_vs_floor: float | None = None,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
     citation discipline on weights, Paleka coherence on the artifact's own
@@ -111,7 +115,29 @@ def validate_submission(
     issues += _check_british_english(submission)
     issues += _check_focus_story(submission, focus_team)
     issues += _check_headline(submission)
+    issues += _check_mixture_dispersion(submission, ledger, focus_vs_floor)
     return ValidationReport(ok=not issues, issues=issues, escalations=escalations)
+
+
+def _check_mixture_dispersion(
+    submission: ForecastSubmission, ledger: EvidenceLedger, focus_vs_floor: float | None
+) -> list[ValidationIssue]:
+    """Copy-severity nudge only: hard width enforcement would teach fake width."""
+    if focus_vs_floor is None or focus_vs_floor >= UNDERDISPERSED_VS_FLOOR:
+        return []
+    if submission.change_justification.strip():
+        return []
+    material = [e for e in ledger.all() if e.status in ("confirmed", "probable", "contested")]
+    if not material:
+        return []
+    return [
+        _copy_issue(
+            "mixture_underdispersed",
+            f"the cited mixture's focus-team band is {focus_vs_floor}x the parameter-noise floor while the "
+            "ledger holds material evidence; widen via a world you believe in, or say in "
+            "change_justification why the evidence resolves nothing",
+        )
+    ]
 
 
 def _issue(code: str, message: str) -> ValidationIssue:

@@ -4,7 +4,7 @@ from typing import Any
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools.submission._validation import validation_report
+from wolves.agent.tools.submission._validation import spread_section, validation_report
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
 
@@ -71,7 +71,13 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
     deps.submission.accepted = args
     deps.submission.escalations = report.escalations
     deps.runtime.emit("validation", deps.actor, "submission accepted")
-    return ToolResult(payload={"accepted": True, "escalations": report.escalations})
+    return ToolResult(
+        payload={
+            "accepted": True,
+            "escalations": report.escalations,
+            "spread": spread_section(deps, args.artifact_id),
+        }
+    )
 
 
 SPEC = ToolSpec(

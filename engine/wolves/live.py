@@ -71,7 +71,8 @@ def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, list[PublishedW
     if not snapshot_dir.exists():
         return None, []
     for path in snapshot_dir.rglob("*.json"):
-        if path.name == "latest.json":
+        if path.name == "latest.json" or path.name.count(".") > 1:
+            # The extra dot marks a sidecar blob, not a snapshot.
             continue
         try:
             snapshot = Snapshot.model_validate_json(path.read_text(encoding="utf-8"))

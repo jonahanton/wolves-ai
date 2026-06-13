@@ -47,8 +47,26 @@ def _previous_titles(deps: AgentDeps) -> dict[str, float] | None:
     return {t.team_id: t.champion_prob for t in previous.teams}
 
 
+def spread_section(deps: AgentDeps, artifact_id: str) -> dict | None:
+    """The spread rows for the cited mixture, cached per artifact id on the run."""
+    from wolves.agent.tools.simulation.mixture_spread import spread_for_artifact
+
+    cache = deps.submission.spread_by_artifact
+    if artifact_id not in cache:
+        cache[artifact_id] = spread_for_artifact(deps, artifact_id)
+    return cache[artifact_id]
+
+
+def _focus_vs_floor(spread: dict | None, focus_team: str) -> float | None:
+    if spread is None:
+        return None
+    row = next((r for r in spread["teams"] if r["team"] == focus_team), None)
+    return row["vs_floor"] if row else None
+
+
 def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationReport:
     anchors = _anchors(deps)
+    spread = spread_section(deps, args.artifact_id)
     return validate_submission(
         args,
         artifacts=deps.artifacts,
@@ -58,4 +76,5 @@ def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationRe
         previous_titles=_previous_titles(deps),
         market_titles=anchors.market_titles,
         focus_team=deps.settings.focus_team,
+        focus_vs_floor=_focus_vs_floor(spread, deps.settings.focus_team),
     )
