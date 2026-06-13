@@ -47,6 +47,8 @@ export interface CellShape {
   histogram: number[];
   world_bins: Record<string, number[]>;
   components: Record<string, CellComponent>;
+  our_call?: number | null;
+  component_mean?: number | null;
 }
 
 export interface DistributionsSidecar {

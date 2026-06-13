@@ -37,6 +37,7 @@ def build_run_distributions(
     anchor_result: SimResult | None = None,
     effective_d: float = 1.0,
     stream_records: list[StreamRecord] | None = None,
+    champion_prob: dict[str, float] | None = None,
 ) -> tuple[DistributionsBlock, dict[str, object]]:
     """Build the snapshot block plus every sidecar payload for one run."""
     from wolves.sidecars import SIDECARS, SidecarInputs
@@ -51,6 +52,7 @@ def build_run_distributions(
         anchor_result=anchor_result,
         effective_d=effective_d,
         stream_records=stream_records,
+        champion_prob=champion_prob,
     )
     inputs = SidecarInputs(
         fmt=fmt,
@@ -85,6 +87,7 @@ def build_distributions(
     anchor_result: SimResult | None = None,
     effective_d: float = 1.0,
     stream_records: list[StreamRecord] | None = None,
+    champion_prob: dict[str, float] | None = None,
 ) -> tuple[DistributionsBlock, DistributionsSidecar]:
     """Build the quantile block and the histogram sidecar from per-world results."""
     from wolves.agent.stream import dispersion_scale
@@ -145,14 +148,19 @@ def build_distributions(
                 )
             quantiles[stage] = cell.quantiles or []
             any_floored = any_floored or cell.width_floored
+            components = cell.components or {}
+            our_call = component_mean = None
+            if stage == "champion":
+                component_mean = round(sum(c.weight * c.mean for c in components.values()), 6)
+                if champion_prob is not None and team.id in champion_prob:
+                    our_call = round(champion_prob[team.id], 6)
             team_shapes[stage] = CellShape(
                 bin_edges=cell.bin_edges or [],
                 histogram=cell.histogram or [],
                 world_bins=cell.world_bins or {},
-                components={
-                    name: {"weight": c.weight, "mean": c.mean, "sd": c.sd}
-                    for name, c in (cell.components or {}).items()
-                },
+                components={name: {"weight": c.weight, "mean": c.mean, "sd": c.sd} for name, c in components.items()},
+                our_call=our_call,
+                component_mean=component_mean,
             )
         teams[team.id] = TeamDistributions(quantiles=quantiles, settled=settled)
         if team_shapes:

@@ -654,6 +654,7 @@ def _build_snapshot(
         anchor_result=anchor_result,
         effective_d=effective_d,
         stream_records=load_stream(settings),
+        champion_prob={t.team_id: t.champion_prob for t in outputs.teams},
     )
     match_probs = _world_match_probs(deps.forecaster, per_world_results, n_sims=n_sims, seed=seed, played=played)
 
