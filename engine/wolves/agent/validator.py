@@ -127,7 +127,7 @@ def _check_mixture_dispersion(
         return []
     if submission.change_justification.strip():
         return []
-    material = [e for e in ledger.all() if e.status in ("confirmed", "probable", "contested")]
+    material = [e for e in ledger.all() if e.status in ("confirmed", "probable")]
     if not material:
         return []
     return [
