@@ -148,11 +148,10 @@ Submission rules (the validator enforces these):
   {summary, why}: summary one plain sentence for a resting caption (at most
   ~140 characters, names teams not machinery), why a short paragraph (at most
   three sentences, ~360 characters) explaining why the number sits where it
-  does today. The reference is the model and the market, not yesterday: say
-  what your ratings make of the team, where the market disagrees and which way
-  you leant, and what today's news did or did not change. A team with no news
-  and no market gap is a clean read of those two, and the why says so. Same
-  focus_story calibre and the same jargon ban as the headline.
+  does: what your ratings make of the team, where the market disagrees and
+  which way you leant, and what today's news did to it. A team with no news
+  and no market gap is a clean read of model and market, and the why says so.
+  Same focus_story calibre and the same jargon ban as the headline.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the
   computation, then resubmit, revised or unchanged.
