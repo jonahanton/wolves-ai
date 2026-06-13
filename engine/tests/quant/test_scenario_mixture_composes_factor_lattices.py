@@ -24,7 +24,7 @@ def _fake_sim(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """World probabilities become the sum of named effects, so the lattice
     arithmetic is checkable without a fitted model."""
 
-    def fake_simulate(perturbations=(), *, n_sims=None, seed=0):
+    def fake_simulate(perturbations=(), *, latent_effects=(), n_sims=None, seed=0):
         return {"england": round(sum(EFFECTS[p.reason] for p in perturbations), 6)}
 
     monkeypatch.setattr(_mixture, "simulate", fake_simulate)

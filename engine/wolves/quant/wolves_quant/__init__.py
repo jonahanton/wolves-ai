@@ -37,6 +37,7 @@ from wolves.quant.wolves_quant._sim import (
 )
 from wolves.quant.wolves_quant._spread import mixture_spread
 from wolves.quant.wolves_quant._state import finalise as _finalise
+from wolves.sim.latent import LatentEffect, MixturePrior, NormalPrior, SpikeSlabPrior
 from wolves.sim.perturbations import PERTURBATIONS, DeltaDistribution
 
 # The perturbation constructors are exported straight off the registry, so a
@@ -47,7 +48,11 @@ globals().update(_PERTURBATION_EXPORTS)
 __all__ = [
     "DeltaDistribution",
     "Factor",
+    "LatentEffect",
+    "MixturePrior",
+    "NormalPrior",
     "Scenario",
+    "SpikeSlabPrior",
     *sorted(_PERTURBATION_EXPORTS),
     "artifact",
     "artifact_path",

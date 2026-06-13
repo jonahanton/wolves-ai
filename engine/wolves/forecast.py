@@ -27,6 +27,7 @@ from wolves.models.inmatch import MatchState, final_score_distribution, live_win
 from wolves.models.poisson import PoissonDecayModel, poisson_grid
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
+from wolves.sim.latent import LatentEffect
 from wolves.sim.mc import MIN_GOAL_MEAN_AFTER_OFFSET, SimResult, run_tournament
 from wolves.sim.model_engine import PoissonMatchEngine
 from wolves.sim.outputs import build_focus_team, build_groups, build_matches, build_slots, build_team_reach
@@ -222,6 +223,7 @@ class Forecaster:
         n_sims: int = DEFAULT_SIMS,
         seed: int = 0,
         perturbations: tuple[Perturbation, ...] = (),
+        latent_effects: tuple[LatentEffect, ...] = (),
         results: dict[int, PlayedResult] | None = None,
         live_distributions: dict[int, ScorelineDistribution] | None = None,
         parameter_uncertainty: bool = True,
@@ -237,7 +239,7 @@ class Forecaster:
         # Live in-progress states outrank what-if injections for the same match.
         injected = {**grids, **(live_distributions or {})}
         in_match = tuple(p for p in perturbations if p.acts_in_match and p.active(on=state.as_of))
-        engine = PoissonMatchEngine(self.fmt, state)
+        engine = PoissonMatchEngine(self.fmt, state, latent_effects=latent_effects)
         return run_tournament(
             self.fmt,
             engine,
@@ -255,6 +257,7 @@ class Forecaster:
         n_sims: int = DEFAULT_SIMS,
         seed: int = 0,
         perturbations: tuple[Perturbation, ...] = (),
+        latent_effects: tuple[LatentEffect, ...] = (),
         results: dict[int, PlayedResult] | None = None,
         live_distributions: dict[int, ScorelineDistribution] | None = None,
     ) -> dict[str, float]:
@@ -262,6 +265,7 @@ class Forecaster:
             n_sims=n_sims,
             seed=seed,
             perturbations=perturbations,
+            latent_effects=latent_effects,
             results=results,
             live_distributions=live_distributions,
             parameter_uncertainty=False,

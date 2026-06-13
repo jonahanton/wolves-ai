@@ -490,6 +490,7 @@ def _build_snapshot(
                 name=w.name,
                 weight=w.weight,
                 perturbations=[pert.model_dump(mode="json") for pert in w.perturbations],
+                latent_effects=[effect.model_dump(mode="json") for effect in w.latent_effects],
                 title_probs=_top_probs(conditionals.get(w.name) or {}),
                 match_probs=match_probs.get(w.name, {}),
             )

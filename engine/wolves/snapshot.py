@@ -179,6 +179,7 @@ class WorldOut(BaseModel):
     name: str
     weight: float
     perturbations: list[dict] = Field(default_factory=list)
+    latent_effects: list[dict] = Field(default_factory=list)
     title_probs: dict[str, float] = Field(default_factory=dict)
     # Match id -> {home, draw, away}; the surface the spread P&L is scored on.
     match_probs: dict[str, dict[str, float]] = Field(default_factory=dict)

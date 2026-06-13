@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from wolves.forecast import Forecaster, Perturbation
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import PlayedResult
+from wolves.sim.latent import LatentEffect
 from wolves.sim.mc import SimResult
 from wolves.sim.perturbations import parse_perturbation, spec_for
 
@@ -23,6 +24,7 @@ class PublishedWorld(BaseModel):
     name: str
     weight: float = Field(ge=0.0, le=1.0)
     perturbations: list[Perturbation] = Field(default_factory=list)
+    latent_effects: list[LatentEffect] = Field(default_factory=list)
 
 
 class ForecastArtifactError(Exception):
@@ -52,7 +54,8 @@ def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
         if unpublishable:
             kinds = ", ".join(sorted({type(p).name for p in unpublishable}))
             raise ForecastArtifactError(f"world {name!r} carries what-if instruments that never publish: {kinds}")
-        worlds.append(PublishedWorld(name=name, weight=weight, perturbations=perturbations))
+        latent = [LatentEffect.model_validate(e) for e in spec.get("latent_effects", [])]
+        worlds.append(PublishedWorld(name=name, weight=weight, perturbations=perturbations, latent_effects=latent))
     for name in worlds_block:
         if name not in weights:
             raise ForecastArtifactError(f"world {name!r} has a configuration but no weight")
@@ -73,7 +76,13 @@ def simulate_worlds(
     """Simulate each world once with common random numbers, keeping the raw results."""
     results = forecaster.played_results(extra_results=extra_results)
     return {
-        w.name: forecaster.simulate(n_sims=n_sims, seed=seed, perturbations=tuple(w.perturbations), results=results)
+        w.name: forecaster.simulate(
+            n_sims=n_sims,
+            seed=seed,
+            perturbations=tuple(w.perturbations),
+            latent_effects=tuple(w.latent_effects),
+            results=results,
+        )
         for w in worlds
     }
 

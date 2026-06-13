@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from wolves.forecast import Perturbation
 from wolves.quant.wolves_quant._sim import baseline, noise_floor, simulate
 from wolves.quant.wolves_quant._state import SESSION, context
+from wolves.sim.latent import LatentEffect
 
 ENUMERATION_LIMIT = 24
 
@@ -29,6 +30,7 @@ class Scenario(BaseModel):
     name: str
     weight: float
     perturbations: list[Perturbation] = Field(default_factory=list)
+    latent_effects: list[LatentEffect] = Field(default_factory=list)
     probs: dict[str, float] | None = None
 
 
@@ -95,6 +97,11 @@ def scenario_mixture(
         "worlds": {
             key: {
                 "perturbations": [p.model_dump(mode="json") for s in parts for p in s.perturbations],
+                **(
+                    {"latent_effects": [e.model_dump(mode="json") for s in parts for e in s.latent_effects]}
+                    if any(s.latent_effects for s in parts)
+                    else {}
+                ),
                 **({"probs": parts[0].probs} if parts[0].probs is not None else {}),
             }
             for key, _, parts in worlds
@@ -154,7 +161,8 @@ def _world_probs(parts: tuple[Scenario, ...], *, n_sims: int | None, seed: int) 
             raise ValueError("precomputed probs only combine in a flat scenario list, not a factor product")
         return fixed[0]
     perturbations: list[Perturbation] = [p for s in parts for p in s.perturbations]
-    return simulate(perturbations, n_sims=n_sims, seed=seed)
+    latent: list[LatentEffect] = [e for s in parts for e in s.latent_effects]
+    return simulate(perturbations, latent_effects=latent, n_sims=n_sims, seed=seed)
 
 
 def _marginals(

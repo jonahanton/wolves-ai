@@ -167,6 +167,7 @@ export interface WorldOut {
   name: string;
   weight: number;
   perturbations: Record<string, unknown>[];
+  latent_effects: Record<string, unknown>[];
   title_probs?: Record<string, number>;
   match_probs?: Record<string, Record<string, number>>;
 }

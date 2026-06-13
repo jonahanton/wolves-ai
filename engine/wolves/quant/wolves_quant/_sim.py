@@ -8,6 +8,8 @@ from wolves.quant.wolves_quant._state import SESSION, context, forecaster
 if TYPE_CHECKING:
     import pandas as pd
 
+    from wolves.sim.latent import LatentEffect
+
 
 def _n_sims(n_sims: int | None) -> int:
     return n_sims or context().default_n_sims
@@ -26,12 +28,15 @@ def baseline(*, n_sims: int | None = None, seed: int = 0) -> dict[str, float]:
 def simulate(
     perturbations: tuple[Perturbation, ...] | list[Perturbation] = (),
     *,
+    latent_effects: tuple[LatentEffect, ...] | list[LatentEffect] = (),
     n_sims: int | None = None,
     seed: int = 0,
 ) -> dict[str, float]:
     """Title probabilities under perturbations, common random numbers by seed."""
     SESSION.usage.sims += 1
-    return forecaster().title_probs(n_sims=_n_sims(n_sims), seed=seed, perturbations=tuple(perturbations))
+    return forecaster().title_probs(
+        n_sims=_n_sims(n_sims), seed=seed, perturbations=tuple(perturbations), latent_effects=tuple(latent_effects)
+    )
 
 
 def reach(
