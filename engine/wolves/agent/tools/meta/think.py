@@ -10,7 +10,6 @@ from wolves.toolkit.result import ToolResult
 
 
 class ThinkArgs(BaseModel):
-    # Default so an empty think is a harmless no-op, never a wasted turn on a schema error.
     thought: str = ""
 
 

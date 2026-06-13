@@ -321,10 +321,8 @@ _AMERICANISMS = re.compile(
 )
 
 
-# Sized to the frontend lede (54ch measure): ~420 characters fills the column
-# without crowding it, and past six sentences the reasoning has become a list.
-# A small grace band over each soft target absorbs a marginal overshoot rather
-# than burning a turn reformatting prose that already reads well.
+# The soft target is ~420 chars over the 54ch lede; the grace band absorbs a
+# marginal overshoot rather than burning a turn reformatting prose that reads well.
 _HEADLINE_SOFT_CHARS = 420
 _HEADLINE_CHAR_GRACE = 60
 _HEADLINE_MAX_CHARS = _HEADLINE_SOFT_CHARS + _HEADLINE_CHAR_GRACE
