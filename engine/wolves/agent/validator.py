@@ -322,9 +322,13 @@ _AMERICANISMS = re.compile(
 
 
 # Sized to the frontend lede (54ch measure): ~420 characters fills the column
-# without crowding it, and past five sentences the reasoning has become a list.
-_HEADLINE_MAX_CHARS = 420
-_HEADLINE_MAX_SENTENCES = 5
+# without crowding it, and past six sentences the reasoning has become a list.
+# A small grace band over each soft target absorbs a marginal overshoot rather
+# than burning a turn reformatting prose that already reads well.
+_HEADLINE_SOFT_CHARS = 420
+_HEADLINE_CHAR_GRACE = 60
+_HEADLINE_MAX_CHARS = _HEADLINE_SOFT_CHARS + _HEADLINE_CHAR_GRACE
+_HEADLINE_MAX_SENTENCES = 6
 # The headline is read by someone who has never met the model; these are the
 # terms of art that leak from the toolchain into prose.
 _HEADLINE_JARGON = re.compile(

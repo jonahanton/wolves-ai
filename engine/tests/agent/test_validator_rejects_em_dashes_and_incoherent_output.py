@@ -138,7 +138,9 @@ def test_jargon_in_the_headline_flags_as_copy(store: RunArtifactStore, ledger: E
 
 
 def test_rambling_headline_flags_as_copy(store: RunArtifactStore, ledger: EvidenceLedger):
-    headline = "Spain lead. England hold. France drift. Portugal rise. Brazil wobble. Italy fade."
+    headline = (
+        "Spain lead. England hold. France drift. Portugal rise. Brazil wobble. Italy fade. Croatia stall. Japan climb."
+    )
     submission = build_submission(narrative=build_narrative(headline=headline))
     report = _validate(submission, store, ledger)
     too_long = [i for i in report.issues if i.code == "headline_too_long"]
@@ -155,8 +157,13 @@ def test_rambling_headline_flags_as_copy(store: RunArtifactStore, ledger: Eviden
             "again. The bookmakers broadly agree with this picture. Nothing else in today's news moves the "
             "big contenders."
         ),
+        (
+            "Spain remain the team to beat. England's chances edge up with Saka back. France drift as Mbappe "
+            "sits out. Portugal hold their ground. The bookmakers broadly agree. Nothing else moves the big "
+            "contenders today."
+        ),
     ],
-    ids=["two-sentences", "five-sentences-within-budget"],
+    ids=["two-sentences", "five-sentences-within-budget", "six-sentences-within-grace"],
 )
 def test_headline_within_the_softened_budget_passes(store: RunArtifactStore, ledger: EvidenceLedger, headline: str):
     submission = build_submission(narrative=build_narrative(headline=headline))
