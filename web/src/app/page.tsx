@@ -2,78 +2,75 @@ import { LandingForecast } from "@/components/landing/landing-forecast";
 import { ErrorState } from "@/components/shell/error-state";
 import { FestivalBand } from "@/components/walls/festival-band";
 import { orNull } from "@/lib/api";
-import { agentReasoning, deriveHero, titleBoard } from "@/lib/derive";
+import { titleBoard } from "@/lib/derive";
 import type { ChartTeamInput } from "@/lib/forecast-series";
-import { formatUpdated } from "@/lib/format";
-import { loadImpact } from "@/lib/impact";
-import { rankedLedger } from "@/lib/ledger";
+import { formatRunStampEastern } from "@/lib/format";
+import { loadFullRunIds } from "@/lib/full-runs";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
-import { loadMarketReach } from "@/lib/market-reach";
 import { loadResults } from "@/lib/results";
 import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
+import { chartColour } from "@/lib/team-colours";
 
-// One red protagonist (the focus team); the rest of the field recedes to greys.
-const SERIES_COLOURS = [
-  "oklch(0.965 0.008 95 / 0.5)",
-  "oklch(0.965 0.008 95 / 0.4)",
-  "oklch(0.965 0.008 95 / 0.32)",
-  "oklch(0.965 0.008 95 / 0.26)",
-  "oklch(0.965 0.008 95 / 0.22)",
-  "oklch(0.965 0.008 95 / 0.19)",
-];
-const CHART_TEAM_COUNT = 6;
+const CHART_TEAM_COUNT = 7;
+const FIELD_FLOOR = 0.01;
 
 export default async function LandingPage() {
-  const [result, indexResult, marketReachResult, resultsResult] = await Promise.all([
+  const [result, indexResult, resultsResult] = await Promise.all([
     loadLatestSnapshot(),
     loadSnapshotIndex(),
-    loadMarketReach(),
     loadResults(),
   ]);
   if (!result.ok) return <ErrorState error={result.error} context="World Cup Superforecaster" />;
   const snapshot = result.data;
-  const now = new Date();
 
   // The page speaks for the agent's full forecast; live runs may be newer.
-  const agentRef = orNull(indexResult)?.snapshots.find((ref) => ref.kind === "agent");
+  const index = orNull(indexResult)?.snapshots ?? [];
+  const agentRef = index.find((ref) => ref.kind === "agent");
   const agentSnapshot =
     snapshot.run.kind === "agent" || !agentRef
       ? snapshot
       : (orNull(await loadSnapshot(agentRef.runId)) ?? snapshot);
 
-  const hero = deriveHero(agentSnapshot);
   const focusId = agentSnapshot.focus.team_id;
   const names = Object.fromEntries(agentSnapshot.teams.map((t) => [t.team_id, t.name]));
 
-  const agentBoard = titleBoard(agentSnapshot, CHART_TEAM_COUNT);
-  const chartTeamIds = [...new Set([...agentBoard.map((row) => row.teamId), focusId])];
-  const [impactResult, ...histories] = await Promise.all([
-    loadImpact(chartTeamIds),
-    ...chartTeamIds.map((teamId) => loadTeamHistory(teamId)),
+  const board = titleBoard(agentSnapshot, CHART_TEAM_COUNT);
+  const leaderId = board[0]?.teamId ?? focusId;
+  const topIds = new Set([...board.map((row) => row.teamId), focusId]);
+  const probOf = new Map(agentSnapshot.teams.map((t) => [t.team_id, t.champion_prob ?? 0]));
+  const allIds = agentSnapshot.teams
+    .filter((t) => (t.champion_prob ?? 0) > 0)
+    .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
+    .map((t) => t.team_id);
+
+  const tierOf = (teamId: string): "top" | "field" | "tail" => {
+    if (topIds.has(teamId)) return "top";
+    return (probOf.get(teamId) ?? 0) >= FIELD_FLOOR ? "field" : "tail";
+  };
+
+  const [fullRunIds, ...histories] = await Promise.all([
+    loadFullRunIds(index),
+    ...allIds.map((teamId) => loadTeamHistory(teamId)),
   ] as const);
-  const chartTeams: ChartTeamInput[] = chartTeamIds.map((teamId, i) => ({
+
+  const chartTeams: ChartTeamInput[] = allIds.map((teamId, i) => ({
     teamId,
     name: names[teamId] ?? teamId,
-    featured: teamId === focusId,
-    colour: teamId === focusId ? "oklch(0.69 0.19 25)" : SERIES_COLOURS[i % SERIES_COLOURS.length],
-    history: orNull(histories[i])?.points ?? [],
+    featured: teamId === leaderId,
+    tier: tierOf(teamId),
+    colour: chartColour(teamId),
+    history: (orNull(histories[i])?.points ?? []).filter((p) => fullRunIds.has(p.runId)),
   }));
 
   return (
     <>
       <LandingForecast
-        now={now.getTime()}
-        leader={hero.leader}
-        focus={hero.focus}
-        runLabel={formatUpdated(agentSnapshot.run.created_at)}
+        runLabel={formatRunStampEastern(agentSnapshot.run.created_at)}
         teams={chartTeams}
-        marketReach={orNull(marketReachResult)?.points ?? []}
         results={orNull(resultsResult)?.results ?? []}
-        initialImpact={orNull(impactResult)}
         names={names}
-        focusId={focusId}
-        reasoning={agentReasoning(agentSnapshot)}
-        evidence={rankedLedger(agentSnapshot, 5)}
+        leaderId={leaderId}
+        board={board}
       />
       <div className="max-h-[clamp(200px,30vh,340px)] overflow-hidden">
         <FestivalBand family="euros" tag="Euros 2024 · the Wolves" />

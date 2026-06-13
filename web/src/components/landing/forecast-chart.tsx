@@ -1,36 +1,20 @@
 "use client";
 
 import { bisector } from "d3-array";
-import { easeCubicInOut } from "d3-ease";
+import { easeCubicInOut, easeCubicOut } from "d3-ease";
 import { scaleLinear, scaleTime } from "d3-scale";
 import { select } from "d3-selection";
-import { curveMonotoneX, line as d3Line } from "d3-shape";
+import { area as d3Area, curveMonotoneX, line as d3Line } from "d3-shape";
 import "d3-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
-import {
-  type ChartPoint,
-  type ForecastChartData,
-  type Outcome,
-  resultsBetween,
-  type Source,
-  type TeamLine,
-} from "@/lib/forecast-series";
+import { type ChartPoint, type ForecastChartData, type TeamLine } from "@/lib/forecast-series";
 
 interface ForecastChartProps {
   data: ForecastChartData;
-  source: Source;
-  outcome: Outcome;
+  selectedTeamId: string;
+  onSelectTeam: (teamId: string) => void;
   ariaLabel: string;
-}
-
-interface ActiveLine {
-  teamId: string;
-  name: string;
-  colour: string;
-  featured: boolean;
-  points: ChartPoint[];
-  estimate: ChartPoint[];
 }
 
 interface HoverState {
@@ -40,41 +24,28 @@ interface HoverState {
 }
 
 const DURATION = 400;
-const MARGIN = { top: 30, right: 108, bottom: 38, left: 46 };
-const MOBILE_MARGIN = { top: 28, right: 80, bottom: 34, left: 38 };
+const DRAW_MS = 560;
+const MARGIN = { top: 22, right: 104, bottom: 36, left: 14 };
+const MOBILE_MARGIN = { top: 18, right: 84, bottom: 34, left: 10 };
 const MOBILE_BREAK = 560;
 const DAY_MS = 86_400_000;
 
-const GRID = "oklch(0.965 0.008 95 / 0.07)";
-const GRID_BASE = "oklch(0.965 0.008 95 / 0.14)";
-const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.5)";
+const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.42)";
+const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
+const GRID_LINE = "oklch(0.965 0.008 95 / 0.1)";
 const GUIDE = "oklch(0.965 0.008 95 / 0.24)";
-const NIGHT = "oklch(0.175 0.014 65)";
-const GOLD = "oklch(0.8 0.13 78)";
-
-function activeLines(data: ForecastChartData, source: Source, outcome: Outcome): ActiveLine[] {
-  return data.teams
-    .map((team: TeamLine) => ({
-      teamId: team.teamId,
-      name: team.name,
-      colour: team.colour,
-      featured: team.featured,
-      points: source === "wolves" ? team.wolves[outcome] : team.market[outcome],
-      estimate: source === "wolves" ? team.estimate[outcome] : [],
-    }))
-    .filter((team) => team.points.length > 0);
-}
+const FIELD_LINE = "oklch(0.965 0.008 95 / 0.1)";
 
 function abbreviate(name: string): string {
   return name.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
 }
 
 function formatValue(value: number): string {
-  return (value * 100).toFixed(1);
+  return `${(value * 100).toFixed(1)}%`;
 }
 
-function formatDay(t: number): string {
-  return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
+function formatTick(t: number): string {
+  return new Date(t).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", timeZone: "America/New_York" });
 }
 
 function formatStamp(t: number): string {
@@ -83,59 +54,57 @@ function formatStamp(t: number): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Europe/London",
+    timeZone: "America/New_York",
   });
 }
 
-function timeOf(t: number): string {
-  return new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-}
-
-function londonDay(d: Date): string {
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
-}
-
-// One date per day, the hour underneath. The divider and section already carry
-// the context; the axis only needs to stay honest about when each point landed.
-function tickLabel(d: Date, previous: Date | undefined): { date: string; time: string | null } {
-  const midnight = d.getHours() === 0 && d.getMinutes() === 0;
-  const newDay = !previous || londonDay(previous) !== londonDay(d);
-  return { date: newDay ? londonDay(d) : "", time: midnight ? null : timeOf(+d) };
-}
-
-export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChartProps) {
+export function ForecastChart({ data, selectedTeamId, onSelectTeam, ariaLabel }: ForecastChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const scaffoldedRef = useRef(false);
-  const previousSourceRef = useRef(source);
+  const introRef = useRef(false);
+  const [intro, setIntro] = useState(false);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<HoverState | null>(null);
 
-  const lines = useMemo(() => activeLines(data, source, outcome), [data, source, outcome]);
+  const allLines = useMemo(() => data.teams.filter((team) => team.points.length > 0), [data.teams]);
+  const topLines = useMemo(() => allLines.filter((team) => team.tier === "top"), [allLines]);
+  const fieldLines = useMemo(() => allLines.filter((team) => team.tier === "field"), [allLines]);
+  const tailLines = useMemo(() => allLines.filter((team) => team.tier === "tail"), [allLines]);
+  const lines = useMemo(() => [...topLines, ...fieldLines], [topLines, fieldLines]);
+
+  const envelope = useMemo(() => {
+    if (tailLines.length === 0) return [];
+    const byTime = new Map<number, { lo: number; hi: number }>();
+    for (const team of tailLines) {
+      for (const p of team.points) {
+        const cur = byTime.get(p.t);
+        if (!cur) byTime.set(p.t, { lo: p.value, hi: p.value });
+        else byTime.set(p.t, { lo: Math.min(cur.lo, p.value), hi: Math.max(cur.hi, p.value) });
+      }
+    }
+    return [...byTime.entries()].map(([t, v]) => ({ t, ...v })).sort((a, b) => a.t - b.t);
+  }, [tailLines]);
 
   const margin = width < MOBILE_BREAK ? MOBILE_MARGIN : MARGIN;
   const empty = lines.length === 0;
-  const height = empty ? 190 : width < MOBILE_BREAK ? 300 : 408;
+  const height = empty ? 180 : width < MOBILE_BREAK ? 280 : 372;
 
-  const { x, y, hoverTimes } = useMemo(() => {
-    const points = lines.flatMap((team) => [...team.points, ...team.estimate]);
-    const times = points.map((p) => p.t);
+  const { x, y, runTimes } = useMemo(() => {
+    const linePoints = lines.flatMap((team) => team.points);
+    const times = linePoints.map((p) => p.t);
     const lo = times.length ? Math.min(...times) : 0;
     const hi = times.length ? Math.max(...times) : DAY_MS;
-    const pad = Math.max((hi - lo) * 0.035, DAY_MS / 16);
+    const pad = Math.max((hi - lo) * 0.04, DAY_MS / 12);
     const xScale = scaleTime()
       .domain([lo - pad, hi + pad])
       .range([margin.left, Math.max(margin.left + 1, width - margin.right)]);
-    const values = points.map((p) => p.value);
-    const maxValue = Math.max(0.04, ...values);
-    const minValue = values.length ? Math.min(...values) : 0;
-    const span = Math.max(maxValue - minValue, 0.012);
-    const yLo = Math.max(0, minValue - span * 0.38);
+    const maxValue = Math.max(0.04, ...linePoints.map((p) => p.value));
     const yScale = scaleLinear()
-      .domain([yLo, maxValue + span * 0.26])
+      .domain([0, maxValue * 1.06])
       .range([height - margin.bottom, margin.top]);
     const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
-    return { x: xScale, y: yScale, hoverTimes: uniqueTimes };
+    return { x: xScale, y: yScale, runTimes: uniqueTimes };
   }, [lines, width, margin, height]);
 
   useEffect(() => {
@@ -152,344 +121,222 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
   useEffect(() => {
     if (!svgRef.current || scaffoldedRef.current) return;
     const svg = select(svgRef.current);
-    svg.append("g").attr("class", "gridlines");
-    svg.append("g").attr("class", "y-axis");
     svg.append("g").attr("class", "x-axis");
+    svg.append("g").attr("class", "baseline");
+    svg.append("g").attr("class", "envelope");
+    svg.append("g").attr("class", "field");
     svg.append("g").attr("class", "series");
-    svg.append("g").attr("class", "estimates");
-    svg.append("g").attr("class", "markers");
-    svg.append("g").attr("class", "labels");
-    svg.append("g").attr("class", "annotations");
+    svg.append("g").attr("class", "ends");
     svg.append("g").attr("class", "hover-layer");
     scaffoldedRef.current = true;
   }, []);
 
   useEffect(() => {
-    if (!svgRef.current || !scaffoldedRef.current || width === 0) return;
+    if (!svgRef.current || !scaffoldedRef.current || width === 0 || empty) return;
     const svg = select(svgRef.current);
-    if (lines.length === 0) {
-      svg.selectAll("g > *").remove();
-      return;
-    }
-    const crossfade = previousSourceRef.current !== source;
-    previousSourceRef.current = source;
-
-    const plotRight = width - margin.right;
     const baseY = height - margin.bottom;
-    const yTicks = y.ticks(width < MOBILE_BREAK ? 4 : 5).filter((tick) => tick >= y.domain()[0]);
+    const reduce =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const playIntro = !introRef.current && !reduce;
+    if (!introRef.current) {
+      introRef.current = true;
+      if (playIntro) {
+        window.setTimeout(() => setIntro(true), DRAW_MS * 0.55);
+      } else {
+        setIntro(true);
+      }
+    }
 
-    svg
-      .select<SVGGElement>(".gridlines")
-      .selectAll<SVGLineElement, number>("line")
-      .data(yTicks, (d) => String(d))
-      .join(
-        (enter) =>
-          enter
-            .append("line")
-            .attr("x1", margin.left)
-            .attr("x2", plotRight)
-            .attr("stroke", (d) => (d <= y.domain()[0] + 1e-9 ? GRID_BASE : GRID))
-            .attr("y1", (d) => y(d))
-            .attr("y2", (d) => y(d)),
-        (update) =>
-          update.call((u) =>
-            u
-              .transition()
-              .duration(DURATION)
-              .ease(easeCubicInOut)
-              .attr("x2", plotRight)
-              .attr("y1", (d) => y(d))
-              .attr("y2", (d) => y(d)),
-          ),
-        (exit) => exit.remove(),
-      );
-
-    svg
-      .select<SVGGElement>(".y-axis")
-      .selectAll<SVGTextElement, number>("text")
-      .data(yTicks, (d) => String(d))
-      .join("text")
-      .attr("x", margin.left - 10)
-      .attr("text-anchor", "end")
-      .attr("dominant-baseline", "middle")
-      .attr("font-family", "var(--font-spline-mono)")
-      .attr("font-size", 11)
-      .attr("fill", AXIS_TEXT)
-      .attr("y", (d) => y(d))
-      .text((d) => `${Math.round(d * 100)}%`);
-
-    const xTicks = x.ticks(width < MOBILE_BREAK ? 4 : 6);
     const xAxis = svg
       .select<SVGGElement>(".x-axis")
-      .selectAll<SVGGElement, Date>("g.tick")
-      .data(xTicks, (d) => String(+d))
+      .selectAll<SVGGElement, number>("g.tick")
+      .data(runTimes, (d) => String(d))
       .join((enter) => {
         const g = enter.append("g").attr("class", "tick");
-        g.append("text").attr("class", "t-time");
-        g.append("text").attr("class", "t-date");
+        g.append("line").attr("class", "grid-line");
+        g.append("line").attr("class", "tick-mark");
+        g.append("text").attr("class", "tick-label");
         return g;
       });
     xAxis.attr("transform", (d) => `translate(${x(d)},0)`);
-    xAxis.each(function (d, i) {
-      const { date, time } = tickLabel(d, xTicks[i - 1]);
-      const g = select(this);
-      g.select<SVGTextElement>(".t-time")
-        .attr("y", baseY + 18)
-        .attr("text-anchor", "middle")
-        .attr("font-family", "var(--font-spline-mono)")
-        .attr("font-size", 11)
-        .attr("fill", AXIS_TEXT)
-        .text(time ?? "");
-      g.select<SVGTextElement>(".t-date")
-        .attr("y", baseY + (time ? 32 : 18))
-        .attr("text-anchor", "middle")
-        .attr("font-family", "var(--font-spline-mono)")
-        .attr("font-size", 10.5)
-        .attr("letter-spacing", "0.04em")
-        .attr("fill", "oklch(0.965 0.008 95 / 0.6)")
-        .text(date);
-    });
+    xAxis
+      .select<SVGLineElement>(".grid-line")
+      .attr("y1", margin.top)
+      .attr("y2", baseY)
+      .attr("stroke", GRID_LINE)
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "2 4");
+    xAxis
+      .select<SVGLineElement>(".tick-mark")
+      .attr("y1", baseY)
+      .attr("y2", baseY + 7)
+      .attr("stroke", TICK_MARK)
+      .attr("stroke-width", 2);
+    xAxis
+      .select<SVGTextElement>(".tick-label")
+      .attr("text-anchor", "middle")
+      .attr("y", baseY + 24)
+      .attr("font-family", "var(--font-display)")
+      .attr("font-size", 14)
+      .attr("font-weight", 600)
+      .attr("letter-spacing", "0.01em")
+      .attr("fill", AXIS_TEXT)
+      .text((d) => formatTick(d));
+
+    const baseline = svg.select<SVGGElement>(".baseline");
+    baseline
+      .selectAll<SVGLineElement, number>("line")
+      .data([0])
+      .join("line")
+      .attr("x1", margin.left)
+      .attr("x2", width - margin.right)
+      .attr("y1", y(0))
+      .attr("y2", y(0))
+      .attr("stroke", "oklch(0.965 0.008 95 / 0.16)")
+      .attr("stroke-width", 1);
+
+    const areaGen = d3Area<{ t: number; lo: number; hi: number }>()
+      .x((d) => x(d.t))
+      .y0((d) => y(d.lo))
+      .y1((d) => y(d.hi))
+      .curve(curveMonotoneX);
+    svg
+      .select<SVGGElement>(".envelope")
+      .selectAll<SVGPathElement, typeof envelope>("path")
+      .data(envelope.length ? [envelope] : [])
+      .join(
+        (enter) =>
+          enter
+            .append("path")
+            .attr("d", (d) => areaGen(d))
+            .attr("fill", "oklch(0.965 0.008 95 / 0.06)")
+            .attr("opacity", 0)
+            .call((e) =>
+              e
+                .transition()
+                .delay(playIntro ? DRAW_MS * 0.6 : 0)
+                .duration(DURATION)
+                .ease(easeCubicInOut)
+                .attr("opacity", 1),
+            ),
+        (update) =>
+          update.call((u) => u.transition().duration(DURATION).ease(easeCubicInOut).attr("d", (d) => areaGen(d))),
+        (exit) => exit.call((x2) => x2.transition().duration(DURATION).ease(easeCubicInOut).attr("opacity", 0).remove()),
+      );
 
     const lineGen = d3Line<ChartPoint>()
       .x((p) => x(p.t))
       .y((p) => y(p.value))
       .curve(curveMonotoneX);
 
-    const seriesG = svg.select<SVGGElement>(".series");
-    const paths = seriesG
-      .selectAll<SVGPathElement, ActiveLine>("path")
-      .data(
-        lines.filter((team) => team.points.length > 1),
-        (d) => d.teamId,
-      );
-    paths
-      .enter()
-      .append("path")
-      .attr("fill", "none")
+    const isField = (team: TeamLine) => team.tier === "field" && team.teamId !== selectedTeamId;
+    const fieldDrawn = lines.filter((team) => isField(team) && team.points.length > 1);
+    const fieldPaths = svg
+      .select<SVGGElement>(".field")
+      .selectAll<SVGPathElement, TeamLine>("path")
+      .data(fieldDrawn, (d) => d.teamId)
+      .join(
+        (enter) =>
+          enter
+            .append("path")
+            .attr("fill", "none")
+            .attr("d", (d) => lineGen(d.points))
+            .attr("stroke-linecap", "round")
+            .attr("stroke-linejoin", "round")
+            .attr("stroke", FIELD_LINE)
+            .attr("stroke-width", 1.3)
+            .attr("opacity", playIntro ? 1 : 0)
+            .call((e) => (playIntro ? e : e.transition().duration(DURATION).ease(easeCubicInOut).attr("opacity", 1))),
+        (update) =>
+          update.call((u) =>
+            u.transition().duration(DURATION).ease(easeCubicInOut).attr("d", (d) => lineGen(d.points)).attr("opacity", 1),
+          ),
+        (exit) => exit.call((x2) => x2.transition().duration(DURATION).ease(easeCubicInOut).attr("opacity", 0).remove()),
+      )
+      .style("cursor", "pointer")
+      .on("click", (_e, d) => onSelectTeam(d.teamId));
+
+    const focusLines = lines.filter((team) => !isField(team) && team.points.length > 1);
+    const paths = svg
+      .select<SVGGElement>(".series")
+      .selectAll<SVGPathElement, TeamLine>("path")
+      .data(focusLines, (d) => d.teamId)
+      .join(
+        (enter) => enter.append("path").attr("fill", "none").attr("d", (d) => lineGen(d.points)),
+        (update) =>
+          update.call((u) =>
+            u.transition().duration(DURATION).ease(easeCubicInOut).attr("d", (d) => lineGen(d.points)),
+          ),
+        (exit) => exit.remove(),
+      )
       .attr("stroke-linecap", "round")
       .attr("stroke-linejoin", "round")
-      .attr("stroke-width", (d) => (d.featured ? 2.9 : 1.5))
       .attr("stroke", (d) => d.colour)
-      .attr("d", (d) => lineGen(d.points))
-      .attr("opacity", 1);
-    if (crossfade) {
-      paths
-        .attr("opacity", 0)
-        .attr("d", (d) => lineGen(d.points))
-        .transition()
-        .duration(DURATION)
-        .ease(easeCubicInOut)
-        .attr("opacity", 1);
-    } else {
-      paths
-        .transition()
-        .duration(DURATION)
-        .ease(easeCubicInOut)
-        .attr("stroke", (d) => d.colour)
-        .attr("stroke-width", (d) => (d.featured ? 2.9 : 1.5))
-        .attr("opacity", 1)
-        .attr("d", (d) => lineGen(d.points));
+      .attr("stroke-width", (d) => (d.teamId === selectedTeamId ? 3.4 : 1.8))
+      .attr("opacity", (d) => (d.teamId === selectedTeamId ? 1 : 0.85))
+      .style("cursor", "pointer")
+      .style("filter", (d) => (d.teamId === selectedTeamId ? `drop-shadow(0 0 6px ${d.colour})` : "none"))
+      .on("click", (_e, d) => onSelectTeam(d.teamId));
+
+    if (playIntro) {
+      const draw = (node: SVGPathElement) => {
+        const len = node.getTotalLength();
+        select(node)
+          .attr("stroke-dasharray", `${len} ${len}`)
+          .attr("stroke-dashoffset", len)
+          .transition()
+          .duration(DRAW_MS)
+          .ease(easeCubicOut)
+          .attr("stroke-dashoffset", 0)
+          .on("end", function () {
+            select(this).attr("stroke-dasharray", null);
+          });
+      };
+      paths.each(function () {
+        draw(this);
+      });
+      fieldPaths.each(function () {
+        draw(this);
+      });
     }
-    paths.exit().remove();
 
-    const estimateG = svg.select<SVGGElement>(".estimates");
-    const estimatePaths = estimateG
-      .selectAll<SVGPathElement, ActiveLine>("path")
-      .data(
-        lines.filter((team) => team.estimate.length > 1),
-        (d) => d.teamId,
-      );
-    estimatePaths
-      .enter()
-      .append("path")
-      .attr("fill", "none")
-      .attr("stroke-linecap", "round")
-      .attr("stroke-width", (d) => (d.featured ? 2.7 : 1.6))
-      .attr("stroke-dasharray", (d) => (d.featured ? "0.1 6.5" : "0.1 5.5"))
-      .attr("stroke", (d) => d.colour)
-      .attr("d", (d) => lineGen(d.estimate))
-      .attr("opacity", (d) => (d.featured ? 1 : 0.8));
-    estimatePaths
-      .transition()
-      .duration(DURATION)
-      .ease(easeCubicInOut)
-      .attr("opacity", (d) => (d.featured ? 1 : 0.85))
-      .attr("d", (d) => lineGen(d.estimate));
-    estimatePaths.exit().remove();
-
-    interface Marker {
-      key: string;
+    interface End {
+      teamId: string;
       cx: number;
       cy: number;
       colour: string;
-      featured: boolean;
-      kind: "run" | "capture" | "estimate";
+      selected: boolean;
     }
-    const markers: Marker[] = lines.flatMap((team) => [
-      ...team.points.map((p) => ({
-        key: `${team.teamId}|${p.t}`,
-        cx: x(p.t),
-        cy: y(p.value),
-        colour: team.colour,
-        featured: team.featured,
-        kind: source === "wolves" ? ("run" as const) : ("capture" as const),
-      })),
-      ...team.estimate.slice(-1).map((p) => ({
-        key: `${team.teamId}|est`,
-        cx: x(p.t),
-        cy: y(p.value),
-        colour: team.colour,
-        featured: team.featured,
-        kind: "estimate" as const,
-      })),
-    ]);
-    const markersG = svg.select<SVGGElement>(".markers");
-    const haloData = markers.filter((m) => m.kind === "run" || (m.kind === "estimate" && m.featured));
-    markersG
-      .selectAll<SVGCircleElement, Marker>("circle.halo")
-      .data(haloData, (d) => d.key)
+    const ends: End[] = focusLines.flatMap((team) => {
+      const last = team.points.at(-1);
+      if (!last) return [];
+      return [{ teamId: team.teamId, cx: x(last.t), cy: y(last.value), colour: team.colour, selected: team.teamId === selectedTeamId }];
+    });
+    svg
+      .select<SVGGElement>(".ends")
+      .selectAll<SVGCircleElement, End>("circle")
+      .data(ends, (d) => d.teamId)
       .join(
-        (enter) => enter.append("circle").attr("class", "halo").attr("cx", (d) => d.cx).attr("cy", (d) => d.cy),
+        (enter) =>
+          enter
+            .append("circle")
+            .attr("cx", (d) => d.cx)
+            .attr("cy", (d) => d.cy)
+            .attr("opacity", playIntro ? 0 : 1),
         (update) =>
           update.call((u) =>
             u.transition().duration(DURATION).ease(easeCubicInOut).attr("cx", (d) => d.cx).attr("cy", (d) => d.cy),
           ),
         (exit) => exit.remove(),
       )
-      .attr("r", (d) => (d.featured ? 9.5 : 7))
+      .attr("r", (d) => (d.selected ? 5.4 : 4.6))
       .attr("fill", (d) => d.colour)
-      .attr("opacity", (d) => (d.featured ? 0.16 : 0.1));
-    markersG
-      .selectAll<SVGPathElement, Marker>("path.mark")
-      .data(markers, (d) => d.key)
-      .join(
-        (enter) =>
-          enter.append("path").attr("class", "mark").attr("transform", (d) => `translate(${d.cx},${d.cy})`).attr("opacity", 1),
-        (update) =>
-          update.call((u) =>
-            u
-              .transition()
-              .duration(DURATION)
-              .ease(easeCubicInOut)
-              .attr("opacity", 1)
-              .attr("transform", (d) => `translate(${d.cx},${d.cy})`),
-          ),
-        (exit) => exit.remove(),
-      )
-      .attr("d", (d) => {
-        if (d.kind === "run") {
-          const r = d.featured ? 5.4 : 4.2;
-          return `M0,${-r} L${r},0 L0,${r} L${-r},0 Z`;
-        }
-        const r = d.kind === "estimate" ? (d.featured ? 3.4 : 2.8) : 2.6;
-        return `M0,${-r} A${r},${r} 0 1,0 0.001,${-r} Z`;
-      })
-      .attr("fill", (d) => (d.kind === "estimate" && !d.featured ? NIGHT : d.colour))
-      .attr("stroke", (d) => (d.kind === "estimate" ? (d.featured ? NIGHT : d.colour) : NIGHT))
-      .attr("stroke-width", (d) => (d.kind === "estimate" ? (d.featured ? 1.4 : 1.6) : 1.2));
-
-    interface EndLabel {
-      teamId: string;
-      text: string;
-      colour: string;
-      featured: boolean;
-      labelY: number;
-      lastX: number;
-    }
-    const labels: EndLabel[] = lines
-      .map((team) => {
-        const last = team.estimate.at(-1) ?? team.points.at(-1);
-        if (!last) return null;
-        return {
-          teamId: team.teamId,
-          text: `${abbreviate(team.name)}  ${formatValue(last.value)}`,
-          colour: team.featured ? team.colour : "oklch(0.965 0.008 95 / 0.6)",
-          featured: team.featured,
-          labelY: y(last.value),
-          lastX: x(last.t),
-        };
-      })
-      .filter((label): label is EndLabel => label !== null)
-      .sort((a, b) => a.labelY - b.labelY);
-    const gap = width < MOBILE_BREAK ? 16 : 18;
-    for (let i = 1; i < labels.length; i++) {
-      if (labels[i].labelY - labels[i - 1].labelY < gap) labels[i].labelY = labels[i - 1].labelY + gap;
-    }
-    svg
-      .select<SVGGElement>(".labels")
-      .selectAll<SVGTextElement, EndLabel>("text")
-      .data(labels, (d) => d.teamId)
-      .join(
-        (enter) => enter.append("text").attr("fill", (d) => d.colour).attr("x", (d) => d.lastX + 12).attr("y", (d) => d.labelY),
-        (update) =>
-          update.call((u) =>
-            u
-              .transition()
-              .duration(DURATION)
-              .ease(easeCubicInOut)
-              .attr("fill", (d) => d.colour)
-              .attr("x", (d) => d.lastX + 12)
-              .attr("y", (d) => d.labelY),
-          ),
-      )
-      .attr("font-family", "var(--font-spline-mono)")
-      .attr("font-size", width < MOBILE_BREAK ? 11 : 12.5)
-      .attr("font-weight", (d) => (d.featured ? 500 : 400))
-      .attr("dominant-baseline", "middle")
-      .text((d) => d.text);
-
-    const anchors = lines.filter((team) => team.estimate.length > 1).map((team) => team.estimate[0].t);
-    const annotationsG = svg.select<SVGGElement>(".annotations");
-    annotationsG.selectAll("*").remove();
-    if (anchors.length) {
-      const anchorT = Math.max(...anchors);
-      const anchorX = x(anchorT);
-      annotationsG
-        .append("line")
-        .attr("x1", anchorX)
-        .attr("x2", anchorX)
-        .attr("y1", margin.top - 6)
-        .attr("y2", baseY)
-        .attr("stroke", "oklch(0.8 0.13 78 / 0.45)")
-        .attr("stroke-dasharray", "2 5");
-      annotationsG
-        .append("circle")
-        .attr("cx", anchorX)
-        .attr("cy", margin.top - 6)
-        .attr("r", 2.6)
-        .attr("fill", GOLD);
-      const caption = annotationsG
-        .append("text")
-        .attr("y", margin.top - 13)
-        .attr("font-family", "var(--font-spline-mono)")
-        .attr("font-size", 10.5)
-        .attr("letter-spacing", "0.12em");
-      if (anchorX - margin.left > 116) {
-        caption
-          .append("tspan")
-          .attr("x", anchorX - 9)
-          .attr("text-anchor", "end")
-          .attr("fill", "oklch(0.965 0.008 95 / 0.5)")
-          .text("AI FORECAST");
-      }
-      caption
-        .append("tspan")
-        .attr("x", anchorX + 9)
-        .attr("text-anchor", "start")
-        .attr("fill", GOLD)
-        .text("RUNNING ESTIMATE");
-      annotationsG
-        .append("text")
-        .attr("x", anchorX + 6)
-        .attr("y", baseY - 6)
-        .attr("text-anchor", "start")
-        .attr("font-family", "var(--font-spline-mono)")
-        .attr("font-size", 10)
-        .attr("letter-spacing", "0.06em")
-        .attr("fill", "oklch(0.965 0.008 95 / 0.4)")
-        .text(`published ${formatDay(anchorT)}`);
-    }
-  }, [lines, source, x, y, width, height, margin]);
+      .call((sel) =>
+        playIntro
+          ? sel.transition().delay(DRAW_MS * 0.6).duration(200).ease(easeCubicOut).attr("opacity", 1)
+          : sel.attr("opacity", 1),
+      );
+  }, [lines, envelope, selectedTeamId, onSelectTeam, x, y, width, height, margin, empty, runTimes]);
 
   useEffect(() => {
     if (!svgRef.current || !scaffoldedRef.current) return;
@@ -504,57 +351,73 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
       .attr("y2", height - margin.bottom)
       .attr("stroke", GUIDE)
       .attr("stroke-dasharray", "2 3");
-    for (const team of lines) {
-      const point = team.points.find((p) => p.t === hover.t) ?? team.estimate.find((p) => p.t === hover.t) ?? null;
+    for (const team of topLines) {
+      const point = team.points.find((p) => p.t === hover.t);
       if (!point) continue;
       layer
         .append("circle")
         .attr("cx", x(point.t))
         .attr("cy", y(point.value))
-        .attr("r", 4)
-        .attr("fill", NIGHT)
-        .attr("stroke", team.colour)
-        .attr("stroke-width", 1.8);
+        .attr("r", 4.2)
+        .attr("fill", team.colour);
     }
-  }, [hover, lines, x, y, margin, height]);
+  }, [hover, topLines, x, y, margin, height]);
+
+  const endLabels = useMemo(() => {
+    if (width === 0 || empty) return [];
+    const byValue = new Map<
+      string,
+      { value: string; anchorY: number; anchorX: number; teams: { teamId: string; code: string; colour: string; emphasised: boolean; raw: number }[] }
+    >();
+    for (const team of topLines) {
+      const last = team.points.at(-1);
+      if (!last) continue;
+      const value = formatValue(last.value);
+      const group = byValue.get(value) ?? { value, anchorY: y(last.value), anchorX: x(last.t), teams: [] };
+      group.teams.push({
+        teamId: team.teamId,
+        code: abbreviate(team.name),
+        colour: team.colour,
+        emphasised: team.teamId === selectedTeamId,
+        raw: last.value,
+      });
+      byValue.set(value, group);
+    }
+    for (const group of byValue.values()) group.teams.sort((a, b) => b.raw - a.raw);
+    const groups = [...byValue.values()].sort((a, b) => a.anchorY - b.anchorY);
+    const gap = width < MOBILE_BREAK ? 40 : 46;
+    for (let i = 1; i < groups.length; i++) {
+      if (groups[i].anchorY - groups[i - 1].anchorY < gap) groups[i].anchorY = groups[i - 1].anchorY + gap;
+    }
+    return groups;
+  }, [topLines, selectedTeamId, x, y, width, empty]);
 
   function onPointerMove(event: React.PointerEvent<SVGRectElement>) {
-    if (!hoverTimes.length || !svgRef.current) return;
+    if (!runTimes.length || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const t = x.invert(event.clientX - rect.left).getTime();
-    const index = bisector((time: number) => time).center(hoverTimes, t);
-    setHover({ clientX: event.clientX, clientY: event.clientY, t: hoverTimes[index] });
+    const index = bisector((time: number) => time).center(runTimes, t);
+    setHover({ clientX: event.clientX, clientY: event.clientY, t: runTimes[index] });
   }
+
+  const othersLabelY = useMemo(() => {
+    if (envelope.length === 0) return 0;
+    const natural = y(envelope.at(-1)!.hi);
+    const lastLabelY = endLabels.at(-1)?.anchorY ?? -Infinity;
+    const gap = width < MOBILE_BREAK ? 26 : 30;
+    return Math.max(natural, lastLabelY + gap);
+  }, [envelope, endLabels, y, width]);
 
   const hovered = hover
     ? {
         stamp: formatStamp(hover.t),
-        rows: lines.flatMap((team) => {
-          const run = team.points.find((p) => p.t === hover.t);
-          const estimate = team.estimate.find((p) => p.t === hover.t);
-          const point = run ?? estimate;
+        rows: topLines.flatMap((team) => {
+          const point = team.points.find((p) => p.t === hover.t);
           if (!point) return [];
-          return [
-            {
-              teamId: team.teamId,
-              name: team.name,
-              colour: team.featured ? "oklch(0.69 0.19 25)" : "oklch(0.965 0.008 95 / 0.82)",
-              value: point.value,
-              estimated: !run,
-              runId: run?.runId,
-            },
-          ];
+          return [{ teamId: team.teamId, code: abbreviate(team.name), colour: team.colour, value: point.value }];
         }),
       }
     : null;
-  const anchorTimes = hover ? [...new Set(lines.flatMap((team) => team.points.map((p) => p.t)))].sort() : [];
-  const previousAnchor = hover
-    ? anchorTimes.filter((t) => (anchorTimes.includes(hover.t) ? t < hover.t : t <= hover.t)).at(-1)
-    : undefined;
-  const hoveredResults =
-    hover && previousAnchor !== undefined ? resultsBetween(data.results, previousAnchor, hover.t) : [];
-  const breakdown = data.breakdown[outcome];
-  const hoveredBreakdown = hover && breakdown && breakdown.t === hover.t ? breakdown.text : null;
 
   return (
     <div ref={containerRef} className="relative">
@@ -577,46 +440,59 @@ export function ForecastChart({ data, source, outcome, ariaLabel }: ForecastChar
           onPointerLeave={() => setHover(null)}
         />
       </svg>
+      {endLabels.map((group) => {
+        const emphasised = group.teams.some((t) => t.emphasised);
+        return (
+          <div
+            key={group.value + group.teams[0].teamId}
+            className="absolute flex -translate-y-1/2 items-stretch gap-x-2.5 text-left leading-none transition-opacity duration-300"
+            style={{ left: group.anchorX + 13, top: group.anchorY, opacity: intro ? (emphasised ? 1 : 0.7) : 0 }}
+          >
+            {group.teams.map((team) => (
+              <button
+                key={team.teamId}
+                type="button"
+                onClick={() => onSelectTeam(team.teamId)}
+                className="flex flex-col items-start gap-y-1 transition-opacity hover:opacity-100"
+                style={{ color: team.colour }}
+              >
+                <span className="font-display text-[13px] font-bold tracking-[0.01em]">{team.code}</span>
+                <span className="font-display text-[clamp(18px,1.9vw,24px)] font-extrabold tabular-nums tracking-[-0.02em]">
+                  {group.value}
+                </span>
+              </button>
+            ))}
+          </div>
+        );
+      })}
+      {envelope.length > 0 && width > 0 && (
+        <span
+          className="pointer-events-none absolute -translate-y-1/2 font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint transition-opacity duration-300"
+          style={{ left: x(envelope.at(-1)!.t) + 13, top: othersLabelY, opacity: intro ? 1 : 0 }}
+        >
+          +{tailLines.length} others
+        </span>
+      )}
       {empty && width > 0 && (
-        <p className="absolute inset-0 flex items-center font-mono text-[13px] text-cream-faint">
-          {source === "market" ? "no market prices held yet" : "no published forecasts yet"}
+        <p className="absolute inset-0 flex items-center font-display text-[14px] text-cream-faint">
+          no published forecasts yet
         </p>
       )}
       {hover && hovered && hovered.rows.length > 0 && (
         <ChartTooltip x={hover.clientX} y={hover.clientY}>
-          <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-cream-faint">{hovered.stamp}</div>
-          <div className="mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-gold">
-            {source === "market"
-              ? "Market prices"
-              : hovered.rows.some((row) => row.estimated)
-                ? "Running estimate"
-                : `Full AI forecast${hovered.rows[0]?.runId ? ` · ${hovered.rows[0].runId}` : ""}`}
-          </div>
-          <div className="mt-2 space-y-1">
+          <div className="font-display text-[11px] font-semibold text-cream-faint">{hovered.stamp}</div>
+          <div className="mt-1.5 space-y-0.5">
             {hovered.rows.map((row) => (
-              <div key={row.teamId} className="flex items-baseline justify-between gap-4">
-                <span className="text-[13px]" style={{ color: row.colour }}>
-                  {row.name}
+              <div key={row.teamId} className="flex items-baseline justify-between gap-5">
+                <span className="font-display text-[13px] font-bold tracking-[0.01em]" style={{ color: row.colour }}>
+                  {row.code}
                 </span>
-                <span className="font-mono text-[13px] text-cream">
-                  {formatValue(row.value)}%{row.estimated && <span className="text-cream-faint"> est.</span>}
+                <span className="font-display text-[13px] font-extrabold tabular-nums" style={{ color: row.colour }}>
+                  {formatValue(row.value)}
                 </span>
               </div>
             ))}
           </div>
-          {hoveredBreakdown && <div className="mt-2 font-mono text-[11.5px] text-cream-faint">{hoveredBreakdown}</div>}
-          {hoveredResults.length > 0 && (
-            <div className="mt-2.5 border-t border-hairline pt-2">
-              <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-cream-faint">
-                New results since the last {source === "market" ? "capture" : "run"}
-              </div>
-              {hoveredResults.map((row) => (
-                <div key={`${row.t}-${row.label}`} className="mt-1 font-mono text-[12px] text-cream-dim">
-                  {row.label}
-                </div>
-              ))}
-            </div>
-          )}
         </ChartTooltip>
       )}
     </div>

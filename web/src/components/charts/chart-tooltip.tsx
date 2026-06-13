@@ -32,7 +32,7 @@ export function ChartTooltip({ x, y, children }: ChartTooltipProps) {
     <div
       ref={ref}
       role="presentation"
-      className="pointer-events-none fixed z-[60] min-w-[180px] max-w-[300px] border border-hairline bg-night-2/95 px-3.5 py-3 shadow-none backdrop-blur-sm"
+      className="pointer-events-none fixed z-[60] max-w-[280px] rounded-md bg-night-2/95 px-3 py-2.5 shadow-none backdrop-blur-sm"
       style={{ left: pos?.left ?? -9999, top: pos?.top ?? -9999, visibility: pos ? "visible" : "hidden" }}
     >
       {children}

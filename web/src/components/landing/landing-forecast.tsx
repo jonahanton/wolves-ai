@@ -1,193 +1,52 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { MarketIcon, OutcomeIcon, WolfIcon } from "@/components/charts/chart-icons";
-import { IconChoice } from "@/components/charts/icon-choice";
+import { ChampionStat } from "@/components/landing/champion-stat";
 import { ForecastChart } from "@/components/landing/forecast-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
-import { WhySection } from "@/components/landing/why-section";
-import { Kicker } from "@/components/shell/kicker";
-import { useImpact } from "@/hooks/use-impact";
-import type { TitleRank } from "@/lib/derive";
-import {
-  assembleChartData,
-  type ChartTeamInput,
-  type Outcome,
-  OUTCOMES,
-  type Source,
-} from "@/lib/forecast-series";
-import { formatDeltaPts, formatPct1 } from "@/lib/format";
-import type { Impact } from "@/lib/impact";
-import type { ImpliedReachPoint } from "@/lib/market-reach";
+import type { BoardRow } from "@/lib/derive";
+import { assembleChartData, type ChartTeamInput } from "@/lib/forecast-series";
 import type { PlayedResultRow } from "@/lib/results";
-import type { LedgerEntryOut } from "@/lib/snapshot";
 
 interface LandingForecastProps {
-  now: number;
-  leader: TitleRank | null;
-  focus: TitleRank | null;
   runLabel: string;
   teams: ChartTeamInput[];
-  marketReach: ImpliedReachPoint[];
   results: PlayedResultRow[];
-  initialImpact: Impact | null;
   names: Record<string, string>;
-  focusId: string;
-  reasoning: string | null;
-  evidence: LedgerEntryOut[];
-}
-
-function ordinal(rank: number): string {
-  const tail = rank % 10;
-  const teens = rank % 100;
-  if (teens >= 11 && teens <= 13) return `${rank}th`;
-  return `${rank}${tail === 1 ? "st" : tail === 2 ? "nd" : tail === 3 ? "rd" : "th"}`;
-}
-
-function focusFragment(impact: Impact | null, focusId: string): string | null {
-  const champion = impact?.teams[focusId]?.champion;
-  if (!impact || !champion) return null;
-  const parts: string[] = [];
-  if (Math.abs(champion.fromResultsPp) >= 0.05) {
-    const since = new Date(impact.agentAsOf).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-    parts.push(`${formatDeltaPts(champion.fromResultsPp)}pt since ${since}`);
-  }
-  if (Math.abs(champion.fromIngamePp) >= 0.05) {
-    const fixture = impact.fixtures.find((f) => f.homeId === focusId || f.awayId === focusId);
-    const score =
-      fixture && fixture.homeGoals !== null
-        ? ` ${fixture.homeGoals}-${fixture.awayGoals}${fixture.minute !== null ? ` ${fixture.minute}′` : ""}`
-        : "";
-    parts.push(`est. ${formatDeltaPts(champion.fromIngamePp)}pt in-game${score}`);
-  }
-  return parts.length ? parts.join(" · ") : null;
+  leaderId: string;
+  board: BoardRow[];
 }
 
 export function LandingForecast(props: LandingForecastProps) {
-  const { now, leader, focus, runLabel, teams, marketReach, results, initialImpact, names, focusId } = props;
-  const impact = useImpact(initialImpact);
-  const [source, setSource] = useState<Source>("wolves");
-  const [outcome, setOutcome] = useState<Outcome>("champion");
+  const { runLabel, teams, results, names, leaderId, board } = props;
+  const [selectedTeamId, setSelectedTeamId] = useState(leaderId);
 
-  const data = useMemo(
-    () => assembleChartData(teams, marketReach, impact, results, names, now),
-    [teams, marketReach, impact, results, names, now],
-  );
-  const fragment = focusFragment(impact, focusId);
-  const outcomeMeta = OUTCOMES.find((o) => o.key === outcome) ?? OUTCOMES[0];
-  const live = (impact?.fixtures.length ?? 0) > 0;
-  const runLabelNb = runLabel.replace(/ /g, " ");
+  const data = useMemo(() => assembleChartData(teams, results, names), [teams, results, names]);
+  const selectedRow = board.find((row) => row.teamId === selectedTeamId) ?? board[0];
 
   return (
-    <>
-      <HeroVideo />
-
-      <section className="relative">
-        <div className="wrap pt-[clamp(18px,3vh,36px)] pb-[clamp(32px,5vh,56px)]">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-1">
-            <h1 className="chart-title text-cream">Chance of {outcomeMeta.phrase}</h1>
-            <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-cream-faint">Run {runLabelNb}</span>
-          </div>
-          <div className="mt-5">
-            <ForecastChart
-              data={data}
-              source={source}
-              outcome={outcome}
-              ariaLabel={`Chance of ${outcomeMeta.phrase} over time, ${source === "wolves" ? "the Wolves forecast" : "the market"}`}
-            />
-          </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-hairline pt-4">
-            <IconChoice
-              options={OUTCOMES.map((o) => ({ key: o.key, label: o.label, icon: <OutcomeIcon outcome={o.key} /> }))}
-              value={outcome}
-              onChange={setOutcome}
-              ariaLabel="Outcome"
-            />
-            <IconChoice
-              options={[
-                { key: "wolves" as const, label: "Wolves forecast", icon: <WolfIcon /> },
-                { key: "market" as const, label: "Market", icon: <MarketIcon /> },
-              ]}
-              value={source}
-              onChange={setSource}
-              ariaLabel="Forecast source"
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="relative border-t border-hairline">
-        <div className="wrap py-[clamp(30px,5vh,56px)]">
-          <Kicker className="mb-[clamp(12px,1.8vh,18px)]!">Where it stands</Kicker>
-          <div className="max-w-[600px]">
-            {leader ? (
-              <>
-                <ScoreRow name={leader.name} value={formatPct1(leader.prob)} />
-                {focus && focus.teamId !== leader.teamId && (
-                  <ScoreRow name={focus.name} rank={ordinal(focus.rank)} value={formatPct1(focus.prob)} featured />
-                )}
-              </>
-            ) : (
-              <h1 className="statement">The field is open.</h1>
-            )}
-          </div>
-          {(fragment || live) && (
-            <div className="mt-[clamp(14px,2.2vh,22px)] flex flex-wrap items-baseline gap-x-5 gap-y-2">
-              {fragment && (
-                <span className="font-mono text-[clamp(12.5px,1.7vw,14.5px)] tabular-nums text-cream-dim">{fragment}</span>
-              )}
-              {live && (
-                <Link
-                  href="/live"
-                  className="group inline-flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.14em] text-red transition-colors hover:text-cream"
-                >
-                  <span className="inline-block h-[6px] w-[6px] animate-pulse rounded-pill bg-red motion-reduce:animate-none" />
-                  Live now
-                  <span className="transition-transform group-hover:translate-x-0.5">&#8594;</span>
-                </Link>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {props.reasoning && (
-        <section className="relative border-t border-hairline py-[clamp(44px,7vh,84px)]">
-          <div className="wrap">
-            <WhySection reasoning={props.reasoning} runLabel={runLabel} evidence={props.evidence} />
-          </div>
-        </section>
-      )}
-    </>
-  );
-}
-
-interface ScoreRowProps {
-  name: string;
-  value: string;
-  rank?: string;
-  featured?: boolean;
-}
-
-function ScoreRow({ name, value, rank, featured = false }: ScoreRowProps) {
-  return (
-    <div className="flex items-baseline justify-between gap-5 border-b border-hairline py-[clamp(7px,1.2vh,12px)] last:border-b-0">
-      <span
-        className={`flex items-baseline gap-3 text-[clamp(30px,5.4vw,54px)] font-light tracking-[-0.02em] ${featured ? "text-red" : "text-cream"}`}
-      >
-        {name}
-        {rank && (
-          <span className="font-mono text-[clamp(11px,1.5vw,14px)] uppercase tracking-[0.12em] text-cream-faint">
-            {rank}
+    <HeroVideo>
+      <div className="wrap">
+        <h1 className="hero-title text-cream">Forecasting the winner of the World Cup</h1>
+        <div className="mt-[clamp(6px,1vh,10px)] border-t border-hairline pt-[clamp(4px,0.7vh,7px)]">
+          <span className="font-display text-[12px] font-medium tracking-[0.01em] text-cream-faint">
+            Last full run {runLabel} ET
           </span>
-        )}
-      </span>
-      <span
-        className={`shrink-0 text-[clamp(28px,4.8vw,48px)] font-light tabular-nums tracking-[-0.01em] ${featured ? "text-red" : "text-cream"}`}
-      >
-        {value}
-      </span>
-    </div>
+        </div>
+
+        <div className="mt-[clamp(8px,1.4vh,16px)]">
+          <ForecastChart
+            data={data}
+            selectedTeamId={selectedTeamId}
+            onSelectTeam={setSelectedTeamId}
+            ariaLabel="Chance of winning the World Cup over time"
+          />
+        </div>
+
+        <div className="mt-[clamp(18px,3vh,40px)] flex justify-center">
+          {selectedRow && <ChampionStat row={selectedRow} />}
+        </div>
+      </div>
+    </HeroVideo>
   );
 }

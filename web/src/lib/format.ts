@@ -39,6 +39,7 @@ export function formatDeltaPts(deltaPts: number): string {
 }
 
 const LONDON = "Europe/London";
+const EASTERN = "America/New_York";
 
 export function formatMatchDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -76,4 +77,11 @@ export function formatUpdated(iso: string): string {
     minute: "2-digit",
     timeZone: LONDON,
   });
+}
+
+export function formatRunStampEastern(iso: string): string {
+  const date = new Date(iso);
+  const day = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: EASTERN });
+  const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: EASTERN });
+  return `${day} ${time}`;
 }

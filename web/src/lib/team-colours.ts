@@ -60,3 +60,11 @@ const FALLBACK: TeamColours = { primary: "oklch(0.6 0.06 250)", secondary: "oklc
 export function teamColour(teamId: string): TeamColours {
   return TEAM_COLOURS[teamId] ?? FALLBACK;
 }
+
+const CREAM = "oklch(0.965 0.008 95)";
+
+// England's kit colour is the site red, which clashes with the accent; on the
+// forecast it reads as cream instead.
+export function chartColour(teamId: string): string {
+  return teamId === "england" ? CREAM : teamColour(teamId).primary;
+}
