@@ -113,8 +113,14 @@ def run_tournament(
             lam_a = np.maximum(lam_a + off_a, MIN_GOAL_MEAN_AFTER_OFFSET)
         if in_match_perturbations:
             mctx = MatchContext(
-                home=home, away=away, city=city, stage=stage, match=match,
-                lam_home=lam_h, lam_away=lam_a, team_index=pert_index,
+                home=home,
+                away=away,
+                city=city,
+                stage=stage,
+                match=match,
+                lam_home=lam_h,
+                lam_away=lam_a,
+                team_index=pert_index,
             )
             for pert in in_match_perturbations:
                 pert.apply_in_match(mctx)

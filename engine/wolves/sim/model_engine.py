@@ -64,9 +64,7 @@ class PoissonMatchEngine:
         # Latents ride the same draws off the same rng; the covariance is untouched.
         for effect in self._latent_effects:
             realisation = effect.prior.sample(rng, self.parameter_draws)
-            for col, weight in effect.columns(
-                self._state_index, intercept_col=n_params - 2, home_adv_col=n_params - 1
-            ):
+            for col, weight in effect.columns(self._state_index, intercept_col=n_params - 2, home_adv_col=n_params - 1):
                 draws[:, col] += weight * realisation
         world_draw = np.arange(n_sims) % self.parameter_draws
         params = draws[world_draw]

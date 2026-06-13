@@ -77,9 +77,7 @@ class LatentEffect(BaseModel):
     prior: Prior = Field(discriminator="kind")
 
     def model_post_init(self, _: object) -> None:
-        self.targets = {
-            (t if t in GLOBAL_TARGETS else canonical_team_key(t)): w for t, w in self.targets.items()
-        }
+        self.targets = {(t if t in GLOBAL_TARGETS else canonical_team_key(t)): w for t, w in self.targets.items()}
 
     def columns(
         self, team_columns: dict[str, int], *, intercept_col: int, home_adv_col: int

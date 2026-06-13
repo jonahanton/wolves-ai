@@ -77,8 +77,7 @@ def gauss_hermite_worlds(*, mean: float, sd: float, nodes: int) -> list[Quadratu
     raw_nodes, raw_weights = np.polynomial.hermite_e.hermegauss(nodes)
     weights = raw_weights / np.sqrt(2.0 * np.pi)
     return [
-        QuadratureWorld(delta=float(mean + sd * x), weight=float(w))
-        for x, w in zip(raw_nodes, weights, strict=True)
+        QuadratureWorld(delta=float(mean + sd * x), weight=float(w)) for x, w in zip(raw_nodes, weights, strict=True)
     ]
 
 
@@ -142,8 +141,10 @@ def compare(
     rng = np.random.default_rng(seed)
     truths = prior.sample(rng, n_truth)
     champions = np.array(
-        [rng.choice(n_teams, p=_strength_world(forecaster, team, float(d), n_sims=n_sims, seed=seed + 1000 + i))
-         for i, d in enumerate(truths)]
+        [
+            rng.choice(n_teams, p=_strength_world(forecaster, team, float(d), n_sims=n_sims, seed=seed + 1000 + i))
+            for i, d in enumerate(truths)
+        ]
     )
     truth_dist = np.bincount(champions, minlength=n_teams).astype(np.float64) / n_truth
 
@@ -223,8 +224,7 @@ def compare_multi_driver(
     champions = []
     for i, draw in enumerate(truths):
         perts = tuple(
-            StrengthPerturbation(team=t, delta=float(d), reason="elicitation")
-            for t, d in zip(teams, draw, strict=True)
+            StrengthPerturbation(team=t, delta=float(d), reason="elicitation") for t, d in zip(teams, draw, strict=True)
         )
         vec = _title_vector(
             forecaster.simulate(n_sims=n_sims, seed=seed + 2000 + i, perturbations=perts, parameter_uncertainty=False),
