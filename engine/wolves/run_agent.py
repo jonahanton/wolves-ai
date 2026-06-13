@@ -10,6 +10,7 @@ import sys
 import time
 from datetime import UTC, date, datetime, timedelta
 
+from pydantic import BaseModel
 from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
@@ -17,11 +18,11 @@ from pydantic_ai.providers.anthropic import AnthropicProvider
 from wolves import ENGINE_VERSION
 from wolves.agent.article_cache import ArticleCache
 from wolves.agent.attribution import decompose
-from wolves.agent.calibration import CalibrationLedger
+from wolves.agent.calibration import CalibrationLedger, total_spread_pnl
 from wolves.agent.consensus import publish_scale
 from wolves.agent.deps import AgentDeps, SubmissionState
 from wolves.agent.fakes import ScriptedLLM
-from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, worlds_from_payload
+from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, simulate_worlds, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.market_base import seed_baseline_payload
 from wolves.agent.memory import RunMemory
@@ -30,6 +31,7 @@ from wolves.agent.relevance_memory import RelevanceMemory
 from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.source_memory import SourceMemory
+from wolves.agent.stream import band_coverage, load_stream, movement_stats, record_stream
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FakeFixturesClient, FixturesClient, MergedFixturesClient
 from wolves.clients.odds import (
@@ -62,6 +64,7 @@ from wolves.observability import (
     build_runtime,
     configure_cli_logging,
 )
+from wolves.publish_distributions import build_run_distributions
 from wolves.quant.observed import ObservedQuant
 from wolves.run_policy import agent_ceiling
 from wolves.s3.agent_state import build_agent_state_store
@@ -72,6 +75,7 @@ from wolves.s3.fitted import FittedStateStore
 from wolves.s3.layout import ARTICLE, RELEVANCE_FEEDBACK, RELEVANCE_MEMORY, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import load_format
+from wolves.sim.mc import SimResult
 from wolves.sim.results_store import persisted_results, played_match_records, stored_fixtures
 from wolves.snapshot import (
     AgentBlock,
@@ -289,13 +293,23 @@ def _calibration_block(settings: Settings) -> CalibrationSummary | None:
         return {name: round(sum(v) / len(v), 4) for name, v in out.items()}
 
     pnls = [s.adjustment_pnl for s in recent if s.adjustment_pnl is not None]
+    stream = load_stream(settings)
+    spread = total_spread_pnl(scores, window=settings.governor_window)
+    movement = movement_stats(stream)
     return CalibrationSummary(
         matches_scored=len(recent),
         brier=means("brier"),
         log_loss=means("log_loss"),
         adjustment_pnl=round(sum(pnls), 4) if pnls else None,
         governor_scale=ledger.scale(window=settings.governor_window),
+        spread_pnl=round(spread, 4) if spread is not None else None,
+        band_coverage=_rounded(band_coverage(stream)),
+        movement_ratio=_rounded(movement.ratio) if movement is not None else None,
     )
+
+
+def _rounded(value: float | None) -> float | None:
+    return round(value, 4) if value is not None else None
 
 
 async def _publish_fallback(
@@ -306,10 +320,10 @@ async def _publish_fallback(
 
     try:
         # generate_snapshot drives its own event loop for the markets block.
-        snapshot = await asyncio.to_thread(
+        snapshot, sidecars = await asyncio.to_thread(
             generate_snapshot, settings, n_sims=n_sims, seed=seed, run_id=f"{run_id_for(as_of)}-fallback"
         )
-        publisher.publish(snapshot, as_of=as_of, started=started)
+        publisher.publish(snapshot, as_of=as_of, started=started, sidecars=sidecars)
         logger.warning("published deterministic fallback snapshot %s", snapshot.run.run_id)
     except Exception:
         logger.error("deterministic fallback publish failed", exc_info=True)
@@ -385,6 +399,21 @@ def _ledger_entries(ledger: EvidenceLedger, articles: ArticleCache) -> list[Ledg
     return entries
 
 
+def _world_match_probs(
+    forecaster, per_world_results: dict[str, SimResult], *, n_sims: int, seed: int, played: dict
+) -> dict[str, dict[str, dict[str, float]]]:
+    """Per-world W/D/L for unplayed group matches, the surface the spread P&L scores."""
+    per_world: dict[str, dict[str, dict[str, float]]] = {}
+    for name, sim_result in per_world_results.items():
+        outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played, result=sim_result)
+        per_world[name] = {
+            str(m.match): {"home": m.p_home, "draw": m.p_draw, "away": m.p_away}
+            for m in outputs.matches
+            if m.stage == "group" and m.p_draw is not None and m.match not in played
+        }
+    return per_world
+
+
 def _build_snapshot(
     *,
     settings: Settings,
@@ -394,7 +423,7 @@ def _build_snapshot(
     n_sims: int,
     seed: int,
     market: dict[str, float],
-) -> Snapshot | None:
+) -> tuple[Snapshot, dict[str, BaseModel]] | None:
     submission = result.submission
     assert submission is not None
     if deps.forecaster is None or deps.artifacts is None:
@@ -405,7 +434,10 @@ def _build_snapshot(
     worlds = worlds_from_payload(artifact.payload)
     played = persisted_results(settings)
     n_sims = max(n_sims, settings.publish_n_sims)
-    outputs = mixed_outputs(deps.forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=played)
+    per_world_results = simulate_worlds(deps.forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=played)
+    outputs = mixed_outputs(
+        deps.forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=played, per_world_results=per_world_results
+    )
 
     governor_scale = CalibrationLedger(settings.calibration_path).scale(window=settings.governor_window)
     effective_d = publish_scale(
@@ -414,11 +446,30 @@ def _build_snapshot(
         shrink_weight=settings.governor_shrink_weight,
     )
     governor = None
+    anchor_result = None
+    if effective_d != 1.0 or (settings.dispersion_floor_enabled and len(worlds) > 1):
+        anchor_result = deps.forecaster.simulate(
+            n_sims=n_sims, seed=seed, results=deps.forecaster.played_results(extra_results=played)
+        )
     if effective_d != 1.0:
-        anchor = deps.forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played)
+        anchor = deps.forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played, result=anchor_result)
         govern_outputs(outputs, anchor, d=effective_d)
         governor = GovernorOut(scale=governor_scale, effective_d=effective_d)
         logger.warning("run %s: governor active, publishing at d=%.2f", run_id, effective_d)
+
+    weights = {w.name: w.weight for w in worlds}
+    distributions, sidecars = build_run_distributions(
+        deps.forecaster.fmt,
+        per_world_results,
+        weights,
+        settings=settings,
+        played=frozenset(deps.forecaster.played_results(extra_results=played)),
+        rng_seed=seed,
+        anchor_result=anchor_result,
+        effective_d=effective_d,
+        stream_records=load_stream(settings),
+    )
+    match_probs = _world_match_probs(deps.forecaster, per_world_results, n_sims=n_sims, seed=seed, played=played)
 
     attribution = _attribution_block(deps, outputs)
     conditionals = artifact.payload.get("conditionals") or {}
@@ -433,6 +484,7 @@ def _build_snapshot(
                 weight=w.weight,
                 perturbations=[pert.model_dump(mode="json") for pert in w.perturbations],
                 title_probs=_top_probs(conditionals.get(w.name) or {}),
+                match_probs=match_probs.get(w.name, {}),
             )
             for w in worlds
         ],
@@ -445,7 +497,7 @@ def _build_snapshot(
         governor=governor,
         calibration=_calibration_block(settings),
     )
-    return Snapshot(
+    snapshot = Snapshot(
         run=RunMeta(
             run_id=run_id,
             created_at=datetime.now(UTC).isoformat(timespec="seconds"),
@@ -461,7 +513,9 @@ def _build_snapshot(
         matches=outputs.matches,
         markets=_markets_block(deps, outputs, market),
         agent=agent_block,
+        distributions=distributions,
     )
+    return snapshot, sidecars
 
 
 def _attribution_block(deps: AgentDeps, outputs) -> AttributionOut | None:
@@ -644,7 +698,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             settings, publisher, as_of=date.fromisoformat(as_of), n_sims=args.sims, seed=args.seed, started=started
         )
         return 1
-    snapshot = _build_snapshot(
+    built = _build_snapshot(
         settings=settings,
         deps=deps,
         result=result,
@@ -654,8 +708,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         market=market,
     )
     runtime.shutdown()
-    if snapshot is not None:
-        publisher.publish(snapshot, as_of=date.fromisoformat(as_of), started=started)
+    if built is not None:
+        snapshot, sidecars = built
+        record_stream(settings, snapshot)
+        publisher.publish(snapshot, as_of=date.fromisoformat(as_of), started=started, sidecars=sidecars)
         if deps.forecaster is not None and deps.forecaster.is_fitted:
             FittedStateStore(ArtifactStore(settings)).publish(deps.forecaster.state, run_id=run_id)
     if state is not None:

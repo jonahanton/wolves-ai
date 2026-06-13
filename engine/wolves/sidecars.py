@@ -74,6 +74,21 @@ class MatchWdlDraws(BaseModel):
     matches: dict[int, MatchWdl]
 
 
+class CellShape(BaseModel):
+    """Histogram and per-world components for one open team-stage cell."""
+
+    bin_edges: list[float]
+    histogram: list[float]
+    world_bins: dict[str, list[float]]
+    components: dict[str, dict[str, float]]
+
+
+class DistributionsSidecar(BaseModel):
+    quantile_levels: list[float]
+    provenance: str
+    teams: dict[str, dict[str, CellShape]]
+
+
 def build_bracket_samples(inputs: SidecarInputs, *, n_samples: int = DEFAULT_BRACKET_SAMPLES) -> BracketSamples:
     """Sample full bracket realisations: a world by weight, then a uniform sim within it."""
     rng = np.random.default_rng(inputs.rng_seed)
@@ -168,12 +183,17 @@ def build_match_wdl_draws(inputs: SidecarInputs) -> MatchWdlDraws:
 
 @dataclass(frozen=True)
 class SidecarDataset:
+    """produce is None for datasets whose payload the publish path assembles
+    itself (distributions shares one pass with the snapshot block); the entry
+    still registers the name and wire model for the publisher and the API."""
+
     name: str
     model: type[BaseModel]
-    produce: Callable[[SidecarInputs], BaseModel]
+    produce: Callable[[SidecarInputs], BaseModel] | None
 
 
 SIDECARS: tuple[SidecarDataset, ...] = (
+    SidecarDataset(name="distributions", model=DistributionsSidecar, produce=None),
     SidecarDataset(name="bracket-samples", model=BracketSamples, produce=build_bracket_samples),
     SidecarDataset(name="pairing-matrices", model=PairingMatrices, produce=build_pairing_matrices),
     SidecarDataset(name="match-wdl-draws", model=MatchWdlDraws, produce=build_match_wdl_draws),

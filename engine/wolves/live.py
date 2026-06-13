@@ -13,7 +13,8 @@ import httpx
 from pydantic import ValidationError
 
 from wolves import ENGINE_VERSION
-from wolves.agent.forecast_artifact import PublishedWorld, mixed_outputs, worlds_from_payload
+from wolves.agent.forecast_artifact import PublishedWorld, mixed_outputs, simulate_worlds, worlds_from_payload
+from wolves.agent.stream import load_stream, record_stream
 from wolves.clients.api_football import (
     ApiFootballClient,
     ApiFootballPayloadError,
@@ -24,6 +25,7 @@ from wolves.config import Settings
 from wolves.forecast import Forecaster
 from wolves.live_state import LiveState, LiveStateStore, build_live_state
 from wolves.observability.logging import configure_cli_logging
+from wolves.publish_distributions import build_run_distributions
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.fitted import FittedStateStore
@@ -183,12 +185,26 @@ async def live_pass(
     created_at = now.isoformat(timespec="seconds")
     started = time.monotonic()
     try:
+        published_worlds = worlds or [PublishedWorld(name="baseline", weight=1.0)]
+        per_world_results = simulate_worlds(
+            forecaster, published_worlds, n_sims=n_sims, seed=seed, extra_results=merged.results
+        )
         outputs = mixed_outputs(
             forecaster,
-            worlds or [PublishedWorld(name="baseline", weight=1.0)],
+            published_worlds,
             n_sims=n_sims,
             seed=seed,
             extra_results=merged.results,
+            per_world_results=per_world_results,
+        )
+        distributions, sidecars = build_run_distributions(
+            forecaster.fmt,
+            per_world_results,
+            {w.name: w.weight for w in published_worlds},
+            settings=settings,
+            played=frozenset(forecaster.played_results(extra_results=merged.results)),
+            rng_seed=seed,
+            stream_records=load_stream(settings),
         )
     except Exception:
         publisher.record_failure(run_id=run_id, created_at=created_at, started=started)
@@ -208,8 +224,10 @@ async def live_pass(
         teams=outputs.teams,
         groups=outputs.groups,
         matches=outputs.matches,
+        distributions=distributions,
     )
-    s3_key = publisher.publish(snapshot, as_of=now.date(), started=started)
+    record_stream(settings, snapshot)
+    s3_key = publisher.publish(snapshot, as_of=now.date(), started=started, sidecars=sidecars)
     FittedStateStore(artifacts).publish(forecaster.state, run_id=run_id)
     logger.info(
         "live run %s applied %d new result(s) across %d world(s) (s3_key=%s)",

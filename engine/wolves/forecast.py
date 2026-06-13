@@ -361,6 +361,10 @@ class Forecaster:
         winners = result.ko_winner[max(result.ko_winner)]
         return {team.id: float((winners == i).mean()) for i, team in enumerate(self.fmt.teams)}
 
+    def played_results(self, *, extra_results: dict[int, PlayedResult] | None = None) -> dict[int, PlayedResult]:
+        """Played results from the data directory, overlaid with freshly polled full times."""
+        return load_results(self._settings.data_dir) | (extra_results or {})
+
     def sim_outputs(
         self,
         *,
@@ -369,18 +373,20 @@ class Forecaster:
         perturbations: tuple[Perturbation, ...] = (),
         live_distributions: dict[int, ScorelineDistribution] | None = None,
         extra_results: dict[int, PlayedResult] | None = None,
+        result: SimResult | None = None,
     ) -> SimOutputs:
         """Full snapshot outputs from the champion simulation, with played
-        results from the data directory baked in; extra_results overlay
-        freshly polled full times."""
-        results = load_results(self._settings.data_dir) | (extra_results or {})
-        result = self.simulate(
-            n_sims=n_sims,
-            seed=seed,
-            perturbations=perturbations,
-            results=results,
-            live_distributions=live_distributions,
-        )
+        results baked in. A provided result skips the simulation; the caller
+        guarantees it was simulated with the same played results."""
+        results = self.played_results(extra_results=extra_results)
+        if result is None:
+            result = self.simulate(
+                n_sims=n_sims,
+                seed=seed,
+                perturbations=perturbations,
+                results=results,
+                live_distributions=live_distributions,
+            )
         reach = build_team_reach(self.fmt, result)
         elo_path = sorted((self._settings.data_dir / "ratings").glob("elo-2*.tsv"))[-1]
         elo = load_elo_ratings(elo_path, self.fmt)
@@ -417,20 +423,3 @@ class Forecaster:
         after = self.title_probs(n_sims=n_sims, seed=seed, perturbations=(perturbation,))
         deltas = {team: (after[team] - before[team]) * 100.0 for team in before}
         return {team: round(delta, 3) for team, delta in deltas.items() if abs(delta) > 0.05}
-
-    def intervals(
-        self, *, n_sims: int = 50_000, seed: int = 0, quantiles: tuple[float, float] = (0.1, 0.9)
-    ) -> dict[str, tuple[float, float]]:
-        """Title-probability intervals from parameter uncertainty: group sim
-        worlds by covariance draw and take quantiles across draws."""
-        engine = PoissonMatchEngine(self.fmt, self.state)
-        result = run_tournament(self.fmt, engine, n_sims=n_sims, seed=seed)
-        winners = result.ko_winner[max(result.ko_winner)]
-        draws = np.arange(n_sims) % engine.parameter_draws
-        out: dict[str, tuple[float, float]] = {}
-        for i, team in enumerate(self.fmt.teams):
-            won = winners == i
-            per_draw = np.array([won[draws == d].mean() for d in range(engine.parameter_draws)])
-            lo, hi = np.quantile(per_draw, quantiles)
-            out[team.id] = (round(float(lo), 4), round(float(hi), 4))
-        return out

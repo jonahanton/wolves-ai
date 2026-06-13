@@ -8,6 +8,8 @@ import logging
 import time
 from datetime import UTC, date, datetime
 
+from pydantic import BaseModel
+
 from wolves import ENGINE_VERSION
 from wolves.config import Settings
 from wolves.forecast import Forecaster
@@ -15,13 +17,14 @@ from wolves.gate.registry import ELO_CHAMPION_ID
 from wolves.markets.blend import blend_probabilities
 from wolves.markets.outright import build_clients, outright_consensus
 from wolves.observability.logging import configure_cli_logging
+from wolves.publish_distributions import build_run_distributions
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.fitted import FittedStateStore
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
 from wolves.sim.results_store import persisted_results, played_match_records
-from wolves.snapshot import ChampionBlock, MarketsBlock, RunMeta, Snapshot, TeamInterval
+from wolves.snapshot import ChampionBlock, MarketsBlock, RunMeta, Snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -56,22 +59,27 @@ def _markets_block(settings: Settings, forecaster: Forecaster, model_probs: dict
     )
 
 
-def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id: str | None = None) -> Snapshot:
-    """Run the trusted model's simulation (or the Elo baseline) and assemble a snapshot."""
+def generate_snapshot(
+    settings: Settings, *, n_sims: int, seed: int = 0, run_id: str | None = None
+) -> tuple[Snapshot, dict[str, BaseModel]]:
+    """Run the trusted model's simulation (or the Elo baseline) and assemble a
+    snapshot plus its sidecar payloads."""
     forecaster = Forecaster(settings)
     # Read through this run's settings so a per-run --storage choice governs
     # which persisted results the published snapshot sees.
     played = persisted_results(settings)
     model_path = forecaster.champion.model_id != ELO_CHAMPION_ID
     champion = None
-    intervals: list[TeamInterval] = []
     markets = None
+    distributions = None
+    sidecars: dict[str, BaseModel] = {}
     played_records = played_match_records(settings)
     if model_path:
         forecaster.fit(extra_results=played_records)
         if run_id:
             FittedStateStore(ArtifactStore(settings)).publish(forecaster.state, run_id=run_id)
-        outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played)
+        result = forecaster.simulate(n_sims=n_sims, seed=seed, results=forecaster.played_results(extra_results=played))
+        outputs = forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played, result=result)
         champion = ChampionBlock(
             id=forecaster.champion.model_id,
             version=forecaster.champion.model_version,
@@ -80,17 +88,21 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
             blend_weight=forecaster.champion.blend_weight,
             results_overlaid=len(played_records),
         )
-        intervals = [
-            TeamInterval(team_id=team, lo=round(lo, 4), hi=round(hi, 4))
-            for team, (lo, hi) in forecaster.intervals(seed=seed).items()
-        ]
+        distributions, sidecars = build_run_distributions(
+            forecaster.fmt,
+            {"baseline": result},
+            {"baseline": 1.0},
+            settings=settings,
+            played=frozenset(forecaster.played_results(extra_results=played)),
+            rng_seed=seed,
+        )
         model_probs = {t.team_id: t.champion_prob for t in outputs.teams}
         markets = _markets_block(settings, forecaster, model_probs)
     else:
         outputs = run_simulation({}, {}, n_sims, seed, extra_results=played)
 
     now = datetime.now(UTC)
-    return Snapshot(
+    snapshot = Snapshot(
         run=RunMeta(
             run_id=run_id or now.strftime("run-%Y%m%d-%H%M%S"),
             created_at=now.isoformat(timespec="seconds"),
@@ -104,9 +116,10 @@ def generate_snapshot(settings: Settings, *, n_sims: int, seed: int = 0, run_id:
         groups=outputs.groups,
         matches=outputs.matches,
         champion=champion,
-        intervals=intervals,
         markets=markets,
+        distributions=distributions,
     )
+    return snapshot, sidecars
 
 
 def daily_run(settings: Settings, *, as_of: date, n_sims: int, seed: int = 0) -> bool:
@@ -120,12 +133,12 @@ def daily_run(settings: Settings, *, as_of: date, n_sims: int, seed: int = 0) ->
     created_at = datetime.now(UTC).isoformat(timespec="seconds")
     started = time.monotonic()
     try:
-        snapshot = generate_snapshot(settings, n_sims=n_sims, seed=seed, run_id=run_id)
+        snapshot, sidecars = generate_snapshot(settings, n_sims=n_sims, seed=seed, run_id=run_id)
     except Exception:
         publisher.record_failure(run_id=run_id, created_at=created_at, started=started)
         raise
 
-    s3_key = publisher.publish(snapshot, as_of=as_of, started=started)
+    s3_key = publisher.publish(snapshot, as_of=as_of, started=started, sidecars=sidecars)
     logger.info("daily run %s completed in %.1fs (s3_key=%s)", run_id, time.monotonic() - started, s3_key or "local")
     return True
 

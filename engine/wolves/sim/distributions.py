@@ -21,18 +21,9 @@ STAGES: tuple[str, ...] = ("r32", "r16", "qf", "sf", "final", "champion")
 _LOGIT_CLIP = 1e-9
 
 
-class DrawAssignmentError(Exception):
-    def __init__(self, n_sims: int, parameter_draws: int) -> None:
-        self.n_sims = n_sims
-        self.parameter_draws = parameter_draws
-        super().__init__(f"n_sims {n_sims} is not a multiple of parameter_draws {parameter_draws}")
-
-
 def reach_by_draw(fmt: FormatData, result: SimResult, *, parameter_draws: int) -> np.ndarray:
-    """Per-draw reach fractions, shape (teams, stages, draws), stages per STAGES."""
+    """Per-draw reach fractions, shape (teams, stages, min(draws, n_sims)), stages per STAGES."""
     n_sims = result.n_sims
-    if n_sims % parameter_draws:
-        raise DrawAssignmentError(n_sims, parameter_draws)
     n_teams = len(fmt.teams)
     reached = {stage: np.zeros((n_teams, n_sims), dtype=np.float64) for stage in STAGES}
     sims = np.arange(n_sims)
@@ -45,11 +36,17 @@ def reach_by_draw(fmt: FormatData, result: SimResult, *, parameter_draws: int) -
         if m.stage in next_round:
             reached[next_round[m.stage]][result.ko_winner[m.match], sims] = 1.0
     reached["champion"][result.ko_winner[final], sims] = 1.0
-    # Sim i carries covariance draw i % parameter_draws (PoissonMatchEngine.begin).
-    per_stage = [
-        reached[stage].reshape(n_teams, n_sims // parameter_draws, parameter_draws).mean(axis=1) for stage in STAGES
-    ]
-    return np.stack(per_stage, axis=1)
+    # Sim i carries covariance draw i % parameter_draws (PoissonMatchEngine.begin);
+    # fewer sims than draws leaves only the first n_sims draws populated.
+    effective = min(parameter_draws, n_sims)
+    draw_idx = sims % parameter_draws
+    counts = np.bincount(draw_idx, minlength=effective).astype(np.float64)
+    out = np.zeros((n_teams, len(STAGES), effective))
+    for s, stage in enumerate(STAGES):
+        indicators = reached[stage]
+        for t in range(n_teams):
+            out[t, s, :] = np.bincount(draw_idx, weights=indicators[t], minlength=effective) / counts
+    return out
 
 
 def shrink_draws(per_draw: np.ndarray, *, sims_per_draw: int) -> np.ndarray:

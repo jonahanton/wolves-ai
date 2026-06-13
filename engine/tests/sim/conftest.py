@@ -10,4 +10,5 @@ from wolves.run import generate_snapshot
 def snapshot(tmp_path_factory):
     # A fresh runs root pins the Elo baseline path, hermetic from local scratch state.
     settings = Settings(runs_root=tmp_path_factory.mktemp("runs"), storage_mode="local")
-    return generate_snapshot(settings, n_sims=2000, seed=42)
+    built, _ = generate_snapshot(settings, n_sims=2000, seed=42)
+    return built

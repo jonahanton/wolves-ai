@@ -23,7 +23,8 @@ AS_OF = date(2026, 6, 17)
 @pytest.fixture(scope="module")
 def snapshot(tmp_path_factory):
     settings = Settings(runs_root=tmp_path_factory.mktemp("fresh-runs"), storage_mode="local")
-    return generate_snapshot(settings, n_sims=200, seed=7, run_id="run-20260617")
+    snapshot, _ = generate_snapshot(settings, n_sims=200, seed=7, run_id="run-20260617")
+    return snapshot
 
 
 def _record(created_at: str, *, status: str = "completed") -> RunRecord:

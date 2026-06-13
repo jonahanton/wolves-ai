@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 from wolves.forecast import Forecaster, Perturbation, ScorelinePerturbation
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import PlayedResult
+from wolves.sim.mc import SimResult
 
 _PERTURBATION = TypeAdapter[Perturbation](Perturbation)
 
@@ -60,6 +61,22 @@ def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
     return worlds
 
 
+def simulate_worlds(
+    forecaster: Forecaster,
+    worlds: list[PublishedWorld],
+    *,
+    n_sims: int,
+    seed: int,
+    extra_results: dict[int, PlayedResult] | None = None,
+) -> dict[str, SimResult]:
+    """Simulate each world once with common random numbers, keeping the raw results."""
+    results = forecaster.played_results(extra_results=extra_results)
+    return {
+        w.name: forecaster.simulate(n_sims=n_sims, seed=seed, perturbations=tuple(w.perturbations), results=results)
+        for w in worlds
+    }
+
+
 def mixed_outputs(
     forecaster: Forecaster,
     worlds: list[PublishedWorld],
@@ -67,13 +84,16 @@ def mixed_outputs(
     n_sims: int,
     seed: int,
     extra_results: dict[int, PlayedResult] | None = None,
+    per_world_results: dict[str, SimResult] | None = None,
 ) -> SimOutputs:
-    """Simulate each world with common random numbers and mix the published
-    probabilities by weight."""
+    """Mix the published probabilities by world weight; provided results are reused."""
     modal = max(worlds, key=lambda w: w.weight)
+    per_world_results = per_world_results or simulate_worlds(
+        forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=extra_results
+    )
     per_world = {
         w.name: forecaster.sim_outputs(
-            n_sims=n_sims, seed=seed, perturbations=tuple(w.perturbations), extra_results=extra_results
+            n_sims=n_sims, seed=seed, extra_results=extra_results, result=per_world_results[w.name]
         )
         for w in worlds
     }

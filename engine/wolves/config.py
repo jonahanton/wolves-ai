@@ -118,6 +118,9 @@ class Settings(BaseSettings):
     governor_window: int = 20
     governor_shrink_weight: float = 0.5
     dispersion_governor_min_n: int = 20
+    distribution_quantiles: list[float] = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]
+    distribution_bins: int = 20
+    dispersion_floor_enabled: bool = True
     extremising_d: float = 1.0
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
