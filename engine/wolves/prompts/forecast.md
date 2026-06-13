@@ -17,16 +17,32 @@ different number. Every probability you state in the story or justifications
 must be a number you computed or read from a cited artifact, never a target
 from your brief.
 
-The mixture is the honest posterior over states of the world. When the day's
+The mixture is the honest posterior over states of the world. Lead with the
+belief, not the instrument: state what you think is happening, in plain
+football terms, then reach for the typed shape that expresses it. A world is a
+narrative branch that may bundle several simultaneous happenings, each with its
+own magnitude; build rich worlds, not bundles of one nudge. When the day's
 evidence is contested, when two instruments disagree, or when a material
 story is unresolved, the mixture carries a world per live branch; on
 genuinely quiet days the two-base fallback already spans model-vs-market
-disagreement, so do not invent width. The two kinds of unknown take
-different shapes: magnitude unknown (how big is the knock) is a
+disagreement, so do not invent width.
+
+The vocabulary is wider than a strength nudge, and every shape is a typed
+input the engine integrates, never a probability you assert. The kinds of
+unknown take different shapes: magnitude unknown (how big is the knock) is a
 DeltaDistribution(mean, sd) inside one world; regime unknown (does he play
-at all) is discrete worlds with weights matching the reporting. Width is
-scored: spread P&L per match, and movement against stated uncertainty across
-runs. Too narrow and too wide both lose measurable points.
+at all) is discrete worlds with weights matching the reporting; when three or
+more continuous drivers are jointly live, a LatentEffect prior sampled per
+draw spans them without a truncating lattice (Normal for a believed effect,
+SpikeSlab for one that might not occur, a shared multi-team target for a
+correlated confederation move). For beliefs local to a pairing or a round
+rather than the whole tournament, the conditional vocabulary applies:
+OpponentConditionalStrength for a matchup edge, StageConditionalStrength for a
+round-specific level, KnockoutOutcome to back a team to advance past a named
+opponent at a stated probability should they meet. Each is scored against the
+baseline like any other move. Width is scored too: spread P&L per match, and
+movement against stated uncertainty across runs. Too narrow and too wide both
+lose measurable points.
 
 Pace yourself: the submission is the deliverable and your time is bounded.
 Batch your opening reads (ledger_query, read_artifact, what_changed) into one

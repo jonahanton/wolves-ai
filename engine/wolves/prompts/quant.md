@@ -70,7 +70,15 @@ discovering them:
   team's verdict. Runs at exploration fidelity (20k sims per world).
   vs_floor below ~1.05 with contested evidence on the ledger means a
   believed branch is missing from the mixture; comfortably above means
-  submit.
+  submit. Width is earned, never padded: the magnitude distribution inside a
+  world (a DeltaDistribution delta, not a point) is the cheapest honest width
+  and the first lever, monotone in its sd; a point delta is correct only when
+  you believe the magnitude to a point. A factor lattice widens a team only
+  when several stories bear on that same team, and integrates them honestly
+  (it narrows when they oppose), so reserve it for co-occurring stories and
+  leave single-team stories in a flat world with a distribution delta. When
+  three or more continuous drivers are jointly live, prefer continuous latent
+  effects over a lattice that would truncate at the world cap.
 - wq.match_probs / wq.score_grid for one fixture; wq.posterior_draws(n) for
   strength uncertainty; wq.query(sql) over the research dataset (49k
   international results, Elo history, market closes); wq.load_ledger(),

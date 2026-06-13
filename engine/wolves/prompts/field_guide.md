@@ -90,6 +90,19 @@ the noise check), the noise floor, and the implied spread against the
 parameter floor (wq.mixture_spread). Ride magnitude uncertainty as
 Normal(mean, sd) deltas or MC draws; where the response is locally linear the
 mean magnitude is adequate and the draw sd is the cheap materiality test.
+The magnitude distribution is the first and largest cheap source of honest
+width: on the fitted model a single france world (weight 0.3, mean +0.10)
+lifts vs_floor from 1.40 at a point delta to 1.46 at sd 0.04 and 1.66 at sd
+0.10, monotone throughout. A flat list of single-team stories captures each
+team's width on its own; the lattice adds width to a team only when several
+stories bear on THAT team, and then integrates their joint honestly: two
+opposing france stories (up +0.12, down -0.10) gave flat vs_floor 1.84 but
+lattice 1.62, because the joint "both" world partially cancels. So choose the
+lattice for co-occurring or interacting stories, the flat list with
+distribution deltas for independent single-team stories, and never reach for
+the lattice as a width device. When three or more continuous drivers are
+jointly live the lattice truncates at the world cap and under-disperses;
+express those as continuous latent effects, which ride one set of draws.
 The same factor structure applies all tournament; scope each scenario to
 the fixtures actually remaining, never to games already played.
 Example output: a three-world fitness morning (0.55/0.33/0.12) gave
