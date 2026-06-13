@@ -64,6 +64,7 @@ class ForecastSubmission(BaseModel):
     inconsistency_note: str = ""
     market_gaps: list[MarketGap] = Field(default_factory=list)
     camps: list[Camp] = Field(default_factory=list)
+    news_impacts: dict[str, str] = Field(default_factory=dict)
 
 
 class EvidenceItem(BaseModel):

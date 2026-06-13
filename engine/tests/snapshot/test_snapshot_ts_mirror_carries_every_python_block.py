@@ -14,9 +14,12 @@ from wolves.snapshot import (
     MarketGapOut,
     MarketsBlock,
     NarrativeBlock,
+    NewsItemOut,
+    ProvenanceOut,
     ScenarioWeightOut,
     Snapshot,
     TeamDistributions,
+    TeamDriver,
     TeamInterval,
     TeamStoryOut,
     WorldOut,
@@ -46,6 +49,9 @@ def _ts_has_field(name: str) -> bool:
         MarketGapOut,
         CampOut,
         AgentBlock,
+        NewsItemOut,
+        TeamDriver,
+        ProvenanceOut,
     ],
 )
 def test_every_field_appears_in_the_ts_mirror(model) -> None:

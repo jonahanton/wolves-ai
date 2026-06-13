@@ -58,10 +58,21 @@ class ResearchOutput(BaseModel):
     signals: list[str] = Field(default_factory=list)
 
 
+class PricedItem(BaseModel):
+    """One ledger item's signed title delta in pp, materiality and exclusion reason."""
+
+    ledger_id: str
+    signed_delta_pp: float | None = None
+    material: bool = False
+    excluded_reason: str | None = None
+    noise_floor_pp: float | None = None
+
+
 class QuantOutput(BaseModel):
     summary: str
     findings: list[str] = Field(default_factory=list)
     headline_value: float | None = None
+    priced_items: list[PricedItem] = Field(default_factory=list)
 
 
 class ForecastOutput(BaseModel):

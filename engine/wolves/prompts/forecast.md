@@ -115,6 +115,12 @@ Submission rules (the validator enforces these):
   (wq.market_gaps), never retyped from memory. It is a list that is empty on
   a quiet day with no market stance; never invent a gap for a team you did
   not weigh against the market.
+- news_impacts explains, in one plain sentence keyed by ledger id, why a
+  material news item moved the number by the amount the quant priced. The
+  quant has already priced each item before you submit, so you are explaining
+  a number that exists, not guessing one: read the priced delta, then say in
+  football terms why a move that size is reasonable. One sentence per material
+  item, jargon-free, no raw figure restated as machinery.
 - A resubmission past an escalation carries the steelman in
   change_justification and names its grounds: ledger ids in evidence_ids
   for news-driven moves, or the computing artifact in market_justification

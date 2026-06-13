@@ -120,6 +120,7 @@ def validate_submission(
     issues += _check_focus_story(submission, focus_team)
     issues += _check_headline(submission)
     issues += _check_mixture_dispersion(submission, ledger, focus_vs_floor)
+    issues += _check_news_impacts(submission, artifacts)
     return ValidationReport(ok=not issues, issues=issues, escalations=escalations)
 
 
@@ -178,6 +179,33 @@ def _check_team_stories(submission: ForecastSubmission, payload: dict) -> list[V
                 _copy_issue("team_story_too_long", f"team_stories[{team}] is over length; tighten the entry")
             )
     return issues
+
+
+def _check_news_impacts(
+    submission: ForecastSubmission, artifacts: RunArtifactStore | None
+) -> list[ValidationIssue]:
+    """Copy-severity: every material priced item should carry a why in news_impacts."""
+    if artifacts is None:
+        return []
+    material: set[str] = set()
+    for record in artifacts.all():
+        if record.kind != "quant":
+            continue
+        artifact = artifacts.get(record.id)
+        if artifact is None:
+            continue
+        for raw in artifact.payload.get("priced_items") or []:
+            if raw.get("material") and raw.get("ledger_id"):
+                material.add(raw["ledger_id"])
+    missing = sorted(material - set(submission.news_impacts))
+    if not missing:
+        return []
+    return [
+        _copy_issue(
+            "news_impact_missing",
+            f"write a one-sentence news_impacts entry for each material priced item: missing {', '.join(missing[:6])}",
+        )
+    ]
 
 
 def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[ValidationIssue]:

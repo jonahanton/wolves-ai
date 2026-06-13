@@ -244,6 +244,16 @@ class CalibrationSummary(BaseModel):
     movement_ratio: float | None = None
 
 
+class ProvenanceOut(BaseModel):
+    news_considered: int = 0
+    news_material: int = 0
+    news_excluded: int = 0
+    market_disagreements: int = 0
+    noise_floor_pp: float = 0.0
+    n_worlds: int = 1
+    n_camps: int = 1
+
+
 class AgentBlock(BaseModel):
     """Agent-run extras; absent on sim-only snapshots. Additive by design."""
 
@@ -261,6 +271,7 @@ class AgentBlock(BaseModel):
     attribution: AttributionOut | None = None
     governor: GovernorOut | None = None
     calibration: CalibrationSummary | None = None
+    provenance: ProvenanceOut | None = None
 
 
 class ChampionBlock(BaseModel):
@@ -289,6 +300,34 @@ class TeamDistributions(BaseModel):
     settled: dict[str, int] = Field(default_factory=dict)
 
 
+class NewsItemOut(BaseModel):
+    """One sourced news item joined to its price; impact is the agent's why."""
+
+    ledger_id: str
+    claim: str
+    mechanism: str
+    source_url: str
+    title: str | None = None
+    hostname: str = ""
+    status: str = ""
+    signed_delta_pp: float | None = None
+    material: bool = False
+    excluded_reason: str | None = None
+    impact: str | None = None
+
+
+class TeamDriver(BaseModel):
+    """Per-camp chances, any market stance, sourced news and disagreement shape for one team."""
+
+    camp_probs: dict[str, float] = Field(default_factory=dict)
+    market_gap: MarketGapOut | None = None
+    news: list[NewsItemOut] = Field(default_factory=list)
+    has_story: bool = False
+    higher_camp: str | None = None
+    spread_pp: float = 0.0
+    noise_floor_pp: float = 0.0
+
+
 class DistributionsBlock(BaseModel):
     """Confidence in each published number: weighted (world x parameter-draw)
     quantiles per team per stage. The headline stays the mean; this block is
@@ -302,6 +341,7 @@ class DistributionsBlock(BaseModel):
     width_floored: bool = False
     sidecar: str = ""
     teams: dict[str, TeamDistributions] = Field(default_factory=dict)
+    drivers: dict[str, TeamDriver] = Field(default_factory=dict)
 
 
 class MarketsBlock(BaseModel):

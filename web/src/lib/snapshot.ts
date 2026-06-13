@@ -227,6 +227,16 @@ export interface CalibrationSummary {
   movement_ratio?: number | null;
 }
 
+export interface ProvenanceOut {
+  news_considered: number;
+  news_material: number;
+  news_excluded: number;
+  market_disagreements: number;
+  noise_floor_pp: number;
+  n_worlds: number;
+  n_camps: number;
+}
+
 export interface AgentBlock {
   narrative: NarrativeBlock;
   artifact_id: string;
@@ -242,6 +252,7 @@ export interface AgentBlock {
   attribution: AttributionOut | null;
   governor: GovernorOut | null;
   calibration: CalibrationSummary | null;
+  provenance?: ProvenanceOut | null;
 }
 
 export interface ChampionBlock {
@@ -264,6 +275,30 @@ export interface TeamDistributions {
   settled: Record<string, number>;
 }
 
+export interface NewsItemOut {
+  ledger_id: string;
+  claim: string;
+  mechanism: string;
+  source_url: string;
+  title: string | null;
+  hostname: string;
+  status: string;
+  signed_delta_pp: number | null;
+  material: boolean;
+  excluded_reason: string | null;
+  impact: string | null;
+}
+
+export interface TeamDriver {
+  camp_probs: Record<string, number>;
+  market_gap: MarketGapOut | null;
+  news: NewsItemOut[];
+  has_story: boolean;
+  higher_camp: string | null;
+  spread_pp: number;
+  noise_floor_pp: number;
+}
+
 export interface DistributionsBlock {
   quantile_levels: number[];
   provenance: string;
@@ -271,6 +306,7 @@ export interface DistributionsBlock {
   width_floored: boolean;
   sidecar: string;
   teams: Record<string, TeamDistributions>;
+  drivers?: Record<string, TeamDriver>;
 }
 
 export interface MarketsBlock {
