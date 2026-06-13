@@ -39,6 +39,9 @@ class DeltaDistribution(BaseModel):
     sd: float = Field(ge=0.0)
 
 
+KnockoutStage = Literal["r32", "r16", "qf", "sf", "final"]
+
+
 def delta_mean(delta: float | DeltaDistribution) -> float:
     return delta.mean if isinstance(delta, DeltaDistribution) else delta
 
@@ -84,6 +87,8 @@ class _Perturbation(BaseModel):
     needs_perturbed_state: ClassVar[bool] = False
     # the effect is conditional on a per-sim pairing, applied inside the loop.
     acts_in_match: ClassVar[bool] = False
+    # the effect reweights the resolved knockout advance, after the tie is decided.
+    acts_on_outcome: ClassVar[bool] = False
 
     reason: str
     expires: date | None = None
@@ -96,6 +101,9 @@ class _Perturbation(BaseModel):
 
     def apply_in_match(self, mctx: MatchContext) -> None:
         """Adjust per-match lambdas in place on the sims its condition matches."""
+
+    def resolve_outcome(self, kctx: KnockoutContext) -> None:
+        """Reweight the resolved knockout advance on the sims its pairing matches."""
 
 
 class StrengthPerturbation(_Perturbation):
@@ -212,10 +220,125 @@ class ScorelinePerturbation(_Perturbation):
         ctx.grids[self.match] = ScorelineDistribution.single(self.home_goals, self.away_goals)
 
 
+class OpponentConditionalStrength(_Perturbation):
+    """Shift a team's ability only against named opponents (a matchup read, e.g.
+    a side that struggles against a low block). Mirrors a strength shift on the
+    sims where the pairing occurs: the team's goal rate scales by exp(delta) and
+    the opponent's by exp(-delta), exactly as a whole-tournament shift would."""
+
+    name: ClassVar[str] = "opponent_conditional_strength"
+    acts_in_match: ClassVar[bool] = True
+    type: Literal["opponent_conditional_strength"] = "opponent_conditional_strength"
+
+    team: str
+    opponents: list[str] = Field(min_length=1)
+    delta: float
+
+    @field_validator("team")
+    @classmethod
+    def _canonical_team(cls, value: str) -> str:
+        return canonical_team_key(value)
+
+    @field_validator("opponents")
+    @classmethod
+    def _canonical_opponents(cls, value: list[str]) -> list[str]:
+        return [canonical_team_key(v) for v in value]
+
+    def apply_in_match(self, mctx: MatchContext) -> None:
+        team_col = mctx.column(self.team)
+        opp_cols = [c for c in (mctx.column(o) for o in self.opponents) if c is not None]
+        if team_col is None or not opp_cols:
+            return
+        against = np.isin(mctx.away, opp_cols)
+        as_home = (mctx.home == team_col) & against
+        against_home = np.isin(mctx.home, opp_cols)
+        as_away = (mctx.away == team_col) & against_home
+        scale = float(np.exp(self.delta))
+        mctx.lam_home[as_home] *= scale
+        mctx.lam_away[as_home] /= scale
+        mctx.lam_away[as_away] *= scale
+        mctx.lam_home[as_away] /= scale
+
+
+class StageConditionalStrength(_Perturbation):
+    """Shift a team's ability only in a given knockout round (e.g. a squad that
+    raises its level once the tournament turns to elimination football)."""
+
+    name: ClassVar[str] = "stage_conditional_strength"
+    acts_in_match: ClassVar[bool] = True
+    type: Literal["stage_conditional_strength"] = "stage_conditional_strength"
+
+    team: str
+    stage: KnockoutStage
+    delta: float
+
+    @field_validator("team")
+    @classmethod
+    def _canonical(cls, value: str) -> str:
+        return canonical_team_key(value)
+
+    def apply_in_match(self, mctx: MatchContext) -> None:
+        if mctx.stage != self.stage:
+            return
+        team_col = mctx.column(self.team)
+        if team_col is None:
+            return
+        scale = float(np.exp(self.delta))
+        as_home = mctx.home == team_col
+        as_away = mctx.away == team_col
+        mctx.lam_home[as_home] *= scale
+        mctx.lam_away[as_home] /= scale
+        mctx.lam_away[as_away] *= scale
+        mctx.lam_home[as_away] /= scale
+
+
+class KnockoutOutcome(_Perturbation):
+    """Bet on one team beating another should they meet in the knockouts, at a
+    stated advance probability. Keyed on the pairing, not a fixture number,
+    because a knockout matchup exists only in some sims; reweights the resolved
+    advance whenever the pairing occurs (at the given stage, if set)."""
+
+    name: ClassVar[str] = "knockout_outcome"
+    acts_on_outcome: ClassVar[bool] = True
+    type: Literal["knockout_outcome"] = "knockout_outcome"
+
+    team: str
+    opponent: str
+    p_advance: float = Field(ge=0.0, le=1.0)
+    stage: KnockoutStage | None = None
+
+    @field_validator("team", "opponent")
+    @classmethod
+    def _canonical(cls, value: str) -> str:
+        return canonical_team_key(value)
+
+    @model_validator(mode="after")
+    def _distinct(self) -> KnockoutOutcome:
+        if self.team == self.opponent:
+            raise ValueError("a knockout outcome needs two distinct teams")
+        return self
+
+    def resolve_outcome(self, kctx: KnockoutContext) -> None:
+        if self.stage is not None and kctx.stage != self.stage:
+            return
+        team_col = kctx.column(self.team)
+        opp_col = kctx.column(self.opponent)
+        if team_col is None or opp_col is None:
+            return
+        team_home = (kctx.home == team_col) & (kctx.away == opp_col)
+        team_away = (kctx.home == opp_col) & (kctx.away == team_col)
+        matched = team_home | team_away
+        if not matched.any():
+            return
+        team_advances = kctx.rng.random(kctx.home.shape[0]) < self.p_advance
+        kctx.home_wins[matched] = np.where(team_home, team_advances, ~team_advances)[matched]
+
+
 @dataclass
 class MatchContext:
     """Per-match state an in-match perturbation adjusts: per-sim team arrays and
-    the per-sim lambdas it may shift on the sims its condition matches."""
+    the per-sim lambdas it may shift on the sims its condition matches. stage is
+    the fine round (r32..final for knockouts, "group" otherwise)."""
 
     home: np.ndarray
     away: np.ndarray
@@ -225,6 +348,26 @@ class MatchContext:
     lam_home: np.ndarray
     lam_away: np.ndarray
     team_index: dict[str, int]
+
+    def column(self, team: str) -> int | None:
+        return self.team_index.get(registry_team_key(team))
+
+
+@dataclass
+class KnockoutContext:
+    """A resolved knockout tie an outcome perturbation may reweight: per-sim
+    home/away team arrays, the decided home_wins mask, the stage and the rng for
+    the reweight draw. home_wins is mutated in place on the matching sims."""
+
+    home: np.ndarray
+    away: np.ndarray
+    home_wins: np.ndarray
+    stage: str
+    rng: np.random.Generator
+    team_index: dict[str, int]
+
+    def column(self, team: str) -> int | None:
+        return self.team_index.get(registry_team_key(team))
 
 
 @dataclass(frozen=True)
@@ -247,6 +390,9 @@ PERTURBATIONS: tuple[PerturbationSpec, ...] = (
     PerturbationSpec(MatchRatePerturbation, publishes=True, scope="fixture"),
     PerturbationSpec(MatchOutcomePerturbation, publishes=True, scope="group_fixture"),
     PerturbationSpec(ScorelinePerturbation, publishes=False, scope="fixture"),
+    PerturbationSpec(OpponentConditionalStrength, publishes=True, scope="conditional"),
+    PerturbationSpec(StageConditionalStrength, publishes=True, scope="conditional"),
+    PerturbationSpec(KnockoutOutcome, publishes=True, scope="knockout_pairing"),
 )
 
 _BY_NAME: dict[str, PerturbationSpec] = {spec.name: spec for spec in PERTURBATIONS}

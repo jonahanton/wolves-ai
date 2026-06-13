@@ -78,16 +78,22 @@ def run_tournament(
     fixture_goal_offsets: dict[int, tuple[float, float]] | None = None,
     live_distributions: dict[int, ScorelineDistribution] | None = None,
     in_match_perturbations: tuple = (),
+    outcome_perturbations: tuple = (),
 ) -> SimResult:
     """Vectorised Monte Carlo over the exact 2026 format; match maths live in the engine.
 
     live_distributions inject in-progress matches: scorelines are drawn from the
     in-match chain's conditional distribution instead of the engine.
-    in_match_perturbations adjust per-sim lambdas on the matches they select."""
-    from wolves.sim.perturbations import MatchContext
+    in_match_perturbations adjust per-sim lambdas on the matches they select;
+    outcome_perturbations reweight resolved knockout advances on their pairings."""
+    from wolves.data.teams import registry_team_key
+    from wolves.sim.perturbations import KnockoutContext, MatchContext
 
     rng = np.random.default_rng(seed)
     idx = fmt.team_index()
+    # Conditional perturbations name teams in dataset-backbone slugs, so resolve
+    # against the same registry keys StateContext uses, not the raw fmt ids.
+    pert_index = {registry_team_key(team): col for team, col in idx.items()}
     members = fmt.group_members()
     n_teams = len(fmt.teams)
     played = results or {}
@@ -98,9 +104,9 @@ def run_tournament(
     engine.begin(rng, n_sims)
 
     def match_lambdas(
-        home: np.ndarray, away: np.ndarray, city: str, stage: str, match: int
+        home: np.ndarray, away: np.ndarray, city: str, stage: str, match: int, *, engine_stage: str
     ) -> tuple[np.ndarray, np.ndarray]:
-        lam_h, lam_a = engine.lambdas(home, away, city=city, stage=stage)
+        lam_h, lam_a = engine.lambdas(home, away, city=city, stage=engine_stage)
         if match in offsets:
             off_h, off_a = offsets[match]
             lam_h = np.maximum(lam_h + off_h, MIN_GOAL_MEAN_AFTER_OFFSET)
@@ -108,7 +114,7 @@ def run_tournament(
         if in_match_perturbations:
             mctx = MatchContext(
                 home=home, away=away, city=city, stage=stage, match=match,
-                lam_home=lam_h, lam_away=lam_a, team_index=idx,
+                lam_home=lam_h, lam_away=lam_a, team_index=pert_index,
             )
             for pert in in_match_perturbations:
                 pert.apply_in_match(mctx)
@@ -123,7 +129,7 @@ def run_tournament(
     for m in sorted(fmt.group_matches, key=lambda m: m.date):
         hi, ai = idx[m.home], idx[m.away]
         home_arr, away_arr = np.full(n_sims, hi), np.full(n_sims, ai)
-        lam_h, lam_a = match_lambdas(home_arr, away_arr, m.city, "group", m.match)
+        lam_h, lam_a = match_lambdas(home_arr, away_arr, m.city, "group", m.match, engine_stage="group")
         if m.match in played:
             r = played[m.match]
             hg = np.full(n_sims, r.home_goals, dtype=np.int16)
@@ -238,7 +244,7 @@ def run_tournament(
     for m in sorted(fmt.knockout, key=lambda m: m.match):
         h = resolve(m.home, m.match)
         a = resolve(m.away, m.match)
-        lam_h, lam_a = match_lambdas(h, a, m.city, "knockout", m.match)
+        lam_h, lam_a = match_lambdas(h, a, m.city, m.stage, m.match, engine_stage="knockout")
         if m.match in played:
             r = played[m.match]
             hg = np.full(n_sims, r.home_goals, dtype=np.int16)
@@ -252,6 +258,13 @@ def run_tournament(
                 hg_raw, ag_raw = engine.simulate_goals(rng, lam_h, lam_a)
             hg, ag = hg_raw.astype(np.int16), ag_raw.astype(np.int16)
             home_wins = engine.knockout_home_wins(rng, h, a, hg, ag, city=m.city)
+            if outcome_perturbations:
+                kctx = KnockoutContext(
+                    home=h, away=a, home_wins=home_wins, stage=m.stage, rng=rng, team_index=pert_index
+                )
+                for pert in outcome_perturbations:
+                    pert.resolve_outcome(kctx)
+                home_wins = kctx.home_wins
             ko_stats[m.match] = tie_stats(h, a, hg, ag, home_wins)
         engine.record_result(h, a, hg, ag, home_wins, city=m.city, stage="knockout")
         ko_home[m.match] = h

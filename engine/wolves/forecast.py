@@ -34,10 +34,13 @@ from wolves.sim.outputs import build_focus_team, build_groups, build_matches, bu
 from wolves.sim.perturbations import (
     DeltaDistribution,
     HomeAdvantagePerturbation,
+    KnockoutOutcome,
     MatchOutcomePerturbation,
     MatchRatePerturbation,
+    OpponentConditionalStrength,
     Perturbation,
     ScorelinePerturbation,
+    StageConditionalStrength,
     StateContext,
     StrengthPerturbation,
     TempoPerturbation,
@@ -54,10 +57,13 @@ __all__ = [
     "DeltaDistribution",
     "Forecaster",
     "HomeAdvantagePerturbation",
+    "KnockoutOutcome",
     "MatchOutcomePerturbation",
     "MatchRatePerturbation",
+    "OpponentConditionalStrength",
     "Perturbation",
     "ScorelinePerturbation",
+    "StageConditionalStrength",
     "StrengthPerturbation",
     "TempoPerturbation",
     "UnboundMatchPerturbationError",
@@ -239,6 +245,7 @@ class Forecaster:
         # Live in-progress states outrank what-if injections for the same match.
         injected = {**grids, **(live_distributions or {})}
         in_match = tuple(p for p in perturbations if p.acts_in_match and p.active(on=state.as_of))
+        on_outcome = tuple(p for p in perturbations if p.acts_on_outcome and p.active(on=state.as_of))
         engine = PoissonMatchEngine(self.fmt, state, latent_effects=latent_effects)
         return run_tournament(
             self.fmt,
@@ -249,6 +256,7 @@ class Forecaster:
             fixture_goal_offsets=offsets or None,
             live_distributions=injected or None,
             in_match_perturbations=in_match,
+            outcome_perturbations=on_outcome,
         )
 
     def title_probs(

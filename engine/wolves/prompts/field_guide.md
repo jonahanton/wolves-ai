@@ -259,6 +259,31 @@ sim path (what does this fixture outcome do to the bracket), while
 update_from_result moves the fitted strength (what does this result say
 about the team); mid-tournament analyses usually need both, never summed.
 
+### The conditional vocabulary (matchup, stage and knockout-outcome bets)
+
+Method: when a belief is local to a pairing or a round rather than the whole
+tournament, reach for the conditional types instead of laundering it into a
+flat strength shift. OpponentConditionalStrength(team, opponents, delta) shifts
+a side's goal rate only when it meets named opponents (a matchup read: a team
+that struggles against a low block); StageConditionalStrength(team, stage,
+delta) shifts it only in one knockout round (a side that raises its level once
+elimination football starts; stage is r32/r16/qf/sf/final); KnockoutOutcome(
+team, opponent, p_advance, stage) bets the resolved advance directly should the
+pairing occur, the honest answer to "back France over Spain at 55% if they
+meet". All three are scoreable against the baseline (they move per-match and
+title probabilities the ledger already tracks) and publish; size deltas on the
+same scale as a strength shift (0.1 is a clear edge, beyond 0.3 implies a
+different team). Example output (13 Jun, dataset 5323afd41ba9, 30k CRN sims):
+KnockoutOutcome(Spain over Argentina, p_advance=0.95) moved Spain title 18.1 to
+22.9pp and Argentina 9.8 to 6.3; OpponentConditionalStrength(Spain +0.8 vs
+Argentina) moved Spain to 22.1 and Argentina to 6.6 (a strong matchup edge
+priced through the lambdas rather than the resolved outcome);
+StageConditionalStrength(Spain +0.8 in the final) moved Spain to 25.9, all of it
+landing in the one round it touches. Prefer KnockoutOutcome when the belief is
+about who advances and OpponentConditionalStrength when it is about how the
+match is played; a confederation-wide correlated move is a multi-team
+LatentEffect, not a perturbation.
+
 ### News-shock scale (example outputs, recompute to use)
 
 Backup keeper in (-0.03 strength) = -1.09pp. Star striker out (-0.12) =

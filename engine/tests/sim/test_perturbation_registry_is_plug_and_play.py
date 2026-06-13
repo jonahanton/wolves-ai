@@ -93,4 +93,10 @@ def _sample(model: type[_Perturbation]) -> _Perturbation:
         return model(match=1, p_home=0.5, p_draw=0.3, p_away=0.2, reason="x")
     if name == "scoreline":
         return model(match=1, home_goals=1, away_goals=0, reason="x")
+    if name == "opponent_conditional_strength":
+        return model(team="france", opponents=["spain"], delta=-0.1, reason="x")
+    if name == "stage_conditional_strength":
+        return model(team="france", stage="sf", delta=0.1, reason="x")
+    if name == "knockout_outcome":
+        return model(team="france", opponent="spain", p_advance=0.6, reason="x")
     raise AssertionError(f"no sample for registry type {name!r}")
