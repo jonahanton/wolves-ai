@@ -1,14 +1,5 @@
 """The quant workbench namespace, preloaded as ``wq`` in the sandbox."""
 
-from wolves.forecast import (
-    DeltaDistribution,
-    HomeAdvantagePerturbation,
-    MatchOutcomePerturbation,
-    MatchRatePerturbation,
-    ScorelinePerturbation,
-    StrengthPerturbation,
-    TempoPerturbation,
-)
 from wolves.quant.wolves_quant._data import (
     artifact,
     artifact_path,
@@ -46,17 +37,18 @@ from wolves.quant.wolves_quant._sim import (
 )
 from wolves.quant.wolves_quant._spread import mixture_spread
 from wolves.quant.wolves_quant._state import finalise as _finalise
+from wolves.sim.perturbations import PERTURBATIONS, DeltaDistribution
+
+# The perturbation constructors are exported straight off the registry, so a
+# new type reaches the wq namespace with one PERTURBATIONS entry and no edit here.
+_PERTURBATION_EXPORTS = {spec.model.__name__: spec.model for spec in PERTURBATIONS}
+globals().update(_PERTURBATION_EXPORTS)
 
 __all__ = [
     "DeltaDistribution",
     "Factor",
-    "HomeAdvantagePerturbation",
-    "MatchOutcomePerturbation",
-    "MatchRatePerturbation",
     "Scenario",
-    "ScorelinePerturbation",
-    "StrengthPerturbation",
-    "TempoPerturbation",
+    *sorted(_PERTURBATION_EXPORTS),
     "artifact",
     "artifact_path",
     "artifacts",

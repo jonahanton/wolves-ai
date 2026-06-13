@@ -91,19 +91,16 @@ def _resolve_worlds(
     if sum(x is not None for x in (scenarios, factors, artifact_id)) != 1:
         raise ValueError("pass exactly one of scenarios, factors or artifact")
     if artifact_id is not None:
-        from pydantic import TypeAdapter
-
-        from wolves.forecast import Perturbation
         from wolves.quant.wolves_quant._data import artifact as load_artifact
+        from wolves.sim.perturbations import parse_perturbation
 
-        adapter = TypeAdapter[Perturbation](Perturbation)
         payload = load_artifact(artifact_id)
         weights: dict[str, float] = payload.get("weights") or {}
         worlds_block: dict[str, dict] = payload.get("worlds") or {}
         if not weights or not worlds_block:
             raise ValueError(f"artifact {artifact_id!r} carries no worlds block")
         return {
-            name: (weight, [adapter.validate_python(p) for p in worlds_block[name].get("perturbations", [])])
+            name: (weight, [parse_perturbation(p) for p in worlds_block[name].get("perturbations", [])])
             for name, weight in weights.items()
         }
     blocks = _factor_blocks(scenarios, factors)

@@ -10,14 +10,13 @@ single story to tell."""
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field
 
-from wolves.forecast import Forecaster, Perturbation, ScorelinePerturbation
+from wolves.forecast import Forecaster, Perturbation
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import PlayedResult
 from wolves.sim.mc import SimResult
-
-_PERTURBATION = TypeAdapter[Perturbation](Perturbation)
+from wolves.sim.perturbations import parse_perturbation, spec_for
 
 
 class PublishedWorld(BaseModel):
@@ -48,9 +47,11 @@ def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
                 f"world {name!r} carries precomputed probabilities; only simulator-built worlds publish "
                 "the full distribution surface"
             )
-        perturbations = [_PERTURBATION.validate_python(p) for p in spec.get("perturbations", [])]
-        if any(isinstance(p, ScorelinePerturbation) for p in perturbations):
-            raise ForecastArtifactError(f"world {name!r} pins a scoreline; what-if instruments never publish")
+        perturbations = [parse_perturbation(p) for p in spec.get("perturbations", [])]
+        unpublishable = [p for p in perturbations if not spec_for(p).publishes]
+        if unpublishable:
+            kinds = ", ".join(sorted({type(p).name for p in unpublishable}))
+            raise ForecastArtifactError(f"world {name!r} carries what-if instruments that never publish: {kinds}")
         worlds.append(PublishedWorld(name=name, weight=weight, perturbations=perturbations))
     for name in worlds_block:
         if name not in weights:

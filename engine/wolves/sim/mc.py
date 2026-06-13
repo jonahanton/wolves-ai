@@ -77,11 +77,15 @@ def run_tournament(
     results: dict[int, PlayedResult] | None = None,
     fixture_goal_offsets: dict[int, tuple[float, float]] | None = None,
     live_distributions: dict[int, ScorelineDistribution] | None = None,
+    in_match_perturbations: tuple = (),
 ) -> SimResult:
     """Vectorised Monte Carlo over the exact 2026 format; match maths live in the engine.
 
     live_distributions inject in-progress matches: scorelines are drawn from the
-    in-match chain's conditional distribution instead of the engine."""
+    in-match chain's conditional distribution instead of the engine.
+    in_match_perturbations adjust per-sim lambdas on the matches they select."""
+    from wolves.sim.perturbations import MatchContext
+
     rng = np.random.default_rng(seed)
     idx = fmt.team_index()
     members = fmt.group_members()
@@ -101,6 +105,14 @@ def run_tournament(
             off_h, off_a = offsets[match]
             lam_h = np.maximum(lam_h + off_h, MIN_GOAL_MEAN_AFTER_OFFSET)
             lam_a = np.maximum(lam_a + off_a, MIN_GOAL_MEAN_AFTER_OFFSET)
+        if in_match_perturbations:
+            mctx = MatchContext(
+                home=home, away=away, city=city, stage=stage, match=match,
+                lam_home=lam_h, lam_away=lam_a, team_index=idx,
+            )
+            for pert in in_match_perturbations:
+                pert.apply_in_match(mctx)
+            lam_h, lam_a = mctx.lam_home, mctx.lam_away
         return lam_h, lam_a
 
     pts = np.zeros((n_teams, n_sims), dtype=np.int32)
