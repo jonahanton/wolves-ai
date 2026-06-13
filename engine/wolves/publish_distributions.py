@@ -183,28 +183,28 @@ def _widened_cell(
 ):
     """Re-run the cell with dispersion-governor widening applied per world.
 
-    Widening each world about its own mean preserves the per-world component
-    story; the mixture mean moves only by the Jensen drift, which the stream
-    score then measures against."""
+    Pipeline order matches cell_distribution: shrink, blend, then widen, so
+    the governor blend can never squeeze back width the dispersion governor
+    just added. Widening each world about its own mean preserves the
+    per-world component story; the mixture mean moves only by the Jensen
+    drift, which the stream score then measures against."""
     from wolves.sim.distributions import shrink_draws
 
-    widened = {
-        name: widen_about_mean(shrink_draws(np.asarray(draws, dtype=np.float64), sims_per_draw=sims_per_draw), factor)
+    shrunk = {
+        name: shrink_draws(np.asarray(draws, dtype=np.float64), sims_per_draw=sims_per_draw)
         for name, draws in per_world_draws.items()
     }
     blended_floor = floor
-    if blend is not None and floor is not None:
-        anchor, d = blend
-        blended_floor = apply_blend(np.asarray(floor, dtype=np.float64), anchor=anchor, d=d)
     if blend is not None:
         anchor, d = blend
-        widened = {name: apply_blend(draws, anchor=anchor, d=d) for name, draws in widened.items()}
-    # sims_per_draw is huge so the second shrink inside cell_distribution is a
-    # near no-op on already-shrunk samples; pass the widened draws straight through.
+        shrunk = {name: apply_blend(draws, anchor=anchor, d=d) for name, draws in shrunk.items()}
+        if floor is not None:
+            blended_floor = apply_blend(np.asarray(floor, dtype=np.float64), anchor=anchor, d=d)
+    widened = {name: widen_about_mean(draws, factor) for name, draws in shrunk.items()}
     return cell_distribution(
         widened,
         weights,
-        sims_per_draw=10**9,
+        sims_per_draw=None,
         quantile_levels=levels,
         n_bins=n_bins,
         blend=None,

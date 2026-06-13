@@ -219,16 +219,22 @@ def cell_distribution(
     per_world_draws: dict[str, np.ndarray],
     weights: dict[str, float],
     *,
-    sims_per_draw: int,
+    sims_per_draw: int | None,
     quantile_levels: tuple[float, ...],
     n_bins: int,
     blend: tuple[float, float] | None = None,
     floor_samples: np.ndarray | None = None,
     settled_eps: float = 1e-4,
 ) -> CellResult:
-    """Run the publish pipeline for one cell: shrink, settle or blend, floor, summarise."""
+    """Run the publish pipeline for one cell: shrink, settle or blend, floor, summarise.
+
+    sims_per_draw None means the caller already shrank the draws."""
     shrunk = {
-        name: shrink_draws(np.asarray(draws, dtype=np.float64), sims_per_draw=sims_per_draw)
+        name: (
+            np.asarray(draws, dtype=np.float64)
+            if sims_per_draw is None
+            else shrink_draws(np.asarray(draws, dtype=np.float64), sims_per_draw=sims_per_draw)
+        )
         for name, draws in per_world_draws.items()
     }
     mean_p = float(sum(weights[name] * shrunk[name].mean() for name in weights))
