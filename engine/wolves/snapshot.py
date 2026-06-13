@@ -176,6 +176,17 @@ class ScenarioWeightOut(BaseModel):
     scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
     rationale: str = ""
+    camp: str = ""
+    label: str = ""
+    summary: str = ""
+
+
+class CampOut(BaseModel):
+    key: str
+    label: str = ""
+    summary: str = ""
+    weight: float = 0.0
+    order: int = 0
 
 
 class MarketGapOut(BaseModel):
@@ -240,6 +251,7 @@ class AgentBlock(BaseModel):
     artifact_id: str = ""
     ledger_entries: list[LedgerEntryOut] = Field(default_factory=list)
     scenario_weights: list[ScenarioWeightOut] = Field(default_factory=list)
+    camps: list[CampOut] = Field(default_factory=list)
     worlds: list[WorldOut] = Field(default_factory=list)
     quant_findings: list[QuantFindingOut] = Field(default_factory=list)
     escalations: list[str] = Field(default_factory=list)

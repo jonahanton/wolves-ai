@@ -20,6 +20,13 @@ class Narrative(BaseModel):
     team_stories: dict[str, TeamStory] = Field(default_factory=dict)
 
 
+class Camp(BaseModel):
+    key: str
+    label: str = ""
+    summary: str = ""
+    order: int = 0
+
+
 class ScenarioWeight(BaseModel):
     """One named judgement point: a world's weight and the evidence behind it."""
 
@@ -28,6 +35,9 @@ class ScenarioWeight(BaseModel):
     scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
     rationale: str = ""
+    camp: str = ""
+    label: str = ""
+    summary: str = ""
 
 
 class MarketGap(BaseModel):
@@ -53,6 +63,7 @@ class ForecastSubmission(BaseModel):
     change_justification: str = ""
     inconsistency_note: str = ""
     market_gaps: list[MarketGap] = Field(default_factory=list)
+    camps: list[Camp] = Field(default_factory=list)
 
 
 class EvidenceItem(BaseModel):

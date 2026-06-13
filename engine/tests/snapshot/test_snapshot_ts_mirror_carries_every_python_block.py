@@ -6,7 +6,9 @@ from pathlib import Path
 import pytest
 
 from wolves.snapshot import (
+    AgentBlock,
     CalibrationSummary,
+    CampOut,
     ChampionBlock,
     DistributionsBlock,
     MarketGapOut,
@@ -42,6 +44,8 @@ def _ts_has_field(name: str) -> bool:
         TeamStoryOut,
         ScenarioWeightOut,
         MarketGapOut,
+        CampOut,
+        AgentBlock,
     ],
 )
 def test_every_field_appears_in_the_ts_mirror(model) -> None:

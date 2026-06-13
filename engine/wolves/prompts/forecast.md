@@ -98,7 +98,13 @@ Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned
   scorelines are what-if instruments and never publish.
 - Scenario weights sum to 1 and each carries a one-line rationale: the
-  argument for that world in a sentence.
+  argument for that world in a sentence. Each also carries a camp key grouping
+  it on the honest axis the worlds actually span (model vs market, a live
+  injury story, whatever the day's worlds divide on), a three to six word
+  plain label, and a one-sentence jargon-free summary. Declare each camp once
+  in camps {key, label, summary, order}, in plain English a reader follows. A
+  world on its own axis leaves camp empty and stands as its own camp; a quiet
+  one-world day needs no camps at all.
 - market_justification names, by team id (e.g. "south-korea"), every team
   whose mixture diverges from the de-vigged market beyond the escalation
   threshold, each with the computation that earns the gap, in either

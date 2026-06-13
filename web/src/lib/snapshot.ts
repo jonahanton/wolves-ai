@@ -167,6 +167,17 @@ export interface ScenarioWeightOut {
   scenario_id: string | null;
   ledger_ids: string[];
   rationale?: string;
+  camp?: string;
+  label?: string;
+  summary?: string;
+}
+
+export interface CampOut {
+  key: string;
+  label?: string;
+  summary?: string;
+  weight?: number;
+  order?: number;
 }
 
 export interface MarketGapOut {
@@ -221,6 +232,7 @@ export interface AgentBlock {
   artifact_id: string;
   ledger_entries: LedgerEntryOut[];
   scenario_weights: ScenarioWeightOut[];
+  camps?: CampOut[];
   worlds: WorldOut[];
   quant_findings?: QuantFindingOut[];
   escalations: string[];

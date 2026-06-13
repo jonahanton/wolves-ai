@@ -81,6 +81,7 @@ from wolves.snapshot import (
     AgentBlock,
     AttributionOut,
     CalibrationSummary,
+    CampOut,
     GovernorOut,
     LedgerEntryOut,
     MarketsBlock,
@@ -400,6 +401,25 @@ def _select_team_stories(submission, outputs, ledger: EvidenceLedger, *, limit: 
     return {team: story.model_dump() for team, story in written.items() if team in surfaced}
 
 
+def _build_camps(submission) -> list[CampOut]:
+    """Declared camps with weight summed from member worlds; an unset camp is its own."""
+    by_camp: dict[str, float] = {}
+    for w in submission.scenario_weights:
+        by_camp[w.camp or w.name] = by_camp.get(w.camp or w.name, 0.0) + w.weight
+    declared = {c.key: c for c in submission.camps}
+    keys = list(declared) + [k for k in by_camp if k not in declared]
+    return [
+        CampOut(
+            key=key,
+            label=declared[key].label if key in declared else "",
+            summary=declared[key].summary if key in declared else "",
+            weight=round(by_camp.get(key, 0.0), 6),
+            order=declared[key].order if key in declared else i,
+        )
+        for i, key in enumerate(keys)
+    ]
+
+
 def _ledger_entries(ledger: EvidenceLedger, articles: ArticleCache) -> list[LedgerEntryOut]:
     """Publish ledger entries with article titles joined from the cache."""
     entries: list[LedgerEntryOut] = []
@@ -504,6 +524,7 @@ def _build_snapshot(
         artifact_id=submission.artifact_id,
         ledger_entries=_ledger_entries(deps.ledger, deps.articles),
         scenario_weights=[ScenarioWeightOut(**w.model_dump()) for w in submission.scenario_weights],
+        camps=_build_camps(submission),
         worlds=[
             WorldOut(
                 name=w.name,
