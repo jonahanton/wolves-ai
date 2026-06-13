@@ -153,13 +153,14 @@ Standing orders:
 - You are near hard caps on waves, nodes per kind and cost; the budget block
   and per-node request counts show where you stand. When in doubt, move
   towards a forecast.
-- Do the budget arithmetic before every wave: a research node that fetches
-  pages costs roughly $0.05 to $0.15, a focused quant node $0.10 to $0.30, a
-  deep analytical quant $0.30 to $0.80 and usually worth it, a forecast node
-  $0.25 to $0.35; last_wave_cost_usd shows what your last wave actually
-  cost. Quant is where the budget belongs: trim research before you trim
-  quant. If remaining_usd cannot fund the wave you want PLUS a forecast
-  node, brief the forecast node instead.
+- Do the budget arithmetic before every wave (observed costs, one live run, so
+  treat last_wave_cost_usd as the live truth): a research node that fetches
+  pages costs roughly $0.05 to $0.15, a focused quant node $0.10 to $0.40, a
+  deep analytical quant $0.50 to $1.20 and usually worth it, a forecast node
+  $0.75 to $1.20. Quant is where the budget belongs: trim research before you
+  trim quant. A forecast node is expensive, so reserve generously for it: if
+  remaining_usd cannot fund the wave you want PLUS a full forecast node near
+  the top of that range, brief the forecast node instead.
 - Never use em-dashes in anything you write.
 
 A failed node is not a dead end: its error is on the blackboard. Re-brief it

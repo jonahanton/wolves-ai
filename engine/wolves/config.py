@@ -66,12 +66,12 @@ class Settings(BaseSettings):
 
     # Calendar-aware agent spend (wolves/run_policy.py): the day's phase
     # sets the ceiling, front-loaded into the opening week.
-    agent_ceiling_opening_usd: float = 5.00
-    agent_ceiling_big_group_usd: float = 3.00
-    agent_ceiling_group_usd: float = 2.00
-    agent_ceiling_rest_usd: float = 2.00
-    agent_ceiling_r32_r16_usd: float = 3.50
-    agent_ceiling_qf_final_usd: float = 5.00
+    agent_ceiling_opening_usd: float = 6.00
+    agent_ceiling_big_group_usd: float = 4.50
+    agent_ceiling_group_usd: float = 3.50
+    agent_ceiling_rest_usd: float = 3.50
+    agent_ceiling_r32_r16_usd: float = 4.50
+    agent_ceiling_qf_final_usd: float = 6.00
     agent_ceiling_single_game_discount_usd: float = 1.00
     agent_big_team_count: int = 8
     tool_timeout_seconds: float = 30.0
@@ -129,9 +129,9 @@ class Settings(BaseSettings):
     # Explicit per-run override (run-now and workflow dispatch set it);
     # unset means the calendar policy decides (wolves/run_policy.py).
     agent_run_ceiling_usd: float | None = None
-    agent_run_ceiling_max_usd: float = 8.00
-    graph_forecast_reserve_usd: float = 0.35
-    graph_forecast_reserve_llm_calls: int = 8
+    agent_run_ceiling_max_usd: float = 9.00
+    graph_forecast_reserve_usd: float = 1.30
+    graph_forecast_reserve_llm_calls: int = 26
 
     @property
     def lessons_path(self) -> Path:
