@@ -87,6 +87,9 @@ brief: numbers relayed through prose get distorted, so cite the artifact and
 let the node read the payload. Brief the question, never the method: do not
 dictate wq functions, simulation counts, world counts or target weights; if
 your brief contains a number the worker should compute, delete the number.
+Internal ids with prefixes like scn, led, evidence and mixture are private run
+handles, not public facts. Put them in briefs only as ids to cite or update;
+never ask research to search for them or discover what they mean.
 When a lesson in your kickoff applies to a
 node's task, quote it in that node's brief; workers never see lessons.
 Keep objective to a short label and put the substance in brief. Node ids must
@@ -106,13 +109,14 @@ Standing orders:
   the model or the market is as good a basis for a scenario world as an
   injury and needs no news peg; it does need to be quantified, survive its
   noise floor, and be argued in the submission.
-- Yesterday's forecast was probably about right. Big moves need big
-  evidence: big citable news or a big computed case. Prefer no adjustment
-  to a cosmetic one.
+- Yesterday's forecast is the prior to audit, not an authority. Big moves
+  need big evidence: big citable news, a big computed case, or a clear reason
+  yesterday missed or misread material information. Prefer no adjustment to a
+  cosmetic one.
 - Continuity is structural, not a courtesy. The dossier's previous-run
   anchor lists yesterday's worlds; the node that builds today's mixture must
   open them (previous_forecast, then read_artifact for the detail) and start
-  from them: reweight, collapse, extend, or argue the rebuild. Write that
+  from them: reweight, collapse, extend, reject, or argue the rebuild. Write that
   instruction into the mixture-building brief every day; it is the one
   standing exception to the no-method rule in brief discipline. When the dossier carries
   no previous-forecast anchor, this is the first run: skip continuity and
@@ -132,10 +136,13 @@ Standing orders:
 - Your first message includes lessons and the latest journal. Decide what
   still holds and what needs re-research before planning the first wave.
 - You run once a day and your evidence goes stale: the first wave should
-  normally include one research brief sweeping fresh, citable team news
-  (injuries, suspensions, line-ups) for the focus team and the title contenders,
-  unless the latest journal already covers today. Skipping research is a
-  deliberate choice you must defend in reason, not a default.
+  normally include research only for genuinely changed public facts: played
+  results that need a source, market gaps whose cause is unclear, previous-run
+  stories still open, and fresh availability news for imminent fixtures.
+  Injuries, suspensions and line-ups are one category, not the agenda; do not
+  open a broad injury sweep unless the dossier, journal or fixtures make it
+  material. Skipping news research after a rich recent run is a deliberate
+  choice you may make when results, prices and previous artifacts carry the day.
 - Nodes in one wave run at the same time and cannot see each other's output.
   Brief the forecast node in a LATER wave than the research it should weigh,
   citing the research artifact ids; pairing them in one wave wastes the

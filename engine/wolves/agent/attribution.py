@@ -39,10 +39,10 @@ def decompose(
     strengths); the residual against the submitted numbers is the agent's
     evidence-driven move."""
     forecaster.fit(as_of=as_of)
-    today = forecaster.title_probs(n_sims=n_sims, seed=seed, results=results)
-    forecaster.fit(as_of=previous_as_of)
+    today = forecaster.title_probs(n_sims=n_sims, seed=seed, results=results or {})
+    forecaster.fit(as_of=previous_as_of, use_default_results=False)
     try:
-        yesterday = forecaster.title_probs(n_sims=n_sims, seed=seed)
+        yesterday = forecaster.title_probs(n_sims=n_sims, seed=seed, results={})
         overlaid = forecaster.title_probs(n_sims=n_sims, seed=seed, results=results) if results else yesterday
     finally:
         # The forecaster is shared run state; it must leave on today's fit

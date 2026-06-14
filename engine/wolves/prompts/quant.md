@@ -22,6 +22,10 @@ discovering them:
   -> dict[team, title probability] ONLY. For group-advance or per-round
   questions use wq.reach(perturbations, n_sims=, seed=) -> DataFrame of
   reach probabilities, rows teams, columns r32 to champion.
+  These surfaces already fix any played tournament results persisted before
+  the run. Do not add a world for the direct bracket effect of a completed
+  fixture. Use wq.update_from_result only for the separate posterior strength
+  update a surprising result justifies, and label it as a refit effect.
 - wq.impact(perturbation, n_sims=, seed=) -> {"deltas_pp": {team: pp},
   "noise_floor_pp": float}. The standard move for pricing one evidence item.
   wq.noise_floor(n_sims=, seed=) -> float gives the paired-seed floor
@@ -55,9 +59,11 @@ discovering them:
   much as mean decisions; on contested days read wq.mixture_spread before
   registering. When that is your brief, start from
   the previous run's worlds (previous_forecast lists them): reweight,
-  collapse or extend them under today's refit, and rebuild from scratch only
-  with an argued reason. If previous_forecast reports not_found there is no
-  previous run; build today's worlds fresh from the two bases.
+  collapse, extend or reject them under today's refit, and rebuild from
+  scratch with an argued reason. Reading previous_forecast is not deference:
+  if yesterday missed information or its worlds are now wrong, say so and
+  rebuild the relevant part. If previous_forecast reports not_found there is
+  no previous run; build today's worlds fresh from the two bases.
 - wq.mixture_spread(scenarios=... | factors=... | artifact=...) -> dict whose
   "teams" value renders as a DataFrame (focus team plus top 8 by mixture
   mean; teams= overrides) with columns mean, p10, p90, width_pp, floor_p10,

@@ -57,6 +57,25 @@ def _build_overlay(destination: Path, context: SandboxContext) -> None:
             if path is not None and Path(path).exists():
                 con.execute(f"CREATE TABLE {table} AS SELECT * FROM read_json_auto(?)", [path])
                 built.append(table)
+        from wolves.config import Settings
+        from wolves.sim.results_store import persisted_results
+
+        settings = Settings(
+            _env_file=None,
+            data_dir=Path(context.data_dir),
+            runs_root=Path(context.runs_root),
+            storage_mode="local",
+        )
+        results = persisted_results(settings)
+        if results:
+            con.execute(
+                "CREATE TABLE played_results(match INTEGER, home_goals INTEGER, away_goals INTEGER, winner VARCHAR)"
+            )
+            con.executemany(
+                "INSERT INTO played_results VALUES (?, ?, ?, ?)",
+                [(r.match, r.home_goals, r.away_goals, r.winner) for r in results.values()],
+            )
+            built.append("played_results")
         if context.archive_dir is not None:
             from wolves.markets.series import compact_series
 
@@ -84,7 +103,7 @@ def render_data_card(context: SandboxContext) -> str:
             "",
             f"Research dataset `{context.dataset_id}` (read-only, preloaded behind `wq.query`).",
             "The overlay DB (`inputs/overlay.duckdb`) adds run-local tables: ledger, calibration,",
-            "market_series; attach is automatic, query them by name.",
+            "played_results, market_series; attach is automatic, query them by name.",
             "",
         ]
         tables = [r[0] for r in con.execute("SHOW TABLES").fetchall()]

@@ -273,6 +273,7 @@ def _build_deps(
     forecaster: Forecaster | None = None
     try:
         forecaster = Forecaster(settings)
+        forecaster.set_default_results(persisted_results(settings))
         forecaster.fit(as_of=date.fromisoformat(as_of), extra_results=played_match_records(settings))
     except Exception as exc:
         forecaster = None
@@ -748,10 +749,12 @@ def _attribution_block(deps: AgentDeps, outputs) -> AttributionOut | None:
             return None
         previous_as_of = date.fromisoformat(run_day(previous.run))
         submitted = {t.team_id: t.champion_prob for t in outputs.teams}
+        played = persisted_results(deps.settings)
         report = decompose(
             deps.forecaster,
             as_of=date.fromisoformat(deps.as_of),
             previous_as_of=previous_as_of,
+            results=played,
             submitted=submitted,
         )
         return AttributionOut(bracket_pp=report.bracket_pp, refit_pp=report.refit_pp, residual_pp=report.residual_pp)

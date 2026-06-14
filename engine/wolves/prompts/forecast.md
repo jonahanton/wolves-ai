@@ -80,7 +80,13 @@ Method:
   check_forecast) anchors today's width the way yesterday's mean anchors
   today's number. Before you finalise, check
   what_changed and forecast_history, state the market number, and steelman
-  the case that the market is right and you are wrong.
+  the case that the market is right and you are wrong. Anchoring is an audit
+  trail, not obedience: if yesterday missed information or made the wrong call,
+  explain the break and publish the better forecast.
+- Played tournament results are already fixed in the model and live bracket.
+  Cite them as facts and group-state changes, but do not add a scenario world
+  for their direct bracket effect. A result can justify only the separate
+  posterior strength update that quant has priced.
 - Before finalising, read the band the cited artifact implies: the
   mixture_spread quick-look, or the spread section in check_forecast. A band
   narrower than the model's own parameter noise claims today's evidence

@@ -6,6 +6,7 @@ quantified: every strength delta reports its output-space impact."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, date, datetime
 
@@ -91,9 +92,14 @@ class Forecaster:
         self.fmt: FormatData = load_format(settings.data_dir)
         self.champion = ChampionRegistry(settings).load()
         self._dataset = dataset
+        self._default_results: dict[int, PlayedResult] = {}
         half_life = self.champion.half_life_days
         self.model = PoissonDecayModel(**({"half_life_days": half_life} if half_life else {}))
         self._state: FittedState | None = None
+
+    def set_default_results(self, results: Mapping[int, PlayedResult] | None) -> None:
+        """Use played tournament results in every simulation unless explicitly overridden."""
+        self._default_results = dict(results or {})
 
     @property
     def dataset(self) -> DatasetHandle:
@@ -103,10 +109,20 @@ class Forecaster:
             self._dataset = DatasetHandle(path=path, dataset_id=manifest.dataset_id)
         return self._dataset
 
-    def fit(self, *, as_of: date | None = None, extra_results: list[MatchRecord] | None = None) -> FittedState:
+    def fit(
+        self,
+        *,
+        as_of: date | None = None,
+        extra_results: list[MatchRecord] | None = None,
+        use_default_results: bool = True,
+    ) -> FittedState:
         """Fit the champion; extra_results overlay fresh full-time results so a
         mid-tournament refit sees last night's games immediately."""
         dataset = self.dataset
+        if extra_results is None and use_default_results and self._default_results:
+            from wolves.sim.results_store import played_match_records
+
+            extra_results = played_match_records(self._settings)
         if extra_results:
             dataset = overlay_results(dataset, extra_results, dest_dir=self._settings.runs_root / "overlays")
         self._state = self.model.fit(dataset, as_of=as_of or datetime.now(UTC).date())
@@ -252,7 +268,7 @@ class Forecaster:
             engine,
             n_sims=n_sims,
             seed=seed,
-            results=results,
+            results=results if results is not None else self.played_results(),
             fixture_goal_offsets=offsets or None,
             live_distributions=injected or None,
             in_match_perturbations=in_match,
@@ -283,7 +299,7 @@ class Forecaster:
 
     def played_results(self, *, extra_results: dict[int, PlayedResult] | None = None) -> dict[int, PlayedResult]:
         """Played results from the data directory, overlaid with freshly polled full times."""
-        return load_results(self._settings.data_dir) | (extra_results or {})
+        return load_results(self._settings.data_dir) | self._default_results | (extra_results or {})
 
     def sim_outputs(
         self,

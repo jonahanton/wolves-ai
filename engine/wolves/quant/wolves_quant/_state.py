@@ -89,7 +89,10 @@ def forecaster() -> Forecaster:
         )
         handle = DatasetHandle(path=Path(ctx.dataset_path), dataset_id=ctx.dataset_id or "unknown")
         fc = Forecaster(settings, dataset=handle)
-        fc.fit(as_of=date.fromisoformat(ctx.as_of))
+        from wolves.sim.results_store import persisted_results, played_match_records
+
+        fc.set_default_results(persisted_results(settings))
+        fc.fit(as_of=date.fromisoformat(ctx.as_of), extra_results=played_match_records(settings))
         SESSION.forecaster = fc
     return SESSION.forecaster
 

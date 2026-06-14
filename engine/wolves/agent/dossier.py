@@ -57,11 +57,17 @@ def build_dossier(deps: AgentDeps) -> str:
 def _what_changed(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     from datetime import date as _date
 
+    from wolves.agent.scoring import latest_snapshot_by_kind
     from wolves.insights.what_changed import diff_inputs, load_latest_snapshot, what_changed
 
     if not deps.as_of:
         return ""
-    previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of))
+    previous = latest_snapshot_by_kind(
+        deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of), kind="agent"
+    )
+    previous = previous or load_latest_snapshot(
+        deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of)
+    )
     played, market_moves, fixtures = diff_inputs(
         previous=previous,
         forecaster=deps.forecaster,
@@ -168,13 +174,16 @@ def _matchday(deps: AgentDeps, titles: dict[str, float] | None) -> str:
 def _scenarios(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     if deps.scenarios is None:
         return ""
-    open_states = deps.scenarios.open_scenarios()
+    open_states = [s for s in deps.scenarios.open_scenarios() if s.weight > 0]
     if not open_states:
         return ""
-    rows = "; ".join(f"{s.scenario_id} {s.name} (w={s.weight:.2f}, {s.status})" for s in open_states)
+    rows = "; ".join(
+        f"{s.scenario_id} {s.name} (w={s.weight:.2f}, {s.status}; latest: {s.history[-1].reason})"
+        for s in open_states
+    )
     return (
-        f"Open scenarios you must resolve today (collapse, reweight, carry or expire each "
-        f"with scenario_update): {rows}."
+        "Open internal scenarios for forecast or quant to resolve with scenario_update. The scn-* keys "
+        f"are private registry ids, not web search terms; search only the named football story: {rows}."
     )
 
 
@@ -219,11 +228,14 @@ def _gaps(deps: AgentDeps, titles: dict[str, float] | None) -> str:
 def _published(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     from datetime import UTC, datetime
 
+    from wolves.agent.scoring import latest_snapshot_by_kind
     from wolves.insights.what_changed import load_latest_snapshot
 
     if not deps.as_of:
         return ""
-    previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=date.fromisoformat(deps.as_of))
+    snapshot_dir = deps.settings.runs_root / "snapshots"
+    latest = load_latest_snapshot(snapshot_dir, before=date.fromisoformat(deps.as_of))
+    previous = latest_snapshot_by_kind(snapshot_dir, before=date.fromisoformat(deps.as_of), kind="agent") or latest
     if previous is None:
         return ""
     top = sorted(previous.teams, key=lambda t: t.champion_prob, reverse=True)[:_TOP_TEAMS]
@@ -237,8 +249,12 @@ def _published(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     worlds = ""
     if previous.agent is not None and previous.agent.worlds:
         worlds = " Its worlds: " + ", ".join(f"{w.name} {w.weight:.2f}" for w in previous.agent.worlds[:8]) + "."
+    live_note = ""
+    if latest is not None and latest.run.run_id != previous.run.run_id:
+        live_note = f" Latest live snapshot is {latest.run.run_id}; use it for settled state, not continuity."
     return (
-        f"Previous published forecast ({previous.run.run_id}, {previous.run.kind}, created {when}): {rows}.{worlds} "
+        f"Previous agent forecast ({previous.run.run_id}, {previous.run.kind}, created {when}): {rows}.{worlds}"
+        f"{live_note} "
         "This is the anchor your run moves from; unexplained drift against it is rejected at submission. "
         "Nodes can open its full narrative, evidence and artifact index with previous_forecast."
     )

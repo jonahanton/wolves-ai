@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.source_memory import SourceMemory
 from wolves.insights.market import moves_between
-from wolves.sim.format import FormatData
+from wolves.sim.format import FormatData, PlayedResult
 from wolves.snapshot import Snapshot, run_day
 
 if TYPE_CHECKING:
@@ -97,6 +97,31 @@ def fixtures_within(fmt: FormatData, *, on: date, hours: int = FIXTURE_WINDOW_HO
     ]
 
 
+def played_tournament_since(
+    fmt: FormatData, results: dict[int, PlayedResult], *, since: date, until: date
+) -> list[PlayedMatch]:
+    """World Cup fixtures in the run overlay played in [since, until], oldest first."""
+    matches = sorted([*fmt.group_matches, *fmt.knockout], key=lambda match: (match.date, match.match))
+    played: list[PlayedMatch] = []
+    for match in matches:
+        result = results.get(match.match)
+        if result is None:
+            continue
+        played_on = date.fromisoformat(match.date[:10])
+        if not since <= played_on <= until:
+            continue
+        played.append(
+            PlayedMatch(
+                date=played_on,
+                home_team=match.home,
+                away_team=match.away,
+                home_goals=result.home_goals,
+                away_goals=result.away_goals,
+            )
+        )
+    return played
+
+
 def diff_inputs(
     *,
     previous: Snapshot | None,
@@ -116,7 +141,12 @@ def diff_inputs(
         return played, moves, fixtures
     if forecaster is not None:
         try:
-            played = played_since(forecaster.dataset.path, since=date.fromisoformat(run_day(previous.run)), until=today)
+            played = played_tournament_since(
+                forecaster.fmt,
+                forecaster.played_results(),
+                since=date.fromisoformat(run_day(previous.run)),
+                until=today,
+            )
         except Exception as exc:
             logger.warning("played-results diff skipped: %s", exc)
     try:

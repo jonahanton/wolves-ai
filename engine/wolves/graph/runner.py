@@ -53,7 +53,8 @@ def _kickoff(deps: AgentDeps, as_of: str) -> str:
     journal = (deps.memory.read_latest_journal() or "").strip() or "(none)"
     dossier = build_dossier(deps).strip() or "(no deterministic dossier this run)"
     return (
-        f"Today is {as_of}. Produce today's forecast.\n\nDossier:\n{dossier}\n\n"
+        f"Today is {as_of}. Focus team: {deps.settings.focus_team}. Produce today's forecast.\n\n"
+        f"Dossier:\n{dossier}\n\n"
         f"Lessons:\n{lessons}\n\nLatest journal:\n{journal}"
     )
 

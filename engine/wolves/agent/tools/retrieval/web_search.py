@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel
@@ -8,7 +9,9 @@ from wolves.agent.deps import AgentDeps
 from wolves.agent.tools._shared import reserve_or_refuse
 from wolves.toolkit._timeout import run_with_timeout
 from wolves.toolkit.core import ToolSpec
-from wolves.toolkit.result import SourceRef, ToolResult
+from wolves.toolkit.result import SourceRef, ToolError, ToolResult
+
+_INTERNAL_ID = re.compile(r"\b(?:scn|led|mixture|evidence|quant)-\d{3}\b|\b[a-z]+_watch_\d{4}-\d{2}-\d{2}\b")
 
 
 class WebSearchArgs(BaseModel):
@@ -22,6 +25,15 @@ async def _web_search(args: WebSearchArgs, deps: AgentDeps) -> ToolResult[Any]:
     refused = reserve_or_refuse(deps)
     if refused is not None:
         return refused
+    if _INTERNAL_ID.search(args.query):
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="internal_id_query",
+                message="internal run ids are not public search terms; search the named team, player, source or event",
+            ),
+        )
     result = await run_with_timeout(
         deps.web.search(
             actor=deps.actor,
@@ -51,7 +63,8 @@ SPEC = ToolSpec(
     description=(
         "Search the web. Use Exa for semantic source-finding and Brave for fresh news; "
         "leave provider unset to use whichever is available. Set freshness (e.g. 'pd', 'pw') "
-        "when recency matters."
+        "when recency matters. Never include internal ids such as scn-001, led-0001 or mixture-002; "
+        "search the underlying team, player, source or event instead."
     ),
     args_model=WebSearchArgs,
     fn=_web_search,

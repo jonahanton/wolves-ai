@@ -92,9 +92,16 @@ def settings(tmp_path) -> Settings:
         ],
         agent=agent,
     )
+    live = _snapshot(
+        run_id="live-20260608-180000",
+        created_at="2026-06-08T18:00:00+00:00",
+        kind="live",
+        matches=[_match(1, p_home=0.5, p_draw=0.3, p_away=0.2)],
+    )
     (snapshot_dir / "run-20260608.json").write_text(baseline.model_dump_json())
     (snapshot_dir / "agent-20260608-120000.json").write_text(previous.model_dump_json())
-    (runs_root / "snapshots" / "latest.json").write_text(previous.model_dump_json())
+    (snapshot_dir / "live-20260608-180000.json").write_text(live.model_dump_json())
+    (runs_root / "snapshots" / "latest.json").write_text(live.model_dump_json())
 
     return Settings(data_dir=tmp_path / "data", runs_root=runs_root)
 

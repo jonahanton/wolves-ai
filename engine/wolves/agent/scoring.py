@@ -25,15 +25,12 @@ from wolves.snapshot import MatchProbs, Snapshot, run_day
 logger = logging.getLogger(__name__)
 
 
-def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapshot | None, Snapshot | None]:
-    """Return (latest snapshot, latest sim-only snapshot) created before the date."""
-    latest: Snapshot | None = None
-    baseline: Snapshot | None = None
+def _snapshots_before(snapshot_dir: Path, *, before: date) -> list[Snapshot]:
     if not snapshot_dir.exists():
-        return None, None
+        return []
+    snapshots: list[Snapshot] = []
     for path in snapshot_dir.rglob("*.json"):
         if path.name == "latest.json" or path.name.count(".") > 1:
-            # The extra dot marks a sidecar blob, not a snapshot.
             continue
         try:
             snapshot = Snapshot.model_validate_json(path.read_text(encoding="utf-8"))
@@ -42,6 +39,21 @@ def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapsh
             continue
         if date.fromisoformat(run_day(snapshot.run)) >= before:
             continue
+        snapshots.append(snapshot)
+    return snapshots
+
+
+def latest_snapshot_by_kind(snapshot_dir: Path, *, before: date, kind: str) -> Snapshot | None:
+    """Latest snapshot of one kind before the run date."""
+    matches = [snapshot for snapshot in _snapshots_before(snapshot_dir, before=before) if snapshot.run.kind == kind]
+    return max(matches, key=lambda snapshot: snapshot.run.created_at, default=None)
+
+
+def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapshot | None, Snapshot | None]:
+    """Return (latest snapshot, latest sim-only snapshot) created before the date."""
+    latest: Snapshot | None = None
+    baseline: Snapshot | None = None
+    for snapshot in _snapshots_before(snapshot_dir, before=before):
         if latest is None or snapshot.run.created_at > latest.run.created_at:
             latest = snapshot
         if snapshot.run.kind == "sim_only" and (baseline is None or snapshot.run.created_at > baseline.run.created_at):
@@ -112,7 +124,10 @@ def score_resolved_matches(
 def score_yesterday(settings: Settings, *, as_of: str, run_id: str) -> str:
     """Score forecasts that resolved since the previous run and record the
     scorecard as a lesson; return the summary (empty when nothing scored)."""
-    previous, baseline = load_previous_snapshots(settings.runs_root / "snapshots", before=date.fromisoformat(as_of))
+    snapshot_dir = settings.runs_root / "snapshots"
+    previous = latest_snapshot_by_kind(snapshot_dir, before=date.fromisoformat(as_of), kind="agent")
+    latest, baseline = load_previous_snapshots(snapshot_dir, before=date.fromisoformat(as_of))
+    previous = previous or latest
     if previous is None:
         return ""
     ledger = CalibrationLedger(settings.calibration_path)
