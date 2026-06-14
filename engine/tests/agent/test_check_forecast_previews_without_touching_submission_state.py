@@ -9,6 +9,11 @@ from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools.submission.check_forecast import _check_forecast
 
+SCENARIO_WEIGHTS = [
+    {"name": "plays", "weight": 0.6, "rationale": "Keeper plays after training in full."},
+    {"name": "out", "weight": 0.4, "rationale": "Keeper absence still carries some squad risk."},
+]
+
 
 @pytest.fixture
 def deps(tmp_path: Path) -> AgentDeps:
@@ -40,7 +45,7 @@ def deps(tmp_path: Path) -> AgentDeps:
 @pytest.mark.parametrize(
     ("submission", "expect_ok"),
     [
-        pytest.param(build_submission(), True, id="clean-draft"),
+        pytest.param(build_submission(scenario_weights=SCENARIO_WEIGHTS), True, id="clean-draft"),
         pytest.param(build_submission(artifact_id="mixture-999"), False, id="hard-issue-draft"),
     ],
 )

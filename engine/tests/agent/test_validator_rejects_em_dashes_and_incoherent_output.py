@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import build_narrative, build_submission
+from tests.conftest import R32_MATCHES, build_narrative, build_submission
 from tests.graph.conftest import build_run_store
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.validator import ValidatorLimits, validate_submission
@@ -48,6 +48,7 @@ def _codes(report) -> set[str]:
 
 
 def _validate(submission, store, ledger, **kwargs):
+    kwargs.setdefault("slot_rationale_keys", set(R32_MATCHES))
     return validate_submission(submission, artifacts=store, ledger=ledger, limits=ValidatorLimits(), **kwargs)
 
 
@@ -76,6 +77,89 @@ def test_missing_slot_rationales_reject(store: RunArtifactStore, ledger: Evidenc
     narrative = build_narrative(slot_rationales={"73": "favourite advances"})
     submission = build_submission(narrative=narrative)
     assert "slot_rationales_incomplete" in _codes(_validate(submission, store, ledger))
+
+
+def test_multi_world_artifact_needs_matching_scenario_weights(store: RunArtifactStore, ledger: EvidenceLedger):
+    missing = _validate(build_submission(), store, ledger)
+    assert "scenario_weights_missing" in _codes(missing)
+
+    wrong = build_submission(
+        scenario_weights=[
+            {"name": "plays", "weight": 0.7, "rationale": "Keeper plays after training in full."},
+            {"name": "out", "weight": 0.3, "rationale": "Keeper absence still carries some squad risk."},
+        ]
+    )
+    report = _validate(wrong, store, ledger)
+
+    assert "scenario_weights_mismatch" in _codes(report)
+    assert "wrong weight for out, plays" in report.summary()
+
+
+def test_generic_camps_need_one_declaration_per_used_key(store: RunArtifactStore, ledger: EvidenceLedger):
+    submission = build_submission(
+        scenario_weights=[
+            {
+                "name": "plays",
+                "weight": 0.6,
+                "rationale": "Keeper plays after training in full.",
+                "camp": "keeper-fit",
+            },
+            {
+                "name": "out",
+                "weight": 0.4,
+                "rationale": "Keeper absence still carries some squad risk.",
+                "camp": "keeper-out",
+            },
+        ],
+        camps=[
+            {
+                "key": "keeper-fit",
+                "label": "Keeper fit",
+                "summary": "The first-choice goalkeeper starts.",
+                "order": 0,
+            }
+        ],
+    )
+    report = _validate(submission, store, ledger)
+
+    assert "camp_missing" in _codes(report)
+    assert "keeper-out" in report.summary()
+
+
+def test_matching_non_market_camps_pass_the_contract(store: RunArtifactStore, ledger: EvidenceLedger):
+    submission = build_submission(
+        scenario_weights=[
+            {
+                "name": "plays",
+                "weight": 0.6,
+                "rationale": "Keeper plays after training in full.",
+                "camp": "keeper-fit",
+            },
+            {
+                "name": "out",
+                "weight": 0.4,
+                "rationale": "Keeper absence still carries some squad risk.",
+                "camp": "keeper-out",
+            },
+        ],
+        camps=[
+            {
+                "key": "keeper-fit",
+                "label": "Keeper fit",
+                "summary": "The first-choice goalkeeper starts.",
+                "order": 0,
+            },
+            {
+                "key": "keeper-out",
+                "label": "Keeper out",
+                "summary": "The defence plays without its first-choice goalkeeper.",
+                "order": 1,
+            },
+        ],
+    )
+    report = _validate(submission, store, ledger)
+
+    assert not {"scenario_weights_missing", "scenario_weights_mismatch", "camp_missing"} & _codes(report)
 
 
 def test_typed_probabilities_never_publish(store: RunArtifactStore, ledger: EvidenceLedger):

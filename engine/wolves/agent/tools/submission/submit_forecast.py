@@ -85,14 +85,14 @@ SPEC = ToolSpec(
     description=(
         "Submit the final forecast by ARTIFACT REFERENCE: artifact_id names a computed mixture or "
         "simulation artifact from this run (wq.scenario_mixture outputs register automatically); "
-        "typed probabilities are never accepted. Carry the named scenario weights with their ledger "
-        "citations, the focus team daily story, one rationale per R32 slot and the travel memo, no "
-        "em-dashes. The mixture publishes as the headline, unblended. Moves beyond the escalation "
-        "threshold against the frozen baseline trigger one steelman pass before acceptance; moves "
-        "against the previous published forecast need change_justification or an explicit "
-        "inconsistency_note; gaps beyond threshold against the de-vigged market need "
-        "market_justification naming the computation that earns them. check_forecast previews this "
-        "validation for free."
+        "typed probabilities are never accepted. Carry scenario weights matching the artifact's world "
+        "names and weights, with their ledger citations, the focus team daily story, one rationale per "
+        "currently open knockout slot named in the dossier and the travel memo, no em-dashes. The "
+        "mixture publishes as the headline, unblended. Moves beyond the escalation threshold against "
+        "the frozen baseline trigger one steelman pass before acceptance; moves against the previous "
+        "published forecast need change_justification or an explicit inconsistency_note; gaps beyond "
+        "threshold against the de-vigged market need market_justification naming the computation that "
+        "earns them. check_forecast previews this validation for free."
     ),
     args_model=ForecastSubmission,
     fn=_submit_forecast,

@@ -24,6 +24,7 @@ from wolves.agent.consensus import publish_scale
 from wolves.agent.deps import AgentDeps, SubmissionState
 from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, simulate_worlds, worlds_from_payload
+from wolves.agent.knockout_slots import open_knockout_rationale_slots
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.market_base import seed_baseline_payload
 from wolves.agent.memory import RunMemory
@@ -83,7 +84,7 @@ from wolves.s3.client import S3UnavailableError
 from wolves.s3.fitted import FittedStateStore
 from wolves.s3.layout import ARTICLE, RELEVANCE_FEEDBACK, RELEVANCE_MEMORY, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
-from wolves.sim.format import load_format
+from wolves.sim.format import load_format, load_results
 from wolves.sim.mc import SimResult
 from wolves.sim.results_store import persisted_results, played_match_records, stored_fixtures
 from wolves.snapshot import (
@@ -111,7 +112,7 @@ from wolves.toolkit._budget_gate import BudgetGate
 logger = logging.getLogger(__name__)
 
 
-def _dev_submission(as_of: str, focus: str) -> dict:
+def _dev_submission(as_of: str, focus: str, slot_keys: list[str]) -> dict:
     return {
         "artifact_id": "mixture-001",
         "narrative": {
@@ -122,10 +123,13 @@ def _dev_submission(as_of: str, focus: str) -> dict:
                 f"The {focus} camp is calm: the keeper trained in full and the market still makes them "
                 "third favourites behind Spain and France."
             ),
-            "slot_rationales": {str(m): f"Slot {m}: the rating gap favours the group winner." for m in range(73, 89)},
+            "slot_rationales": {key: f"Slot {key}: the rating gap favours the group winner." for key in slot_keys},
             "travel_memo": f"Win the group and {focus} stay on the east coast; finishing second buys a longer trip.",
         },
-        "scenario_weights": [],
+        "scenario_weights": [
+            {"name": "keeper_fit", "weight": 0.8, "rationale": "The keeper trained in full."},
+            {"name": "keeper_doubt", "weight": 0.2, "rationale": "A small residual fitness doubt remains."},
+        ],
         "evidence_ids": ["led-0001"],
         # The keeper story resolved as confirmed fit, so the narrow band is
         # argued rather than widened; also the dev walk's answer to the
@@ -136,7 +140,7 @@ def _dev_submission(as_of: str, focus: str) -> dict:
     }
 
 
-def _dev_models(runtime: ObservedRuntime, as_of: str, focus: str) -> GraphModels:
+def _dev_models(runtime: ObservedRuntime, as_of: str, focus: str, slot_keys: list[str]) -> GraphModels:
     """A canned full graph walk: research and quant waves, then a forecast
     node that cites the quant artifact and submits through the validator."""
     expiry = (datetime.fromisoformat(as_of) + timedelta(days=3)).date().isoformat()
@@ -191,7 +195,7 @@ def _dev_models(runtime: ObservedRuntime, as_of: str, focus: str) -> GraphModels
                     "write_journal",
                     {"text": f"Keeper confirmed fit; sim and market agree {focus} are third favourites."},
                 ),
-                ("submit_forecast", _dev_submission(as_of, focus)),
+                ("submit_forecast", _dev_submission(as_of, focus, slot_keys)),
             ],
             ForecastOutput(summary="Submitted the baseline-anchored forecast."),
         ],
@@ -815,7 +819,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
     else:
         runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=Caps(), runs_root=settings.runs_root)
-        models = _dev_models(runtime, as_of, settings.focus_team)
+        dev_slots = open_knockout_rationale_slots(
+            load_format(settings.data_dir), load_results(settings.data_dir, settings=settings)
+        )
+        models = _dev_models(runtime, as_of, settings.focus_team, [slot.key for slot in dev_slots])
         sample = {
             "rating_overrides": [
                 {"team_id": settings.focus_team, "delta_elo": 15.0, "cause": "keeper fit", "ledger_ids": ["led-0001"]}

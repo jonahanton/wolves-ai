@@ -10,6 +10,7 @@ from datetime import date
 
 from wolves.agent.calibration import CalibrationLedger, summarise_scores
 from wolves.agent.deps import AgentDeps
+from wolves.agent.knockout_slots import format_slot_rationale_brief, open_knockout_rationale_slots
 from wolves.insights.market import market_movement
 from wolves.insights.market_gaps import market_gaps
 
@@ -33,6 +34,7 @@ def build_dossier(deps: AgentDeps) -> str:
     for build in (
         _what_changed,
         _tournament,
+        _knockout_rationales,
         _baseline,
         _gaps,
         _published,
@@ -110,6 +112,16 @@ def _tournament(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     if fixtures:
         parts.append(f"Fixtures today and tomorrow: {', '.join(fixtures[:16])}.")
     return " ".join(parts)
+
+
+def _knockout_rationales(deps: AgentDeps, titles: dict[str, float] | None) -> str:
+    fc = deps.forecaster
+    if fc is None:
+        return ""
+    from wolves.sim.results_store import persisted_results
+
+    slots = open_knockout_rationale_slots(fc.fmt, fc.played_results(extra_results=persisted_results(deps.settings)))
+    return format_slot_rationale_brief(slots)
 
 
 def _matchday(deps: AgentDeps, titles: dict[str, float] | None) -> str:

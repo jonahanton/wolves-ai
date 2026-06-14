@@ -15,12 +15,22 @@ from wolves.graph.fakes import scripted_model
 from wolves.graph.runner import GraphModels, run_graph
 from wolves.observability import EventLog
 
+SCENARIO_WEIGHTS = [
+    {"name": "plays", "weight": 0.6, "rationale": "Keeper plays after training in full."},
+    {"name": "out", "weight": 0.4, "rationale": "Keeper absence still carries some squad risk."},
+]
+
 INVALID = build_submission(
+    artifact_id="mixture-999",
     narrative=build_submission().narrative.model_copy(
         update={"focus_story": "England cruise — nothing to worry about.", "slot_rationales": {"73": "only one"}}
-    )
+    ),
+    scenario_weights=SCENARIO_WEIGHTS,
 )
-VALID = build_submission(market_justification="Confirmed keeper news the books have not priced.")
+VALID = build_submission(
+    market_justification="Confirmed keeper news the books have not priced.",
+    scenario_weights=SCENARIO_WEIGHTS,
+)
 
 RESEARCH = scripted_model(
     [

@@ -9,7 +9,15 @@ from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools.submission.submit_forecast import _submit_forecast
 
-COPY_ONLY = build_submission(narrative=build_narrative(focus_story="England look sharp — and the camp is calm."))
+SCENARIO_WEIGHTS = [
+    {"name": "plays", "weight": 0.6, "rationale": "Keeper plays after training in full."},
+    {"name": "out", "weight": 0.4, "rationale": "Keeper absence still carries some squad risk."},
+]
+
+COPY_ONLY = build_submission(
+    narrative=build_narrative(focus_story="England look sharp — and the camp is calm."),
+    scenario_weights=SCENARIO_WEIGHTS,
+)
 HARD = build_submission(artifact_id="mixture-999")
 
 

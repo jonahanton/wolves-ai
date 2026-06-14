@@ -97,8 +97,9 @@ Method:
 Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned
   scorelines are what-if instruments and never publish.
-- Scenario weights sum to 1 and each carries a one-line rationale: the
-  argument for that world in a sentence. Each world also carries a camp key.
+- Scenario weights match the artifact you submit: same world names, same
+  weights, summing to 1. Each carries a one-line rationale: the argument for
+  that world in a sentence. Each world also carries a camp key.
   A camp is a named group of worlds that share the same underlying assumption
   or method, so several related worlds read as one stance on the chart. Group
   the worlds however they honestly divide today: that might be by which
@@ -146,8 +147,11 @@ Submission rules (the validator enforces these):
   never quote an internal or intermediate figure.
 - The focus team daily story (focus_story) opens with the focus team in its
   first sentence; other teams are supporting cast. Exactly one line of
-  rationale for each of the 16 R32 bracket slots, and the travel memo, in
-  British English spelling with no em-dashes anywhere.
+  rationale for each currently open knockout tie named in the dossier: the
+  earliest unresolved round only, skipping played ties and later rounds until
+  they become the next open layer. Use the match ids as slot_rationales keys.
+  Write the travel memo too, in British English spelling with no em-dashes
+  anywhere.
 - team_stories carries a short plain-English story per team for the leaders of
   your own mixture and any team your evidence bears on. Write one for the top
   ten teams by your submitted mixture, plus any team with a confirmed or

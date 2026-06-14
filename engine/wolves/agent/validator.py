@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 
 EM_DASH = "—"
 _REACH_ORDER = ["r32", "r16", "qf", "sf", "final", "champion"]
-_R32_SLOT_COUNT = 16
 _UNPRICED_DELTA_FLOOR = 0.5
 _BASE_WORLDS = frozenset({"baseline", "model_base", "market_base"})
 
@@ -68,6 +67,7 @@ def validate_submission(
     market_titles: dict[str, float] | None = None,
     focus_team: str | None = None,
     focus_vs_floor: float | None = None,
+    slot_rationale_keys: set[str] | None = None,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
     citation discipline on weights, Paleka coherence on the artifact's own
@@ -81,6 +81,7 @@ def validate_submission(
         issues += _check_evidence_priced(submission, payload, ledger)
         issues += _check_weight_dilution(payload, limits)
         issues += _check_team_stories(submission, payload)
+        issues += _check_scenario_metadata(submission, payload)
         if baseline_titles is not None:
             escalations += _diff_escalations(payload, baseline_titles, limits, against="baseline")
         if previous_titles is not None and not (
@@ -114,7 +115,7 @@ def validate_submission(
                     )
                 )
     issues += _check_weights(submission, ledger)
-    issues += _check_narrative(submission)
+    issues += _check_narrative(submission, slot_rationale_keys)
     issues += _check_em_dashes(submission)
     issues += _check_british_english(submission)
     issues += _check_focus_story(submission, focus_team)
@@ -228,6 +229,69 @@ def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[Valid
             f"opposing world; merge them or argue why they are genuinely distinct branches: {described}",
         )
     ]
+
+
+def _check_scenario_metadata(submission: ForecastSubmission, payload: dict) -> list[ValidationIssue]:
+    weights: dict[str, float] = payload.get("weights") or {}
+    worlds_block: dict[str, dict] = payload.get("worlds") or {}
+    if not worlds_block:
+        return []
+    issues: list[ValidationIssue] = []
+    submitted = {w.name: w for w in submission.scenario_weights}
+    if len(weights) > 1 and not submitted:
+        return [
+            _issue(
+                "scenario_weights_missing",
+                "multi-world artifacts need scenario_weights matching the artifact's world names and weights",
+            )
+        ]
+    missing = set(weights) - set(submitted)
+    extra = set(submitted) - set(weights)
+    mismatched = [
+        name for name, weight in weights.items() if name in submitted and abs(submitted[name].weight - weight) > 1e-6
+    ]
+    if missing or extra or mismatched:
+        detail = []
+        if missing:
+            detail.append(f"missing {', '.join(sorted(missing))}")
+        if extra:
+            detail.append(f"unexpected {', '.join(sorted(extra))}")
+        if mismatched:
+            detail.append(f"wrong weight for {', '.join(sorted(mismatched))}")
+        issues.append(
+            _issue(
+                "scenario_weights_mismatch",
+                "scenario_weights must match the submitted artifact's world names and weights: "
+                + "; ".join(detail),
+            )
+        )
+    issues += _check_camps(submission)
+    return issues
+
+
+def _check_camps(submission: ForecastSubmission) -> list[ValidationIssue]:
+    if not submission.scenario_weights and not submission.camps:
+        return []
+    issues: list[ValidationIssue] = []
+    declared: dict[str, int] = {}
+    for camp in submission.camps:
+        declared[camp.key] = declared.get(camp.key, 0) + 1
+    duplicates = sorted(key for key, count in declared.items() if count > 1)
+    if duplicates:
+        issues.append(_copy_issue("camp_duplicate", f"declare each camp once: {', '.join(duplicates)}"))
+    used = {w.camp for w in submission.scenario_weights if w.camp}
+    missing = sorted(used - set(declared))
+    if missing:
+        issues.append(_copy_issue("camp_missing", f"declare each used camp key: {', '.join(missing)}"))
+    orphaned = sorted(set(declared) - used)
+    if orphaned:
+        issues.append(
+            _copy_issue("camp_orphaned", f"remove declared camps with no member worlds: {', '.join(orphaned)}")
+        )
+    blank = sorted(c.key for c in submission.camps if not c.label.strip() or not c.summary.strip())
+    if blank:
+        issues.append(_copy_issue("camp_copy_missing", f"each camp needs a label and summary: {', '.join(blank)}"))
+    return issues
 
 
 def _issue(code: str, message: str) -> ValidationIssue:
@@ -353,7 +417,14 @@ def _check_weights(submission: ForecastSubmission, ledger: EvidenceLedger) -> li
     return issues
 
 
-def _check_narrative(submission: ForecastSubmission) -> list[ValidationIssue]:
+def _sort_slot_keys(keys: set[str]) -> list[str]:
+    def key(value: str) -> tuple[int, int | str]:
+        return (0, int(value)) if value.isdigit() else (1, value)
+
+    return sorted(keys, key=key)
+
+
+def _check_narrative(submission: ForecastSubmission, slot_keys: set[str] | None) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     narrative = submission.narrative
     if not narrative.focus_story.strip():
@@ -361,11 +432,22 @@ def _check_narrative(submission: ForecastSubmission) -> list[ValidationIssue]:
     if not narrative.travel_memo.strip():
         issues.append(_issue("narrative_missing", "the travel memo is required"))
     rationales = {k: v for k, v in narrative.slot_rationales.items() if v.strip()}
-    if len(rationales) != _R32_SLOT_COUNT:
+    if slot_keys is None:
+        return issues
+    expected = set(slot_keys)
+    missing = expected - set(rationales)
+    unexpected = set(rationales) - expected
+    if missing or unexpected:
+        detail = []
+        if missing:
+            detail.append(f"missing {', '.join(_sort_slot_keys(missing))}")
+        if unexpected:
+            detail.append(f"unexpected {', '.join(_sort_slot_keys(unexpected))}")
         issues.append(
             _issue(
                 "slot_rationales_incomplete",
-                f"need one rationale per R32 slot ({_R32_SLOT_COUNT}), got {len(rationales)}",
+                "need one rationale per currently open knockout slot"
+                + (f": {'; '.join(detail)}" if detail else ""),
             )
         )
     return issues

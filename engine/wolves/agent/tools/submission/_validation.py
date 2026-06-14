@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps, ValidatorAnchors
+from wolves.agent.knockout_slots import open_knockout_rationale_slots, slot_rationale_keys
 from wolves.agent.validator import ValidationReport, validate_submission
 
 _BASELINE_SIMS = 50_000
@@ -64,6 +65,17 @@ def _focus_vs_floor(spread: dict | None, focus_team: str) -> float | None:
     return row["vs_floor"] if row else None
 
 
+def _slot_rationale_keys(deps: AgentDeps) -> set[str] | None:
+    if deps.forecaster is None:
+        return None
+    from wolves.sim.results_store import persisted_results
+
+    slots = open_knockout_rationale_slots(
+        deps.forecaster.fmt, deps.forecaster.played_results(extra_results=persisted_results(deps.settings))
+    )
+    return slot_rationale_keys(slots)
+
+
 def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationReport:
     anchors = _anchors(deps)
     spread = spread_section(deps, args.artifact_id)
@@ -77,4 +89,5 @@ def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationRe
         market_titles=anchors.market_titles,
         focus_team=deps.settings.focus_team,
         focus_vs_floor=_focus_vs_floor(spread, deps.settings.focus_team),
+        slot_rationale_keys=_slot_rationale_keys(deps),
     )
