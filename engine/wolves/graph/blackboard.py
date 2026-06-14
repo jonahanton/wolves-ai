@@ -36,11 +36,13 @@ class Blackboard:
         ledger: EvidenceLedger,
         runtime: ObservedRuntime,
         source_memory: SourceMemory | None = None,
+        run_context: dict[str, str] | None = None,
     ) -> None:
         self.artifacts = artifacts
         self.ledger = ledger
         self._runtime = runtime
         self._source_memory = source_memory
+        self._run_context = run_context or {}
         self.nodes: list[NodeRecord] = []
         self.challenges: list[str] = []
         self.dropped: list[str] = []
@@ -179,6 +181,8 @@ class Blackboard:
             ],
             "open_challenges": self.challenges,
         }
+        if self._run_context:
+            state["run_context"] = {k: v[:1000] for k, v in self._run_context.items() if v}
         if self.dropped:
             state["last_wave_admission_drops"] = self.dropped
         return json.dumps(state, ensure_ascii=False)

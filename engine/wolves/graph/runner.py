@@ -9,7 +9,7 @@ from pydantic_ai.models import Model
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
-from wolves.agent.dossier import build_dossier
+from wolves.agent.dossier import build_dossier, previous_agent_anchor
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import NodeKind, NodeOutcome, NodePatch
@@ -95,7 +95,14 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
     """The wave loop: plan, admit, execute, merge, until acceptance or caps."""
     store = deps.artifacts or RunArtifactStore(ArtifactStore(deps.settings), run_id=deps.runtime.run_id)
     deps.artifacts = store
-    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime, source_memory=deps.source_memory)
+    continuity_anchor = previous_agent_anchor(deps, top_n=6)
+    board = Blackboard(
+        artifacts=store,
+        ledger=deps.ledger,
+        runtime=deps.runtime,
+        source_memory=deps.source_memory,
+        run_context={"continuity_anchor": continuity_anchor} if continuity_anchor else None,
+    )
     settings = deps.settings
     submission_state = deps.submission
     budget_exhausted = False

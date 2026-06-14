@@ -37,3 +37,21 @@ def test_summary_is_metadata_only(tmp_path: Path):
     assert meta["by"] == "quant-delta"
     assert len(meta["summary"]) == 100
     deps.runtime.shutdown()
+
+
+def test_summary_repeats_run_context_between_waves(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(
+        artifacts=store,
+        ledger=deps.ledger,
+        runtime=deps.runtime,
+        run_context={"continuity_anchor": "Previous agent forecast agent-yesterday. This is not a first run."},
+    )
+
+    state = json.loads(board.summary())
+
+    assert state["run_context"]["continuity_anchor"] == (
+        "Previous agent forecast agent-yesterday. This is not a first run."
+    )
+    deps.runtime.shutdown()
