@@ -96,20 +96,21 @@ class Settings(BaseSettings):
     graph_max_forecast_nodes: int = 3
     graph_max_critic_nodes: int = 3
     graph_research_timeout_s: int = 300
-    graph_quant_timeout_s: int = 1800
+    graph_quant_timeout_s: int = 600
     graph_forecast_timeout_s: int = 900
     # One extra window for a forecast node that times out mid-steelman,
     # demonstrably one round from acceptance.
     graph_forecast_grace_s: int = 180
     graph_critic_timeout_s: int = 180
     graph_research_request_limit: int = 32
-    graph_quant_request_limit: int = 48
+    graph_quant_request_limit: int = 20
     graph_forecast_request_limit: int = 24
     graph_critic_request_limit: int = 8
     graph_research_tool_budget: int = 20
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
     graph_critic_tool_budget: int = 6
+    graph_quant_python_call_limit: int = 8
 
     market_movement_noise_floor_pp: float = 0.7
 

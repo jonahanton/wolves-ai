@@ -28,7 +28,7 @@ _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
 }
 
 
-def _kickoff(brief: Brief, store: RunArtifactStore, *, tool_budget: int, retrievals: str = "") -> str:
+def _kickoff(brief: Brief, store: RunArtifactStore, *, settings: Settings, retrievals: str = "") -> str:
     # References only: payloads stay out of the kickoff so an arbitrarily
     # large dossier cannot blow the node's context; read_artifact pulls them.
     parts = [f"Objective: {brief.objective}", "", brief.brief]
@@ -42,10 +42,17 @@ def _kickoff(brief: Brief, store: RunArtifactStore, *, tool_budget: int, retriev
         parts.append("")
         parts.append(retrievals)
     parts.append("")
-    parts.append(
-        f"Budget: {tool_budget} budgeted tool calls for this node; think, todo_write, read_artifact "
-        "and run_python are free and do not count. Pace your external calls accordingly."
+    tool_budget = _tool_budget(brief.kind, settings)
+    budget_line = (
+        f"Budget: {tool_budget} budgeted tool calls for this node; think, todo_write and read_artifact "
+        "are free and do not count. Pace your external calls accordingly."
     )
+    if brief.kind == "quant":
+        budget_line += (
+            f" run_python is capped at {settings.graph_quant_python_call_limit} scripts for this node, "
+            "including failed scripts."
+        )
+    parts.append(budget_line)
     return "\n".join(parts)
 
 
@@ -146,7 +153,7 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         retrievals = _retrievals_digest(node_deps) if brief.kind == "research" else ""
         result = await _bounded(
             node_agent(brief.kind).run(
-                _kickoff(brief, store, tool_budget=_tool_budget(brief.kind, settings), retrievals=retrievals),
+                _kickoff(brief, store, settings=settings, retrievals=retrievals),
                 deps=node_deps,
                 model=model,
                 model_settings=CACHE_SETTINGS,

@@ -9,7 +9,7 @@ from wolves.agent.deps import AgentDeps
 from wolves.quant.context import build_sandbox_context
 from wolves.quant.inputs import prepare_inputs
 from wolves.toolkit.core import ToolSpec
-from wolves.toolkit.result import ToolResult
+from wolves.toolkit.result import ToolError, ToolResult
 
 _RESULT_CAP_CHARS = 8_000
 _STDOUT_CAP_CHARS = 2_000
@@ -19,7 +19,26 @@ class RunPythonArgs(BaseModel):
     code: str
 
 
+def _python_budget_refusal(deps: AgentDeps) -> ToolResult[Any] | None:
+    limit = deps.settings.graph_quant_python_call_limit
+    if limit <= 0 or deps.python_calls < limit:
+        return None
+    return ToolResult(
+        ok=False,
+        payload={"limit": limit, "used": deps.python_calls},
+        error=ToolError(
+            type="python_budget_exhausted",
+            message=(
+                f"run_python limit reached after {deps.python_calls} script(s). "
+                "Synthesise a quant output from the completed scripts and direct tools."
+            ),
+        ),
+    )
+
+
 async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
+    if refusal := _python_budget_refusal(deps):
+        return refusal
     deps.python_calls += 1
     workspace = deps.quant.workspace(deps.actor)
     context = build_sandbox_context(deps)
@@ -105,8 +124,9 @@ SPEC = ToolSpec(
         "matplotlib are importable. "
         "End every script by assigning the finding to `result` "
         "(JSON-safe; a bare expression or print() does not count). Deltas from wq.impact carry a "
-        "paired-seed noise floor: treat anything below it as simulation noise. This tool is free: "
-        "it never consumes your tool budget, so computing beats guessing."
+        "paired-seed noise floor: treat anything below it as simulation noise. This tool is capped "
+        "per node, including failed scripts, so compute in compact scripts and publish from the "
+        "material already gathered once the cap is near."
     ),
     args_model=RunPythonArgs,
     fn=_run_python,

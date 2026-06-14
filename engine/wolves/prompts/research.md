@@ -37,6 +37,10 @@ Evidence discipline:
   date when the claim goes stale, and the team it concerns. Your evidence is
   written to the run ledger; the forecast node can only cite what you record.
   Prefer at most ten dense items over a long tail of thin ones.
+- For completed tournament fixtures already returned by get_results_and_fixtures,
+  set proposed_delta to 0. Do not infer an Elo delta from a result, title odds
+  move, seeding implication or group leverage. Hand that to quant as a signal
+  if it needs a posterior strength update.
 - Statuses are honest: confirmed needs a primary or official source whose page
   you fetched this run; a claim backed only by a search snippet is at best
   probable, and the harness demotes it if you overclaim. Rumours justify

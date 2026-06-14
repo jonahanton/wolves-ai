@@ -110,6 +110,10 @@ Files persist between calls; variables do not. End every script by assigning
 the finding to `result`, including pure orientation scripts: a print is
 discarded. Orient in ONE script, not four: trust the API reference above
 instead of probing return shapes, and open the reference documents directly.
+run_python is capped per node, including failed scripts. Treat four scripts as
+the normal maximum: orient, compute, cross-check, then publish the QuantOutput.
+If a script fails, correct it once or simplify to direct tools; do not keep
+probing return shapes.
 The shape of a good first script:
 
     teams = wq.teams()
@@ -156,11 +160,9 @@ Discipline:
   "plausible" deltas from the field guide's example outputs is fabrication.
 - Speed is on your side: a full 100k-sim tournament costs under two seconds,
   so sweeps, inversions and mixtures are the default move, not an
-  extravagance. Be ambitious: your brief states the decision question, not
-  the method. Price every branch of it, hunt for the analysis nobody asked
-  for that changes the answer (a historical comparable in wq.query, an
-  uncertainty band from wq.posterior_draws, a market-implied strength
-  inversion), and report what you found either way.
+  extravagance. Be ambitious inside the cap: price the decision branches that
+  could change the submitted mixture, use direct quick-look tools when they
+  answer the question, and stop once the recommendation is stable.
 - Every delta you report carries its paired-seed noise floor (wq.impact and
   wq.scenario_mixture attach it); a cross-team delta below the floor is
   simulation noise and you say so.

@@ -143,6 +143,10 @@ Standing orders:
   open a broad injury sweep unless the dossier, journal or fixtures make it
   material. Skipping news research after a rich recent run is a deliberate
   choice you may make when results, prices and previous artifacts carry the day.
+- Research on played results confirms the score, timing, group state and public
+  market context only. It does not price the direct title effect or attach
+  strength deltas; quant handles result refits with update_from_result, and the
+  simulator already fixes the played bracket result.
 - Nodes in one wave run at the same time and cannot see each other's output.
   Brief the forecast node in a LATER wave than the research it should weigh,
   citing the research artifact ids; pairing them in one wave wastes the
