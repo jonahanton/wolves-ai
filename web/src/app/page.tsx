@@ -9,6 +9,7 @@ import { loadFullRunIds } from "@/lib/full-runs";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
 import { loadResults } from "@/lib/results";
 import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
+import { loadDistributions } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
 
 const CHART_TEAM_COUNT = 7;
@@ -42,10 +43,26 @@ export default async function LandingPage() {
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
     .map((t) => t.team_id);
 
-  const [fullRunIds, ...histories] = await Promise.all([
+  const [fullRunIds, distributions, ...histories] = await Promise.all([
     loadFullRunIds(index),
+    loadDistributions(agentSnapshot.run.run_id),
     ...allIds.map((teamId) => loadTeamHistory(teamId)),
   ] as const);
+
+  const sidecar = orNull(distributions);
+  const championCells = Object.fromEntries(
+    Object.entries(sidecar?.teams ?? {})
+      .map(([teamId, stages]) => [teamId, stages.champion] as const)
+      .filter(([, cell]) => cell !== undefined),
+  );
+  const cellUppers = Object.values(championCells)
+    .filter((c) => c.bin_edges.length > 0)
+    .map((c) => c.bin_edges[c.bin_edges.length - 1]);
+  const xMax = cellUppers.length > 0 ? Math.max(...cellUppers) : 1;
+  const weights = agentSnapshot.agent?.scenario_weights ?? [];
+  const camps = (agentSnapshot.agent?.camps ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const drivers = agentSnapshot.distributions?.drivers ?? {};
+  const stories = agentSnapshot.agent?.narrative.team_stories ?? {};
 
   const chartTeams: ChartTeamInput[] = allIds.map((teamId, i) => ({
     teamId,
@@ -66,6 +83,12 @@ export default async function LandingPage() {
         leaderId={leaderId}
         board={board}
         fullBoard={fullBoard}
+        championCells={championCells}
+        xMax={xMax}
+        weights={weights}
+        camps={camps}
+        drivers={drivers}
+        stories={stories}
       />
       <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">
         <FestivalBand family="euros" tag="Euros 2024 · the Wolves" />

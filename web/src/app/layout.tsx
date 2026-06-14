@@ -24,20 +24,32 @@ const plexMono = localFont({
 });
 
 const fraunces = localFont({
-  src: [{ path: "../fonts/fraunces-latin.woff2", weight: "340 600", style: "normal" }],
+  src: [
+    {
+      path: "../fonts/fraunces-latin.woff2",
+      weight: "340 600",
+      style: "normal",
+    },
+  ],
   variable: "--font-fraunces",
   display: "swap",
 });
 
 const hanken = localFont({
-  src: [{ path: "../fonts/hanken-grotesk-latin.woff2", weight: "400 800", style: "normal" }],
+  src: [
+    {
+      path: "../fonts/hanken-grotesk-latin.woff2",
+      weight: "400 800",
+      style: "normal",
+    },
+  ],
   variable: "--font-hanken",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "The Wolves",
-  description: "The Wolves' World Cup Superforecaster",
+  title: "WWC26",
+  description: "Wolves World Cup 2026 Superforecaster",
 };
 
 export const viewport: Viewport = {
@@ -47,9 +59,14 @@ export const viewport: Viewport = {
   themeColor: "#1c1a17",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-GB" className={`${albert.variable} ${plexMono.variable} ${fraunces.variable} ${hanken.variable}`}>
+    <html
+      lang="en-GB"
+      className={`${albert.variable} ${plexMono.variable} ${fraunces.variable} ${hanken.variable}`}
+    >
       <body>
         <SiteNav />
         <main>{children}</main>

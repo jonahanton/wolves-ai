@@ -2,12 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { ChampionStat } from "@/components/landing/champion-stat";
+import { EpistemicDistribution } from "@/components/landing/epistemic-distribution";
 import { ForecastChart } from "@/components/landing/forecast-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
 import { TeamSelector } from "@/components/landing/team-selector";
 import type { BoardRow } from "@/lib/derive";
 import { assembleChartData, type ChartTeamInput } from "@/lib/forecast-series";
 import type { PlayedResultRow } from "@/lib/results";
+import type { CampOut, ScenarioWeightOut, TeamDriver, TeamStoryOut } from "@/lib/snapshot";
+import type { CellShape } from "@/lib/sidecars";
+import { chartColour } from "@/lib/team-colours";
 
 interface LandingForecastProps {
   runLabel: string;
@@ -17,18 +21,26 @@ interface LandingForecastProps {
   leaderId: string;
   board: BoardRow[];
   fullBoard: BoardRow[];
+  championCells: Record<string, CellShape>;
+  xMax: number;
+  weights: ScenarioWeightOut[];
+  camps: CampOut[];
+  drivers: Record<string, TeamDriver>;
+  stories: Record<string, TeamStoryOut>;
 }
 
 export function LandingForecast(props: LandingForecastProps) {
-  const { runLabel, teams, results, names, leaderId, board, fullBoard } = props;
+  const { runLabel, teams, results, names, leaderId, board, fullBoard, championCells } = props;
+  const { xMax, weights, camps, drivers, stories } = props;
   const [selectedTeamId, setSelectedTeamId] = useState(leaderId);
 
   const data = useMemo(() => assembleChartData(teams, results, names), [teams, results, names]);
   const selectedRow = fullBoard.find((row) => row.teamId === selectedTeamId) ?? fullBoard[0];
+  const selectedCell = championCells[selectedTeamId];
   const overflow = fullBoard.filter((row) => !board.some((b) => b.teamId === row.teamId));
   const othersCount = overflow.filter((row) => row.teamId !== selectedTeamId).length;
 
-  return (
+  const hero = (
     <HeroVideo>
       <div className="wrap">
         <h1 className="hero-title text-cream">Forecasting the winner of the World Cup</h1>
@@ -59,5 +71,32 @@ export function LandingForecast(props: LandingForecastProps) {
         </div>
       </div>
     </HeroVideo>
+  );
+
+  return (
+    <>
+      {hero}
+      {selectedCell && selectedRow && (
+        <section className="wrap @container">
+          <div
+            aria-hidden
+            className="h-[2px] rounded-full transition-colors duration-300"
+            style={{ backgroundColor: chartColour(selectedTeamId) }}
+          />
+          <div className="mt-[clamp(20px,3.5vh,40px)]">
+            <EpistemicDistribution
+              cell={selectedCell}
+              teamName={selectedRow.name}
+              colour={chartColour(selectedTeamId)}
+              xMax={xMax}
+              weights={weights}
+              camps={camps}
+              driver={drivers[selectedTeamId]}
+              story={stories[selectedTeamId]}
+            />
+          </div>
+        </section>
+      )}
+    </>
   );
 }
