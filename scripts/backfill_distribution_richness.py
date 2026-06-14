@@ -26,10 +26,10 @@ CAMP_OF_WORLD = {
     "market_evidence": "market",
 }
 CAMPS = [
-    {"key": "model", "label": "Our statistical model", "order": 0,
-     "summary": "What our ratings say from qualifying form alone."},
-    {"key": "market", "label": "The betting markets", "order": 1,
-     "summary": "Where the bookmakers price each team."},
+    {"key": "model", "label": "Using fitted team ratings", "order": 0,
+     "summary": "One strength rating per team, fit to past scorelines with recent games weighted most."},
+    {"key": "market", "label": "Using market odds", "order": 1,
+     "summary": "The bookmaker consensus, with the margin stripped out."},
 ]
 CAMP_LABEL = {
     "model_base": ("model", "Model, before today's news", "Our ratings with no news applied."),
@@ -68,39 +68,39 @@ IMPACTS = {
 TEAM_STORIES = {
     "spain": {
         "summary": "Spain are the favourites, with Rodri fit and Yamal back from injury.",
-        "why": "Rodri is confirmed at peak fitness and Yamal is back, so nothing today dents Spain. Our model and the markets both place them top, and we leave them there as clear favourites.",
+        "why": "Rodri is back at full fitness and Yamal has recovered from injury, so nothing this week weakens Spain. Our ratings put them at 18% and the market at 16%, both clear of the field, and we land at 16%.",
     },
     "france": {
-        "summary": "France are the closest challengers, on a market premium well above our model.",
-        "why": "Our model rates France near 8% on qualifying form alone. The markets have held them around 16% all window, a premium we read as tournament pedigree the model cannot see, and we weight the markets heavily, landing in between.",
+        "summary": "France are the closest challengers to Spain, the market backing them well above our ratings.",
+        "why": "Our ratings put France near 8% on recent results, but the market has backed them at 16% all month, reading in a big-tournament pedigree the ratings can't measure. We trust the market more here and land at 14%, between the two.",
     },
     "portugal": {
-        "summary": "Portugal are genuine semi-final contenders, a little ahead of our model.",
-        "why": "The markets price Portugal a touch above our model, and we grant most of that premium. With no news bearing on them, they sit just behind the leading group.",
+        "summary": "Portugal are genuine semi-final contenders, a little ahead of our ratings.",
+        "why": "Our ratings have Portugal at 8% and the market a little higher at 10%; we lean towards the market and land at 9%. No injuries or selection news touched them this week.",
     },
     "england": {
         "summary": "England are genuine semi-final contenders, backed by squad depth.",
-        "why": "Our model has England near 7% on form, below the bookmakers' 11%. We read the gap as squad depth and tournament experience the ratings miss, and weight the markets, so they settle just under the top tier.",
+        "why": "Our ratings have England at 7% on recent results, the market higher at 11%, reading in the strength and depth of the squad. We trust the market more and land at 10%, just behind the top group.",
     },
     "argentina": {
-        "summary": "Argentina are the leading South American threat, their keeper now fit.",
-        "why": "Martinez passed his medical and is fit to play, removing the one doubt over Argentina. The markets sit a little below our model, and we split the difference, leaving them as the strongest South American side.",
+        "summary": "Argentina are the strongest South American side, with Martinez fit again in goal.",
+        "why": "Emiliano Martinez has recovered from a fractured finger and is cleared to play, lifting Argentina slightly. Our ratings rate them higher than the market, 11% against 8%, and we land at 9% between the two.",
     },
     "brazil": {
         "summary": "Brazil stay in the leading pack despite an opening-match doubt.",
-        "why": "Neymar is out of the opener and Alisson is managing his return, but neither changes the tournament picture much. Our model and the markets broadly agree on Brazil.",
+        "why": "Neymar misses the opening match and Alisson is easing back from injury, but neither changes Brazil's overall chances much. Our ratings and the market almost agree, at 9%, and we land there.",
     },
     "germany": {
-        "summary": "Germany hold firm with Neuer back in full training.",
-        "why": "Neuer has cleared his calf injury and is back in full training, a small steadying lift. Otherwise the markets price Germany a shade below our model, and we land close to both.",
+        "summary": "Germany are mid-pack contenders, with Neuer fit again after a calf injury.",
+        "why": "Neuer has recovered from a calf injury and is training fully again, a small boost. Our ratings have Germany at 7% and the market lower at 5%; we lean towards the market and land at 6%.",
     },
     "netherlands": {
         "summary": "The Netherlands open shorthanded after two midfielders were ruled out.",
-        "why": "Xavi Simons and Jerdy Schouten are out for the tournament with knee injuries, which pulls our estimate down. Beyond that our model and the markets broadly agree on the Netherlands.",
+        "why": "Xavi Simons and Jerdy Schouten are both out for the tournament with knee injuries, which lowers our estimate. Beyond that our ratings and the market agree, leaving the Netherlands at 4%.",
     },
     "japan": {
         "summary": "Japan open shorthanded after losing two key players.",
-        "why": "Endo and Mitoma are out of the squad, thinning Japan's midfield and attack. The losses pull them back a little, though the side keeps enough cover to limit the fall.",
+        "why": "Wataru Endo and Kaoru Mitoma are both out of the squad injured, weakening Japan's midfield and attack. The losses lower their chances a little, though there is enough cover to keep the fall small.",
     },
 }
 

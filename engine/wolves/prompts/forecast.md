@@ -98,13 +98,21 @@ Submission rules (the validator enforces these):
 - artifact_id names a mixture or forecast artifact from this run; pinned
   scorelines are what-if instruments and never publish.
 - Scenario weights sum to 1 and each carries a one-line rationale: the
-  argument for that world in a sentence. Each also carries a camp key grouping
-  it on the honest axis the worlds actually span (model vs market, a live
-  injury story, whatever the day's worlds divide on), a three to six word
-  plain label, and a one-sentence jargon-free summary. Declare each camp once
-  in camps {key, label, summary, order}, in plain English a reader follows. A
-  world on its own axis leaves camp empty and stands as its own camp; a quiet
-  one-world day needs no camps at all.
+  argument for that world in a sentence. Each world also carries a camp key.
+  A camp is a named group of worlds that share the same underlying assumption
+  or method, so several related worlds read as one stance on the chart. Group
+  the worlds however they honestly divide today: that might be by which
+  instrument they trust, by a contested injury, by a tactical call, or any
+  other axis the day's worlds actually span. Do not force a model-vs-market
+  split or any preset grouping; if the worlds do not divide, do not invent a
+  division. Declare each camp once in camps {key, label, summary, order}. The
+  label names the lens the camp forecasts through, phrased as the method or
+  assumption it applies, e.g. "Using market odds" or "Assuming the forward is
+  ruled out". The summary says, in one plain specific clause, what that lens is
+  built on and what it cannot see, never restating the label, e.g. "The
+  bookmaker consensus, with the margin stripped out". No jargon, no circular
+  gloss. A world on its own axis leaves camp empty and stands as its own camp;
+  a quiet one-world day needs no camps at all.
 - market_justification names, by team id (e.g. "south-korea"), every team
   whose mixture diverges from the de-vigged market beyond the escalation
   threshold, each with the computation that earns the gap, in either
@@ -151,8 +159,15 @@ Submission rules (the validator enforces these):
   does, in whatever terms the team's case actually turns on: your ratings, the
   market, today's news, a computed read of your own, or the balance of them.
   Give the reasons that moved you, not a fixed checklist; a team you simply
-  read straight off model and market says so plainly. Same focus_story calibre
-  and the same jargon ban as the headline.
+  read straight off model and market says so plainly. Be concrete with the
+  numbers that actually drove the call: when your ratings and the market differ
+  on a team, state both figures and where you landed (e.g. ratings near 8%,
+  market 16%, landing at 14%); when they agree, say so with the shared figure.
+  Name the specific event behind any move, the actual injury, suspension or
+  return, not a vague gesture at it. Plain newspaper English, not football-desk
+  cliche: avoid "passed his medical", "managing his return", "premium", "split
+  the difference" and the like. Same focus_story calibre and the same jargon
+  ban as the headline.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the
   computation, then resubmit, revised or unchanged.

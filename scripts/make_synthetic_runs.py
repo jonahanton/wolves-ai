@@ -198,14 +198,14 @@ QUIET_WORLDS = [
 QUIET_WEIGHTS = [
     {"name": "model_base", "weight": 0.55, "scenario_id": None, "ledger_ids": [],
      "rationale": "Quiet day: the fitted model anchors the forecast with no fresh material news.",
-     "camp": "model", "label": "Our statistical model", "summary": "What our ratings say from qualifying form alone."},
+     "camp": "model", "label": "Using fitted team ratings", "summary": "What our ratings say from qualifying form alone."},
     {"name": "market_lean", "weight": 0.45, "scenario_id": None, "ledger_ids": [],
      "rationale": "A light market premium on the top three, well inside the noise; nothing contested today.",
-     "camp": "market", "label": "The betting markets", "summary": "Where the bookmakers price the top three."},
+     "camp": "market", "label": "Using market odds", "summary": "Where the bookmakers price the top three."},
 ]
 QUIET_CAMPS = [
-    {"key": "model", "label": "Our statistical model", "summary": "What our ratings say from qualifying form alone.", "order": 0},
-    {"key": "market", "label": "The betting markets", "summary": "Where the bookmakers price each team.", "order": 1},
+    {"key": "model", "label": "Using fitted team ratings", "summary": "One strength rating per team, fit to past scorelines with recent games weighted most.", "order": 0},
+    {"key": "market", "label": "Using market odds", "summary": "The bookmaker consensus, with the margin stripped out.", "order": 1},
 ]
 QUIET_NARRATIVE = {
     "headline": "A settled day at the top. Spain remain favourites with France and England close behind. No fresh news moves the contenders.",
@@ -255,10 +255,10 @@ DISAGREE_WORLDS = [
 DISAGREE_WEIGHTS = [
     {"name": "model_base", "weight": 0.30, "scenario_id": None, "ledger_ids": [],
      "rationale": "The unperturbed model, the sceptical anchor on a day with only minor news.",
-     "camp": "model", "label": "Our statistical model", "summary": "What our ratings say before today's news."},
+     "camp": "model", "label": "Using fitted team ratings", "summary": "What our ratings say before today's news."},
     {"name": "market_lean", "weight": 0.40, "scenario_id": None, "ledger_ids": [],
      "rationale": "A modest market premium on France and Brazil, a touch above the model and well inside reason.",
-     "camp": "market", "label": "The betting markets", "summary": "Where the bookmakers price France and Brazil."},
+     "camp": "market", "label": "Using market odds", "summary": "Where the bookmakers price France and Brazil."},
     {"name": "injury_doubt", "weight": 0.18, "scenario_id": None, "ledger_ids": [],
      "rationale": "One Netherlands starter doubtful with uncertain depth, plus a mild shared European drift sampled per draw.",
      "camp": "news", "label": "Today's injury news", "summary": "A Netherlands starter in doubt, read through the squad."},
@@ -267,8 +267,8 @@ DISAGREE_WEIGHTS = [
      "camp": "news", "label": "Today's injury news", "summary": "A matchup lean folded in with the day's live reads."},
 ]
 DISAGREE_CAMPS = [
-    {"key": "model", "label": "Our statistical model", "summary": "What our ratings say before today's news.", "order": 0},
-    {"key": "market", "label": "The betting markets", "summary": "Where the bookmakers price each team.", "order": 1},
+    {"key": "model", "label": "Using fitted team ratings", "summary": "What our ratings say before today's news.", "order": 0},
+    {"key": "market", "label": "Using market odds", "summary": "The bookmaker consensus, with the margin stripped out.", "order": 1},
     {"key": "news", "label": "Today's live reads", "summary": "What today's injury and matchup news shifts.", "order": 2},
 ]
 DISAGREE_NARRATIVE = {
@@ -309,14 +309,14 @@ INJURY_WORLDS = [
 INJURY_WEIGHTS = [
     {"name": "news_out", "weight": 0.55, "scenario_id": None, "ledger_ids": [],
      "rationale": "The medical update reads as a group-stage absence, the more likely branch on today's reporting.",
-     "camp": "out", "label": "Forward ruled out", "summary": "Portugal without their key forward for the group stage."},
+     "camp": "out", "label": "Assuming the forward is ruled out", "summary": "Portugal without their key forward for the group stage."},
     {"name": "news_fit", "weight": 0.45, "scenario_id": None, "ledger_ids": [],
      "rationale": "The club has not confirmed the absence, so a meaningful chance the forward is passed fit remains.",
-     "camp": "fit", "label": "Forward passed fit", "summary": "Portugal at full strength if he recovers in time."},
+     "camp": "fit", "label": "Assuming the forward is passed fit", "summary": "Portugal at full strength if he recovers in time."},
 ]
 INJURY_CAMPS = [
-    {"key": "out", "label": "Forward ruled out", "summary": "Portugal without their key forward for the group stage.", "order": 0},
-    {"key": "fit", "label": "Forward passed fit", "summary": "Portugal at full strength if he recovers in time.", "order": 1},
+    {"key": "out", "label": "Assuming the forward is ruled out", "summary": "Portugal without their key forward for the group stage.", "order": 0},
+    {"key": "fit", "label": "Assuming the forward is passed fit", "summary": "Portugal at full strength if he recovers in time.", "order": 1},
 ]
 INJURY_NARRATIVE = {
     "headline": "A Portugal injury splits the day. Their key forward looks set to miss the group stage, which pulls them back, though there is still a chance he is passed fit.",
