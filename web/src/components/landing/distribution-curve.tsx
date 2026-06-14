@@ -22,7 +22,7 @@ import {
   peakDensity,
   resampleCurve,
 } from "@/lib/distribution";
-import { barHover, edgeAnchor, type HoverInfo } from "@/lib/distribution-hover";
+import { barHover, type HoverInfo } from "@/lib/distribution-hover";
 import type { ScenarioWeightOut } from "@/lib/snapshot";
 import type { CellShape } from "@/lib/sidecars";
 
@@ -49,6 +49,7 @@ const PAD_X = 4;
 const AXIS_H = 26;
 const TICKS = 6;
 const GRID_SAMPLES = 96;
+const Y_HEADROOM = 1.1;
 const SLIDE = "transition-transform duration-[460ms] ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none";
 
 const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.5)";
@@ -94,14 +95,18 @@ export function DistributionCurve({ cell, xMax, weights, campMeta, colour, why }
       <Combined cell={cell} grid={combinedGrid} colour={colour} x={x} width={width} call={call} onHover={setHover} />
 
       <svg width={width} height={AXIS_H} className="mt-2 block" aria-hidden>
-        {ticks.map((t) => (
-          <g key={t} transform={`translate(${x(t)},0)`}>
-            <line y1={0} y2={5} stroke={TICK_MARK} />
-            <text y={18} textAnchor="middle" fill={AXIS_TEXT} fontFamily="var(--font-mono)" fontSize={12}>
-              {Math.round(t * 100)}%
-            </text>
-          </g>
-        ))}
+        {ticks.map((t) => {
+          const px = x(t);
+          const anchor = px < 12 ? "start" : px > width - 12 ? "end" : "middle";
+          return (
+            <g key={t} transform={`translate(${px},0)`}>
+              <line y1={0} y2={5} stroke={TICK_MARK} />
+              <text y={18} textAnchor={anchor} fill={AXIS_TEXT} fontFamily="var(--font-mono)" fontSize={12}>
+                {Math.round(t * 100)}%
+              </text>
+            </g>
+          );
+        })}
       </svg>
 
       {why && <p className="mt-3 font-display text-[13px] leading-relaxed text-cream-dim">{why}</p>}
@@ -173,23 +178,23 @@ interface CombinedProps {
 function Combined({ cell, grid, colour, x, width, call, onHover }: CombinedProps) {
   const h = COMBINED_H;
   const peak = peakDensity(cell);
-  const y = scaleLinear().domain([0, (peak || 1) * 1.1]).range([h, 0]);
+  const y = scaleLinear().domain([0, (peak || 1) * Y_HEADROOM]).range([h, 0]);
   const bars = histogramBars(cell);
   const callX = x(call);
 
   return (
     <svg width={width} height={h + 16} className="mt-3 block overflow-visible">
       <g transform="translate(0,16)">
-        <HistogramBars bars={bars} x={x} y={y} height={h} hue={colour} title="" onHover={onHover} />
-        <MorphPath points={grid} x={x} height={h} peak={peak} colour={colour} width={width} />
         {width > 0 && call > 0 && (
           <g className={SLIDE} style={{ transform: `translateX(${callX}px)` }}>
             <line x1={0} x2={0} y1={-12} y2={h} stroke={MARKER} strokeWidth={1} strokeDasharray="2 3" />
-            <text x={0} y={-16} textAnchor={edgeAnchor(callX, width, 24)} fill={colour} fontFamily="var(--font-mono)" fontSize={14} fontWeight={700} letterSpacing="0.04em">
+            <text x={0} y={-16} textAnchor="middle" fill={colour} fontFamily="var(--font-mono)" fontSize={14} fontWeight={700} letterSpacing="0.04em">
               {`${(call * 100).toFixed(1)}%`}
             </text>
           </g>
         )}
+        <HistogramBars bars={bars} peak={peak} x={x} y={y} height={h} hue={colour} title="" onHover={onHover} />
+        <MorphPath points={grid} x={x} y={y} height={h} colour={colour} width={width} />
       </g>
     </svg>
   );
@@ -208,7 +213,7 @@ interface LaneProps {
 
 function Lane({ camp, grid, meta, hue, offset, x, width, onHover }: LaneProps) {
   const peak = laneMax(camp);
-  const y = scaleLinear().domain([0, peak * 1.1]).range([LANE_CURVE_H, 0]);
+  const y = scaleLinear().domain([0, peak * Y_HEADROOM]).range([LANE_CURVE_H, 0]);
   const pct = Math.round(camp.weight * 100);
   const label = meta?.label ?? humaniseKey(camp.key);
   const meanX = meta?.prob != null ? x(meta.prob) : 0;
@@ -235,15 +240,15 @@ function Lane({ camp, grid, meta, hue, offset, x, width, onHover }: LaneProps) {
         <svg width={width} height={LANE_CURVE_H + LANE_LABEL_BAND} className="block">
           {width > 0 && meanX > 0 && (
             <g className={SLIDE} style={{ transform: `translateX(${meanX}px)` }}>
-              <text x={0} y={12} textAnchor={edgeAnchor(meanX, width, 22)} fill={hue} fontFamily="var(--font-display)" fontSize={12} fontWeight={600}>
+              <text x={0} y={12} textAnchor="middle" fill={hue} fontFamily="var(--font-display)" fontSize={12} fontWeight={600}>
                 {`${((meta?.prob ?? 0) * 100).toFixed(0)}%`}
               </text>
               <line x1={0} x2={0} y1={LANE_LABEL_BAND} y2={LANE_CURVE_H + LANE_LABEL_BAND} stroke={hue} strokeWidth={1} strokeDasharray="2 3" strokeOpacity={0.7} />
             </g>
           )}
           <g transform={`translate(0,${LANE_LABEL_BAND})`}>
-            <HistogramBars bars={camp.bars} x={x} y={y} height={LANE_CURVE_H} hue={hue} title={label} onHover={onHover} />
-            <MorphPath points={grid} x={x} height={LANE_CURVE_H} peak={peak} colour={hue} width={width} />
+            <HistogramBars bars={camp.bars} peak={peak} x={x} y={y} height={LANE_CURVE_H} hue={hue} title={label} onHover={onHover} />
+            <MorphPath points={grid} x={x} y={y} height={LANE_CURVE_H} colour={hue} width={width} />
           </g>
         </svg>
       </div>
@@ -253,6 +258,7 @@ function Lane({ camp, grid, meta, hue, offset, x, width, onHover }: LaneProps) {
 
 interface HistogramBarsProps {
   bars: Bar[];
+  peak: number;
   x: ReturnType<typeof scaleLinear<number, number>>;
   y: ReturnType<typeof scaleLinear<number, number>>;
   height: number;
@@ -261,13 +267,16 @@ interface HistogramBarsProps {
   onHover: (h: HoverInfo | null) => void;
 }
 
-function HistogramBars({ bars, x, y, height, hue, title, onHover }: HistogramBarsProps) {
-  const fill = `color-mix(in oklch, ${hue} 55%, black)`;
+const MIN_OPACITY = 0.28;
+const MAX_OPACITY = 0.92;
+
+function HistogramBars({ bars, peak, x, y, height, hue, title, onHover }: HistogramBarsProps) {
   return (
     <>
       {bars.map((b, i) => {
         const bx = x(b.x0);
         const bw = Math.max(0.5, x(b.x1) - bx - 1);
+        const t = peak > 0 ? b.y / peak : 0;
         return (
           <rect
             key={i}
@@ -275,7 +284,8 @@ function HistogramBars({ bars, x, y, height, hue, title, onHover }: HistogramBar
             y={y(b.y)}
             width={bw}
             height={height - y(b.y)}
-            fill={fill}
+            fill={hue}
+            fillOpacity={MIN_OPACITY + (MAX_OPACITY - MIN_OPACITY) * t}
             onMouseEnter={(e) => onHover(barHover(e, b, title, hue))}
             onMouseMove={(e) => onHover(barHover(e, b, title, hue))}
             onMouseLeave={() => onHover(null)}

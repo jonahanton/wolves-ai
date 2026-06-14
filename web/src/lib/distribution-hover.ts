@@ -25,9 +25,3 @@ export function barHover(
     share: `${samples} of ${SAMPLES_PER_CELL} simulated draws (${(b.y * 100).toFixed(0)}%)`,
   };
 }
-
-export function edgeAnchor(px: number, width: number, pad: number): "start" | "end" | "middle" {
-  if (px < pad) return "start";
-  if (px > width - pad) return "end";
-  return "middle";
-}
