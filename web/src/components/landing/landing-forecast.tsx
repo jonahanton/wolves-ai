@@ -9,7 +9,12 @@ import { TeamSelector } from "@/components/landing/team-selector";
 import type { BoardRow } from "@/lib/derive";
 import { assembleChartData, type ChartTeamInput } from "@/lib/forecast-series";
 import type { PlayedResultRow } from "@/lib/results";
-import type { CampOut, ScenarioWeightOut, TeamDriver, TeamStoryOut } from "@/lib/snapshot";
+import type {
+  CampOut,
+  ScenarioWeightOut,
+  TeamDriver,
+  TeamStoryOut,
+} from "@/lib/snapshot";
 import type { CellShape } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
 
@@ -30,21 +35,36 @@ interface LandingForecastProps {
 }
 
 export function LandingForecast(props: LandingForecastProps) {
-  const { runLabel, teams, results, names, leaderId, board, fullBoard, championCells } = props;
+  const {
+    runLabel,
+    teams,
+    results,
+    names,
+    leaderId,
+    board,
+    fullBoard,
+    championCells,
+  } = props;
   const { xMax, weights, camps, drivers, stories } = props;
   const [selectedTeamId, setSelectedTeamId] = useState(leaderId);
 
-  const data = useMemo(() => assembleChartData(teams, results, names), [teams, results, names]);
-  const selectedRow = fullBoard.find((row) => row.teamId === selectedTeamId) ?? fullBoard[0];
+  const data = useMemo(
+    () => assembleChartData(teams, results, names),
+    [teams, results, names],
+  );
+  const selectedRow =
+    fullBoard.find((row) => row.teamId === selectedTeamId) ?? fullBoard[0];
   const selectedCell = championCells[selectedTeamId];
-  const overflow = fullBoard.filter((row) => !board.some((b) => b.teamId === row.teamId));
-  const othersCount = overflow.filter((row) => row.teamId !== selectedTeamId).length;
+  const overflow = fullBoard.filter(
+    (row) => !board.some((b) => b.teamId === row.teamId),
+  );
+  const othersCount = overflow.filter(
+    (row) => row.teamId !== selectedTeamId,
+  ).length;
 
   const hasDistribution = selectedCell && selectedRow;
   const colour = chartColour(selectedTeamId);
 
-  // Placed in two slots (beside chart 1 on wide, a solid section below on
-  // narrow); the hidden slot observes width 0 so its chart does no work.
   const distribution = hasDistribution ? (
     <EpistemicDistribution
       cell={selectedCell}
@@ -62,7 +82,9 @@ export function LandingForecast(props: LandingForecastProps) {
     <>
       <HeroVideo>
         <div className="wrap">
-          <h1 className="hero-title text-cream">Forecasting the winner of the World Cup</h1>
+          <h1 className="hero-title text-cream">
+            Forecasting the winner of the World Cup
+          </h1>
           <div className="mt-[clamp(6px,1vh,10px)] flex items-center justify-between gap-4 border-t border-hairline pt-[clamp(4px,0.7vh,7px)]">
             <span className="font-display text-[12px] font-medium tracking-[0.01em] text-cream-faint">
               Last full run {runLabel} ET
@@ -87,7 +109,9 @@ export function LandingForecast(props: LandingForecastProps) {
             </div>
 
             {distribution && (
-              <div className="hidden min-w-0 lg:block lg:border-l lg:border-hairline lg:pl-[clamp(20px,2.5vw,40px)]">{distribution}</div>
+              <div className="hidden min-w-0 lg:block lg:border-l lg:border-hairline lg:pl-[clamp(20px,2.5vw,40px)]">
+                {distribution}
+              </div>
             )}
           </div>
 

@@ -50,6 +50,21 @@ const AXIS_H = 26;
 const TICKS = 6;
 const GRID_SAMPLES = 96;
 const Y_HEADROOM = 1.1;
+const LABEL_PAD = 20;
+
+// Marker text sits in a group at the mean; centre it on the line, but anchor to
+// an edge when the mean is within a label-width of the plot bounds so it can't clip.
+function labelAnchor(markerX: number, width: number): "start" | "middle" | "end" {
+  if (markerX < LABEL_PAD) return "start";
+  if (markerX > width - LABEL_PAD) return "end";
+  return "middle";
+}
+
+function labelDx(markerX: number, width: number): number {
+  if (markerX < LABEL_PAD) return -markerX + 2;
+  if (markerX > width - LABEL_PAD) return width - markerX - 2;
+  return 0;
+}
 const SLIDE = "transition-transform duration-[460ms] ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none";
 
 const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.5)";
@@ -188,7 +203,7 @@ function Combined({ cell, grid, colour, x, width, call, onHover }: CombinedProps
         {width > 0 && call > 0 && (
           <g className={SLIDE} style={{ transform: `translateX(${callX}px)` }}>
             <line x1={0} x2={0} y1={-12} y2={h} stroke={MARKER} strokeWidth={1} strokeDasharray="2 3" />
-            <text x={0} y={-16} textAnchor="middle" fill={colour} fontFamily="var(--font-mono)" fontSize={14} fontWeight={700} letterSpacing="0.04em">
+            <text x={labelDx(callX, width)} y={-16} textAnchor={labelAnchor(callX, width)} fill={colour} fontFamily="var(--font-mono)" fontSize={14} fontWeight={700} letterSpacing="0.04em">
               {`${(call * 100).toFixed(1)}%`}
             </text>
           </g>
@@ -240,7 +255,7 @@ function Lane({ camp, grid, meta, hue, offset, x, width, onHover }: LaneProps) {
         <svg width={width} height={LANE_CURVE_H + LANE_LABEL_BAND} className="block">
           {width > 0 && meanX > 0 && (
             <g className={SLIDE} style={{ transform: `translateX(${meanX}px)` }}>
-              <text x={0} y={12} textAnchor="middle" fill={hue} fontFamily="var(--font-display)" fontSize={12} fontWeight={600}>
+              <text x={labelDx(meanX, width)} y={12} textAnchor={labelAnchor(meanX, width)} fill={hue} fontFamily="var(--font-display)" fontSize={12} fontWeight={600}>
                 {`${((meta?.prob ?? 0) * 100).toFixed(0)}%`}
               </text>
               <line x1={0} x2={0} y1={LANE_LABEL_BAND} y2={LANE_CURVE_H + LANE_LABEL_BAND} stroke={hue} strokeWidth={1} strokeDasharray="2 3" strokeOpacity={0.7} />
