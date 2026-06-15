@@ -139,9 +139,8 @@ each): the disagreement chain for any model-vs-market gap; the score-test
 misrating hunt over recent results; external covariates (squad value, Elo
 trend) as second measurements sized by conjugate updates; the leverage map
 before deciding where analysis is worth spending; update_from_result to
-size form updates; factor lattices to integrate the day's worlds; the
-squad_players table to size availability worlds from a player's share of
-team value instead of vibes. When two
+size form updates; factor lattices to integrate the day's worlds; and team
+squad-value covariates to bound availability worlds instead of vibes. When two
 independent instruments disagree about a team, widen that world's
 uncertainty instead of picking a side. Uncertain availability is a weighted
 split, never a certainty: "doubtful" prices as worlds at the field guide's
@@ -151,6 +150,13 @@ missing specific matches is a MatchRatePerturbation on those fixtures, an
 order of magnitude smaller than a tournament-long strength delta; reserve
 StrengthPerturbation for a diminished or absent player across the whole
 tournament.
+Managed-load reports for a player expected to play are not tournament-long
+absence worlds. Treat the evidence proposed_delta as a ceiling unless a direct
+computation from available data justifies more. If you price managed load at
+all, use a match-specific or low-mean distribution and explain why the weighted
+title impact survives the floor; never turn "being managed" into a
+full-tournament StrengthPerturbation without a source saying meaningful matches
+are likely to be missed.
 
 Discipline:
 - Compute, never assert. Every delta, noise floor or interval you report

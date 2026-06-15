@@ -4,7 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from wolves.agent.dossier import _published, _tournament
+from wolves.agent.dossier import _published, _scenarios, _tournament
+from wolves.agent.scenarios import ScenarioRegistry
 from wolves.config import Settings
 from wolves.sim import results_store
 from wolves.sim.format import FormatData, GroupMatch, KnockoutMatch, PlayedResult, Team
@@ -96,3 +97,15 @@ def test_previous_anchor_prefers_agent_snapshot_over_later_live(tmp_path):
     assert "Previous agent forecast (agent-20260613-140248" in section
     assert "Its worlds: market_base 0.70" in section
     assert "Latest live snapshot is live-20260613-210542" in section
+
+
+def test_open_scenarios_group_duplicate_names(tmp_path):
+    registry = ScenarioRegistry(tmp_path / "scenarios.jsonl")
+    registry.open(name="keeper_watch_2026-06-12", run_id="agent-a", weight=0.2, reason="monitor")
+    registry.open(name="keeper_watch_2026-06-13", run_id="agent-b", weight=0.2, reason="same monitor")
+    deps = SimpleNamespace(scenarios=registry)
+
+    section = _scenarios(deps, None)
+
+    assert "keeper_watch duplicate open ids [scn-001, scn-002]" in section
+    assert "collapse stale duplicates or resolve as one story" in section

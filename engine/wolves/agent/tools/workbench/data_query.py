@@ -39,8 +39,8 @@ SPEC = ToolSpec(
     description=(
         "Read-only SQL over the research dataset (DuckDB). Tables: matches (49k internationals "
         "with importance weights), shootouts, market_closes, outright_closes, teams (covariates "
-        "incl. squad value), elo_history, squad_players (per-player Transfermarkt values behind "
-        "each squad total). Returns at most 200 rows; aggregate in SQL, not in your head. Free to call."
+        "incl. squad value), elo_history, plus any extra tables shown by SHOW TABLES. Returns at most "
+        "200 rows; aggregate in SQL, not in your head. Free to call."
     ),
     args_model=DataQueryArgs,
     fn=_data_query,

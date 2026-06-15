@@ -6,6 +6,7 @@ a missing archive or empty ledger never blocks the run."""
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date
 
 from wolves.agent.calibration import CalibrationLedger, summarise_scores
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 _TOP_TEAMS = 10
 _DOSSIER_SIMS = 50_000
+_DATED_SCENARIO_SUFFIX = re.compile(r"_[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 
 
 def build_dossier(deps: AgentDeps) -> str:
@@ -212,13 +214,26 @@ def _scenarios(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     open_states = [s for s in deps.scenarios.open_scenarios() if s.weight > 0]
     if not open_states:
         return ""
-    rows = "; ".join(
-        f"{s.scenario_id} {s.name} (w={s.weight:.2f}, {s.status}; latest: {s.history[-1].reason})"
-        for s in open_states
-    )
+    by_name: dict[str, list] = {}
+    for state in open_states:
+        by_name.setdefault(_DATED_SCENARIO_SUFFIX.sub("", state.name), []).append(state)
+    rows = []
+    for name, states in by_name.items():
+        latest = max(states, key=lambda s: s.history[-1].at)
+        if len(states) == 1:
+            rows.append(
+                f"{latest.scenario_id} {name} (w={latest.weight:.2f}, {latest.status}; "
+                f"latest: {latest.history[-1].reason})"
+            )
+            continue
+        ids = ", ".join(s.scenario_id for s in states)
+        rows.append(
+            f"{name} duplicate open ids [{ids}] (latest {latest.scenario_id} w={latest.weight:.2f}; "
+            f"collapse stale duplicates or resolve as one story; latest: {latest.history[-1].reason})"
+        )
     return (
         "Open internal scenarios for forecast or quant to resolve with scenario_update. The scn-* keys "
-        f"are private registry ids, not web search terms; search only the named football story: {rows}."
+        f"are private registry ids, not web search terms; search only the named football story: {'; '.join(rows)}."
     )
 
 

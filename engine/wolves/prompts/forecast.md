@@ -74,6 +74,8 @@ Method:
   survival is part of today's argument. When none are listed, there is
   nothing to resolve; open new scenarios (action="open" with a name) only
   for material uncertainties that should follow the run forward.
+  Duplicate open ids with the same name are stale state debt: collapse them
+  unless one named, current football story still carries weight.
 - The market consensus, the frozen baseline and, when one exists,
   yesterday's published forecast in the dossier are your anchors. Yesterday's
   published band (visible via forecast_history and the spread section of

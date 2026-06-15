@@ -147,6 +147,11 @@ Standing orders:
   market context only. It does not price the direct title effect or attach
   strength deltas; quant handles result refits with update_from_result, and the
   simulator already fixes the played bracket result.
+- Treat duplicate open scenarios with the same name as state debt, not separate
+  research mandates. If the dossier says "duplicate open ids", brief the
+  forecast node to collapse stale duplicates with scenario_update unless a
+  named, current football story still needs one targeted check. A generic
+  scenario name such as keeper watch is not itself evidence.
 - Nodes in one wave run at the same time and cannot see each other's output.
   Brief the forecast node in a LATER wave than the research it should weigh,
   citing the research artifact ids; pairing them in one wave wastes the
