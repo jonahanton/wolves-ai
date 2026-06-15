@@ -104,16 +104,21 @@ async def _get_odds(args: GetOddsArgs, deps: AgentDeps) -> ToolResult[Any]:
     refused = reserve_or_refuse(deps)
     if refused is not None:
         return refused
-    deps.runtime.charge_data_fetch()
-    with deps.runtime.observe(kind="data_fetch", actor=deps.actor, name=f"get_odds:{args.market}") as rec:
-        payload = await (_outrights_payload(deps) if args.market == "outrights" else _h2h_payload(deps))
-        deps.market_cache[args.market] = payload
-        rec.set_output({"market": args.market})
-        rec.note(
-            summary=f"odds {args.market}: {payload['credits_remaining']} credits left",
-            market=args.market,
-            credits_remaining=payload["credits_remaining"],
-        )
+    if cached := deps.market_cache.get(args.market):
+        return ToolResult(payload=cached)
+    async with deps.market_cache_lock:
+        if cached := deps.market_cache.get(args.market):
+            return ToolResult(payload=cached)
+        deps.runtime.charge_data_fetch()
+        with deps.runtime.observe(kind="data_fetch", actor=deps.actor, name=f"get_odds:{args.market}") as rec:
+            payload = await (_outrights_payload(deps) if args.market == "outrights" else _h2h_payload(deps))
+            deps.market_cache[args.market] = payload
+            rec.set_output({"market": args.market})
+            rec.note(
+                summary=f"odds {args.market}: {payload['credits_remaining']} credits left",
+                market=args.market,
+                credits_remaining=payload["credits_remaining"],
+            )
     return ToolResult(payload=payload)
 
 

@@ -159,6 +159,11 @@ Standing orders:
   open a broad injury sweep unless the dossier, journal or fixtures make it
   material. Skipping news research after a rich recent run is a deliberate
   choice you may make when results, prices and previous artifacts carry the day.
+- The as-of date is a hard boundary for public research. Do not ask research to
+  search for or cite future-dated public facts, and do not ask it to collect
+  future fixture dates as evidence. The schedule and bracket path live in the
+  deterministic model surfaces; if future fixtures matter, brief quant to price
+  path/leverage from those surfaces rather than making research fetch them.
 - Research on played results confirms the score, timing, group state and public
   market context only. It does not price the direct title effect or attach
   strength deltas; the simulator already fixes the played bracket result, and

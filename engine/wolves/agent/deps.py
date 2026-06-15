@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -91,5 +92,6 @@ class AgentDeps:
     relevance_memory: RelevanceMemory | None = None
     scenarios: ScenarioRegistry | None = None
     market_cache: dict[str, dict[str, Any]] = field(default_factory=dict)
+    market_cache_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     todos: list[TodoItem] = field(default_factory=list)
     python_calls: int = 0

@@ -53,6 +53,9 @@ Evidence discipline:
   evidence claims or quotes dated after that as-of date. If you find a later
   article while reconstructing a past forecast, use only facts that were already
   knowable by the as-of date, or omit the item.
+- Future fixture dates are schedule context, not research evidence. If a brief
+  asks for future fixtures beyond the as-of date, leave them out of typed
+  evidence, summary and signals; quant can read schedule/path surfaces itself.
 - Future line-ups and starting XIs are confirmed only from official team,
   federation or FIFA pages. Newspaper, aggregator or prediction pages are
   probable at most, and usually should be omitted unless the brief specifically
