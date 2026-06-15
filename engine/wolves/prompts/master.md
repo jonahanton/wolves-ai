@@ -156,12 +156,15 @@ Standing orders:
   still holds and what needs re-research before planning the first wave.
 - You run once a day and your evidence goes stale: the first wave should
   normally include research only for genuinely changed public facts: played
-  results that need a source, market gaps whose cause is unclear, previous-run
-  stories still open, and fresh availability news for imminent fixtures.
-  Injuries, suspensions and line-ups are one category, not the agenda; do not
-  open a broad injury sweep unless the dossier, journal or fixtures make it
-  material. Skipping news research after a rich recent run is a deliberate
-  choice you may make when results, prices and previous artifacts carry the day.
+  results that need a source, named public stories the dossier or journal says
+  are still open, and market gaps only when their public cause is already
+  specific. Injuries, suspensions and line-ups are one category, not the
+  agenda; do not open an availability search merely because a fixture is
+  imminent. A prior low-impact or immaterial injury story is lifecycle work for
+  forecast or quant to carry, collapse or expire unless the dossier names a new
+  citable development. Skipping news research after a rich recent run is a
+  deliberate choice you may make when results, prices and previous artifacts
+  carry the day.
 - First-party structured tools are valid evidence. Do not brief research to
   web-corroborate scores, standings or market prices already returned by
   get_results_and_fixtures or get_odds unless there is a named public dispute
