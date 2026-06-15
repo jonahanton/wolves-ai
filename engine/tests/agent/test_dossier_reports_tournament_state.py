@@ -71,7 +71,7 @@ def test_previous_anchor_prefers_agent_snapshot_over_later_live(tmp_path):
     snapshot_dir = tmp_path / "snapshots" / "2026" / "06" / "13"
     snapshot_dir.mkdir(parents=True)
     agent = AgentBlock(
-        narrative=NarrativeBlock(focus_story="story", travel_memo="memo"),
+        narrative=NarrativeBlock(headline="story"),
         worlds=[WorldOut(name="market_base", weight=0.7, perturbations=[])],
     )
     agent_snapshot = _snapshot(

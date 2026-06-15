@@ -61,7 +61,7 @@ def settings(tmp_path) -> Settings:
         matches=[_match(1, p_home=0.5, p_draw=0.3, p_away=0.2)],
     )
     agent = AgentBlock(
-        narrative=NarrativeBlock(focus_story="story", travel_memo="memo"),
+        narrative=NarrativeBlock(headline="story"),
         worlds=[
             WorldOut(
                 name="mexico_altitude",

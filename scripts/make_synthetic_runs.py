@@ -209,8 +209,6 @@ QUIET_CAMPS = [
 ]
 QUIET_NARRATIVE = {
     "headline": "A settled day at the top. Spain remain favourites with France and England close behind. No fresh news moves the contenders.",
-    "focus_story": "England hold their position as clear semi-final contenders on a quiet day with no squad news.",
-    "slot_rationales": {}, "travel_memo": "No travel implications today.",
     "team_stories": {
         "spain": {"summary": "Spain stay clear favourites on a quiet day.",
                   "why": "Nothing fresh moved Spain today. The model and the markets agree they are the team to beat, and we leave them on top."},
@@ -273,8 +271,6 @@ DISAGREE_CAMPS = [
 ]
 DISAGREE_NARRATIVE = {
     "headline": "A little more disagreement than yesterday. The market nudges France and Brazil up, and a Netherlands starter is in doubt. The top of the board barely moves.",
-    "focus_story": "England hold station just behind a tight top tier, with no fresh news of their own.",
-    "slot_rationales": {}, "travel_memo": "No travel implications today.",
     "team_stories": {
         "france": {"summary": "France edge up on a market premium and a knockout lean.",
                    "why": "The markets price France a touch above our model, and we lean slightly their way in a possible meeting with Brazil. Together that nudges them up, though the move is small."},
@@ -320,8 +316,6 @@ INJURY_CAMPS = [
 ]
 INJURY_NARRATIVE = {
     "headline": "A Portugal injury splits the day. Their key forward looks set to miss the group stage, which pulls them back, though there is still a chance he is passed fit.",
-    "focus_story": "England are unaffected by the day's news and hold their place in the chasing pack.",
-    "slot_rationales": {}, "travel_memo": "No travel implications today.",
     "team_stories": {
         "portugal": {"summary": "Portugal split on whether their forward plays.",
                      "why": "Their key forward looks likely to miss the group stage, which pulls Portugal back. We keep real weight on him being passed fit, so the number sits between the two."},

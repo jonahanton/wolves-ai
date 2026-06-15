@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import R32_MATCHES, build_narrative, build_submission
+from tests.conftest import build_narrative, build_submission
 from tests.graph.conftest import build_run_store
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.validator import ValidatorLimits, validate_submission
@@ -48,35 +48,19 @@ def _codes(report) -> set[str]:
 
 
 def _validate(submission, store, ledger, **kwargs):
-    kwargs.setdefault("slot_rationale_keys", set(R32_MATCHES))
     return validate_submission(submission, artifacts=store, ledger=ledger, limits=ValidatorLimits(), **kwargs)
 
 
 def test_em_dash_anywhere_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
-    story = "England look sharp — and the camp is calm."
-    submission = build_submission(narrative=build_narrative(focus_story=story))
+    headline = "England look sharp — and the camp is calm."
+    submission = build_submission(narrative=build_narrative(headline=headline))
     assert "em_dash" in _codes(_validate(submission, store, ledger))
 
 
-def test_focus_story_about_another_team_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
-    story = "Canada enter the tournament at home with real defensive disruption."
-    submission = build_submission(narrative=build_narrative(focus_story=story))
-    report = validate_submission(
-        submission, artifacts=store, ledger=ledger, limits=ValidatorLimits(), focus_team="england"
-    )
-    assert "focus_story_off_topic" in [i.code for i in report.issues]
-
-
 def test_american_spelling_rejects(store: RunArtifactStore, ledger: EvidenceLedger):
-    story = "England's favorable draw and organized defense set up a calm opener."
-    submission = build_submission(narrative=build_narrative(focus_story=story))
+    headline = "England's favorable draw and organized defense set up a calm opener."
+    submission = build_submission(narrative=build_narrative(headline=headline))
     assert "american_spelling" in _codes(_validate(submission, store, ledger))
-
-
-def test_missing_slot_rationales_reject(store: RunArtifactStore, ledger: EvidenceLedger):
-    narrative = build_narrative(slot_rationales={"73": "favourite advances"})
-    submission = build_submission(narrative=narrative)
-    assert "slot_rationales_incomplete" in _codes(_validate(submission, store, ledger))
 
 
 def test_multi_world_artifact_needs_matching_scenario_weights(store: RunArtifactStore, ledger: EvidenceLedger):

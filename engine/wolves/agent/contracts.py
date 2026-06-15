@@ -14,9 +14,6 @@ class TeamStory(BaseModel):
 
 class Narrative(BaseModel):
     headline: str = ""
-    focus_story: str
-    slot_rationales: dict[str, str] = Field(default_factory=dict)
-    travel_memo: str
     team_stories: dict[str, TeamStory] = Field(default_factory=dict)
 
 

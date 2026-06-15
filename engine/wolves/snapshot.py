@@ -145,9 +145,6 @@ class TeamStoryOut(BaseModel):
 
 class NarrativeBlock(BaseModel):
     headline: str = ""
-    focus_story: str
-    slot_rationales: dict[str, str] = Field(default_factory=dict)
-    travel_memo: str
     team_stories: dict[str, TeamStoryOut] = Field(default_factory=dict)
 
 

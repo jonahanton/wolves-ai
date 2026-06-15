@@ -5,7 +5,7 @@ published number. Mechanical fields are arithmetic on the stored sidecar; the
 market-gap and news numbers are lifted once, by hand, from this run's own
 reason strings and quant findings (the production no-parse rule does not bind a
 hand-checked migration); the stories and impact sentences are authored from the
-run's real headline, focus_story and market_justification.
+run's real headline and market_justification.
 
 Usage: STORAGE_MODE=local uv run --project engine python scripts/backfill_distribution_richness.py [snapshot.json]
 """

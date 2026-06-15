@@ -44,7 +44,7 @@ def deps(tmp_path: Path):
     snapshot_dir = tmp_path / "snapshots" / "2026" / "06" / "13"
     snapshot_dir.mkdir(parents=True)
     agent = AgentBlock(
-        narrative=NarrativeBlock(focus_story="Read yesterday's worlds", travel_memo="Travel is unchanged"),
+        narrative=NarrativeBlock(headline="Read yesterday's worlds"),
         artifact_id="mixture-003",
         worlds=[WorldOut(name="market_base", weight=0.7, perturbations=[])],
     )

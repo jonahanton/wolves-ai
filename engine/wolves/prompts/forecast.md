@@ -153,13 +153,6 @@ Submission rules (the validator enforces these):
   scenarios, baselines, percentage points or any other term of art. Any
   number you state is the published probability, rounded to one decimal;
   never quote an internal or intermediate figure.
-- The focus team daily story (focus_story) opens with the focus team in its
-  first sentence; other teams are supporting cast. Exactly one line of
-  rationale for each currently open knockout tie named in the dossier: the
-  earliest unresolved round only, skipping played ties and later rounds until
-  they become the next open layer. Use the match ids as slot_rationales keys.
-  Write the travel memo too, in British English spelling with no em-dashes
-  anywhere.
 - team_stories carries a short plain-English story per team for the leaders of
   your own mixture and any team your evidence bears on. Write one for the top
   ten teams by your submitted mixture, plus any team with a confirmed or
@@ -178,8 +171,7 @@ Submission rules (the validator enforces these):
   Name the specific event behind any move, the actual injury, suspension or
   return, not a vague gesture at it. Plain newspaper English, not football-desk
   cliche: avoid "passed his medical", "managing his return", "premium", "split
-  the difference" and the like. Same focus_story calibre and the same jargon
-  ban as the headline.
+  the difference" and the like. Use the same jargon ban as the headline.
 - Moves beyond the escalation threshold against the frozen baseline trigger
   ONE steelman pass: answer it by naming the evidence (evidence_ids) and the
   computation, then resubmit, revised or unchanged.

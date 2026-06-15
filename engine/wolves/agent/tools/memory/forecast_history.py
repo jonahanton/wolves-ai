@@ -26,6 +26,15 @@ def _champion_band(snapshot: Snapshot, team: str) -> tuple[float, float] | None:
     return quantiles[block.quantile_levels.index(0.1)], quantiles[block.quantile_levels.index(0.9)]
 
 
+def _team_story(snapshot: Snapshot, team: str) -> str | None:
+    if snapshot.agent is None:
+        return None
+    story = snapshot.agent.narrative.team_stories.get(team)
+    if story is None:
+        return None
+    return (story.summary or story.why).strip()[:160] or None
+
+
 async def _forecast_history(args: ForecastHistoryArgs, deps: AgentDeps) -> ToolResult[Any]:
     snapshot_dir = deps.settings.runs_root / "snapshots"
     series: list[dict[str, Any]] = []
@@ -49,9 +58,9 @@ async def _forecast_history(args: ForecastHistoryArgs, deps: AgentDeps) -> ToolR
             band = _champion_band(snapshot, args.team)
             if band is not None:
                 point["q10"], point["q90"] = band
-            agent = snapshot.agent
-            if agent is not None and agent.narrative.focus_story and args.team == snapshot.focus.team_id:
-                point["story"] = agent.narrative.focus_story[:160]
+            story = _team_story(snapshot, args.team)
+            if story is not None:
+                point["story"] = story
             series.append(point)
     series.sort(key=lambda p: p["created_at"])
     return ToolResult(payload={"team": args.team, "series": series[-args.window :]})

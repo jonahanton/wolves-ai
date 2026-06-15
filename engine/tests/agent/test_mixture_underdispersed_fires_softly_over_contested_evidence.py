@@ -14,9 +14,6 @@ def _submission() -> ForecastSubmission:
         artifact_id="mixture-001",
         narrative={
             "headline": "Spain stay favourites and England remain close behind after a quiet day of news.",
-            "focus_story": "England trained in full; nothing moved.",
-            "slot_rationales": {str(m): "rating gap" for m in range(73, 89)},
-            "travel_memo": "East coast path holds.",
         },
         scenario_weights=[],
         evidence_ids=[],
@@ -51,7 +48,6 @@ def test_mixture_underdispersed_fires_softly_over_contested_evidence(tmp_path, v
         artifacts=None,
         ledger=_ledger(tmp_path, busy=busy),
         limits=ValidatorLimits(),
-        focus_team="england",
         focus_vs_floor=vs_floor,
     )
 

@@ -65,9 +65,7 @@ def validate_submission(
     baseline_titles: dict[str, float] | None = None,
     previous_titles: dict[str, float] | None = None,
     market_titles: dict[str, float] | None = None,
-    focus_team: str | None = None,
     focus_vs_floor: float | None = None,
-    slot_rationale_keys: set[str] | None = None,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
     citation discipline on weights, Paleka coherence on the artifact's own
@@ -115,10 +113,8 @@ def validate_submission(
                     )
                 )
     issues += _check_weights(submission, ledger)
-    issues += _check_narrative(submission, slot_rationale_keys)
     issues += _check_em_dashes(submission)
     issues += _check_british_english(submission)
-    issues += _check_focus_story(submission, focus_team)
     issues += _check_headline(submission)
     issues += _check_mixture_dispersion(submission, ledger, focus_vs_floor)
     issues += _check_news_impacts(submission, artifacts)
@@ -417,42 +413,6 @@ def _check_weights(submission: ForecastSubmission, ledger: EvidenceLedger) -> li
     return issues
 
 
-def _sort_slot_keys(keys: set[str]) -> list[str]:
-    def key(value: str) -> tuple[int, int | str]:
-        return (0, int(value)) if value.isdigit() else (1, value)
-
-    return sorted(keys, key=key)
-
-
-def _check_narrative(submission: ForecastSubmission, slot_keys: set[str] | None) -> list[ValidationIssue]:
-    issues: list[ValidationIssue] = []
-    narrative = submission.narrative
-    if not narrative.focus_story.strip():
-        issues.append(_issue("narrative_missing", "the focus team daily story is required"))
-    if not narrative.travel_memo.strip():
-        issues.append(_issue("narrative_missing", "the travel memo is required"))
-    rationales = {k: v for k, v in narrative.slot_rationales.items() if v.strip()}
-    if slot_keys is None:
-        return issues
-    expected = set(slot_keys)
-    missing = expected - set(rationales)
-    unexpected = set(rationales) - expected
-    if missing or unexpected:
-        detail = []
-        if missing:
-            detail.append(f"missing {', '.join(_sort_slot_keys(missing))}")
-        if unexpected:
-            detail.append(f"unexpected {', '.join(_sort_slot_keys(unexpected))}")
-        issues.append(
-            _issue(
-                "slot_rationales_incomplete",
-                "need one rationale per currently open knockout slot"
-                + (f": {'; '.join(detail)}" if detail else ""),
-            )
-        )
-    return issues
-
-
 def _check_em_dashes(submission: ForecastSubmission) -> list[ValidationIssue]:
     if EM_DASH in submission.model_dump_json():
         return [_copy_issue("em_dash", "em-dashes are not allowed anywhere in the submission")]
@@ -503,29 +463,6 @@ def _check_headline(submission: ForecastSubmission) -> list[ValidationIssue]:
             )
         )
     return issues
-
-
-def _check_focus_story(submission: ForecastSubmission, focus_team: str | None) -> list[ValidationIssue]:
-    if focus_team is None:
-        return []
-    display = focus_team.replace("-", " ").lower()
-    story = submission.narrative.focus_story.lower()
-    first_sentence = story.split(".", 1)[0]
-    if display not in story:
-        return [
-            _issue(
-                "focus_story_off_topic",
-                f"focus_story is the {display} daily story and must concern that team",
-            )
-        ]
-    if display not in first_sentence:
-        return [
-            _copy_issue(
-                "focus_story_buried",
-                f"focus_story must open with {display}; other teams are supporting cast, not the lead",
-            )
-        ]
-    return []
 
 
 def _check_british_english(submission: ForecastSubmission) -> list[ValidationIssue]:
