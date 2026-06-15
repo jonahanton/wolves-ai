@@ -183,6 +183,8 @@ def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[
     replaced = {n.node_id for n in board.nodes if n.replaced_by is not None}
     kind_counts: dict[NodeKind, int] = {}
     for node in board.nodes:
+        if node.node_id == "coverage-research":
+            continue
         kind_counts[node.kind] = kind_counts.get(node.kind, 0) + 1
     forecast_admitted = False
 
@@ -227,6 +229,10 @@ def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[
         if op.kind == "forecast" and forecast_admitted:
             drop(op, "one forecast node per wave")
             continue
+        if op.kind == "forecast" and (coverage_reason := board.branch_follow_up_reason(settings)):
+            board.coverage_nudges += 1
+            drop(op, f"branch coverage needs one focused follow-up before forecast: {coverage_reason}")
+            continue
         if kind_counts.get(op.kind, 0) >= _kind_cap(op.kind, settings):
             drop(op, f"{op.kind} node budget for the run is spent")
             continue
@@ -237,7 +243,7 @@ def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[
         kind_counts[op.kind] = kind_counts.get(op.kind, 0) + 1
         admitted.append(op)
 
-    remaining = max(0, settings.graph_max_nodes - len(board.nodes))
+    remaining = max(0, settings.graph_max_nodes - board.planned_node_count())
     cap = min(remaining, settings.graph_max_wave_workers)
     for over in admitted[cap:]:
         drop(over, "over node or wave worker cap")

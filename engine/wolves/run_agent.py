@@ -24,13 +24,12 @@ from wolves import ENGINE_VERSION
 from wolves.agent.article_cache import ArticleCache, CachedArticle
 from wolves.agent.attribution import decompose
 from wolves.agent.calibration import CalibrationLedger, total_spread_pnl
-from wolves.agent.consensus import publish_scale
 from wolves.agent.deps import AgentDeps, SubmissionState
 from wolves.agent.fakes import ScriptedLLM
-from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, simulate_worlds, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger, LedgerEntry
 from wolves.agent.market_base import seed_baseline_payload
 from wolves.agent.memory import RunMemory
+from wolves.agent.publish_surface import publish_surface
 from wolves.agent.relevance_feedback import append_feedback, relevance_feedback
 from wolves.agent.relevance_memory import RelevanceMemory
 from wolves.agent.scenarios import ScenarioRegistry
@@ -38,7 +37,7 @@ from wolves.agent.scoring import score_yesterday
 from wolves.agent.source_memory import SourceMemory
 from wolves.agent.sources import source_tier
 from wolves.agent.stream import band_coverage, load_stream, movement_stats, record_stream
-from wolves.agent.validator import ValidatorLimits
+from wolves.agent.validator import COPY_GUARD_VERSION, ValidatorLimits
 from wolves.clients.api_football import FakeFixturesClient, FixturesClient, MergedFixturesClient
 from wolves.clients.odds import (
     FakeOddsClient,
@@ -357,6 +356,10 @@ def _build_deps(
     fixtures: FixturesClient,
     run_id: str,
     as_of: str,
+    n_sims: int,
+    seed: int,
+    referee_llm: LLMClient | None = None,
+    disable_continuity: bool = False,
 ) -> AgentDeps:
     forecaster: Forecaster | None = None
     try:
@@ -369,6 +372,7 @@ def _build_deps(
     return AgentDeps(
         runtime=runtime,
         llm=ObservedLLM(llm, runtime),
+        referee_llm=ObservedLLM(referee_llm, runtime) if referee_llm is not None else None,
         web=web,
         odds=odds,
         polymarket=polymarket,
@@ -383,11 +387,15 @@ def _build_deps(
         gate=BudgetGate(),
         settings=settings,
         as_of=as_of,
+        disable_continuity=disable_continuity,
+        publish_requested_n_sims=n_sims,
+        publish_seed=seed,
         forecaster=forecaster,
         limits=ValidatorLimits(
             escalation_threshold_pp=settings.escalation_threshold_pp,
             escalation_reference_p=settings.escalation_reference_p,
             weight_dilution_min_combined=settings.weight_dilution_min_combined,
+            story_team_count=settings.story_team_count,
         ),
     )
 
@@ -461,12 +469,19 @@ def _prefer_last_clean(result: GraphRunResult, state: SubmissionState, *, run_id
     round never completed."""
     if result.submission is not None or state.last_clean is None:
         return result
+    if state.publication_blocked or state.referee_interventions or state.referee_replan_required:
+        logger.warning("run %s: referee intervened; refusing last clean fallback", run_id)
+        return result
     logger.warning(
         "run %s: steelman round interrupted after a clean submission; publishing the last clean forecast", run_id
     )
     result.submission = state.last_clean
     result.escalations = state.last_clean_escalations or None
     return result
+
+
+def _should_publish_fallback(state: SubmissionState) -> bool:
+    return not state.publication_blocked
 
 
 def _markets_block(deps: AgentDeps, model_probs: dict[str, float], market: dict[str, float]) -> MarketsBlock | None:
@@ -855,6 +870,16 @@ def _build_drivers(
     return drivers
 
 
+def _market_gap_outputs(submission) -> list[MarketGapOut]:
+    return [
+        MarketGapOut(
+            **gap.model_dump(),
+            direction="market_higher" if gap.market_prob >= gap.model_prob else "market_lower",
+        )
+        for gap in submission.market_gaps
+    ]
+
+
 def _provenance(
     submission, ledger: EvidenceLedger, priced: dict[str, PricedItem], *, n_worlds: int, noise_floor_pp: float
 ) -> ProvenanceOut:
@@ -890,30 +915,20 @@ def _build_snapshot(
         return None
     artifact = deps.artifacts.get(submission.artifact_id)
     assert artifact is not None
-    worlds = worlds_from_payload(artifact.payload)
+    surface = publish_surface(deps, submission.artifact_id, n_sims=n_sims, seed=seed)
+    if surface is None:
+        logger.error("run %s: artifact %s cannot publish; no snapshot", run_id, submission.artifact_id)
+        return None
+    worlds = surface.worlds
     played = persisted_results(settings)
-    n_sims = max(n_sims, settings.publish_n_sims)
-    per_world_results = simulate_worlds(deps.forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=played)
-    outputs = mixed_outputs(
-        deps.forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=played, per_world_results=per_world_results
-    )
-
-    governor_scale = CalibrationLedger(settings.calibration_path).scale(window=settings.governor_window)
-    effective_d = publish_scale(
-        extremising_d=settings.extremising_d,
-        governor_scale=governor_scale,
-        shrink_weight=settings.governor_shrink_weight,
-    )
+    n_sims = surface.n_sims
+    per_world_results = surface.per_world_results
+    outputs = surface.outputs
+    effective_d = surface.effective_d
+    anchor_result = surface.anchor_result
     governor = None
-    anchor_result = None
-    if effective_d != 1.0 or (settings.dispersion_floor_enabled and len(worlds) > 1):
-        anchor_result = deps.forecaster.simulate(
-            n_sims=n_sims, seed=seed, results=deps.forecaster.played_results(extra_results=played)
-        )
-    if effective_d != 1.0:
-        anchor = deps.forecaster.sim_outputs(n_sims=n_sims, seed=seed, extra_results=played, result=anchor_result)
-        govern_outputs(outputs, anchor, d=effective_d)
-        governor = GovernorOut(scale=governor_scale, effective_d=effective_d)
+    if surface.governor_active:
+        governor = GovernorOut(scale=surface.governor_scale, effective_d=surface.effective_d)
         logger.warning("run %s: governor active, publishing at d=%.2f", run_id, effective_d)
     if market:
         if anchor_result is None:
@@ -969,6 +984,8 @@ def _build_snapshot(
             ),
         }
     )
+    branch_audit = artifact.payload.get("branch_audit")
+    world_metadata = artifact.payload.get("world_metadata")
     agent_block = AgentBlock(
         narrative=narrative,
         artifact_id=submission.artifact_id,
@@ -989,13 +1006,18 @@ def _build_snapshot(
         ],
         quant_findings=_quant_findings(deps),
         escalations=result.escalations or [],
+        market_gaps=_market_gap_outputs(submission),
         market_justification=submission.market_justification,
         change_justification=submission.change_justification,
         inconsistency_note=submission.inconsistency_note,
+        news_impacts=submission.news_impacts,
+        copy_guard_version=COPY_GUARD_VERSION,
         attribution=attribution,
         governor=governor,
         calibration=_calibration_block(settings),
         provenance=provenance,
+        branch_audit=branch_audit if isinstance(branch_audit, dict) else None,
+        world_metadata=world_metadata if isinstance(world_metadata, dict) else {},
     )
     snapshot = Snapshot(
         run=RunMeta(
@@ -1021,7 +1043,7 @@ def _build_snapshot(
 def _attribution_block(deps: AgentDeps, outputs) -> AttributionOut | None:
     from wolves.agent.scoring import latest_snapshot_by_kind
 
-    if deps.forecaster is None or not deps.as_of:
+    if deps.forecaster is None or not deps.as_of or deps.disable_continuity:
         return None
     try:
         previous = latest_snapshot_by_kind(
@@ -1085,6 +1107,14 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         tracer = build_logfire_tracer(settings) if settings.logfire_token else InMemoryTracer()
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
         llm: LLMClient = build_llm(settings, model=settings.relevance_model)
+        referee_llm: LLMClient | None = (
+            build_llm(
+                settings,
+                model=settings.graph_referee_model or settings.graph_master_model or settings.smart_model,
+            )
+            if settings.graph_referee_enabled
+            else None
+        )
         provider = AnthropicProvider(api_key=settings.anthropic_api_key)
 
         # Wave planning and numerical judgement need the stronger model;
@@ -1106,10 +1136,13 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         polymarket: PolymarketClient = GammaPolymarketClient()
         fixtures: FixturesClient = build_fixtures_client(settings)
         logger.info(
-            "LIVE run %s: master=%s, workers=%s, ceiling=$%.2f",
+            "LIVE run %s: master=%s, workers=%s, referee=%s, ceiling=$%.2f",
             run_id,
             settings.graph_master_model or settings.fast_model,
             settings.worker_model,
+            settings.graph_referee_model or settings.graph_master_model or settings.smart_model
+            if settings.graph_referee_enabled
+            else "disabled",
             ceiling,
         )
     else:
@@ -1121,6 +1154,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             ]
         }
         llm = ScriptedLLM(turns=[], structured=[sample, sample])
+        referee_llm = None
         web = ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient())
         odds = FakeOddsClient()
         polymarket = FakePolymarketClient()
@@ -1140,6 +1174,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         fixtures=fixtures,
         run_id=run_id,
         as_of=as_of,
+        n_sims=args.sims,
+        seed=args.seed,
+        referee_llm=referee_llm,
+        disable_continuity=args.no_previous_forecast,
     )
     store = RunArtifactStore(ArtifactStore(settings), run_id=run_id)
     if args.live:
@@ -1223,6 +1261,8 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         await polymarket.aclose()
         await fixtures.aclose()
         await llm.aclose()
+        if referee_llm is not None:
+            await referee_llm.aclose()
 
     spent = runtime.budget.cost_micros / 1e6
     if deps.artifacts is not None:
@@ -1254,9 +1294,17 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         publisher.record_failure(
             run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
         )
-        await _publish_fallback(
-            settings, publisher, as_of=date.fromisoformat(as_of), n_sims=args.sims, seed=args.seed, started=started
-        )
+        if _should_publish_fallback(deps.submission):
+            await _publish_fallback(
+                settings,
+                publisher,
+                as_of=date.fromisoformat(as_of),
+                n_sims=args.sims,
+                seed=args.seed,
+                started=started,
+            )
+        else:
+            logger.error("run %s blocked publication; deterministic fallback suppressed", run_id)
         return 1
     built = _build_snapshot(
         settings=settings,
@@ -1285,9 +1333,17 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         publisher.record_failure(
             run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
         )
-        await _publish_fallback(
-            settings, publisher, as_of=date.fromisoformat(as_of), n_sims=args.sims, seed=args.seed, started=started
-        )
+        if _should_publish_fallback(deps.submission):
+            await _publish_fallback(
+                settings,
+                publisher,
+                as_of=date.fromisoformat(as_of),
+                n_sims=args.sims,
+                seed=args.seed,
+                started=started,
+            )
+        else:
+            logger.error("run %s blocked publication; deterministic fallback suppressed", run_id)
         return 1
     snapshot, sidecars = built
     record_stream(settings, snapshot)
@@ -1330,6 +1386,11 @@ def main() -> None:
     parser.add_argument("--sims", type=int, default=settings.n_sims)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--as-of", type=str, default=None)
+    parser.add_argument(
+        "--no-previous-forecast",
+        action="store_true",
+        help="run from current state without exposing previous agent forecasts for continuity",
+    )
     parser.add_argument(
         "--force-live-attempt",
         action="store_true",

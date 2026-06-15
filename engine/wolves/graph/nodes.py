@@ -5,6 +5,7 @@ import contextlib
 import dataclasses
 import logging
 from collections.abc import Coroutine
+from datetime import UTC, date, datetime, time
 from typing import Any
 
 from pydantic_ai.models import Model
@@ -59,19 +60,68 @@ def _kickoff(brief: Brief, store: RunArtifactStore, *, settings: Settings, retri
 def _retrievals_digest(deps: AgentDeps) -> str:
     """What recent runs already fetched and judged, so a research node spends
     its searches on what is genuinely uncovered."""
-    if deps.articles is None:
-        return ""
-    cached = deps.articles.recent(max_age_hours=deps.settings.article_cache_max_age_hours)
-    if not cached:
-        return ""
-    lines = ["Already retrieved by recent runs (web_fetch serves these from cache; search for what is NOT here):"]
-    for article in cached:
-        prior = deps.relevance_memory.latest(article.final_url) if deps.relevance_memory is not None else None
-        judged = f"; judged {prior.score:.2f}: {prior.reason[:80]}" if prior is not None else ""
-        lines.append(
-            f"- {article.title or article.final_url} ({article.final_url}, {article.age_hours():.0f}h ago{judged})"
+    parts: list[str] = []
+    cached = (
+        deps.articles.recent(
+            max_age_hours=deps.settings.article_cache_max_age_hours,
+            as_of=deps.as_of,
+            current_run_id=deps.runtime.run_id,
         )
-    return "\n".join(lines)
+        if deps.articles
+        else []
+    )
+    now = _retrieval_clock(deps.as_of)
+    if cached:
+        lines = ["Already fetched by recent runs (web_fetch serves these from cache; search for what is NOT here):"]
+        for article in cached:
+            prior = (
+                deps.relevance_memory.latest(
+                    article.final_url, as_of=deps.as_of, current_run_id=deps.runtime.run_id
+                )
+                if deps.relevance_memory is not None
+                else None
+            )
+            judged = f"; judged {prior.score:.2f}: {prior.reason[:80]}" if prior is not None else ""
+            age = max(0.0, article.age_hours(now=now))
+            lines.append(
+                f"- {article.title or article.final_url} "
+                f"({article.final_url}, {age:.0f}h ago{judged})"
+            )
+        parts.append("\n".join(lines))
+    ranked = (
+        deps.relevance_memory.recent(limit=10, as_of=deps.as_of, current_run_id=deps.runtime.run_id)
+        if deps.relevance_memory is not None
+        else []
+    )
+    unfetched = [
+        source
+        for source in ranked
+        if deps.source_memory is None
+        or (seen := deps.source_memory.seen(source.url, as_of=deps.as_of, current_run_id=deps.runtime.run_id)) is None
+        or seen.disposition != "fetched"
+    ]
+    if unfetched:
+        lines = ["Recently ranked but not fetched (reuse the judgement unless the brief needs a fresh read):"]
+        for source in unfetched[:8]:
+            lines.append(
+                f"- {source.score:.2f} {source.url} ranked {source.ranked_at} for "
+                f"{source.sub_question[:70]}: {source.reason[:90]}"
+            )
+        parts.append("\n".join(lines))
+    if not parts:
+        return ""
+    return "\n\n".join(parts)
+
+
+def _retrieval_clock(as_of: str | None) -> datetime:
+    now = datetime.now(UTC)
+    if not as_of:
+        return now
+    try:
+        latest = datetime.combine(date.fromisoformat(as_of), time.max, tzinfo=UTC)
+    except ValueError:
+        return now
+    return min(latest, now)
 
 
 def _request_limit(kind: NodeKind, settings: Settings) -> int:

@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     graph_critic_model: str = "claude-haiku-4-5"
     # Master plans visibly better on Opus for ~$0.30 a run; empty inherits fast_model.
     graph_master_model: str = "claude-opus-4-8"
+    graph_referee_enabled: bool = True
+    graph_referee_model: str = ""
+    graph_referee_max_interventions: int = 1
     # Candidate scoring is mechanical; the cheap tier is enough.
     relevance_model: str = "claude-haiku-4-5"
 

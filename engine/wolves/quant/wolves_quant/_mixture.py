@@ -15,6 +15,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from wolves.forecast import Perturbation
+from wolves.quant.wolves_quant._audit import BranchAudit, FactorAudit
 from wolves.quant.wolves_quant._sim import baseline, noise_floor, simulate
 from wolves.quant.wolves_quant._state import SESSION, context
 from wolves.sim.latent import LatentEffect
@@ -64,6 +65,9 @@ def scenario_mixture(
     n_sims: int | None = None,
     seed: int = 0,
     name: str = "mixture",
+    factor_audit: dict[str, Any] | None = None,
+    branch_audit: dict[str, Any] | None = None,
+    world_metadata: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Integrate a scenario mixture and persist it as a submit-ready artifact.
 
@@ -114,6 +118,12 @@ def scenario_mixture(
         "n_sims": n_sims,
         "seed": seed,
     }
+    if factor_audit is not None:
+        result["factor_audit"] = FactorAudit.model_validate(factor_audit).model_dump(mode="json")
+    if branch_audit is not None:
+        result["branch_audit"] = BranchAudit.model_validate(branch_audit).model_dump(mode="json")
+    if world_metadata is not None:
+        result["world_metadata"] = _world_metadata(world_metadata, set(result["weights"]))
     out = SESSION.root / "outputs" / f"{name}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=1), encoding="utf-8")
@@ -132,6 +142,26 @@ def _factor_blocks(
         return [Factor(name="scenario", variants=flat)]
     assert factors is not None
     return [f if isinstance(f, Factor) else Factor.model_validate(f) for f in factors]
+
+
+def _world_metadata(metadata: dict[str, dict[str, Any]], worlds: set[str]) -> dict[str, dict[str, Any]]:
+    unknown = sorted(set(metadata) - worlds)
+    if unknown:
+        raise ValueError(f"world_metadata names unknown world(s): {', '.join(unknown)}")
+    cleaned: dict[str, dict[str, Any]] = {}
+    for world, values in metadata.items():
+        if not isinstance(values, dict):
+            raise ValueError(f"world_metadata for {world!r} must be an object")
+        branch_keys = values.get("branch_keys") or []
+        if not isinstance(branch_keys, list) or any(not isinstance(key, str) for key in branch_keys):
+            raise ValueError(f"world_metadata for {world!r} has invalid branch_keys")
+        cleaned[world] = {
+            "label": str(values.get("label") or "").strip(),
+            "summary": str(values.get("summary") or "").strip(),
+            "camp": str(values.get("camp") or "").strip(),
+            "branch_keys": branch_keys,
+        }
+    return cleaned
 
 
 def _worlds(blocks: list[Factor], joint: dict[str, float] | None) -> list[tuple[str, float, tuple[Scenario, ...]]]:

@@ -260,13 +260,18 @@ export interface AgentBlock {
   worlds: WorldOut[];
   quant_findings?: QuantFindingOut[];
   escalations: string[];
+  market_gaps?: MarketGapOut[];
   market_justification: string;
   change_justification: string;
   inconsistency_note: string;
+  news_impacts?: Record<string, string>;
+  copy_guard_version?: number | null;
   attribution: AttributionOut | null;
   governor: GovernorOut | null;
   calibration: CalibrationSummary | null;
   provenance?: ProvenanceOut | null;
+  branch_audit?: Record<string, unknown> | null;
+  world_metadata?: Record<string, Record<string, unknown>>;
 }
 
 export interface ChampionBlock {

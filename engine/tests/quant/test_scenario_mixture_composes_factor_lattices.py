@@ -101,3 +101,49 @@ def test_scenario_mixture_return_shape_has_no_teams_table():
 
     assert {"mixture", "conditionals", "marginals", "worlds", "weights", "baseline", "noise_floor_pp"} <= out.keys()
     assert "teams" not in out
+
+
+def test_scenario_mixture_persists_optional_branch_audit_and_world_metadata(tmp_path: Path):
+    branch_audit = {
+        "verdict": "Saka availability priced, heat collapsed.",
+        "checks": [
+            {
+                "key": "saka-fitness",
+                "status": "priced",
+                "hypothesis": "Saka is not fully fit.",
+                "summary": "Fitness branch survives the floor.",
+                "teams": ["england"],
+                "world_names": ["plays"],
+            }
+        ],
+    }
+    world_metadata = {
+        "plays": {
+            "label": "Saka starts",
+            "summary": "England keep their first-choice right side.",
+            "camp": "fit",
+            "branch_keys": ["saka-fitness"],
+        }
+    }
+
+    out = scenario_mixture(
+        scenarios=[_variant("plays", 1.0)],
+        name="m_branch",
+        branch_audit=branch_audit,
+        world_metadata=world_metadata,
+    )
+
+    assert out["branch_audit"]["checks"][0]["key"] == "saka-fitness"
+    assert out["world_metadata"]["plays"]["camp"] == "fit"
+    persisted = json.loads((tmp_path / "outputs" / "m_branch.json").read_text(encoding="utf-8"))
+    assert persisted["branch_audit"] == out["branch_audit"]
+    assert persisted["world_metadata"] == out["world_metadata"]
+
+
+def test_world_metadata_rejects_unknown_world():
+    with pytest.raises(ValueError, match="unknown world"):
+        scenario_mixture(
+            scenarios=[_variant("plays", 1.0)],
+            name="m_bad_metadata",
+            world_metadata={"misses": {"label": "Missing"}},
+        )

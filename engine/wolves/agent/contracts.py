@@ -41,8 +41,8 @@ class MarketGap(BaseModel):
     """One team's market stance; emitted only where a stance was taken."""
 
     team_id: str
-    model_prob: float
-    market_prob: float
+    model_prob: float = Field(ge=0.0, le=1.0)
+    market_prob: float = Field(ge=0.0, le=1.0)
     gap_pp: float
     floor_multiple: float | None = None
 

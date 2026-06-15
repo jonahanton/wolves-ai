@@ -15,7 +15,7 @@ SCENARIO_WEIGHTS = [
 ]
 
 COPY_ONLY = build_submission(
-    narrative=build_narrative(headline="England look sharp — and the camp is calm."),
+    narrative=build_narrative(headline="England look sharp \u2014 and the camp is calm."),
     scenario_weights=SCENARIO_WEIGHTS,
 )
 HARD = build_submission(artifact_id="mixture-999")

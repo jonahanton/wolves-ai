@@ -81,13 +81,11 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
     if store is None:
         return []
     artifact_ids: list[str] = []
-    registered = {r.summary.split(":", 1)[0] for r in store.all() if r.kind == "mixture"}
+    registered = {r.summary.split(":", 1)[0]: r.id for r in store.all() if r.kind == "mixture"}
     for filename in files:
         if not filename.endswith(".json"):
             continue
         marker = f"{workspace_dir}/{filename}"
-        if marker in registered:
-            continue
         workspace = deps.quant.workspace(deps.actor)
         try:
             payload = json.loads((workspace.outputs / filename).read_text(encoding="utf-8"))
@@ -95,7 +93,13 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
             continue
         # Mixture artifacts are recognised by shape, not filename, so any
         # scenario_mixture(name=...) output registers.
-        if not (isinstance(payload, dict) and {"mixture", "conditionals", "weights"} <= payload.keys()):
+        if not (isinstance(payload, dict) and {"mixture", "conditionals", "weights", "worlds"} <= payload.keys()):
+            continue
+        if marker in registered:
+            artifact = store.get(registered[marker])
+            if artifact is not None and artifact.payload != payload:
+                store.amend_payload(artifact.id, payload)
+                artifact_ids.append(artifact.id)
             continue
         artifact = store.add(
             kind="mixture",
@@ -138,14 +142,23 @@ SPEC = ToolSpec(
         "columns are match, stage, group, date, city, home, away; wq.market_gaps() columns are "
         "team, model_p_title, market_p_title, polymarket_p_title, blend_p_title, gap_pp, "
         "polymarket_gap_pp, legs_disagree_pp; wq.mixture_spread(...) returns a dict whose teams "
-        "value is a DataFrame indexed by team and also carrying a team column. Build mixtures with "
+        "value is a DataFrame indexed by team and also carrying a team column; "
+        "wq.title_uncertainty() and wq.path_difficulty() also return DataFrames indexed by team and "
+        "also carrying a team column. Build mixtures with "
         "wq.Scenario(...) or dicts and wq.scenario_mixture(..., name='...'); there is no wq.scenario "
         "helper, no label= argument, and scenario_mixture returns mixture/conditionals/worlds/weights, "
         "not a teams table. wq.update_from_result(...) returns a dict with posterior_mean_delta, "
         "posterior_sd and prior_sd, not a scalar. "
+        "For submit-ready mixtures, build a factor audit with wq.factor_audit(checks=[...], verdict=...) "
+        "and pass factor_audit=audit to wq.scenario_mixture; checked negative findings are valid, "
+        "missing marks work the forecast should not publish without. Optional branch audits use "
+        "wq.branch_audit(checks=[{key,status,hypothesis,summary,teams,ledger_ids,artifacts,world_names}], "
+        "verdict=...) and pass branch_audit=... plus world_metadata={world:{label,summary,camp,branch_keys}} "
+        "to wq.scenario_mixture when research branches were priced, collapsed or rejected. "
         "End every script by assigning the finding to `result` "
         "(JSON-safe; a bare expression or print() does not count). Deltas from wq.impact carry a "
-        "paired-seed noise floor: treat anything below it as simulation noise. This tool is capped "
+        "paired-seed noise floor; pass include_teams=[...] when you need a named team even if it is "
+        "not a top mover. Treat anything below the floor as simulation noise. This tool is capped "
         "per node, including failed scripts, so compute in compact scripts and publish from the "
         "material already gathered once the cap is near. If a script writes a valid mixture JSON "
         "under outputs/, registered_artifact_ids returns the artifact ids to cite or submit."

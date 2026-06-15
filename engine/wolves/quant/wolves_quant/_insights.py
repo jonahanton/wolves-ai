@@ -98,7 +98,9 @@ def path_difficulty(
             index += stage.p_play * (exp_s / mass)
             weight += stage.p_play
         rows[team] = {"difficulty": round(index / max(weight, 1e-9), 3), **per_stage}
-    return pd.DataFrame(rows).T.sort_values("difficulty", ascending=False)
+    frame = pd.DataFrame(rows).T
+    frame.index.name = "team"
+    return frame.sort_values("difficulty", ascending=False).reset_index().set_index("team", drop=False)
 
 
 def path_tree(

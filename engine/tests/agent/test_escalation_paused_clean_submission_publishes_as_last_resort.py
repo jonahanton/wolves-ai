@@ -10,7 +10,7 @@ from wolves.agent.deps import SubmissionState
 from wolves.agent.tools.submission import submit_forecast
 from wolves.agent.validator import ValidationReport
 from wolves.graph.runner import GraphRunResult
-from wolves.run_agent import _prefer_last_clean
+from wolves.run_agent import _prefer_last_clean, _should_publish_fallback
 
 ESCALATIONS = ["england +3.00pp vs baseline (threshold 2.00pp)"]
 
@@ -38,6 +38,33 @@ def test_interrupted_steelman_publishes_the_last_clean_submission():
 
     assert result.submission == submission
     assert result.escalations == ESCALATIONS
+
+
+def test_referee_intervention_blocks_last_clean_fallback():
+    submission = build_submission()
+    state = SubmissionState(
+        last_clean=submission,
+        last_clean_escalations=ESCALATIONS,
+        referee_interventions=1,
+    )
+
+    result = _prefer_last_clean(GraphRunResult(submission=None), state, run_id="run-1")
+
+    assert result.submission is None
+
+
+def test_referee_publication_block_blocks_last_clean_and_fallback():
+    submission = build_submission()
+    state = SubmissionState(
+        last_clean=submission,
+        last_clean_escalations=ESCALATIONS,
+        publication_blocked=True,
+    )
+
+    result = _prefer_last_clean(GraphRunResult(submission=None), state, run_id="run-1")
+
+    assert result.submission is None
+    assert not _should_publish_fallback(state)
 
 
 def test_nothing_clean_still_falls_through_to_the_fallback():

@@ -24,6 +24,7 @@ from wolves.quant.observed import ObservedQuant
 from wolves.toolkit._budget_gate import BudgetGate
 
 if TYPE_CHECKING:
+    from wolves.agent.publish_surface import PublishSurface
     from wolves.forecast import Forecaster
     from wolves.graph.artifacts import RunArtifactStore
 
@@ -52,6 +53,10 @@ class SubmissionState:
 
     accepted: ForecastSubmission | None = None
     validation_failures: int = 0
+    referee_interventions: int = 0
+    referee_approved: set[str] = field(default_factory=set)
+    referee_replan_required: bool = False
+    publication_blocked: bool = False
     escalation_fired: bool = False
     escalations: list[str] = field(default_factory=list)
     # The submission that validated clean but was withheld by the escalation
@@ -60,9 +65,13 @@ class SubmissionState:
     last_clean_escalations: list[str] = field(default_factory=list)
     checked_clean: ForecastSubmission | None = None
     copy_repair_required: bool = False
+    copy_issue_signature: tuple[str, ...] | None = None
+    copy_issue_repeats: int = 0
+    copy_repair_blocked: bool = False
     anchors: ValidatorAnchors | None = None
     # Spread rows are a multi-world resimulation; cached per cited artifact.
     spread_by_artifact: dict[str, dict | None] = field(default_factory=dict)
+    publish_surface_by_artifact: dict[tuple[str, int, int], PublishSurface] = field(default_factory=dict)
 
 
 @dataclass
@@ -83,7 +92,11 @@ class AgentDeps:
     settings: Settings
     limits: ValidatorLimits
     actor: str = "master"
+    referee_llm: ObservedLLM | None = None
     as_of: str = ""
+    disable_continuity: bool = False
+    publish_requested_n_sims: int | None = None
+    publish_seed: int = 0
     submission: SubmissionState = field(default_factory=SubmissionState)
     artifacts: RunArtifactStore | None = None
     forecaster: Forecaster | None = None

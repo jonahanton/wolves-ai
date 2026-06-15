@@ -1,5 +1,14 @@
 """The quant workbench namespace, preloaded as ``wq`` in the sandbox."""
 
+from wolves.quant.wolves_quant._audit import (
+    BranchCheck,
+    CoverageCheck,
+    audit_mixture,
+    branch_audit,
+    factor_audit,
+    market_base_world,
+    result_attribution,
+)
 from wolves.quant.wolves_quant._data import (
     artifact,
     artifact_path,
@@ -46,6 +55,8 @@ _PERTURBATION_EXPORTS = {spec.model.__name__: spec.model for spec in PERTURBATIO
 globals().update(_PERTURBATION_EXPORTS)
 
 __all__ = [
+    "CoverageCheck",
+    "BranchCheck",
     "DeltaDistribution",
     "Factor",
     "LatentEffect",
@@ -57,7 +68,10 @@ __all__ = [
     "artifact",
     "artifact_path",
     "artifacts",
+    "audit_mixture",
     "baseline",
+    "branch_audit",
+    "factor_audit",
     "fixtures",
     "impact",
     "implied_delta",
@@ -66,6 +80,7 @@ __all__ = [
     "load_market_series",
     "load_matches",
     "load_ratings",
+    "market_base_world",
     "market_gaps",
     "market_movement",
     "match_probs",
@@ -77,6 +92,7 @@ __all__ = [
     "posterior_draws",
     "query",
     "reach",
+    "result_attribution",
     "scenario_mixture",
     "score_grid",
     "simulate",

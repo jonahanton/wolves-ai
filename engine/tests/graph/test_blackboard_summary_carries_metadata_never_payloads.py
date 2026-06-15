@@ -55,3 +55,30 @@ def test_summary_repeats_run_context_between_waves(tmp_path: Path):
         "Previous agent forecast agent-yesterday. This is not a first run."
     )
     deps.runtime.shutdown()
+
+
+def test_summary_surfaces_referee_critique_challenges(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    store.add(
+        kind="critique",
+        created_by="referee",
+        summary="France gap needs quant audit",
+        payload={
+            "challenges": [
+                "master: France market gap needs a quant audit. Next: open a quant follow-up."
+            ],
+            "suggested_master_brief": "Open a quant node to test the France market premium.",
+            "secret": SENTINEL,
+        },
+    )
+
+    state = json.loads(board.summary())
+
+    assert state["open_challenges"] == [
+        "master: France market gap needs a quant audit. Next: open a quant follow-up.",
+        "Open a quant node to test the France market premium.",
+    ]
+    assert SENTINEL not in board.summary()
+    deps.runtime.shutdown()

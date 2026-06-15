@@ -12,11 +12,18 @@ from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
 from wolves.agent.dossier import build_dossier, previous_agent_anchor
 from wolves.agent.tools.submission.submit_forecast import _submit_forecast
+from wolves.config import Settings
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import NodeKind, NodeOutcome, NodePatch
 from wolves.graph.master import admit, plan_wave
 from wolves.graph.nodes import execute_brief
+from wolves.graph.research_coverage import (
+    add_research_coverage_receipt,
+    research_coverage_brief,
+    research_coverage_hint,
+    should_seed_research,
+)
 from wolves.observability.runtime import CapExceeded, ObservedRuntime
 from wolves.s3.artifacts import ArtifactStore
 
@@ -108,11 +115,27 @@ async def _submit_clean_preview(deps: AgentDeps) -> None:
     )
 
 
+def _can_seed_research(settings: Settings) -> bool:
+    return (
+        settings.graph_max_waves > 0
+        and settings.graph_max_nodes > 0
+        and settings.graph_max_research_nodes > 0
+        and settings.graph_max_wave_workers > 0
+    )
+
+
+def _seeded_research_model(models: GraphModels, hint_level: str) -> Model:
+    if hint_level == "standard_suggested":
+        return models.nodes["quant"]
+    return models.nodes["research"]
+
+
 async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> GraphRunResult:
     """The wave loop: plan, admit, execute, merge, until acceptance or caps."""
     store = deps.artifacts or RunArtifactStore(ArtifactStore(deps.settings), run_id=deps.runtime.run_id)
     deps.artifacts = store
     continuity_anchor = previous_agent_anchor(deps, top_n=6)
+    coverage_hint = research_coverage_hint(deps, as_of=as_of)
     board = Blackboard(
         artifacts=store,
         ledger=deps.ledger,
@@ -120,6 +143,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
         source_memory=deps.source_memory,
         run_context={
             "focus_team": deps.settings.focus_team,
+            "research_coverage_hint": coverage_hint.digest(),
             **({"continuity_anchor": continuity_anchor} if continuity_anchor else {}),
         },
     )
@@ -128,6 +152,25 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
     budget_exhausted = False
 
     with deps.runtime.run_trace(title=f"forecast {as_of}"):
+        if _can_seed_research(settings) and should_seed_research(coverage_hint):
+            op = NodePatch(
+                node_id="coverage-research",
+                kind="research",
+                objective="Advisory coverage scan",
+                brief=research_coverage_brief(coverage_hint, as_of=as_of),
+            )
+            outcome = await execute_brief(
+                op,
+                deps=deps,
+                store=store,
+                model=_seeded_research_model(models, coverage_hint.level),
+            )
+            board.merge([op], [outcome], advance_wave=False)
+            receipt_id = add_research_coverage_receipt(store, hint=coverage_hint, outcome=outcome)
+            board.set_context("research_coverage_receipt", receipt_id)
+        else:
+            receipt_id = add_research_coverage_receipt(store, hint=coverage_hint)
+            board.set_context("research_coverage_receipt", receipt_id)
         for wave in range(settings.graph_max_waves):
             board_summary = board.summary()
             prompt = board_summary if wave else f"{_kickoff(deps, as_of)}\n\nBlackboard:\n{board_summary}"
@@ -165,9 +208,19 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 # blackboard, so give the master another planning turn.
                 logger.warning("wave %d fully dropped at admission; re-planning", board.wave)
                 continue
+            had_referee_replan = submission_state.referee_replan_required
             outcomes = await _execute_wave(ops, deps=deps, store=store, models=models)
             board.merge(ops, outcomes)
             await _submit_clean_preview(deps)
+            if submission_state.referee_replan_required:
+                follow_up_ran = had_referee_replan and any(
+                    outcome.ok and outcome.kind in {"research", "quant"} for outcome in outcomes
+                )
+                if follow_up_ran:
+                    submission_state.referee_replan_required = False
+                else:
+                    logger.info("referee requested master replanning after wave %d", board.wave)
+                    continue
             if patch.stop:
                 # A stop patch may carry final ops; they run before the end.
                 logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "stop")
@@ -186,7 +239,13 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 budget_exhausted = True
                 break
 
-        if submission_state.accepted is None and not _budget_at_caps(deps.runtime):
+        if (
+            submission_state.accepted is None
+            and not submission_state.publication_blocked
+            and not submission_state.referee_replan_required
+            and board.branch_follow_up_reason(settings) is None
+            and not _budget_at_caps(deps.runtime)
+        ):
             # The final chance runs regardless of spent retries: a run that
             # burned its hard resubmissions still beats the deterministic
             # fallback. The reserve held back above funds this last forecast

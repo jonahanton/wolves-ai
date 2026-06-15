@@ -4,7 +4,18 @@ from typing import Any
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools.submission._validation import published_title_preview, spread_section, validation_report
+from wolves.agent.tools.submission._validation import (
+    branch_advisories,
+    branch_audit_section,
+    factor_audit_section,
+    market_gap_contract,
+    published_title_preview,
+    spread_section,
+    validation_report,
+    world_metadata_section,
+)
+from wolves.agent.tools.submission.normalise import normalise_submission, note_copy_repair_state
+from wolves.agent.tools.submission.referee import record_referee_block, referee_review
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
 
@@ -13,8 +24,23 @@ def _remaining_hard(deps: AgentDeps) -> int:
     return max(deps.settings.agent_submit_retries + 1 - deps.submission.validation_failures, 0)
 
 
+def _team_named(team: str, text: str) -> bool:
+    haystack = text.lower()
+    return team.lower() in haystack or team.lower().replace("-", " ") in haystack
+
+
+def _missing_escalation_teams(args: ForecastSubmission, deps: AgentDeps) -> list[str]:
+    teams = [escalation.split()[0] for escalation in deps.submission.last_clean_escalations]
+    if not teams:
+        return []
+    return sorted({team for team in teams if not _team_named(team, args.change_justification)})
+
+
 async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
-    report = validation_report(args, deps)
+    normalised = normalise_submission(args, deps)
+    checked = normalised.submission
+    report = validation_report(checked, deps)
+    copy_repeats = note_copy_repair_state(report, deps)
     if not report.ok:
         deps.submission.checked_clean = None
         # Copy issues are repair prompts; only hard issues spend a retry.
@@ -23,15 +49,31 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
             deps.submission.validation_failures += 1
             cost_note = f"{_remaining_hard(deps)} hard resubmissions remain"
         else:
-            deps.submission.copy_repair_required = True
+            deps.submission.copy_repair_required = not deps.submission.copy_repair_blocked
             cost_note = f"copy issues only, no hard retry spent; {_remaining_hard(deps)} hard resubmissions remain"
         deps.runtime.emit("validation", deps.actor, f"submission rejected: {report.summary()[:200]}")
+        if deps.submission.copy_repair_blocked:
+            warnings = f" Normalisation applied: {'; '.join(normalised.warnings)}." if normalised.warnings else ""
+            return ToolResult(
+                ok=False,
+                payload=None,
+                error=ToolError(
+                    type="copy_repair_loop",
+                    message=(
+                        "The same copy-only validation issues repeated "
+                        f"{copy_repeats} times. Stop this forecast attempt and return a short ForecastOutput "
+                        "summary so the master can replan finalisation."
+                        f"{warnings}"
+                    ),
+                ),
+            )
+        warnings = f" Normalisation applied: {'; '.join(normalised.warnings)}." if normalised.warnings else ""
         return ToolResult(
             ok=False,
             payload=None,
             error=ToolError(
                 type="validation_failed",
-                message=f"Submission rejected. Fix and resubmit: {report.summary()} ({cost_note}).",
+                message=f"Submission rejected. Fix and resubmit: {report.summary()} ({cost_note}).{warnings}",
             ),
         )
 
@@ -39,7 +81,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         deps.submission.checked_clean = None
         deps.submission.copy_repair_required = False
         deps.submission.escalation_fired = True
-        deps.submission.last_clean = args
+        deps.submission.last_clean = checked
         deps.submission.last_clean_escalations = report.escalations
         deps.runtime.emit("escalation", deps.actor, f"escalation: {'; '.join(report.escalations)[:200]}")
         return ToolResult(
@@ -53,13 +95,22 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
                 ),
             }
         )
-    grounded = bool(args.evidence_ids) or bool(args.market_justification.strip())
-    if deps.submission.escalation_fired and not (args.change_justification.strip() and grounded):
+    grounded = bool(checked.evidence_ids) or bool(checked.market_justification.strip())
+    missing_escalation_teams = _missing_escalation_teams(checked, deps)
+    if deps.submission.escalation_fired and (
+        not (checked.change_justification.strip() and grounded) or missing_escalation_teams
+    ):
         # Once an escalation fires, the steelman substance is required even if
         # the resubmission swaps in a quieter artifact; the move was flagged.
         deps.submission.copy_repair_required = False
         deps.submission.validation_failures += 1
         deps.runtime.emit("validation", deps.actor, "escalated resubmission without substance rejected")
+        team_note = (
+            "Address every escalated team in change_justification: "
+            f"{', '.join(missing_escalation_teams)}. "
+            if missing_escalation_teams
+            else ""
+        )
         return ToolResult(
             ok=False,
             payload=None,
@@ -68,23 +119,79 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
                 message=(
                     "A resubmission past the escalation must carry the steelman in change_justification and "
                     "name its grounds: ledger ids in evidence_ids for news-driven moves, or the computing "
-                    f"artifact in market_justification for analysis-driven ones. "
+                    f"artifact in market_justification for analysis-driven ones. {team_note}"
                     f"({_remaining_hard(deps)} hard resubmissions remain.)"
+                ),
+            ),
+        )
+
+    referee = await referee_review(checked, deps, report)
+    if referee.blocking_issues:
+        deps.submission.publication_blocked = True
+        artifact_id = record_referee_block(referee, deps)
+        if deps.submission.referee_interventions < deps.settings.graph_referee_max_interventions:
+            deps.submission.referee_interventions += 1
+            deps.submission.checked_clean = None
+            deps.submission.copy_repair_required = not referee.needs_master_replan
+            deps.submission.referee_replan_required = referee.needs_master_replan
+            deps.runtime.emit(
+                "referee",
+                "referee",
+                f"referee blocked submission: {referee.summary[:200]}",
+                artifact_id=artifact_id,
+                needs_master_replan=referee.needs_master_replan,
+            )
+            if referee.needs_master_replan:
+                message = (
+                    "The referee found a threshold-crossing issue that needs master replanning. "
+                    "Stop this forecast attempt and return a short ForecastOutput summary so the master can open "
+                    "the next research or quant wave. "
+                    f"Referee: {referee.summary}. Suggested master brief: {referee.suggested_master_brief}"
+                )
+                error_type = "referee_replan_required"
+            else:
+                message = f"The referee found a final-copy issue. Fix and resubmit: {referee.summary}"
+                error_type = "referee_revision_required"
+            return ToolResult(ok=False, payload=None, error=ToolError(type=error_type, message=message))
+        deps.submission.checked_clean = None
+        deps.submission.copy_repair_required = False
+        deps.submission.referee_replan_required = True
+        deps.runtime.emit(
+            "referee",
+            "referee",
+            f"referee intervention limit reached, blocking publication: {referee.summary[:200]}",
+            artifact_id=artifact_id,
+        )
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="referee_blocked",
+                message=(
+                    "The referee still found a threshold-crossing blocker after the intervention limit. "
+                    "Do not publish this submission; stop and let the run fail for audit. "
+                    f"Referee: {referee.summary}"
                 ),
             ),
         )
 
     deps.submission.checked_clean = None
     deps.submission.copy_repair_required = False
-    deps.submission.accepted = args
+    deps.submission.accepted = checked
     deps.submission.escalations = report.escalations
     deps.runtime.emit("validation", deps.actor, "submission accepted")
     return ToolResult(
         payload={
             "accepted": True,
             "escalations": report.escalations,
-            "published_preview": published_title_preview(deps, args.artifact_id),
-            "spread": spread_section(deps, args.artifact_id),
+            "normalisation_warnings": normalised.warnings,
+            "published_preview": published_title_preview(deps, checked.artifact_id),
+            "spread": spread_section(deps, checked.artifact_id),
+            "factor_audit": factor_audit_section(deps, checked.artifact_id),
+            "market_gap_contract": market_gap_contract(deps, checked),
+            "branch_audit": branch_audit_section(deps, checked.artifact_id),
+            "world_metadata": world_metadata_section(deps, checked.artifact_id),
+            "advisories": branch_advisories(deps, checked.artifact_id),
         }
     )
 
@@ -96,8 +203,9 @@ SPEC = ToolSpec(
         "simulation artifact from this run (wq.scenario_mixture outputs register automatically); "
         "typed probabilities are never accepted. Carry scenario weights matching the artifact's world "
         "names and weights, with their ledger citations, the run headline, displayed team stories, "
-        "and no em-dashes. check_forecast previews the final published numbers after any calibration "
-        "governor. Moves beyond the escalation threshold against "
+        "and no em-dashes. check_forecast previews the final published numbers and ranking after any calibration "
+        "governor; when that preview is active, prose should distinguish the governed published forecast from "
+        "the raw mixture. Moves beyond the escalation threshold against "
         "the frozen baseline trigger one steelman pass before acceptance; moves against the previous "
         "published forecast need change_justification or an explicit inconsistency_note; gaps beyond "
         "threshold against the de-vigged market need market_justification naming the computation that "

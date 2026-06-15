@@ -108,13 +108,17 @@ def impact(
     n_sims: int | None = None,
     seed: int = 0,
     movers: int = 10,
+    include_teams: list[str] | None = None,
 ) -> dict[str, Any]:
     """Per-team pp title deltas for one perturbation, with the paired-seed
     noise floor attached so sub-floor deltas read as the fiction they are."""
+    included = _checked_tournament_teams(include_teams)
     base = baseline(n_sims=n_sims, seed=seed)
     moved = simulate((perturbation,), n_sims=n_sims, seed=seed)
     deltas = {t: round((moved.get(t, 0.0) - p) * 100, 3) for t, p in base.items()}
     top = dict(sorted(deltas.items(), key=lambda kv: abs(kv[1]), reverse=True)[:movers])
+    for team in included:
+        top[team] = deltas[team]
     return {"deltas_pp": top, "noise_floor_pp": noise_floor(n_sims=n_sims, seed=seed)}
 
 
@@ -217,7 +221,8 @@ def title_uncertainty(
             "p90": {t: float(np.percentile(v, 90)) for t, v in rows.items()},
         }
     )
-    return frame.sort_values("mean", ascending=False)
+    frame.index.name = "team"
+    return frame.sort_values("mean", ascending=False).reset_index().set_index("team", drop=False)
 
 
 def update_from_result(

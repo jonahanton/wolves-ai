@@ -52,10 +52,25 @@ class LedgerEvidence(EvidenceItem):
     retrieval_id: str | None = None
 
 
+class CandidateBranch(BaseModel):
+    """A research hypothesis for quant to price, collapse or reject."""
+
+    branch_id: str = Field(min_length=1)
+    teams: list[str] = Field(default_factory=list)
+    hypothesis: str = Field(min_length=1)
+    support: str = Field(min_length=1)
+    collapse_condition: str = Field(min_length=1)
+    source_ids: list[str] = Field(default_factory=list)
+    evidence_indices: list[int] = Field(default_factory=list)
+    confidence: Literal["low", "medium", "high"] = "low"
+    suggested_quant_question: str = Field(min_length=1)
+
+
 class ResearchOutput(BaseModel):
     summary: str
     evidence: list[LedgerEvidence] = Field(default_factory=list)
     signals: list[str] = Field(default_factory=list)
+    candidate_branches: list[CandidateBranch] = Field(default_factory=list)
 
 
 class PricedItem(BaseModel):

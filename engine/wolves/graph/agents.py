@@ -6,10 +6,10 @@ from functools import cache
 from typing import Any
 from urllib.parse import urlparse
 
-from pydantic import BaseModel
 from pydantic_ai import Agent, ModelRetry, RunContext
 
 from wolves.agent.deps import AgentDeps
+from wolves.agent.sources import official_body_source
 from wolves.agent.tools.market import market_gaps, market_movement
 from wolves.agent.tools.memory import (
     forecast_history,
@@ -44,7 +44,6 @@ _RESEARCH_FREE_SPECS: list[ToolSpec] = [read_artifact.SPEC]
 _POST_CLEAN_CHECK_TOOLS = {"submit_forecast", "write_journal"}
 _COPY_REPAIR_TOOLS = {"submit_forecast", "check_forecast"}
 _LINEUP_TERMS = ("starting xi", "lineup", "line-up", "teamsheet", "team sheet")
-_OFFICIAL_LINEUP_HOSTS = ("fifa.com", "englandfootball.com", "thefa.com")
 _FAKE_TOOL_HOSTS = {"get_odds", "get_results_and_fixtures"}
 _INTERNAL_SOURCE_URLS = {"internal://get_odds", "internal://get_results_and_fixtures"}
 _PLACEHOLDER_HOSTS = {"example.com", "example.org", "example.net"}
@@ -113,6 +112,30 @@ _NODE_OUTPUTS: dict[NodeKind, type] = {
 
 
 def _forecast_post_check_refusal(tool_name: str, deps: AgentDeps) -> ToolResult | None:
+    if deps.submission.copy_repair_blocked:
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="copy_repair_loop",
+                message=(
+                    "The same copy-only validation issues repeated. Stop calling tools and return a short "
+                    "ForecastOutput summary so the master can replan finalisation."
+                ),
+            ),
+        )
+    if deps.submission.referee_replan_required:
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="referee_replan_required",
+                message=(
+                    "The final referee asked for master replanning. Stop calling tools and return a short "
+                    "ForecastOutput summary so the master can open the next research or quant wave."
+                ),
+            ),
+        )
     if deps.submission.copy_repair_required and tool_name not in _COPY_REPAIR_TOOLS:
         return ToolResult(
             ok=False,
@@ -145,12 +168,18 @@ def _host(source_url: str) -> str:
 
 
 def _official_lineup_source(source_url: str) -> bool:
-    host = _host(source_url)
-    return any(host == allowed or host.endswith(f".{allowed}") for allowed in _OFFICIAL_LINEUP_HOSTS)
+    return official_body_source(source_url)
 
 
 def _fake_tool_source(source_url: str) -> bool:
     return _host(source_url) in _FAKE_TOOL_HOSTS
+
+
+def _fetched_public_source(source_url: str, deps: AgentDeps | None) -> bool:
+    if deps is None or deps.source_memory is None:
+        return True
+    seen = deps.source_memory.seen(source_url)
+    return seen is not None and seen.last_seen_run == deps.runtime.run_id and seen.disposition == "fetched"
 
 
 def _source_label(source_url: str) -> str:
@@ -257,18 +286,24 @@ def _research_source_issues(output: ResearchOutput, deps: AgentDeps | None = Non
     groups = _team_groups(deps) if deps is not None else {}
     for index, item in enumerate(output.evidence, start=1):
         source_url = item.source_url.strip()
-        if not source_url.startswith(("http://", "https://")) and source_url not in _INTERNAL_SOURCE_URLS:
+        internal_source = source_url in _INTERNAL_SOURCE_URLS
+        if not source_url.startswith(("http://", "https://")) and not internal_source:
             issues.append(
                 f"evidence {index} uses non-canonical internal source {source_url!r}. "
                 "Use internal://get_odds, internal://get_results_and_fixtures, or a fetched public URL."
             )
-        if _host(source_url) in _PLACEHOLDER_HOSTS:
+        if not internal_source and _host(source_url) in _PLACEHOLDER_HOSTS:
             issues.append(f"evidence {index} cites placeholder URL {source_url!r}; cite the real source.")
-        if _fake_tool_source(item.source_url):
+        if not internal_source and _fake_tool_source(item.source_url):
             issues.append(
                 f"evidence {index} cites first-party tool output as fake web URL {item.source_url!r}. "
                 "Use source_url 'internal://get_odds' or 'internal://get_results_and_fixtures', "
                 "or cite a fetched public URL."
+            )
+        if source_url.startswith(("http://", "https://")) and not _fetched_public_source(source_url, deps):
+            issues.append(
+                f"evidence {index} cites public URL {source_url!r} without fetching or cached-fetching it this run. "
+                "Fetch the page first, or move the finding to signals if it is only search-snippet context."
             )
         if abs(item.proposed_delta) > _MAX_REASONABLE_STRENGTH_DELTA:
             issues.append(
@@ -295,35 +330,20 @@ def _research_source_issues(output: ResearchOutput, deps: AgentDeps | None = Non
             "Only official team, federation or FIFA pages may confirm line-ups. Reword it as reported "
             "or predicted with probable/rumour status, or omit it."
         )
+    for branch_index, branch in enumerate(output.candidate_branches, start=1):
+        invalid = [index for index in branch.evidence_indices if index < 1 or index > len(output.evidence)]
+        if invalid:
+            issues.append(
+                f"candidate_branches {branch_index} references unknown evidence_indices "
+                f"{', '.join(str(index) for index in invalid)}."
+            )
+        if branch.confidence in {"medium", "high"} and not branch.source_ids and not branch.evidence_indices:
+            issues.append(
+                f"candidate_branches {branch_index} has {branch.confidence} confidence but no source_ids or "
+                "evidence_indices; attach the receipts that make it worth quant pricing."
+            )
     issues.extend(_research_group_context_issues(output, deps))
     return issues
-
-
-def _em_dash_paths(value: Any, path: str = "$") -> list[str]:
-    if isinstance(value, BaseModel):
-        return _em_dash_paths(value.model_dump(mode="json"), path)
-    if isinstance(value, dict):
-        paths: list[str] = []
-        for key, item in value.items():
-            paths.extend(_em_dash_paths(item, f"{path}.{key}"))
-        return paths
-    if isinstance(value, list):
-        paths: list[str] = []
-        for index, item in enumerate(value):
-            paths.extend(_em_dash_paths(item, f"{path}[{index}]"))
-        return paths
-    if isinstance(value, str) and "\u2014" in value:
-        return [path]
-    return []
-
-
-def _reject_em_dashes(value: Any) -> list[str]:
-    paths = _em_dash_paths(value)
-    if not paths:
-        return []
-    shown = ", ".join(paths[:8])
-    extra = "" if len(paths) <= 8 else f" and {len(paths) - 8} more"
-    return [f"Replace em dashes with commas, semicolons, parentheses or hyphens in {shown}{extra}."]
 
 
 async def _truncated(spec: ToolSpec, args: Any, ctx: RunContext[AgentDeps], result: ToolResult) -> str:
@@ -360,19 +380,6 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
         ],
     )
 
-    @agent.output_validator
-    def _node_copy_style(ctx: RunContext[AgentDeps], output: Any) -> Any:
-        issues = _reject_em_dashes(output)
-        if issues:
-            ctx.deps.runtime.emit(
-                "output_retry",
-                ctx.deps.actor,
-                f"{kind} output rejected: {issues[0][:120]}",
-                issues=issues,
-            )
-            raise ModelRetry(" ".join(issues))
-        return output
-
     if kind == "research":
 
         @agent.output_validator
@@ -400,9 +407,6 @@ def master_agent(output_retries: int) -> Agent[None, GraphPatch]:
 
     @agent.output_validator
     def _ops_or_stop(patch: GraphPatch) -> GraphPatch:
-        issues = _reject_em_dashes(patch)
-        if issues:
-            raise ModelRetry(" ".join(issues))
         # Opus narrates a wave in reason while emitting ops=[].
         if not patch.ops and not patch.stop:
             raise ModelRetry(

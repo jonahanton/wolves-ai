@@ -33,12 +33,11 @@ class ForecastArtifactError(Exception):
 
 
 def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
-    """Parse a mixture artifact's world configurations; a plain simulation
-    artifact (no worlds block) publishes as one unperturbed world."""
+    """Parse a mixture artifact's world configurations."""
     weights: dict[str, float] = payload.get("weights") or {}
     worlds_block: dict[str, dict] = payload.get("worlds") or {}
     if not worlds_block:
-        return [PublishedWorld(name="baseline", weight=1.0)]
+        raise ForecastArtifactError("computed forecast artifacts must carry world configurations")
     worlds: list[PublishedWorld] = []
     for name, weight in weights.items():
         spec = worlds_block.get(name)

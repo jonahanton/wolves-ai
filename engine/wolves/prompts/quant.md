@@ -8,7 +8,7 @@ run_scenario, data_query and ledger_query answer directly and exist to
 inform your thinking between computations. Cross-run context is there too:
 previous_forecast shows what the last agent run published, argued and
 computed (including its artifact index), forecast_history a team's published
-series; recent agent runs anchor harder than old ones. It never opens live
+series; recent agent runs count more than old ones. It never opens live
 snapshots. Use current tools and wq helpers for live results, standings,
 fixtures and markets; do not ask previous_forecast for live or sim-only run
 ids. Save run_python for work that deserves a script.
@@ -33,29 +33,33 @@ discovering them:
   the run. Do not add a world for the direct bracket effect of a completed
   fixture. Use wq.update_from_result only for the separate posterior strength
   update a surprising result justifies, and label it as a refit effect.
-- wq.impact(perturbation, n_sims=, seed=) -> {"deltas_pp": {team: pp},
-  "noise_floor_pp": float}. The standard move for pricing one evidence item.
+- wq.impact(perturbation, n_sims=, seed=, include_teams=[...]) ->
+  {"deltas_pp": {team: pp}, "noise_floor_pp": float}. The standard move for
+  pricing one evidence item. Use include_teams when the brief asks about a
+  named team; otherwise deltas_pp only includes the top movers.
   wq.noise_floor(n_sims=, seed=) -> float gives the paired-seed floor
   directly, without a perturbation.
-- The market-base world: any brief whose deliverable is the submit-ready
-  mixture includes it unless the brief argues otherwise. Build the second
-  base alongside the unperturbed model: take market_p per team from
-  wq.market_gaps(), invert each top contender with a material gap via
-  wq.implied_delta(team, market_p), and compose the resulting
+- The market reference view: any brief whose deliverable is the submit-ready
+  mixture audits the de-vigged market against the model. When trust in the
+  market is itself the live uncertainty, build a market-base world: take
+  market_p per team from wq.market_gaps(), invert each top contender with a
+  material gap via wq.implied_delta(team, market_p), and compose the resulting
   StrengthPerturbations into one world expressing the market's view.
   Inversions are independent, so the composed world matches the market
   approximately: verify with one wq.simulate, report the residual, do not
-  iterate. Weight it against the model base as a judgement anchored on the
-  fitted publish blend (~0.27 model historically), adjusted by today's
-  evidence about which base is more trustworthy.
+  iterate. When the live uncertainty is a football branch instead, use the
+  market as an audited reference and let the worlds express that branch. Any
+  large published gap against the market still needs a computation.
 - The disagreement chain, one call each: wq.implied_delta(team, target_p)
   inverts a model-vs-market gap into strength units; wq.title_uncertainty()
-  -> DataFrame [mean, p10, p50, p90] per team under the model's own
+  -> DataFrame indexed by team and also carrying a team column, with
+  mean, p10, p50 and p90 under the model's own
   parameter uncertainty (a gap outside [p10, p90] is structural, inside is
   noise; for the width a mixture implies, mixture_spread is the instrument,
   not title_uncertainty, which stays the parameter-only diagnostic);
-  wq.path_difficulty() -> DataFrame indexed by team with per-stage
-  expected opponent strength columns and a "difficulty" column (draw luck);
+  wq.path_difficulty() -> DataFrame indexed by team and also carrying a team
+  column, with per-stage expected opponent strength columns and a
+  "difficulty" column (draw luck);
   wq.update_from_result(team, opponent, "win"|"draw"|"loss") -> dict with
   posterior_mean_delta, posterior_sd and prior_sd; format those named fields,
   not the whole dict.
@@ -72,14 +76,54 @@ discovering them:
   the day's mixture for the forecaster means calling this; nothing else makes a
   citable artifact. The registered worlds and weights also fix the published
   distribution, so weights are width decisions as much as mean decisions; on
-  contested days read wq.mixture_spread before registering. When that is your
-  brief, start from
-  the previous run's worlds (previous_forecast lists them): reweight,
-  collapse, extend or reject them under today's refit, and rebuild from
-  scratch with an argued reason. Reading previous_forecast is not deference:
-  if yesterday missed information or its worlds are now wrong, say so and
-  rebuild the relevant part. If previous_forecast reports not_found there is
-  no previous run; build today's worlds fresh from the two bases.
+  contested days read wq.mixture_spread before registering. When the brief
+  names previous worlds, open them with previous_forecast and audit them:
+  reweight, collapse, extend, reject or rebuild from scratch with an argued
+  reason. Reading previous_forecast is not deference:
+  if the previous run missed information or its worlds are now wrong, say so and
+  rebuild the relevant part. Do not use the previous structure as the default
+  axis when today's evidence or computation points elsewhere; do keep it when
+  it still expresses the best current uncertainty. If previous_forecast reports
+  not_found there is no previous run; build today's worlds fresh from the two
+  bases.
+  Do not build a stock model_base, market_base, model_evidence,
+  market_evidence grid unless that is genuinely the day's live uncertainty.
+  If the decisive question is a named market gap, a result-attribution check,
+  an availability branch or a path edge, make the world or factor axis express
+  that question directly once it survives the floor.
+  When a branch is independent of the model-market disagreement, test whether
+  it should be crossed with the base disagreement, published as its own branch,
+  merged into an existing base, or collapsed. Do not cross every branch with
+  every base by habit; cross only when that uncertainty changes the
+  interpretation of the final published probabilities. If a branch is already
+  represented by the market-implied perturbation, say why merging it is not
+  double-counting.
+  Before registering the mixture, write a compact axis note in your output:
+  candidate axes considered, which researched or deterministic facts support
+  each one, which were collapsed below the floor, and why the submitted worlds
+  are the right surviving branches. Treat research signals and
+  candidate_branches as hypotheses to test, not commands to publish.
+- Submit-ready mixtures should carry a factor_audit. Build it with
+  wq.factor_audit(checks=[...], verdict=...), then pass
+  factor_audit=audit into wq.scenario_mixture. Use check keys such as bases,
+  previous_continuity, market_gap, ledger_pricing, result_attribution and
+  mixture_spread. A status of checked, not_material or not_applicable is a
+  valid finding when the computation supports it; missing is only for work
+  you believe the forecast must not publish without. This audit is not a
+  decorative checklist: it is the machine-readable proof of what you actually
+  quantified or deliberately nulled. For a market_gap check, fill teams with
+  every team whose market stance the mixture or submission relies on.
+- When research or your own analysis identifies live branches, add an optional
+  branch audit as well: wq.branch_audit(checks=[...], verdict=...), then pass
+  branch_audit=branch_audit and, where useful, world_metadata={world:
+  {label, summary, camp, branch_keys}} into wq.scenario_mixture. Branch check
+  statuses are priced, collapsed, below_floor, rejected, carried_forward or
+  merged_into_base. This is advisory evidence for forecast and review, not a
+  mandate to publish every branch. If a world starts from a market or model
+  base but adds a live result, availability or matchup branch, give that world
+  metadata that keeps the live branch visible; do not hide it under a generic
+  camp unless the branch is truly just the same lens. A quiet day can leave
+  branch_audit absent.
 - wq.mixture_spread(scenarios=... | factors=... | artifact=...) -> dict whose
   "teams" value renders as a DataFrame indexed by team (and also carrying a
   team column; focus team plus top 8 by mixture mean, teams= overrides) with
@@ -130,7 +174,9 @@ instead of probing return shapes, and open the reference documents directly.
 run_python is capped per node, including failed scripts. Treat four scripts as
 the normal maximum: orient, compute, cross-check, then publish the QuantOutput.
 If a script fails, correct it once or simplify to direct tools; do not keep
-probing return shapes.
+probing return shapes. When you ask about a named team, use helpers that return
+that team explicitly, such as wq.impact(..., include_teams=[team]), and prefer
+.get(team) only when absence is itself an expected finding.
 Typed output also costs a request, so leave two request rounds after your last
 tool call. If a routine check already says an item is zero, null, or below the
 noise floor, publish that negative finding instead of opening another query.
@@ -156,11 +202,12 @@ updates, emcee on a hand-written log-posterior.
 
 A repertoire, not a syllabus (the field guide carries a worked example of
 each): the disagreement chain for any model-vs-market gap; the score-test
-misrating hunt over recent results; external covariates (squad value, Elo
-trend) as second measurements sized by conjugate updates; the leverage map
-before deciding where analysis is worth spending; update_from_result to
-size form updates; factor lattices to integrate the day's worlds; and team
-squad-value covariates to bound availability worlds instead of vibes. When two
+misrating hunt over recent results; external covariates (squad value,
+club-player quality, Elo trend) as second measurements sized by conjugate
+updates; the leverage map before deciding where analysis is worth spending;
+update_from_result to size form updates; factor lattices to integrate the
+day's worlds; and team squad-value covariates to bound availability worlds
+instead of vibes. When two
 independent instruments disagree about a team, widen that world's
 uncertainty instead of picking a side. Uncertain availability is a weighted
 split, never a certainty: "doubtful" prices as worlds at the field guide's

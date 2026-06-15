@@ -281,13 +281,18 @@ class AgentBlock(BaseModel):
     worlds: list[WorldOut] = Field(default_factory=list)
     quant_findings: list[QuantFindingOut] = Field(default_factory=list)
     escalations: list[str] = Field(default_factory=list)
+    market_gaps: list[MarketGapOut] = Field(default_factory=list)
     market_justification: str = ""
     change_justification: str = ""
     inconsistency_note: str = ""
+    news_impacts: dict[str, str] = Field(default_factory=dict)
+    copy_guard_version: int | None = None
     attribution: AttributionOut | None = None
     governor: GovernorOut | None = None
     calibration: CalibrationSummary | None = None
     provenance: ProvenanceOut | None = None
+    branch_audit: dict[str, object] | None = None
+    world_metadata: dict[str, dict[str, object]] = Field(default_factory=dict)
 
 
 class ChampionBlock(BaseModel):

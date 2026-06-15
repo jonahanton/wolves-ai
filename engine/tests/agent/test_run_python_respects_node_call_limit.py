@@ -39,6 +39,7 @@ payload = {
     "worlds": {"model": {"perturbations": []}},
     "mixture": {"england": 0.08},
     "conditionals": {"model": {"england": 0.08}},
+    "factor_audit": {"verdict": "quiet day", "checks": []},
 }
 open("outputs/submit_ready.json", "w", encoding="utf-8").write(json.dumps(payload))
 result = {"built": True}
@@ -51,6 +52,111 @@ result = {"built": True}
     assert result.ok
     assert result.payload["registered_artifact_ids"] == ["mixture-001"]
     assert deps.artifacts.get("mixture-001").payload["weights"] == {"model": 1.0}
+    assert deps.artifacts.get("mixture-001").payload["factor_audit"]["verdict"] == "quiet day"
+
+
+async def test_run_python_does_not_register_mixture_without_worlds(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)
+    deps.actor = "quant-build"
+
+    with deps.runtime.run_trace(title="run_python test"):
+        result = await _run_python(
+            RunPythonArgs(
+                code="""
+import json
+
+payload = {
+    "weights": {"model": 1.0},
+    "mixture": {"england": 0.08},
+    "conditionals": {"model": {"england": 0.08}},
+}
+open("outputs/not_publishable.json", "w", encoding="utf-8").write(json.dumps(payload))
+result = {"built": True}
+"""
+            ),
+            deps,
+        )
+
+    deps.runtime.shutdown()
+    assert result.ok
+    assert result.payload["registered_artifact_ids"] == []
+    assert deps.artifacts.get("mixture-001") is None
+
+
+async def test_run_python_registers_audit_mixture_rewrite(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)
+    deps.actor = "quant-build"
+
+    with deps.runtime.run_trace(title="run_python test"):
+        result = await _run_python(
+            RunPythonArgs(
+                code="""
+import json
+
+payload = {
+    "weights": {"model": 1.0},
+    "worlds": {"model": {"perturbations": []}},
+    "mixture": {"england": 0.08},
+    "conditionals": {"model": {"england": 0.08}},
+    "artifact_file": "outputs/submit_ready.json",
+}
+open("outputs/submit_ready.json", "w", encoding="utf-8").write(json.dumps(payload))
+audit = wq.factor_audit(checks=[], verdict="retrofitted audit")
+result = wq.audit_mixture(payload, audit)
+"""
+            ),
+            deps,
+        )
+
+    deps.runtime.shutdown()
+    assert result.ok
+    assert result.payload["registered_artifact_ids"] == ["mixture-001"]
+    assert deps.artifacts.get("mixture-001").payload["factor_audit"]["verdict"] == "retrofitted audit"
+
+
+async def test_run_python_amends_registered_mixture_when_output_file_changes(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)
+    deps.actor = "quant-build"
+
+    with deps.runtime.run_trace(title="run_python test"):
+        first = await _run_python(
+            RunPythonArgs(
+                code="""
+import json
+
+payload = {
+    "weights": {"model": 1.0},
+    "worlds": {"model": {"perturbations": []}},
+    "mixture": {"england": 0.08},
+    "conditionals": {"model": {"england": 0.08}},
+    "artifact_file": "outputs/submit_ready.json",
+}
+open("outputs/submit_ready.json", "w", encoding="utf-8").write(json.dumps(payload))
+result = {"built": True}
+"""
+            ),
+            deps,
+        )
+        second = await _run_python(
+            RunPythonArgs(
+                code="""
+import json
+
+payload = json.load(open("outputs/submit_ready.json", encoding="utf-8"))
+audit = wq.factor_audit(checks=[], verdict="second script audit")
+result = wq.audit_mixture(payload, audit)
+"""
+            ),
+            deps,
+        )
+
+    deps.runtime.shutdown()
+    assert first.ok and first.payload["registered_artifact_ids"] == ["mixture-001"]
+    assert second.ok and second.payload["registered_artifact_ids"] == ["mixture-001"]
+    assert deps.artifacts.get("mixture-001").payload["factor_audit"]["verdict"] == "second script audit"
 
 
 async def test_run_python_does_not_register_mixture_from_failed_script(tmp_path):

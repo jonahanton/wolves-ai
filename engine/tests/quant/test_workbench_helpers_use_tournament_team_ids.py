@@ -29,6 +29,7 @@ def test_title_uncertainty_defaults_to_tournament_teams(monkeypatch):
     table = _sim.title_uncertainty(n_draws=2)
 
     assert set(table.index) == {"england", "france"}
+    assert set(table["team"]) == {"england", "france"}
 
 
 def test_title_uncertainty_rejects_non_tournament_team(monkeypatch):
@@ -36,6 +37,17 @@ def test_title_uncertainty_rejects_non_tournament_team(monkeypatch):
 
     with pytest.raises(SandboxContextError, match="abkhazia"):
         _sim.title_uncertainty(teams=["abkhazia"])
+
+
+def test_impact_can_include_named_team_outside_top_movers(monkeypatch):
+    monkeypatch.setattr(_sim, "forecaster", _forecaster)
+    monkeypatch.setattr(_sim, "baseline", lambda **_kwargs: {"england": 0.1, "france": 0.2})
+    monkeypatch.setattr(_sim, "simulate", lambda *_args, **_kwargs: {"england": 0.101, "france": 0.25})
+    monkeypatch.setattr(_sim, "noise_floor", lambda **_kwargs: 0.1)
+
+    result = _sim.impact(object(), movers=1, include_teams=["england"])
+
+    assert result["deltas_pp"] == {"france": 5.0, "england": 0.1}
 
 
 def test_path_difficulty_defaults_to_tournament_teams(monkeypatch):
@@ -60,6 +72,7 @@ def test_path_difficulty_defaults_to_tournament_teams(monkeypatch):
 
     assert set(calls) == {"england", "france"}
     assert set(table.index) == {"england", "france"}
+    assert set(table["team"]) == {"england", "france"}
 
 
 @pytest.mark.parametrize(

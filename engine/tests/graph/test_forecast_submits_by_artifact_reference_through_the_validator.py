@@ -22,7 +22,7 @@ SCENARIO_WEIGHTS = [
 INVALID = build_submission(
     artifact_id="mixture-999",
     narrative=build_submission().narrative.model_copy(
-        update={"headline": "England cruise — nothing to worry about."}
+        update={"headline": "England cruise \u2014 nothing to worry about."}
     ),
     scenario_weights=SCENARIO_WEIGHTS,
 )

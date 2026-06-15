@@ -18,7 +18,11 @@ def store(tmp_path: Path) -> RunArtifactStore:
         kind="mixture",
         created_by="quant-1",
         summary="mixture",
-        payload={"mixture": {"england": 0.10, "ghana": 0.012, "rest": 0.888}},
+        payload={
+            "weights": {"baseline": 1.0},
+            "worlds": {"baseline": {"perturbations": []}},
+            "mixture": {"england": 0.10, "ghana": 0.012, "rest": 0.888},
+        },
     )
     return store
 
@@ -33,11 +37,21 @@ def _validate(submission, store, ledger, **kwargs):
     return validate_submission(submission, artifacts=store, ledger=ledger, limits=ValidatorLimits(), **kwargs)
 
 
+def _submission(**overrides):
+    fields = {
+        "scenario_weights": [
+            {"name": "baseline", "weight": 1.0, "rationale": "Baseline world used for escalation checks."}
+        ]
+    }
+    fields.update(overrides)
+    return build_submission(**fields)
+
+
 def test_escalation_threshold_scales_proportionally_below_ten_percent(store: RunArtifactStore, tmp_path: Path):
     ledger = _ledger(tmp_path)
     baseline = {"england": 0.072, "ghana": 0.004, "rest": 0.924}
 
-    report = _validate(build_submission(), store, ledger, baseline_titles=baseline)
+    report = _validate(_submission(), store, ledger, baseline_titles=baseline)
 
     assert report.ok
     # England +2.8pp breaches the flat 2pp threshold; Ghana +0.8pp breaches
@@ -50,12 +64,12 @@ def test_unexplained_drift_vs_previous_published_rejects(store: RunArtifactStore
     ledger = _ledger(tmp_path)
     previous = {"england": 0.072, "ghana": 0.012, "rest": 0.916}
 
-    silent = _validate(build_submission(), store, ledger, previous_titles=previous)
+    silent = _validate(_submission(), store, ledger, previous_titles=previous)
     assert not silent.ok
     assert any(i.code == "unexplained_drift" for i in silent.issues)
 
     acknowledged = _validate(
-        build_submission(inconsistency_note="Yesterday under-weighted the keeper news; corrected today."),
+        _submission(inconsistency_note="Yesterday under-weighted the keeper news; corrected today."),
         store,
         ledger,
         previous_titles=previous,
@@ -68,7 +82,7 @@ def test_unexplained_drift_uses_final_published_titles(store: RunArtifactStore, 
     previous = {"england": 0.072, "ghana": 0.012, "rest": 0.916}
 
     report = _validate(
-        build_submission(),
+        _submission(),
         store,
         ledger,
         previous_titles=previous,
@@ -78,17 +92,26 @@ def test_unexplained_drift_uses_final_published_titles(store: RunArtifactStore, 
     assert report.ok
 
 
+def test_tiny_previous_drift_does_not_block_publication(store: RunArtifactStore, tmp_path: Path):
+    ledger = _ledger(tmp_path)
+    previous = {"england": 0.10, "ghana": 0.0082, "rest": 0.8918}
+
+    report = _validate(_submission(), store, ledger, previous_titles=previous)
+
+    assert report.ok
+
+
 def test_every_market_gap_needs_naming_in_market_justification(store: RunArtifactStore, tmp_path: Path):
     ledger = _ledger(tmp_path)
     market = {"england": 0.14, "ghana": 0.04}
 
-    silent = _validate(build_submission(), store, ledger, market_titles=market)
+    silent = _validate(_submission(), store, ledger, market_titles=market)
     assert not silent.ok
     assert any(i.code == "market_unreconciled" for i in silent.issues)
 
     # Arguing England alone leaves the ghana gap uncovered.
     partial = _validate(
-        build_submission(market_justification="quant-3 inversion: the market's England premium fails the score test."),
+        _submission(market_justification="quant-3 inversion: the market's England premium fails the score test."),
         store,
         ledger,
         market_titles=market,
@@ -96,7 +119,7 @@ def test_every_market_gap_needs_naming_in_market_justification(store: RunArtifac
     assert any(i.code == "market_unreconciled" and "ghana" in i.message for i in partial.issues)
 
     argued = _validate(
-        build_submission(
+        _submission(
             market_justification="quant-3 inversion: England premium fails the score test; ghana gap is noise-level."
         ),
         store,
