@@ -65,6 +65,9 @@ class ObservedQuant:
                 }
             )
             status = "ok" if result.ok else "FAIL"
+            failure_tails = (
+                {"stdout_tail": result.stdout[-1500:], "stderr_tail": result.stderr[-1500:]} if not result.ok else {}
+            )
             rec.note(
                 summary=f"exec {script} -> {status} ({result.duration_seconds}s, {len(result.output_files)} outputs)",
                 exit_code=result.exit_code,
@@ -73,5 +76,6 @@ class ObservedQuant:
                 output_files=[o.dataset_id for o in result.output_files],
                 package_versions=result.package_versions,
                 error=result.error,
+                **failure_tails,
             )
             return result

@@ -70,9 +70,10 @@ discovering them:
   rebuild the relevant part. If previous_forecast reports not_found there is
   no previous run; build today's worlds fresh from the two bases.
 - wq.mixture_spread(scenarios=... | factors=... | artifact=...) -> dict whose
-  "teams" value renders as a DataFrame (focus team plus top 8 by mixture
-  mean; teams= overrides) with columns mean, p10, p90, width_pp, floor_p10,
-  floor_p90, floor_width_pp (the parameter-noise-only reference band),
+  "teams" value renders as a DataFrame indexed by team (and also carrying a
+  team column; focus team plus top 8 by mixture mean, teams= overrides) with
+  columns mean, p10, p90, width_pp, floor_p10, floor_p90, floor_width_pp
+  (the parameter-noise-only reference band),
   vs_floor (width_pp / floor_width_pp, the one number answering "is my width
   above the model's own irreducible noise"), yesterday_p10/yesterday_p90
   (None when the previous snapshot lacks the block), and one column per

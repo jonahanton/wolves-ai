@@ -134,7 +134,7 @@ SPEC = ToolSpec(
         "columns are match, stage, group, date, city, home, away; wq.market_gaps() columns are "
         "team, model_p_title, market_p_title, polymarket_p_title, blend_p_title, gap_pp, "
         "polymarket_gap_pp, legs_disagree_pp; wq.mixture_spread(...) returns a dict whose teams "
-        "value is a DataFrame. "
+        "value is a DataFrame indexed by team and also carrying a team column. "
         "End every script by assigning the finding to `result` "
         "(JSON-safe; a bare expression or print() does not count). Deltas from wq.impact carry a "
         "paired-seed noise floor: treat anything below it as simulation noise. This tool is capped "

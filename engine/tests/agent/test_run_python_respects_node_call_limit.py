@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.agent.tools.workbench.run_python import RunPythonArgs, _run_python
 from wolves.config import Settings
@@ -49,3 +51,21 @@ result = {"built": True}
     assert result.ok
     assert result.payload["registered_artifact_ids"] == ["mixture-001"]
     assert deps.artifacts.get("mixture-001").payload["weights"] == {"model": 1.0}
+
+
+async def test_run_python_failure_events_include_stderr_tail(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.actor = "quant-build"
+
+    with deps.runtime.run_trace(title="run_python test"):
+        result = await _run_python(RunPythonArgs(code="result = 1 / 0"), deps)
+
+    deps.runtime.shutdown()
+    assert not result.ok
+    events = [
+        json.loads(line)
+        for line in deps.runtime.paths.events.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    [quant_event] = [event for event in events if event["kind"] == "quant_exec"]
+    assert "ZeroDivisionError" in quant_event["payload"]["stderr_tail"]

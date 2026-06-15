@@ -48,6 +48,7 @@ def mixture_spread(
     frame = pd.DataFrame(
         [
             {
+                "team": r.team,
                 "mean": r.mean,
                 "p10": r.p10,
                 "p90": r.p90,
