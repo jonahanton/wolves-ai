@@ -18,7 +18,7 @@ from wolves.agent.tools.memory import (
     what_changed,
     write_journal,
 )
-from wolves.agent.tools.meta import read_artifact, think, todo
+from wolves.agent.tools.meta import read_artifact
 from wolves.agent.tools.model import calibration_readback, model_explain
 from wolves.agent.tools.retrieval import get_odds, get_results_and_fixtures, rank_relevance, web_fetch, web_search
 from wolves.agent.tools.simulation import (
@@ -37,7 +37,6 @@ from wolves.toolkit.adapters.pydantic_ai import build_toolset
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
 
-_FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
 _RESEARCH_FREE_SPECS: list[ToolSpec] = [read_artifact.SPEC]
 _POST_CLEAN_CHECK_TOOLS = {"submit_forecast", "write_journal"}
 _COPY_REPAIR_TOOLS = {"submit_forecast", "check_forecast"}
@@ -67,7 +66,7 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         previous_forecast.SPEC,
         forecast_history.SPEC,
         perturbation_impact.SPEC,
-        *_FREE_SPECS,
+        read_artifact.SPEC,
     ],
     "forecast": [
         ledger_query.SPEC,
@@ -90,9 +89,9 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         write_journal.SPEC,
         check_forecast.SPEC,
         submit_forecast.SPEC,
-        *_FREE_SPECS,
+        read_artifact.SPEC,
     ],
-    "critic": [ledger_query.SPEC, market_gaps.SPEC, run_scenario.SPEC, previous_forecast.SPEC, *_FREE_SPECS],
+    "critic": [ledger_query.SPEC, market_gaps.SPEC, run_scenario.SPEC, previous_forecast.SPEC, read_artifact.SPEC],
 }
 
 _NODE_OUTPUTS: dict[NodeKind, type] = {
