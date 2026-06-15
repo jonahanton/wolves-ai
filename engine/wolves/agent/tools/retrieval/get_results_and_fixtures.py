@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from pydantic import BaseModel
@@ -15,18 +16,23 @@ class GetResultsAndFixturesArgs(BaseModel):
     date: str | None = None
 
 
+def _invalid_date(message: str) -> ToolResult[Any]:
+    return ToolResult(ok=False, payload=None, error=ToolError(type="invalid_arguments", message=message))
+
+
 async def _get_results_and_fixtures(args: GetResultsAndFixturesArgs, deps: AgentDeps) -> ToolResult[Any]:
-    if args.date and deps.as_of and args.date[:4] != deps.as_of[:4]:
-        # Models reach for their training-data year; the queryable window is
-        # this tournament.
-        return ToolResult(
-            ok=False,
-            payload=None,
-            error=ToolError(
-                type="invalid_arguments",
-                message=f"date {args.date} is outside this tournament; today is {deps.as_of}",
-            ),
-        )
+    if args.date and deps.as_of:
+        try:
+            requested = date.fromisoformat(args.date)
+            today = date.fromisoformat(deps.as_of)
+        except ValueError:
+            return _invalid_date(f"date {args.date} must be YYYY-MM-DD; today is {deps.as_of}")
+        if requested.year != today.year:
+            return _invalid_date(f"date {args.date} is outside this tournament; today is {deps.as_of}")
+        if requested > today:
+            return _invalid_date(
+                f"date {args.date} is after today {deps.as_of}; do not query live fixture state after as-of"
+            )
     refused = reserve_or_refuse(deps)
     if refused is not None:
         return refused

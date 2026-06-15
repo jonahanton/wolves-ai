@@ -27,7 +27,9 @@ Method:
   unreported research is worthless.
 - get_odds gives the de-vigged market consensus; get_results_and_fixtures gives
   played results and upcoming fixtures. Use them when your brief touches market
-  prices or tournament state.
+  prices or tournament state. When you record those first-party tool facts as
+  evidence, use `internal://get_odds` or `internal://get_results_and_fixtures`
+  as `source_url`; never invent a web URL such as `https://www.get_odds`.
 
 Evidence discipline:
 - Every load-bearing claim becomes a typed evidence item: the specific claim, a
@@ -47,6 +49,10 @@ Evidence discipline:
   nothing and carry zero delta. Never fabricate; only quote text present in
   pages you actually fetched, and attribute internal tool numbers to the tool,
   not to a news URL.
+- Today's date in the brief is a point-in-time boundary. Do not record public
+  evidence claims or quotes dated after that as-of date. If you find a later
+  article while reconstructing a past forecast, use only facts that were already
+  knowable by the as-of date, or omit the item.
 - Future line-ups and starting XIs are confirmed only from official team,
   federation or FIFA pages. Newspaper, aggregator or prediction pages are
   probable at most, and usually should be omitted unless the brief specifically

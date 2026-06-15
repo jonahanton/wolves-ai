@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from datetime import date
 from functools import cache
 from typing import Any
 from urllib.parse import urlparse
@@ -42,6 +44,48 @@ _POST_CLEAN_CHECK_TOOLS = {"submit_forecast", "write_journal"}
 _COPY_REPAIR_TOOLS = {"submit_forecast", "check_forecast"}
 _LINEUP_TERMS = ("starting xi", "lineup", "line-up", "teamsheet", "team sheet")
 _OFFICIAL_LINEUP_HOSTS = ("fifa.com", "englandfootball.com", "thefa.com")
+_FAKE_TOOL_HOSTS = {"get_odds", "get_results_and_fixtures"}
+_MONTHS = {
+    "jan": 1,
+    "january": 1,
+    "feb": 2,
+    "february": 2,
+    "mar": 3,
+    "march": 3,
+    "apr": 4,
+    "april": 4,
+    "may": 5,
+    "jun": 6,
+    "june": 6,
+    "jul": 7,
+    "july": 7,
+    "aug": 8,
+    "august": 8,
+    "sep": 9,
+    "sept": 9,
+    "september": 9,
+    "oct": 10,
+    "october": 10,
+    "nov": 11,
+    "november": 11,
+    "dec": 12,
+    "december": 12,
+}
+_ISO_DATE = re.compile(r"\b(20\d{2})-(0[1-9]|1[0-2])-([0-2]\d|3[01])\b")
+_MONTH_DAY = re.compile(
+    r"\b("
+    r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
+    r"aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+    r")\.?\s+([0-3]?\d)(?:,\s*(20\d{2}))?\b",
+    re.IGNORECASE,
+)
+_DAY_MONTH = re.compile(
+    r"\b([0-3]?\d)\s+("
+    r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
+    r"aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
+    r")\.?(?:\s+(20\d{2}))?\b",
+    re.IGNORECASE,
+)
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
     "research": [
@@ -139,20 +183,99 @@ def _official_lineup_source(source_url: str) -> bool:
     return any(host == allowed or host.endswith(f".{allowed}") for allowed in _OFFICIAL_LINEUP_HOSTS)
 
 
+def _is_internal_source(source_url: str) -> bool:
+    return not source_url.startswith("http") or source_url.startswith("https://tools.internal/")
+
+
+def _fake_tool_source(source_url: str) -> bool:
+    return _host(source_url) in _FAKE_TOOL_HOSTS
+
+
+def _source_label(source_url: str) -> str:
+    host = _host(source_url)
+    return host or source_url
+
+
+def _coerce_date(year: int, month: int, day: int) -> date | None:
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
+
+
+def _future_dates(text: str, *, as_of: date) -> list[str]:
+    found: list[str] = []
+    seen: set[tuple[date, str]] = set()
+
+    def add(raw: str, when: date | None) -> None:
+        if when is None or when <= as_of:
+            return
+        key = (when, raw)
+        if key in seen:
+            return
+        seen.add(key)
+        found.append(raw)
+
+    for match in _ISO_DATE.finditer(text):
+        add(match.group(0), _coerce_date(int(match.group(1)), int(match.group(2)), int(match.group(3))))
+    for match in _MONTH_DAY.finditer(text):
+        month = _MONTHS[match.group(1).rstrip(".").lower()]
+        year = int(match.group(3)) if match.group(3) else as_of.year
+        add(match.group(0), _coerce_date(year, month, int(match.group(2))))
+    for match in _DAY_MONTH.finditer(text):
+        month = _MONTHS[match.group(2).rstrip(".").lower()]
+        year = int(match.group(3)) if match.group(3) else as_of.year
+        add(match.group(0), _coerce_date(year, month, int(match.group(1))))
+    return found
+
+
 def _research_source_issues(output: ResearchOutput) -> list[str]:
     issues: list[str] = []
     for index, item in enumerate(output.evidence, start=1):
+        if _fake_tool_source(item.source_url):
+            issues.append(
+                f"evidence {index} cites first-party tool output as fake web URL {item.source_url!r}. "
+                "Use source_url 'internal://get_odds' or 'internal://get_results_and_fixtures', "
+                "or cite a fetched public URL."
+            )
         text = f"{item.claim} {item.mechanism}".lower()
         if item.status != "confirmed" or not any(term in text for term in _LINEUP_TERMS):
             continue
         if _official_lineup_source(item.source_url):
             continue
-        source = _host(item.source_url) or item.source_url
+        source = _source_label(item.source_url)
         issues.append(
             f"evidence {index} calls a line-up or starting-XI claim confirmed from {source!r}. "
             "Only official team, federation or FIFA pages may confirm line-ups. Reword it as reported "
             "or predicted with probable/rumour status, or omit it."
         )
+    return issues
+
+
+def _research_temporal_issues(output: ResearchOutput, as_of: str) -> list[str]:
+    if not as_of:
+        return []
+    today = date.fromisoformat(as_of)
+    issues: list[str] = []
+    for index, item in enumerate(output.evidence, start=1):
+        if _is_internal_source(item.source_url):
+            continue
+        text = " ".join([item.claim, item.quote, item.mechanism, item.stance])
+        dates = _future_dates(text, as_of=today)
+        if dates:
+            shown = ", ".join(dates[:3])
+            issues.append(
+                f"evidence {index} contains date(s) after as-of {as_of}: {shown}. "
+                "Do not use public claims or quotes that postdate today's forecast."
+            )
+    for label, text in [("summary", output.summary), ("signals", " ".join(output.signals))]:
+        dates = _future_dates(text, as_of=today)
+        if dates:
+            shown = ", ".join(dates[:3])
+            issues.append(
+                f"{label} contains date(s) after as-of {as_of}: {shown}. "
+                "Remove future-dated public claims from this point-in-time research output."
+            )
     return issues
 
 
@@ -227,8 +350,9 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
     if kind == "research":
 
         @agent.output_validator
-        def _research_source_discipline(output: ResearchOutput) -> ResearchOutput:
+        def _research_source_discipline(ctx: RunContext[AgentDeps], output: ResearchOutput) -> ResearchOutput:
             issues = _research_source_issues(output)
+            issues.extend(_research_temporal_issues(output, ctx.deps.as_of))
             if issues:
                 raise ModelRetry(" ".join(issues))
             return output
