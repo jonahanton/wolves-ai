@@ -1,7 +1,6 @@
 """End-to-end offline proof of the graph: a scripted master plans a research
 wave then a forecast node; the validator rejects an invalid submission inside
-the node's own run, the valid resubmission by artifact reference passes, and
-the run state (ledger, lessons, journal, events) all lands."""
+the node's own run, and the valid resubmission by artifact reference passes."""
 
 from __future__ import annotations
 
@@ -23,7 +22,7 @@ SCENARIO_WEIGHTS = [
 INVALID = build_submission(
     artifact_id="mixture-999",
     narrative=build_submission().narrative.model_copy(
-        update={"focus_story": "England cruise — nothing to worry about.", "slot_rationales": {"73": "only one"}}
+        update={"headline": "England cruise — nothing to worry about."}
     ),
     scenario_weights=SCENARIO_WEIGHTS,
 )
@@ -44,7 +43,7 @@ RESEARCH = scripted_model(
                     quote="trained in full",
                     status="confirmed",
                     mechanism="keeper returns to the XI",
-                    proposed_delta=15.0,
+                    proposed_delta=0.15,
                     team_id="england",
                 )
             ],
@@ -123,6 +122,8 @@ async def test_full_graph_run(tmp_path: Path):
     assert result.submission.artifact_id == "mixture-001"
 
     assert deps.ledger.get("led-0001") is not None
+    assert not deps.settings.lessons_path.exists()
+    deps.memory.commit_staged_lessons()
     assert "Anchor on odds" in deps.settings.lessons_path.read_text()
     assert (tmp_path / "runs" / "e2e-run" / "journal.md").exists()
 

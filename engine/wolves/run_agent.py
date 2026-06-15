@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import re
 import sys
 import time
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from urllib.parse import urlparse
 
 from pydantic import BaseModel
@@ -24,7 +27,6 @@ from wolves.agent.consensus import publish_scale
 from wolves.agent.deps import AgentDeps, SubmissionState
 from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, simulate_worlds, worlds_from_payload
-from wolves.agent.knockout_slots import open_knockout_rationale_slots
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.market_base import seed_baseline_payload
 from wolves.agent.memory import RunMemory
@@ -84,7 +86,7 @@ from wolves.s3.client import S3UnavailableError
 from wolves.s3.fitted import FittedStateStore
 from wolves.s3.layout import ARTICLE, RELEVANCE_FEEDBACK, RELEVANCE_MEMORY, SCENARIOS, SOURCES_SEEN, run_dir
 from wolves.s3.publish import SnapshotPublisher
-from wolves.sim.format import load_format, load_results
+from wolves.sim.format import load_format
 from wolves.sim.mc import SimResult
 from wolves.sim.results_store import persisted_results, played_match_records, stored_fixtures
 from wolves.snapshot import (
@@ -112,19 +114,102 @@ from wolves.toolkit._budget_gate import BudgetGate
 logger = logging.getLogger(__name__)
 
 
-def _dev_submission(as_of: str, focus: str, slot_keys: list[str]) -> dict:
+@dataclass(frozen=True)
+class LiveAttemptSummary:
+    attempts: int
+    failed_attempts: int
+    active_run_ids: tuple[str, ...]
+    spent_usd: float
+
+
+def _run_event_cost(events_path: Path) -> float:
+    cost_micros = 0
+    for line in events_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if event.get("kind") == "llm_call":
+            cost_micros += int(event.get("payload", {}).get("cost_micros") or 0)
+    return cost_micros / 1_000_000
+
+
+def _live_attempt_summary(settings: Settings, *, as_of: str, now: datetime | None = None) -> LiveAttemptSummary:
+    runs_dir = settings.runs_root / "runs"
+    if not runs_dir.exists():
+        return LiveAttemptSummary(attempts=0, failed_attempts=0, active_run_ids=(), spent_usd=0.0)
+    now = now or datetime.now(UTC)
+    ttl = timedelta(minutes=settings.agent_live_active_ttl_minutes)
+    attempts = 0
+    failed = 0
+    spent = 0.0
+    active: list[str] = []
+    for events_path in sorted(runs_dir.glob("agent-*/events.jsonl")):
+        live_events: list[dict] = []
+        for line in events_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get("kind") == "live_attempt" and event.get("payload", {}).get("as_of") == as_of:
+                live_events.append(event)
+        if not live_events:
+            continue
+        attempts += 1
+        status = str(live_events[-1].get("payload", {}).get("status") or "")
+        spent += _run_event_cost(events_path)
+        if status in {"failed", "cancelled"}:
+            failed += 1
+        elif status == "started":
+            modified = datetime.fromtimestamp(events_path.stat().st_mtime, tz=UTC)
+            if now - modified <= ttl:
+                active.append(events_path.parent.name)
+            else:
+                failed += 1
+    return LiveAttemptSummary(
+        attempts=attempts,
+        failed_attempts=failed,
+        active_run_ids=tuple(active),
+        spent_usd=round(spent, 4),
+    )
+
+
+def _live_attempt_blocker(settings: Settings, *, as_of: str, ceiling_usd: float, force: bool = False) -> str | None:
+    if force:
+        return None
+    summary = _live_attempt_summary(settings, as_of=as_of)
+    if summary.active_run_ids:
+        return f"live attempt already active for {as_of}: {', '.join(summary.active_run_ids)}"
+    if summary.failed_attempts >= settings.agent_live_failed_attempt_limit:
+        return (
+            f"{summary.failed_attempts} failed live attempt(s) already recorded for {as_of}; "
+            "audit the existing run artifacts or pass --force-live-attempt"
+        )
+    if summary.spent_usd >= ceiling_usd:
+        return (
+            f"settled live-attempt spend for {as_of} is ${summary.spent_usd:.2f}, "
+            f"at or above the ${ceiling_usd:.2f} ceiling"
+        )
+    return None
+
+
+def _dev_submission(as_of: str, focus: str) -> dict:
     return {
         "artifact_id": "mixture-001",
         "narrative": {
             "headline": (
                 f"Spain remain the team to beat, with {focus} close behind. Nothing in today's news moves the picture."
             ),
-            "focus_story": (
-                f"The {focus} camp is calm: the keeper trained in full and the market still makes them "
-                "third favourites behind Spain and France."
-            ),
-            "slot_rationales": {key: f"Slot {key}: the rating gap favours the group winner." for key in slot_keys},
-            "travel_memo": f"Win the group and {focus} stay on the east coast; finishing second buys a longer trip.",
+            "team_stories": {
+                focus: {
+                    "summary": f"{focus.title()} hold steady behind Spain and France.",
+                    "why": "The keeper trained in full and the market still broadly agrees with the model.",
+                }
+            },
         },
         "scenario_weights": [
             {"name": "keeper_fit", "weight": 0.8, "rationale": "The keeper trained in full."},
@@ -140,7 +225,7 @@ def _dev_submission(as_of: str, focus: str, slot_keys: list[str]) -> dict:
     }
 
 
-def _dev_models(runtime: ObservedRuntime, as_of: str, focus: str, slot_keys: list[str]) -> GraphModels:
+def _dev_models(runtime: ObservedRuntime, as_of: str, focus: str) -> GraphModels:
     """A canned full graph walk: research and quant waves, then a forecast
     node that cites the quant artifact and submits through the validator."""
     expiry = (datetime.fromisoformat(as_of) + timedelta(days=3)).date().isoformat()
@@ -157,7 +242,7 @@ def _dev_models(runtime: ObservedRuntime, as_of: str, focus: str, slot_keys: lis
                         quote="trained in full",
                         status="confirmed",
                         mechanism="keeper returns to the XI",
-                        proposed_delta=15.0,
+                        proposed_delta=0.15,
                         expiry=expiry,
                         team_id=focus,
                     )
@@ -195,7 +280,7 @@ def _dev_models(runtime: ObservedRuntime, as_of: str, focus: str, slot_keys: lis
                     "write_journal",
                     {"text": f"Keeper confirmed fit; sim and market agree {focus} are third favourites."},
                 ),
-                ("submit_forecast", _dev_submission(as_of, focus, slot_keys)),
+                ("submit_forecast", _dev_submission(as_of, focus)),
             ],
             ForecastOutput(summary="Submitted the baseline-anchored forecast."),
         ],
@@ -290,7 +375,7 @@ def _build_deps(
         source_memory=SourceMemory(settings.runs_root / SOURCES_SEEN.key()),
         articles=ArticleCache(settings.runs_root / ARTICLE.prefix),
         relevance_memory=RelevanceMemory(settings.runs_root / RELEVANCE_MEMORY.key()),
-        scenarios=ScenarioRegistry(settings.runs_root / SCENARIOS.key()),
+        scenarios=ScenarioRegistry(settings.runs_root / SCENARIOS.key(), defer_writes=True),
         quant=ObservedQuant(runtime),
         gate=BudgetGate(),
         settings=settings,
@@ -302,6 +387,18 @@ def _build_deps(
             weight_dilution_min_combined=settings.weight_dilution_min_combined,
         ),
     )
+
+
+def _commit_agent_state(deps: AgentDeps) -> None:
+    if deps.scenarios is not None:
+        deps.scenarios.commit()
+    deps.memory.commit_staged_lessons()
+
+
+def _discard_agent_state(deps: AgentDeps) -> None:
+    if deps.scenarios is not None:
+        deps.scenarios.rollback()
+    deps.memory.clear_staged_lessons()
 
 
 def _calibration_block(settings: Settings) -> CalibrationSummary | None:
@@ -771,6 +868,16 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     if not publisher.run_enabled():
         logger.warning("run %s skipped: runs disabled by kill switch", run_id)
         return 0
+    if args.live:
+        blocked = _live_attempt_blocker(
+            settings,
+            as_of=as_of,
+            ceiling_usd=args.ceiling,
+            force=args.force_live_attempt,
+        )
+        if blocked is not None:
+            logger.error("run %s blocked before spend: %s", run_id, blocked)
+            return 1
     state = build_agent_state_store(settings)
     if state is not None:
         # An amnesia run that later pushes would overwrite good S3 state with
@@ -822,10 +929,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
     else:
         runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=Caps(), runs_root=settings.runs_root)
-        dev_slots = open_knockout_rationale_slots(
-            load_format(settings.data_dir), load_results(settings.data_dir, settings=settings)
-        )
-        models = _dev_models(runtime, as_of, settings.focus_team, [slot.key for slot in dev_slots])
+        models = _dev_models(runtime, as_of, settings.focus_team)
         sample = {
             "rating_overrides": [
                 {"team_id": settings.focus_team, "delta_elo": 15.0, "cause": "keeper fit", "ledger_ids": ["led-0001"]}
@@ -878,6 +982,15 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             },
         )
     deps.artifacts = store
+    if args.live:
+        runtime.emit(
+            "live_attempt",
+            "runtime",
+            "live attempt started",
+            as_of=as_of,
+            status="started",
+            ceiling_usd=args.ceiling,
+        )
     market: dict[str, float] = {}
     try:
         result = _prefer_last_clean(await run_graph(deps, as_of=as_of, models=models), deps.submission, run_id=run_id)
@@ -887,10 +1000,37 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
                 market = await outright_consensus(settings, deps.forecaster.fmt, odds=odds, polymarket=polymarket)
             except Exception:
                 logger.warning("markets fetch failed; snapshot publishes without the markets block", exc_info=True)
-    except Exception:
+    except asyncio.CancelledError:
+        _discard_agent_state(deps)
+        if args.live:
+            runtime.emit(
+                "live_attempt",
+                "runtime",
+                "live attempt cancelled",
+                as_of=as_of,
+                status="cancelled",
+                cost_usd=round(runtime.budget.cost_micros / 1e6, 4),
+            )
         publisher.record_failure(
             run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
         )
+        runtime.shutdown()
+        raise
+    except Exception:
+        _discard_agent_state(deps)
+        if args.live:
+            runtime.emit(
+                "live_attempt",
+                "runtime",
+                "live attempt failed",
+                as_of=as_of,
+                status="failed",
+                cost_usd=round(runtime.budget.cost_micros / 1e6, 4),
+            )
+        publisher.record_failure(
+            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+        )
+        runtime.shutdown()
         raise
     finally:
         await web.aclose()
@@ -907,6 +1047,16 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             relevance_feedback(deps.artifacts, deps.ledger, run_id=run_id),
         )
     if result.submission is None:
+        _discard_agent_state(deps)
+        if args.live:
+            runtime.emit(
+                "live_attempt",
+                "runtime",
+                "live attempt failed",
+                as_of=as_of,
+                status="failed",
+                cost_usd=round(runtime.budget.cost_micros / 1e6, 4),
+            )
         runtime.shutdown()
         logger.error(
             "run %s produced no valid submission (budget_exhausted=%s, failures=%d); no snapshot written",
@@ -932,13 +1082,44 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         seed=args.seed,
         market=market,
     )
+    if built is None:
+        _discard_agent_state(deps)
+        if args.live:
+            runtime.emit(
+                "live_attempt",
+                "runtime",
+                "live attempt failed",
+                as_of=as_of,
+                status="failed",
+                cost_usd=round(runtime.budget.cost_micros / 1e6, 4),
+            )
+        runtime.shutdown()
+        logger.error("run %s produced a valid submission but no publishable snapshot", run_id)
+        if state is not None:
+            state.push(run_id=run_id)
+        publisher.record_failure(
+            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+        )
+        await _publish_fallback(
+            settings, publisher, as_of=date.fromisoformat(as_of), n_sims=args.sims, seed=args.seed, started=started
+        )
+        return 1
+    snapshot, sidecars = built
+    record_stream(settings, snapshot)
+    publisher.publish(snapshot, as_of=date.fromisoformat(as_of), started=started, sidecars=sidecars)
+    if deps.forecaster is not None and deps.forecaster.is_fitted:
+        FittedStateStore(ArtifactStore(settings)).publish(deps.forecaster.state, run_id=run_id)
+    _commit_agent_state(deps)
+    if args.live:
+        runtime.emit(
+            "live_attempt",
+            "runtime",
+            "live attempt complete",
+            as_of=as_of,
+            status="complete",
+            cost_usd=round(spent, 4),
+        )
     runtime.shutdown()
-    if built is not None:
-        snapshot, sidecars = built
-        record_stream(settings, snapshot)
-        publisher.publish(snapshot, as_of=date.fromisoformat(as_of), started=started, sidecars=sidecars)
-        if deps.forecaster is not None and deps.forecaster.is_fitted:
-            FittedStateStore(ArtifactStore(settings)).publish(deps.forecaster.state, run_id=run_id)
     if state is not None:
         state.push(run_id=run_id)
     logger.info(
@@ -964,6 +1145,11 @@ def main() -> None:
     parser.add_argument("--sims", type=int, default=settings.n_sims)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--as-of", type=str, default=None)
+    parser.add_argument(
+        "--force-live-attempt",
+        action="store_true",
+        help="bypass same-day live attempt guards after manual audit",
+    )
     add_storage_argument(parser)
     args = parser.parse_args()
     settings = apply_storage_choice(settings, args.storage)

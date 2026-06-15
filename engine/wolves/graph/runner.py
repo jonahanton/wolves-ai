@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from pydantic_ai.models import Model
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
 from wolves.agent.dossier import build_dossier, previous_agent_anchor
+from wolves.agent.tools.submission.submit_forecast import _submit_forecast
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import NodeKind, NodeOutcome, NodePatch
@@ -91,6 +93,21 @@ async def _execute_wave(
     return list(await asyncio.gather(*(run_one(op) for op in ops)))
 
 
+async def _submit_clean_preview(deps: AgentDeps) -> None:
+    checked = deps.submission.checked_clean
+    if checked is None or deps.submission.accepted is not None:
+        return
+    tool_deps = dataclasses.replace(deps, actor="runner-auto-submit")
+    result = await _submit_forecast(checked, tool_deps)
+    deps.runtime.emit(
+        "tool_call",
+        "runner-auto-submit",
+        f"submit_forecast {'ok' if result.ok else 'error'}",
+        tool="submit_forecast",
+        ok=result.ok,
+    )
+
+
 async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> GraphRunResult:
     """The wave loop: plan, admit, execute, merge, until acceptance or caps."""
     store = deps.artifacts or RunArtifactStore(ArtifactStore(deps.settings), run_id=deps.runtime.run_id)
@@ -150,6 +167,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 continue
             outcomes = await _execute_wave(ops, deps=deps, store=store, models=models)
             board.merge(ops, outcomes)
+            await _submit_clean_preview(deps)
             if patch.stop:
                 # A stop patch may carry final ops; they run before the end.
                 logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "stop")
@@ -189,6 +207,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 logger.warning("demand-submit stopped by cap: %s", exc)
             else:
                 board.merge([op], [outcome])
+                await _submit_clean_preview(deps)
 
         return GraphRunResult(
             submission=submission_state.accepted,

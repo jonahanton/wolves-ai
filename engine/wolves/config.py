@@ -132,6 +132,8 @@ class Settings(BaseSettings):
     # unset means the calendar policy decides (wolves/run_policy.py).
     agent_run_ceiling_usd: float | None = None
     agent_run_ceiling_max_usd: float = 9.00
+    agent_live_failed_attempt_limit: int = 2
+    agent_live_active_ttl_minutes: int = 180
     graph_forecast_reserve_usd: float = 1.30
     graph_forecast_reserve_llm_calls: int = 26
 
