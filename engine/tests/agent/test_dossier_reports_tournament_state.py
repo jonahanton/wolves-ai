@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from wolves.agent.dossier import _published, _scenarios, _tournament
+from wolves.agent.dossier import _published, _scenarios, _tournament, _tournament_context
 from wolves.agent.scenarios import ScenarioRegistry
 from wolves.config import Settings
 from wolves.sim import results_store
@@ -45,6 +45,16 @@ def test_standings_score_three_one_zero_and_upcoming_fixtures_listed(deps, monke
     assert "L: croatia 1, england 1" in section or "L: england 1, croatia 1" in section
     assert "m2 ghana v croatia (2026-06-13)" in section
     assert "m73" not in section
+
+
+def test_tournament_context_names_hosts_and_focus_role(deps):
+    section = _tournament_context(deps, None)
+
+    assert "FIFA World Cup 2026, 48 teams" in section
+    assert "hosted by Canada, Mexico, United States" in section
+    assert "Host nations: canada, mexico, usa" in section
+    assert "Focus team: england is not a host nation" in section
+    assert "Venue, travel, altitude and host-country effects are model inputs" in section
 
 
 def _snapshot(*, run_id: str, created_at: str, kind: str, agent: AgentBlock | None = None) -> Snapshot:

@@ -13,12 +13,14 @@ from wolves.agent.calibration import CalibrationLedger, summarise_scores
 from wolves.agent.deps import AgentDeps
 from wolves.insights.market import market_movement
 from wolves.insights.market_gaps import market_gaps
+from wolves.sim.venues import HOST_COUNTRY
 
 logger = logging.getLogger(__name__)
 
 _TOP_TEAMS = 10
 _DOSSIER_SIMS = 50_000
 _DATED_SCENARIO_SUFFIX = re.compile(r"_[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+_HOST_COUNTRY_NAMES = {"CAN": "Canada", "MEX": "Mexico", "USA": "United States"}
 
 
 def build_dossier(deps: AgentDeps) -> str:
@@ -33,6 +35,7 @@ def build_dossier(deps: AgentDeps) -> str:
             logger.warning("dossier baseline skipped: %s", exc)
     sections: list[str] = []
     for build in (
+        _tournament_context,
         _what_changed,
         _tournament,
         _baseline,
@@ -52,6 +55,19 @@ def build_dossier(deps: AgentDeps) -> str:
         if section:
             sections.append(section)
     return "\n\n".join(sections)
+
+
+def _tournament_context(deps: AgentDeps, titles: dict[str, float] | None) -> str:
+    hosts = ", ".join(_HOST_COUNTRY_NAMES[code] for code in sorted(set(HOST_COUNTRY.values())))
+    host_teams = ", ".join(sorted(HOST_COUNTRY))
+    focus = deps.settings.focus_team
+    focus_status = "is a host nation" if focus in HOST_COUNTRY else "is not a host nation"
+    return (
+        f"Tournament: FIFA World Cup 2026, 48 teams, hosted by {hosts}. "
+        f"Host nations: {host_teams}. Focus team: {focus} {focus_status}. "
+        "Venue, travel, altitude and host-country effects are model inputs; "
+        "treat them as context unless today's evidence changes them."
+    )
 
 
 def previous_agent_anchor(deps: AgentDeps, *, top_n: int = _TOP_TEAMS) -> str:
