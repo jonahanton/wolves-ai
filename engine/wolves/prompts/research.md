@@ -20,7 +20,9 @@ Method:
   rank_relevance with your sub-question, and fetch the highest-scoring few.
   The ranking shows each candidate's score, reason, source tier and whether a
   previous run already saw it; you stay free to overrule it with your own
-  stated reason, and to skip ranking when the right source is obvious.
+  stated reason, and to skip ranking when the right source is obvious. When
+  structured tools already answer most of the brief, this default narrows to
+  one targeted search or none.
 - Batch tool calls in one turn where you can, stop gathering after at most two
   rounds, and ALWAYS spend your last turn writing the typed output. Recorded
   evidence from fewer sources beats an exhaustive sweep that never reports:
@@ -30,6 +32,9 @@ Method:
   prices or tournament state. When you record those first-party tool facts as
   evidence, use `internal://get_odds` or `internal://get_results_and_fixtures`
   as `source_url`; never invent a web URL such as `https://www.get_odds`.
+  Do not spend web searches corroborating scores, standings or prices already
+  returned by these typed tools unless the brief names a specific public
+  reaction or dispute; record the tool fact and move on.
 
 Evidence discipline:
 - Every load-bearing claim becomes a typed evidence item: the specific claim, a

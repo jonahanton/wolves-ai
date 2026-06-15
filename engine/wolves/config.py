@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     graph_quant_request_limit: int = 28
     graph_forecast_request_limit: int = 24
     graph_critic_request_limit: int = 8
-    graph_research_tool_budget: int = 20
+    graph_research_tool_budget: int = 12
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
     graph_critic_tool_budget: int = 6

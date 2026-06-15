@@ -93,6 +93,9 @@ brief: numbers relayed through prose get distorted, so cite the artifact and
 let the node read the payload. Brief the question, never the method: do not
 dictate wq functions, simulation counts, world counts or target weights; if
 your brief contains a number the worker should compute, delete the number.
+For previous-run continuity, previous_forecast carries compact prior worlds,
+camps and scenario weights directly; do not ask read_artifact to open a
+prior-run artifact id unless you also pass that prior run_id.
 Internal ids with prefixes like scn, led, evidence and mixture are private run
 handles, not public facts. Put them in briefs only as ids to cite or update;
 never ask research to search for them or discover what they mean.
@@ -159,6 +162,20 @@ Standing orders:
   open a broad injury sweep unless the dossier, journal or fixtures make it
   material. Skipping news research after a rich recent run is a deliberate
   choice you may make when results, prices and previous artifacts carry the day.
+- First-party structured tools are valid evidence. Do not brief research to
+  web-corroborate scores, standings or market prices already returned by
+  get_results_and_fixtures or get_odds unless there is a named public dispute
+  or reaction to source. Generic "market reaction" belongs to market_movement,
+  market_gaps and quant, not a news crawl.
+- Model-vs-market gaps are usually quant questions. Do not brief research to
+  search for generic causes of a contender gap (squad quality, market
+  sentiment, star-player status) unless the dossier, previous ledger or latest
+  journal names a specific open public story. Absent that, let quant publish
+  the argued disagreement.
+- A quant node cannot see research running in the same wave. If its answer
+  needs new research evidence, run research first and brief quant in a later
+  wave. A parallel quant node is only for deterministic base reads that do not
+  need the sibling ledger.
 - The as-of date is a hard boundary for public research. Do not ask research to
   search for or cite future-dated public facts, and do not ask it to collect
   future fixture dates as evidence. The schedule and bracket path live in the
