@@ -61,3 +61,4 @@ async def test_only_hard_issues_consume_a_retry(deps: AgentDeps, submission, exp
     assert not result.ok
     assert deps.submission.accepted is None
     assert deps.submission.validation_failures == expected_failures
+    assert deps.submission.copy_repair_required is (expected_failures == 0)

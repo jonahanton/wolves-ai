@@ -12,6 +12,7 @@ from wolves.toolkit.result import ToolResult
 async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
     report = validation_report(args, deps)
     deps.submission.checked_clean = args if report.ok else None
+    deps.submission.copy_repair_required = (not report.ok) and not bool(report.hard_issues)
     deps.runtime.emit(
         "validation",
         deps.actor,
@@ -30,7 +31,7 @@ async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResu
             "next_action": (
                 "Write the journal if still needed, then call submit_forecast with this checked payload."
                 if report.ok
-                else "Fix exactly the listed issues, then re-check or submit."
+                else "Fix exactly the listed issues before using any other tool."
             ),
         }
     )

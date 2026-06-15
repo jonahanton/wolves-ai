@@ -62,5 +62,6 @@ async def test_preview_reports_without_spending_state(deps: AgentDeps, submissio
     assert deps.submission.escalation_fired is False
     if expect_ok:
         assert deps.submission.checked_clean == submission
+        assert deps.submission.copy_repair_required is False
     else:
         assert deps.submission.checked_clean is None

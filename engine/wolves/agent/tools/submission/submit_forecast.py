@@ -19,9 +19,11 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         deps.submission.checked_clean = None
         # Copy issues are repair prompts; only hard issues spend a retry.
         if report.hard_issues:
+            deps.submission.copy_repair_required = False
             deps.submission.validation_failures += 1
             cost_note = f"{_remaining_hard(deps)} hard resubmissions remain"
         else:
+            deps.submission.copy_repair_required = True
             cost_note = f"copy issues only, no hard retry spent; {_remaining_hard(deps)} hard resubmissions remain"
         deps.runtime.emit("validation", deps.actor, f"submission rejected: {report.summary()[:200]}")
         return ToolResult(
@@ -35,6 +37,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
 
     if report.escalations and not deps.submission.escalation_fired:
         deps.submission.checked_clean = None
+        deps.submission.copy_repair_required = False
         deps.submission.escalation_fired = True
         deps.submission.last_clean = args
         deps.submission.last_clean_escalations = report.escalations
@@ -54,6 +57,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
     if deps.submission.escalation_fired and not (args.change_justification.strip() and grounded):
         # Once an escalation fires, the steelman substance is required even if
         # the resubmission swaps in a quieter artifact; the move was flagged.
+        deps.submission.copy_repair_required = False
         deps.submission.validation_failures += 1
         deps.runtime.emit("validation", deps.actor, "escalated resubmission without substance rejected")
         return ToolResult(
@@ -71,6 +75,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         )
 
     deps.submission.checked_clean = None
+    deps.submission.copy_repair_required = False
     deps.submission.accepted = args
     deps.submission.escalations = report.escalations
     deps.runtime.emit("validation", deps.actor, "submission accepted")

@@ -37,6 +37,7 @@ from wolves.toolkit.result import ToolError, ToolResult
 
 _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
 _POST_CLEAN_CHECK_TOOLS = {"submit_forecast", "write_journal"}
+_COPY_REPAIR_TOOLS = {"submit_forecast", "check_forecast"}
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
     "research": [
@@ -98,6 +99,18 @@ _NODE_OUTPUTS: dict[NodeKind, type] = {
 
 
 def _forecast_post_check_refusal(tool_name: str, deps: AgentDeps) -> ToolResult | None:
+    if deps.submission.copy_repair_required and tool_name not in _COPY_REPAIR_TOOLS:
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="copy_repair_required",
+                message=(
+                    "The last forecast validation had copy issues only. Fix exactly those words and call "
+                    "check_forecast or submit_forecast again; do not call evidence, simulation or planning tools."
+                ),
+            ),
+        )
     if deps.submission.checked_clean is None or tool_name in _POST_CLEAN_CHECK_TOOLS:
         return None
     return ToolResult(

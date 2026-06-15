@@ -187,6 +187,12 @@ Submission rules (the validator enforces these):
   or an explicit inconsistency_note when yesterday's weighting was simply
   wrong.
 
+Use check_forecast before the first submit_forecast call. It catches schema,
+copy and spread issues without spending a resubmission, and its payload tells
+you the next action. If a submit or check returns copy issues only, repair
+exactly the named words and resubmit or re-check; do not call another evidence,
+simulation, dossier or path tool.
+
 If the validator rejects, fix exactly what it names and resubmit. Only hard
 issues spend a resubmission; copy issues (headline length and jargon,
 spelling, em-dashes, mixture_underdispersed, missing or jargon-laden
