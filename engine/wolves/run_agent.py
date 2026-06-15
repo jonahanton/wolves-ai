@@ -469,10 +469,9 @@ def _prefer_last_clean(result: GraphRunResult, state: SubmissionState, *, run_id
     return result
 
 
-def _markets_block(deps: AgentDeps, outputs, market: dict[str, float]) -> MarketsBlock | None:
+def _markets_block(deps: AgentDeps, model_probs: dict[str, float], market: dict[str, float]) -> MarketsBlock | None:
     if not market or deps.forecaster is None:
         return None
-    model_probs = {t.team_id: t.champion_prob for t in outputs.teams}
     weight = deps.forecaster.champion.blend_weight
     return MarketsBlock(
         model_probs={k: round(v, 4) for k, v in model_probs.items()},
@@ -916,6 +915,17 @@ def _build_snapshot(
         govern_outputs(outputs, anchor, d=effective_d)
         governor = GovernorOut(scale=governor_scale, effective_d=effective_d)
         logger.warning("run %s: governor active, publishing at d=%.2f", run_id, effective_d)
+    if market:
+        if anchor_result is None:
+            anchor_result = deps.forecaster.simulate(
+                n_sims=n_sims, seed=seed, results=deps.forecaster.played_results(extra_results=played)
+            )
+        model_outputs = deps.forecaster.sim_outputs(
+            n_sims=n_sims, seed=seed, extra_results=played, result=anchor_result
+        )
+        model_probs = {t.team_id: t.champion_prob for t in model_outputs.teams}
+    else:
+        model_probs = {}
 
     weights = {w.name: w.weight for w in worlds}
     distributions, sidecars = build_run_distributions(
@@ -1001,7 +1011,7 @@ def _build_snapshot(
         teams=outputs.teams,
         groups=outputs.groups,
         matches=outputs.matches,
-        markets=_markets_block(deps, outputs, market),
+        markets=_markets_block(deps, model_probs, market),
         agent=agent_block,
         distributions=distributions,
     )
