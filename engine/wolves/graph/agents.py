@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-from datetime import date
 from functools import cache
 from typing import Any
 from urllib.parse import urlparse
@@ -9,6 +7,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel
 from pydantic_ai import Agent, ModelRetry, RunContext
 
+from wolves.agent.as_of import future_date_mentions
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools.market import market_gaps, market_movement
 from wolves.agent.tools.memory import (
@@ -45,47 +44,6 @@ _COPY_REPAIR_TOOLS = {"submit_forecast", "check_forecast"}
 _LINEUP_TERMS = ("starting xi", "lineup", "line-up", "teamsheet", "team sheet")
 _OFFICIAL_LINEUP_HOSTS = ("fifa.com", "englandfootball.com", "thefa.com")
 _FAKE_TOOL_HOSTS = {"get_odds", "get_results_and_fixtures"}
-_MONTHS = {
-    "jan": 1,
-    "january": 1,
-    "feb": 2,
-    "february": 2,
-    "mar": 3,
-    "march": 3,
-    "apr": 4,
-    "april": 4,
-    "may": 5,
-    "jun": 6,
-    "june": 6,
-    "jul": 7,
-    "july": 7,
-    "aug": 8,
-    "august": 8,
-    "sep": 9,
-    "sept": 9,
-    "september": 9,
-    "oct": 10,
-    "october": 10,
-    "nov": 11,
-    "november": 11,
-    "dec": 12,
-    "december": 12,
-}
-_ISO_DATE = re.compile(r"\b(20\d{2})-(0[1-9]|1[0-2])-([0-2]\d|3[01])\b")
-_MONTH_DAY = re.compile(
-    r"\b("
-    r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
-    r"aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
-    r")\.?\s+([0-3]?\d)(?:,\s*(20\d{2}))?\b",
-    re.IGNORECASE,
-)
-_DAY_MONTH = re.compile(
-    r"\b([0-3]?\d)\s+("
-    r"jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
-    r"aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?"
-    r")\.?(?:\s+(20\d{2}))?\b",
-    re.IGNORECASE,
-)
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
     "research": [
@@ -196,39 +154,6 @@ def _source_label(source_url: str) -> str:
     return host or source_url
 
 
-def _coerce_date(year: int, month: int, day: int) -> date | None:
-    try:
-        return date(year, month, day)
-    except ValueError:
-        return None
-
-
-def _future_dates(text: str, *, as_of: date) -> list[str]:
-    found: list[str] = []
-    seen: set[tuple[date, str]] = set()
-
-    def add(raw: str, when: date | None) -> None:
-        if when is None or when <= as_of:
-            return
-        key = (when, raw)
-        if key in seen:
-            return
-        seen.add(key)
-        found.append(raw)
-
-    for match in _ISO_DATE.finditer(text):
-        add(match.group(0), _coerce_date(int(match.group(1)), int(match.group(2)), int(match.group(3))))
-    for match in _MONTH_DAY.finditer(text):
-        month = _MONTHS[match.group(1).rstrip(".").lower()]
-        year = int(match.group(3)) if match.group(3) else as_of.year
-        add(match.group(0), _coerce_date(year, month, int(match.group(2))))
-    for match in _DAY_MONTH.finditer(text):
-        month = _MONTHS[match.group(2).rstrip(".").lower()]
-        year = int(match.group(3)) if match.group(3) else as_of.year
-        add(match.group(0), _coerce_date(year, month, int(match.group(1))))
-    return found
-
-
 def _research_source_issues(output: ResearchOutput) -> list[str]:
     issues: list[str] = []
     for index, item in enumerate(output.evidence, start=1):
@@ -255,13 +180,12 @@ def _research_source_issues(output: ResearchOutput) -> list[str]:
 def _research_temporal_issues(output: ResearchOutput, as_of: str) -> list[str]:
     if not as_of:
         return []
-    today = date.fromisoformat(as_of)
     issues: list[str] = []
     for index, item in enumerate(output.evidence, start=1):
         if _is_internal_source(item.source_url):
             continue
         text = " ".join([item.claim, item.quote, item.mechanism, item.stance])
-        dates = _future_dates(text, as_of=today)
+        dates = future_date_mentions(text, as_of=as_of)
         if dates:
             shown = ", ".join(dates[:3])
             issues.append(
@@ -269,7 +193,7 @@ def _research_temporal_issues(output: ResearchOutput, as_of: str) -> list[str]:
                 "Do not use public claims or quotes that postdate today's forecast."
             )
     for label, text in [("summary", output.summary), ("signals", " ".join(output.signals))]:
-        dates = _future_dates(text, as_of=today)
+        dates = future_date_mentions(text, as_of=as_of)
         if dates:
             shown = ", ".join(dates[:3])
             issues.append(
