@@ -33,9 +33,10 @@ from wolves.prompts import prompt
 from wolves.toolkit._truncation import truncate_result
 from wolves.toolkit.adapters.pydantic_ai import build_toolset
 from wolves.toolkit.core import ToolSpec
-from wolves.toolkit.result import ToolResult
+from wolves.toolkit.result import ToolError, ToolResult
 
 _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
+_POST_CLEAN_CHECK_TOOLS = {"submit_forecast", "write_journal"}
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
     "research": [
@@ -96,8 +97,38 @@ _NODE_OUTPUTS: dict[NodeKind, type] = {
 }
 
 
+def _forecast_post_check_refusal(tool_name: str, deps: AgentDeps) -> ToolResult | None:
+    if deps.submission.checked_clean is None or tool_name in _POST_CLEAN_CHECK_TOOLS:
+        return None
+    return ToolResult(
+        ok=False,
+        payload=None,
+        error=ToolError(
+            type="clean_forecast_already_checked",
+            message=(
+                "A clean check_forecast preview has already passed. Write the journal if still needed, "
+                "then call submit_forecast with the checked payload. Do not call more tools."
+            ),
+        ),
+    )
+
+
 async def _truncated(spec: ToolSpec, args: Any, ctx: RunContext[AgentDeps], result: ToolResult) -> str:
     return truncate_result(result.model_dump_json(), ctx.deps.settings.tool_result_max_chars)
+
+
+async def _before_node_tool(spec: ToolSpec, args: Any, ctx: RunContext[AgentDeps]) -> str | None:
+    refusal = _forecast_post_check_refusal(spec.name, ctx.deps)
+    if refusal is None:
+        return None
+    ctx.deps.runtime.emit(
+        "tool_call",
+        ctx.deps.actor,
+        f"{spec.name} error: {refusal.error.message[:80] if refusal.error else 'refused'}",
+        tool=spec.name,
+        ok=False,
+    )
+    return await _truncated(spec, args, ctx, refusal)
 
 
 @cache
@@ -107,7 +138,13 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
         deps_type=AgentDeps,
         output_type=_NODE_OUTPUTS[kind],
         system_prompt=prompt(kind),
-        toolsets=[build_toolset(_NODE_SPECS[kind], after_result=_truncated)],
+        toolsets=[
+            build_toolset(
+                _NODE_SPECS[kind],
+                before_invoke=_before_node_tool if kind == "forecast" else None,
+                after_result=_truncated,
+            )
+        ],
     )
 
 

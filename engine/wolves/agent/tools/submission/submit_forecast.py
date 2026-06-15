@@ -16,6 +16,7 @@ def _remaining_hard(deps: AgentDeps) -> int:
 async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
     report = validation_report(args, deps)
     if not report.ok:
+        deps.submission.checked_clean = None
         # Copy issues are repair prompts; only hard issues spend a retry.
         if report.hard_issues:
             deps.submission.validation_failures += 1
@@ -33,6 +34,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         )
 
     if report.escalations and not deps.submission.escalation_fired:
+        deps.submission.checked_clean = None
         deps.submission.escalation_fired = True
         deps.submission.last_clean = args
         deps.submission.last_clean_escalations = report.escalations
@@ -68,6 +70,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
             ),
         )
 
+    deps.submission.checked_clean = None
     deps.submission.accepted = args
     deps.submission.escalations = report.escalations
     deps.runtime.emit("validation", deps.actor, "submission accepted")

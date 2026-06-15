@@ -60,3 +60,7 @@ async def test_preview_reports_without_spending_state(deps: AgentDeps, submissio
     assert deps.submission.accepted is None
     assert deps.submission.validation_failures == 0
     assert deps.submission.escalation_fired is False
+    if expect_ok:
+        assert deps.submission.checked_clean == submission
+    else:
+        assert deps.submission.checked_clean is None

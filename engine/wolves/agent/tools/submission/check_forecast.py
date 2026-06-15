@@ -11,6 +11,15 @@ from wolves.toolkit.result import ToolResult
 
 async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
     report = validation_report(args, deps)
+    deps.submission.checked_clean = args if report.ok else None
+    deps.runtime.emit(
+        "validation",
+        deps.actor,
+        f"forecast preview {'clean' if report.ok else 'rejected'}: {report.summary()[:200]}",
+        ok=report.ok,
+        issue_count=len(report.issues),
+        escalation_count=len(report.escalations),
+    )
     return ToolResult(
         payload={
             "ok": report.ok,
@@ -18,6 +27,11 @@ async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResu
             "escalations": report.escalations,
             "would_pause_for_steelman": bool(report.escalations) and not deps.submission.escalation_fired,
             "spread": spread_section(deps, args.artifact_id),
+            "next_action": (
+                "Write the journal if still needed, then call submit_forecast with this checked payload."
+                if report.ok
+                else "Fix exactly the listed issues, then re-check or submit."
+            ),
         }
     )
 

@@ -23,7 +23,19 @@ def market_gaps(*, n_sims: int | None = None, seed: int = 0) -> pd.DataFrame:
 
     from wolves.insights.market_gaps import market_gaps as _gaps
 
-    table = _gaps(forecaster(), _archive_dir(), n_sims=n_sims or context().default_n_sims, seed=seed)
+    current = context().current_outrights or {}
+    current_legs = current.get("legs", {})
+    table = _gaps(
+        forecaster(),
+        _archive_dir(),
+        current_market=current.get("consensus"),
+        current_polymarket=current_legs.get("polymarket"),
+        current_as_of=current.get("fetched_at"),
+        current_prices_updated_oldest=current.get("prices_updated_oldest"),
+        current_prices_updated_newest=current.get("prices_updated_newest"),
+        n_sims=n_sims or context().default_n_sims,
+        seed=seed,
+    )
     SESSION.usage.queries += 1
     return pd.DataFrame([g.model_dump() for g in table.gaps])
 

@@ -1,14 +1,30 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
-from wolves.forecast import Perturbation
+from wolves.forecast import Perturbation, StrengthPerturbation
 from wolves.quant.wolves_quant._state import SESSION, context, forecaster
 
 if TYPE_CHECKING:
     import pandas as pd
 
     from wolves.sim.latent import LatentEffect
+
+_MANAGED_LOAD_RE = re.compile(
+    r"\b(load[- ]managed|load[- ]management|managed[- ]load|minutes?[- ](?:managed|limited|restriction))\b",
+    re.IGNORECASE,
+)
+
+
+def _validate_quant_perturbations(perturbations: tuple[Perturbation, ...]) -> None:
+    for perturbation in perturbations:
+        if isinstance(perturbation, StrengthPerturbation) and _MANAGED_LOAD_RE.search(perturbation.reason):
+            raise ValueError(
+                "managed-load availability cannot be priced as a full-tournament StrengthPerturbation "
+                "inside the quant workbench; use a match-specific MatchRatePerturbation, or leave it "
+                "unpriced when the evidence ceiling is zero or below the noise floor"
+            )
 
 
 def _n_sims(n_sims: int | None) -> int:
@@ -33,9 +49,11 @@ def simulate(
     seed: int = 0,
 ) -> dict[str, float]:
     """Title probabilities under perturbations, common random numbers by seed."""
+    perturbations = tuple(perturbations)
+    _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
     return forecaster().title_probs(
-        n_sims=_n_sims(n_sims), seed=seed, perturbations=tuple(perturbations), latent_effects=tuple(latent_effects)
+        n_sims=_n_sims(n_sims), seed=seed, perturbations=perturbations, latent_effects=tuple(latent_effects)
     )
 
 
@@ -49,8 +67,10 @@ def reach(
     r32 to champion), common random numbers by seed."""
     import pandas as pd
 
+    perturbations = tuple(perturbations)
+    _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
-    outputs = forecaster().sim_outputs(n_sims=_n_sims(n_sims), seed=seed, perturbations=tuple(perturbations))
+    outputs = forecaster().sim_outputs(n_sims=_n_sims(n_sims), seed=seed, perturbations=perturbations)
     return pd.DataFrame({t.team_id: t.reach_probs for t in outputs.teams}).T
 
 
@@ -90,8 +110,10 @@ def match_probs(
     """W/D/L for one fixture; pass the match id to bind match-keyed
     perturbations (without it they would be silently ignored, so the
     facade refuses instead)."""
+    perturbations = tuple(perturbations)
+    _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
-    return forecaster().match_probs(home, away, neutral=neutral, perturbations=tuple(perturbations), match=match)
+    return forecaster().match_probs(home, away, neutral=neutral, perturbations=perturbations, match=match)
 
 
 def score_grid(
@@ -105,8 +127,10 @@ def score_grid(
     """Full scoreline grid for one fixture as a DataFrame (rows home goals)."""
     import pandas as pd
 
+    perturbations = tuple(perturbations)
+    _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
-    grid = forecaster().score_grid(home, away, neutral=neutral, perturbations=tuple(perturbations), match=match)
+    grid = forecaster().score_grid(home, away, neutral=neutral, perturbations=perturbations, match=match)
     return pd.DataFrame(grid.grid)
 
 

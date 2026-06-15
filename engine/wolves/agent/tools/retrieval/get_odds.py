@@ -107,6 +107,7 @@ async def _get_odds(args: GetOddsArgs, deps: AgentDeps) -> ToolResult[Any]:
     deps.runtime.charge_data_fetch()
     with deps.runtime.observe(kind="data_fetch", actor=deps.actor, name=f"get_odds:{args.market}") as rec:
         payload = await (_outrights_payload(deps) if args.market == "outrights" else _h2h_payload(deps))
+        deps.market_cache[args.market] = payload
         rec.set_output({"market": args.market})
         rec.note(
             summary=f"odds {args.market}: {payload['credits_remaining']} credits left",

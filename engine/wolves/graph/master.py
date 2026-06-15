@@ -19,6 +19,22 @@ logger = logging.getLogger(__name__)
 
 _RAW_OUTPUT_MAX_CHARS = 4000
 _FOCUS_TEAM_RE = re.compile(r"\bfocus team is ([a-z][a-z0-9_-]*)", re.IGNORECASE)
+_DATASET_MINING_RE = re.compile(r"\b(mine|mining|scan|trawl|search)\b")
+_RESULT_REFIT_FORBID_RE = re.compile(r"\b(avoid|do not|don't|never|not|without)\b")
+_MARKET_GAP_TERMS = ("market gap", "market-gap", "model-vs-market", "model vs market", "gaps")
+_NAMED_DATASET_MECHANISMS = (
+    "friendly",
+    "stale",
+    "squad",
+    "altitude",
+    "travel",
+    "host",
+    "sentiment",
+    "longshot",
+    "injury class",
+    "availability class",
+    "calibration",
+)
 
 _SIMPLIFIED_PREAMBLE = (
     "The previous planning turn failed output validation. Return a minimal valid GraphPatch: "
@@ -113,7 +129,27 @@ def _kind_cap(kind: NodeKind, settings: Settings) -> int:
 
 
 def _unsafe_result_refit_brief(op: NodePatch) -> bool:
-    return op.kind == "quant" and "update_from_result" in op.brief.lower()
+    if op.kind != "quant":
+        return False
+    text = op.brief.lower()
+    for match in re.finditer("update_from_result", text):
+        window = text[max(0, match.start() - 80) : match.start()]
+        if _RESULT_REFIT_FORBID_RE.search(window):
+            continue
+        return True
+    return False
+
+
+def _generic_dataset_gap_brief(op: NodePatch) -> bool:
+    if op.kind != "quant":
+        return False
+    text = f"{op.objective} {op.brief}".lower()
+    return (
+        "dataset" in text
+        and _DATASET_MINING_RE.search(text) is not None
+        and any(term in text for term in _MARKET_GAP_TERMS)
+        and not any(term in text for term in _NAMED_DATASET_MECHANISMS)
+    )
 
 
 def _focus_team_drift(text: str, settings: Settings) -> str | None:
@@ -171,6 +207,9 @@ def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[
                 "update_from_result is for separately justified posterior strength updates, "
                 "not applying played results",
             )
+            continue
+        if _generic_dataset_gap_brief(op):
+            drop(op, "generic dataset mining for market gaps is too broad; name the mechanism to test")
             continue
         if op.kind == "forecast" and forecast_admitted:
             drop(op, "one forecast node per wave")

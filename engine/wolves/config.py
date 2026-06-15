@@ -103,7 +103,7 @@ class Settings(BaseSettings):
     graph_forecast_grace_s: int = 180
     graph_critic_timeout_s: int = 180
     graph_research_request_limit: int = 32
-    graph_quant_request_limit: int = 20
+    graph_quant_request_limit: int = 28
     graph_forecast_request_limit: int = 24
     graph_critic_request_limit: int = 8
     graph_research_tool_budget: int = 20

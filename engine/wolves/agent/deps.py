@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel
 
@@ -57,6 +57,7 @@ class SubmissionState:
     # pause; the last resort when the steelman round never completes.
     last_clean: ForecastSubmission | None = None
     last_clean_escalations: list[str] = field(default_factory=list)
+    checked_clean: ForecastSubmission | None = None
     anchors: ValidatorAnchors | None = None
     # Spread rows are a multi-world resimulation; cached per cited artifact.
     spread_by_artifact: dict[str, dict | None] = field(default_factory=dict)
@@ -88,5 +89,6 @@ class AgentDeps:
     articles: ArticleCache | None = None
     relevance_memory: RelevanceMemory | None = None
     scenarios: ScenarioRegistry | None = None
+    market_cache: dict[str, dict[str, Any]] = field(default_factory=dict)
     todos: list[TodoItem] = field(default_factory=list)
     python_calls: int = 0
