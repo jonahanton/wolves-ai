@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 FIXTURE_WINDOW_HOURS = 48
 
 
+def _expiry_date(value: str) -> date:
+    return date.fromisoformat(value.split("T", 1)[0])
+
+
 class PlayedMatch(BaseModel):
     date: date
     home_team: str
@@ -183,7 +187,7 @@ def what_changed(
     today = date.fromisoformat(as_of)
     previous_day = date.fromisoformat(run_day(previous.run))
     expired = [
-        e.id for e in ledger.all() if e.expiry is not None and previous_day <= date.fromisoformat(e.expiry) < today
+        e.id for e in ledger.all() if e.expiry is not None and previous_day <= _expiry_date(e.expiry) < today
     ]
     new_sources = [r.url for r in source_memory.new_since(run_id)] if source_memory is not None else []
     return WhatChanged(
