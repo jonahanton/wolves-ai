@@ -43,9 +43,13 @@ def _kickoff(brief: Brief, store: RunArtifactStore, *, settings: Settings, retri
         parts.append(retrievals)
     parts.append("")
     tool_budget = _tool_budget(brief.kind, settings)
+    free_clause = (
+        "read_artifact is free and does not count"
+        if brief.kind == "research"
+        else "think, todo_write and read_artifact are free and do not count"
+    )
     budget_line = (
-        f"Budget: {tool_budget} budgeted tool calls for this node; think, todo_write and read_artifact "
-        "are free and do not count. Pace your external calls accordingly."
+        f"Budget: {tool_budget} budgeted tool calls for this node; {free_clause}. Pace your external calls accordingly."
     )
     if brief.kind == "quant":
         budget_line += (

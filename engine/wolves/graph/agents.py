@@ -36,6 +36,7 @@ from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
 
 _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
+_RESEARCH_FREE_SPECS: list[ToolSpec] = [read_artifact.SPEC]
 _POST_CLEAN_CHECK_TOOLS = {"submit_forecast", "write_journal"}
 _COPY_REPAIR_TOOLS = {"submit_forecast", "check_forecast"}
 
@@ -46,7 +47,7 @@ _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
         rank_relevance.SPEC,
         get_odds.SPEC,
         get_results_and_fixtures.SPEC,
-        *_FREE_SPECS,
+        *_RESEARCH_FREE_SPECS,
     ],
     "quant": [
         run_python.SPEC,
