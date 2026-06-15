@@ -4,7 +4,7 @@ from typing import Any
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools.submission._validation import spread_section, validation_report
+from wolves.agent.tools.submission._validation import published_title_preview, spread_section, validation_report
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
 
@@ -83,6 +83,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         payload={
             "accepted": True,
             "escalations": report.escalations,
+            "published_preview": published_title_preview(deps, args.artifact_id),
             "spread": spread_section(deps, args.artifact_id),
         }
     )
@@ -95,8 +96,8 @@ SPEC = ToolSpec(
         "simulation artifact from this run (wq.scenario_mixture outputs register automatically); "
         "typed probabilities are never accepted. Carry scenario weights matching the artifact's world "
         "names and weights, with their ledger citations, the run headline, displayed team stories, "
-        "and no em-dashes. The "
-        "mixture publishes as the headline, unblended. Moves beyond the escalation threshold against "
+        "and no em-dashes. check_forecast previews the final published numbers after any calibration "
+        "governor. Moves beyond the escalation threshold against "
         "the frozen baseline trigger one steelman pass before acceptance; moves against the previous "
         "published forecast need change_justification or an explicit inconsistency_note; gaps beyond "
         "threshold against the de-vigged market need market_justification naming the computation that "

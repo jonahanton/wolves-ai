@@ -6,7 +6,7 @@ import pytest
 
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps, build_run_store
-from wolves.agent.deps import AgentDeps
+from wolves.agent.deps import AgentDeps, ValidatorAnchors
 from wolves.agent.tools.submission.check_forecast import _check_forecast
 
 SCENARIO_WEIGHTS = [
@@ -65,3 +65,21 @@ async def test_preview_reports_without_spending_state(deps: AgentDeps, submissio
         assert deps.submission.copy_repair_required is False
     else:
         assert deps.submission.checked_clean is None
+
+
+async def test_preview_includes_governed_published_titles(deps: AgentDeps, monkeypatch):
+    deps.submission.anchors = ValidatorAnchors(
+        baseline_titles={"england": 0.1, "france": 0.1, "rest": 0.8},
+        market_titles=None,
+    )
+    monkeypatch.setattr("wolves.agent.tools.submission._validation.CalibrationLedger.scale", lambda self, window: 0.5)
+
+    submission = build_submission(scenario_weights=SCENARIO_WEIGHTS)
+    result = await _check_forecast(submission, deps)
+    deps.runtime.shutdown()
+
+    preview = result.payload["published_preview"]
+    assert preview["active"] is True
+    assert preview["effective_d"] == 0.5
+    assert 0.066 < preview["titles"]["england"] < 0.1
+    assert preview["raw_titles"]["england"] == 0.066

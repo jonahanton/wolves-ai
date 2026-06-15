@@ -63,6 +63,21 @@ def test_unexplained_drift_vs_previous_published_rejects(store: RunArtifactStore
     assert acknowledged.ok
 
 
+def test_unexplained_drift_uses_final_published_titles(store: RunArtifactStore, tmp_path: Path):
+    ledger = _ledger(tmp_path)
+    previous = {"england": 0.072, "ghana": 0.012, "rest": 0.916}
+
+    report = _validate(
+        build_submission(),
+        store,
+        ledger,
+        previous_titles=previous,
+        published_titles={"england": 0.072, "ghana": 0.012, "rest": 0.916},
+    )
+
+    assert report.ok
+
+
 def test_every_market_gap_needs_naming_in_market_justification(store: RunArtifactStore, tmp_path: Path):
     ledger = _ledger(tmp_path)
     market = {"england": 0.14, "ghana": 0.04}

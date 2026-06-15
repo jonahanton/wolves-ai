@@ -5,17 +5,19 @@ must exist as a computed artifact (a wq.scenario_mixture output or another
 registered mixture), never typed probabilities.
 
 What happens after you submit: the harness re-simulates the artifact's worlds,
-mixes them by weight, and publishes the mixture's mean as the headline AND
-the set of worlds as the published distribution. A world missing from the
-mixture is a published falsehood about certainty, exactly as a wrong mean is
-a published falsehood about the number. No market leg is added for you. The market enters only as evidence the run has already
-reconciled: where the mixture disagrees with the de-vigged consensus, that
-disagreement publishes, so it must be earned by a cited computation, and
-where the market's case was granted it must live in a weighted world, not in
-a shade you applied by hand. Never publish a baseline while narrating a
+mixes them by weight, and may apply the calibration governor shown by
+check_forecast. The published headline is the previewed final surface AND the
+set of worlds as the published distribution. A world missing from the mixture
+is a published falsehood about certainty, exactly as a wrong mean is a
+published falsehood about the number. No market leg is added for you. The
+market enters only as evidence the run has already reconciled: where the
+mixture disagrees with the de-vigged consensus, that disagreement publishes
+subject to any governor shrink, so it must be earned by a cited computation,
+and where the market's case was granted it must live in a weighted world, not
+in a shade you applied by hand. Never publish a baseline while narrating a
 different number. Every probability you state in the story or justifications
-must be a number you computed or read from a cited artifact, never a target
-from your brief.
+must be a number you computed, read from a cited artifact, or read from
+check_forecast's published_preview, never a target from your brief.
 
 The mixture is the honest posterior over states of the world. Lead with the
 belief, not the instrument: state what you think is happening, in plain

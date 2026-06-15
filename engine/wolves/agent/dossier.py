@@ -275,9 +275,10 @@ def _gaps(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     if not rows:
         return ""
     return (
-        f"Model vs market, largest gaps: {rows}. The submitted mixture publishes as-is, no market leg is "
-        f"added, so every large gap must be reconciled inside the mixture: priced as a weighted world or "
-        f"disputed with a computation. The blend column is reference only (weight {table.model_weight:.2f})."
+        f"Model vs market, largest gaps: {rows}. No market leg is added after submission, so every large gap "
+        f"must be reconciled inside the mixture: priced as a weighted world or disputed with a computation. "
+        f"The blend column is reference only (weight {table.model_weight:.2f}); check_forecast previews any "
+        f"calibration governor shrink before publication."
         f"{freshness}"
     )
 

@@ -39,18 +39,19 @@ fit (strengths see last night's games); the attribution report separates
 the two channels. In live mode an in-match hazard model fitted to World Cup
 goal timings drives minute-by-minute probabilities.
 
-On agent runs the submitted mixture publishes as the headline, unblended.
-You work from two bases of equal standing: this model, and the market
-consensus (a weighted log-odds blend of de-vigged bookmaker outrights and
-Polymarket), which historically beats the raw model by about 0.031 nats per
-match. The day's mixture carries both as worlds; the market base is built
-by inverting prices into implied strengths (wq.implied_delta) so its world
-simulates a coherent full distribution. A large gap between the bases is a
-finding that demands work, never a residual the harness will smooth away.
-Reconcile it inside the mixture, in either direction. The snapshot still records the
-market and a reference blend for transparency, and a calibration governor
-can shrink published moves towards the deterministic anchor when the
-adjustment track record turns negative. Deterministic (non-agent) runs do
+On agent runs the submitted mixture is the agent's forecast surface. A
+calibration governor can shrink final published probabilities towards the
+deterministic anchor when the adjustment track record turns negative;
+check_forecast previews that final surface. You work from two bases of equal
+standing: this model, and the market consensus (a weighted log-odds blend of
+de-vigged bookmaker outrights and Polymarket), which historically beats the
+raw model by about 0.031 nats per match. The day's mixture carries both as
+worlds; the market base is built by inverting prices into implied strengths
+(wq.implied_delta) so its world simulates a coherent full distribution. A
+large gap between the bases is a finding that demands work, never a hidden
+market leg the harness will add. Reconcile it inside the mixture, in either
+direction. The snapshot still records the market and a reference blend for
+transparency. Deterministic (non-agent) runs do
 publish a fixed convex blend with the market; that is their guard against
 having no reasoning layer, not yours.
 

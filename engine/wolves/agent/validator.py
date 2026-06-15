@@ -65,6 +65,7 @@ def validate_submission(
     baseline_titles: dict[str, float] | None = None,
     previous_titles: dict[str, float] | None = None,
     market_titles: dict[str, float] | None = None,
+    published_titles: dict[str, float] | None = None,
     focus_vs_floor: float | None = None,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
@@ -75,17 +76,18 @@ def validate_submission(
     escalations: list[str] = []
     payload = _artifact_payload(submission, artifacts, issues)
     if payload is not None:
+        titles = published_titles or payload.get("mixture") or {}
         issues += _check_coherence(payload)
         issues += _check_evidence_priced(submission, payload, ledger)
         issues += _check_weight_dilution(payload, limits)
-        issues += _check_team_stories(submission, payload)
+        issues += _check_team_stories(submission, titles)
         issues += _check_scenario_metadata(submission, payload)
         if baseline_titles is not None:
-            escalations += _diff_escalations(payload, baseline_titles, limits, against="baseline")
+            escalations += _diff_escalations(titles, baseline_titles, limits, against="baseline")
         if previous_titles is not None and not (
             submission.change_justification.strip() or submission.inconsistency_note.strip()
         ):
-            moved = _diff_escalations(payload, previous_titles, limits, against="previous published forecast")
+            moved = _diff_escalations(titles, previous_titles, limits, against="previous published forecast")
             if moved:
                 issues.append(
                     _issue(
@@ -95,7 +97,7 @@ def validate_submission(
                     )
                 )
         if market_titles is not None:
-            gaps = _diff_escalations(payload, market_titles, limits, against="de-vigged market")
+            gaps = _diff_escalations(titles, market_titles, limits, against="de-vigged market")
             justification = submission.market_justification.lower()
             # Per-team coverage: a justification that argues England cannot
             # silently carry an unexamined Germany gap.
@@ -147,14 +149,13 @@ _STORY_SUMMARY_MAX = 200
 _STORY_WHY_MAX = 480
 
 
-def _check_team_stories(submission: ForecastSubmission, payload: dict) -> list[ValidationIssue]:
+def _check_team_stories(submission: ForecastSubmission, titles: dict[str, float]) -> list[ValidationIssue]:
     """Copy-severity: once the agent writes stories, cover the mixture leaders, jargon-free, in length."""
     stories = submission.narrative.team_stories
     if not stories:
         return []
     issues: list[ValidationIssue] = []
-    mixture: dict[str, float] = payload.get("mixture") or {}
-    leaders = [t for t, _ in sorted(mixture.items(), key=lambda kv: -kv[1])[:_STORY_TOP_N]]
+    leaders = [t for t, _ in sorted(titles.items(), key=lambda kv: -kv[1])[:_STORY_TOP_N]]
     missing = [t for t in leaders if t not in stories]
     if missing:
         issues.append(
@@ -374,11 +375,10 @@ def _check_evidence_priced(
 
 
 def _diff_escalations(
-    payload: dict, reference: dict[str, float], limits: ValidatorLimits, *, against: str
+    titles: dict[str, float], reference: dict[str, float], limits: ValidatorLimits, *, against: str
 ) -> list[str]:
-    mixture: dict[str, float] = payload.get("mixture") or {}
     flagged: list[str] = []
-    for team, p in mixture.items():
+    for team, p in titles.items():
         anchor = reference.get(team)
         if anchor is None:
             continue

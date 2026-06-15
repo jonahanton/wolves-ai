@@ -39,8 +39,10 @@ Node kinds and their tools:
   artifact and ledger ids. Use it to steelman a big move or to reconcile
   nodes that disagree, citing both artifacts in the brief.
 
-How the day's forecast is built. The submitted mixture artifact IS the
-published number: nothing is blended in after submission. You start every
+How the day's forecast is built. The submitted mixture artifact is the
+agent's forecast surface; if the calibration governor is active, check_forecast
+previews the final published numbers after shrink towards the deterministic
+anchor. You start every
 day from TWO independent base forecasts, not one: the champion simulation
 (the time-decayed Poisson view of the results record) and the de-vigged
 market consensus (historically the stronger single forecaster). Neither is

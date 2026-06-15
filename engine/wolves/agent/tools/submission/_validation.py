@@ -5,11 +5,23 @@ market anchors resolve once per run, cached on the shared SubmissionState."""
 
 from __future__ import annotations
 
+from typing import TypedDict
+
+from wolves.agent.calibration import CalibrationLedger
+from wolves.agent.consensus import blend_log_odds, publish_scale
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps, ValidatorAnchors
 from wolves.agent.validator import ValidationReport, validate_submission
 
 _BASELINE_SIMS = 50_000
+
+
+class PublishedTitlePreview(TypedDict):
+    titles: dict[str, float]
+    raw_titles: dict[str, float]
+    governor_scale: float
+    effective_d: float
+    active: bool
 
 
 def _anchors(deps: AgentDeps) -> ValidatorAnchors:
@@ -18,6 +30,39 @@ def _anchors(deps: AgentDeps) -> ValidatorAnchors:
             baseline_titles=_baseline_titles(deps), market_titles=_market_titles(deps)
         )
     return deps.submission.anchors
+
+
+def published_title_preview(deps: AgentDeps, artifact_id: str) -> PublishedTitlePreview:
+    """Final title surface a clean submission would publish."""
+    raw_titles = _artifact_titles(deps, artifact_id)
+    governor_scale = CalibrationLedger(deps.settings.calibration_path).scale(window=deps.settings.governor_window)
+    effective_d = publish_scale(
+        extremising_d=deps.settings.extremising_d,
+        governor_scale=governor_scale,
+        shrink_weight=deps.settings.governor_shrink_weight,
+    )
+    anchors = _anchors(deps)
+    titles = raw_titles
+    active = False
+    if raw_titles and anchors.baseline_titles is not None and effective_d != 1.0:
+        titles = blend_log_odds(raw_titles, anchors.baseline_titles, d=effective_d, renormalise=True)
+        active = True
+    return {
+        "titles": titles,
+        "raw_titles": raw_titles,
+        "governor_scale": governor_scale,
+        "effective_d": effective_d,
+        "active": active,
+    }
+
+
+def _artifact_titles(deps: AgentDeps, artifact_id: str) -> dict[str, float]:
+    if deps.artifacts is None:
+        return {}
+    artifact = deps.artifacts.get(artifact_id)
+    if artifact is None:
+        return {}
+    return artifact.payload.get("mixture") or {}
 
 
 def _baseline_titles(deps: AgentDeps) -> dict[str, float] | None:
@@ -67,6 +112,7 @@ def _focus_vs_floor(spread: dict | None, focus_team: str) -> float | None:
 def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationReport:
     anchors = _anchors(deps)
     spread = spread_section(deps, args.artifact_id)
+    preview = published_title_preview(deps, args.artifact_id)
     return validate_submission(
         args,
         artifacts=deps.artifacts,
@@ -75,5 +121,6 @@ def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationRe
         baseline_titles=anchors.baseline_titles,
         previous_titles=_previous_titles(deps),
         market_titles=anchors.market_titles,
+        published_titles=preview["titles"],
         focus_vs_floor=_focus_vs_floor(spread, deps.settings.focus_team),
     )
