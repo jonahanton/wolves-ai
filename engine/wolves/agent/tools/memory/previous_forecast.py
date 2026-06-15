@@ -34,6 +34,17 @@ def _recent_runs(deps: AgentDeps, limit: int = 10) -> list[dict[str, str]]:
     return sorted(runs, key=lambda r: r["created_at"], reverse=True)[:limit]
 
 
+def _compact_world(world: Any) -> dict[str, Any]:
+    payload = world.model_dump(mode="json")
+    return {
+        "name": payload["name"],
+        "weight": payload["weight"],
+        "perturbations": payload.get("perturbations", []),
+        "latent_effects": payload.get("latent_effects", []),
+        "title_probs": payload.get("title_probs", {}),
+    }
+
+
 def _find_snapshot(deps: AgentDeps, args: PreviousForecastArgs) -> Snapshot | None:
     before = date.fromisoformat(args.on) + timedelta(days=1) if args.on else date.fromisoformat(deps.as_of)
     snapshot_dir = deps.settings.runs_root / "snapshots"
@@ -66,21 +77,32 @@ async def _previous_forecast(args: PreviousForecastArgs, deps: AgentDeps) -> Too
         "title_probs": {t.team_id: t.champion_prob for t in top},
         "focus_reach": snapshot.focus.reach_probs if snapshot.focus else None,
         "recent_runs": _recent_runs(deps),
+        "artifact_index_available": False,
         "warnings": [],
     }
     if snapshot.agent is not None:
-        payload["narrative"] = snapshot.agent.narrative.model_dump(mode="json")
         payload["artifact_id"] = snapshot.agent.artifact_id
-        payload["ledger"] = [e.model_dump(mode="json") for e in snapshot.agent.ledger_entries]
-        payload["scenario_weights"] = [w.model_dump(mode="json") for w in snapshot.agent.scenario_weights]
-        payload["camps"] = [c.model_dump(mode="json") for c in snapshot.agent.camps]
-        payload["worlds"] = [w.model_dump(mode="json") for w in snapshot.agent.worlds]
+        scenario_weights = [w.model_dump(mode="json") for w in snapshot.agent.scenario_weights]
+        camps = [c.model_dump(mode="json") for c in snapshot.agent.camps]
+        worlds = [_compact_world(w) for w in snapshot.agent.worlds]
+        payload["published_distribution"] = {
+            "artifact_id": snapshot.agent.artifact_id,
+            "scenario_weights": scenario_weights,
+            "camps": camps,
+            "worlds": worlds,
+        }
+        payload["scenario_weights"] = scenario_weights
+        payload["camps"] = camps
+        payload["worlds"] = worlds
         payload["quant_findings"] = [q.model_dump(mode="json") for q in snapshot.agent.quant_findings]
+        payload["narrative"] = snapshot.agent.narrative.model_dump(mode="json")
+        payload["ledger"] = [e.model_dump(mode="json") for e in snapshot.agent.ledger_entries]
     from wolves.graph.artifacts import MissingRunIndexError, RunArtifactStore
     from wolves.s3.artifacts import ArtifactStore
 
     try:
         store = RunArtifactStore.open_run(ArtifactStore(deps.settings), snapshot.run.run_id)
+        payload["artifact_index_available"] = True
         payload["artifacts"] = [r.model_dump(mode="json", exclude={"created_at"}) for r in store.all()]
     except MissingRunIndexError:
         payload["warnings"].append(f"artifact index missing for {snapshot.run.run_id}")
@@ -97,6 +119,9 @@ SPEC = ToolSpec(
     description=(
         "A previous run's published forecast: its top title probabilities, narrative, evidence, "
         "artifact index, journal extract and an index of recent runs with exact timestamps. "
+        "The published_distribution block is the compact source of truth for prior worlds, "
+        "scenario weights and camps; use it directly when artifact_index_available is false, "
+        "and never reconstruct prior worlds from prose. "
         "Defaults to the latest agent forecast before today, not a live republish; pass kind='live' "
         "only when you need the live snapshot. Pass run_id or an ISO date for any older run. Open a "
         "listed artifact with read_artifact(artifact_id, run_id=...), including past quant "

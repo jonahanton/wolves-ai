@@ -72,6 +72,8 @@ async def test_previous_forecast_defaults_to_latest_agent_snapshot(deps):
     assert result.payload["run_id"] == "agent-20260613-140248"
     assert result.payload["kind"] == "agent"
     assert result.payload["worlds"][0]["name"] == "market_base"
+    assert result.payload["published_distribution"]["worlds"][0]["name"] == "market_base"
+    assert result.payload["artifact_index_available"] is False
     assert "artifact index missing" in result.payload["warnings"][0]
 
 
