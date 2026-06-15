@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from tests.graph.conftest import build_graph_deps
 from wolves.agent.tools.memory.previous_forecast import PreviousForecastArgs, _previous_forecast
@@ -77,9 +78,15 @@ async def test_previous_forecast_defaults_to_latest_agent_snapshot(deps):
     assert "artifact index missing" in result.payload["warnings"][0]
 
 
-async def test_previous_forecast_can_read_latest_live_when_requested(deps):
-    result = await _previous_forecast(PreviousForecastArgs(kind="live"), deps)
+def test_previous_forecast_schema_does_not_advertise_live_snapshots():
+    with pytest.raises(ValidationError):
+        PreviousForecastArgs.model_validate({"kind": "live"})
 
-    assert result.ok
-    assert result.payload["run_id"] == "live-20260613-210542"
-    assert result.payload["kind"] == "live"
+
+async def test_previous_forecast_rejects_live_run_ids(deps):
+    result = await _previous_forecast(PreviousForecastArgs(run_id="live-20260613-210542"), deps)
+
+    assert not result.ok
+    assert result.error is not None
+    assert result.error.type == "invalid_arguments"
+    assert "only opens agent forecasts" in result.error.message

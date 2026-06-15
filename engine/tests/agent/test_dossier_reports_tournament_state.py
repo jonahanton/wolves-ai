@@ -96,7 +96,8 @@ def test_previous_anchor_prefers_agent_snapshot_over_later_live(tmp_path):
 
     assert "Previous agent forecast (agent-20260613-140248" in section
     assert "Its worlds: market_base 0.70" in section
-    assert "Latest live snapshot is live-20260613-210542" in section
+    assert "Latest live state was republished as live-20260613-210542" in section
+    assert "Settled state comes from structured live-state tools" in section
 
 
 def test_open_scenarios_group_duplicate_names(tmp_path):

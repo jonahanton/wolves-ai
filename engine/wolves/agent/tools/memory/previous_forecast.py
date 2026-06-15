@@ -6,7 +6,6 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent.scoring import load_previous_snapshots
 from wolves.snapshot import Snapshot
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
@@ -15,7 +14,7 @@ from wolves.toolkit.result import ToolError, ToolResult
 class PreviousForecastArgs(BaseModel):
     run_id: str | None = None
     on: str | None = None
-    kind: Literal["agent", "live", "sim_only"] | None = "agent"
+    kind: Literal["agent"] | None = "agent"
 
 
 def _recent_runs(deps: AgentDeps, limit: int = 10) -> list[dict[str, str]]:
@@ -30,7 +29,10 @@ def _recent_runs(deps: AgentDeps, limit: int = 10) -> list[dict[str, str]]:
             snapshot = Snapshot.model_validate_json(path.read_text(encoding="utf-8"))
         except ValueError:
             continue
-        runs.append({"run_id": snapshot.run.run_id, "created_at": snapshot.run.created_at, "kind": snapshot.run.kind})
+        if snapshot.run.kind == "agent":
+            runs.append(
+                {"run_id": snapshot.run.run_id, "created_at": snapshot.run.created_at, "kind": snapshot.run.kind}
+            )
     return sorted(runs, key=lambda r: r["created_at"], reverse=True)[:limit]
 
 
@@ -48,12 +50,10 @@ def _compact_world(world: Any) -> dict[str, Any]:
 def _find_snapshot(deps: AgentDeps, args: PreviousForecastArgs) -> Snapshot | None:
     before = date.fromisoformat(args.on) + timedelta(days=1) if args.on else date.fromisoformat(deps.as_of)
     snapshot_dir = deps.settings.runs_root / "snapshots"
-    if args.kind is None:
-        latest, _ = load_previous_snapshots(snapshot_dir, before=before)
-    else:
-        from wolves.agent.scoring import latest_snapshot_by_kind
 
-        latest = latest_snapshot_by_kind(snapshot_dir, before=before, kind=args.kind)
+    from wolves.agent.scoring import latest_snapshot_by_kind
+
+    latest = latest_snapshot_by_kind(snapshot_dir, before=before, kind="agent")
     if args.run_id is None:
         return latest
     if latest is not None and latest.run.run_id == args.run_id:
@@ -63,11 +63,33 @@ def _find_snapshot(deps: AgentDeps, args: PreviousForecastArgs) -> Snapshot | No
     return None
 
 
+def _non_agent_run_id(run_id: str | None) -> bool:
+    return run_id is not None and not run_id.startswith("agent-")
+
+
 async def _previous_forecast(args: PreviousForecastArgs, deps: AgentDeps) -> ToolResult[Any]:
+    if _non_agent_run_id(args.run_id):
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="invalid_arguments",
+                message=(
+                    "previous_forecast only opens agent forecasts. For live results, standings, fixtures or "
+                    "markets use get_results_and_fixtures, what_changed, market_gaps or the workbench."
+                ),
+            ),
+        )
     snapshot = _find_snapshot(deps, args)
     if snapshot is None:
         return ToolResult(
             ok=False, payload=None, error=ToolError(type="not_found", message="no published forecast matches")
+        )
+    if snapshot.run.kind != "agent":
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(type="invalid_arguments", message=f"run {snapshot.run.run_id} is not an agent forecast"),
         )
     top = sorted(snapshot.teams, key=lambda t: t.champion_prob, reverse=True)[:10]
     payload: dict[str, Any] = {
@@ -117,14 +139,15 @@ async def _previous_forecast(args: PreviousForecastArgs, deps: AgentDeps) -> Too
 SPEC = ToolSpec(
     name="previous_forecast",
     description=(
-        "A previous run's published forecast: its top title probabilities, narrative, evidence, "
+        "A previous agent run's published forecast: its top title probabilities, narrative, evidence, "
         "artifact index, journal extract and an index of recent runs with exact timestamps. "
         "The published_distribution block is the compact source of truth for prior worlds, "
         "scenario weights and camps; use it directly when artifact_index_available is false, "
         "and never reconstruct prior worlds from prose. "
-        "Defaults to the latest agent forecast before today, not a live republish; pass kind='live' "
-        "only when you need the live snapshot. Pass run_id or an ISO date for any older run. Open a "
-        "listed artifact with read_artifact(artifact_id, run_id=...), including past quant "
+        "This tool never opens live or sim-only snapshots: they are not continuity anchors. For current "
+        "results, standings, fixtures or market state use get_results_and_fixtures, what_changed, "
+        "market_gaps or the workbench. Pass an agent run_id or an ISO date for any older agent run. "
+        "Open a listed artifact with read_artifact(artifact_id, run_id=...), including past quant "
         "workspaces file by file."
     ),
     args_model=PreviousForecastArgs,

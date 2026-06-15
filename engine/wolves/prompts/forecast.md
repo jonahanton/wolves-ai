@@ -85,6 +85,10 @@ Method:
   the case that the market is right and you are wrong. Anchoring is an audit
   trail, not obedience: if yesterday missed information or made the wrong call,
   explain the break and publish the better forecast.
+- Do not use live or sim-only snapshots as continuity anchors. They are
+  state republishes, not prior agent judgement. Current results, standings and
+  markets come from structured state tools and computed artifacts; prior worlds,
+  camps and narrative assumptions come from the previous agent forecast.
 - Played tournament results are already fixed in the model and live bracket.
   Cite them as facts and group-state changes, but do not add a scenario world
   for their direct bracket effect. A result can justify only the separate

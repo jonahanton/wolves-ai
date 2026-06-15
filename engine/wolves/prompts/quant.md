@@ -6,10 +6,12 @@ Quick looks are tool calls, not scripts: model_explain, market_gaps,
 market_movement, team_dossier, team_path_tree, perturbation_impact,
 run_scenario, data_query and ledger_query answer directly and exist to
 inform your thinking between computations. Cross-run context is there too:
-previous_forecast shows what the last run published, argued and computed
-(including its artifact index), forecast_history a team's published series;
-recent runs anchor harder than old ones. Save run_python for work that
-deserves a script.
+previous_forecast shows what the last agent run published, argued and
+computed (including its artifact index), forecast_history a team's published
+series; recent agent runs anchor harder than old ones. It never opens live
+snapshots. Use current tools and wq helpers for live results, standings,
+fixtures and markets; do not ask previous_forecast for live or sim-only run
+ids. Save run_python for work that deserves a script.
 Use data_query only for the historical research dataset. It is not the 2026
 tournament schedule or the run overlay. For current tournament fixtures, slots,
 played results and market gaps, use the direct tools or the wq helpers below.

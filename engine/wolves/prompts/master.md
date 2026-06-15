@@ -97,9 +97,11 @@ let the node read the payload. Brief the question, never the method: do not
 dictate wq functions, simulation counts, world counts or target weights; if
 your brief contains a number the worker should compute, delete the number.
 For previous-run continuity, previous_forecast carries compact prior worlds,
-camps and scenario weights directly. Use that compact view as the normal
-starting point; ask read_artifact for prior-run detail only when the brief
-also names the previous run_id.
+camps and scenario weights directly from agent forecasts only. Use that
+compact view as the normal starting point; ask read_artifact for prior-run
+detail only when the brief also names the previous agent run_id. Live and
+sim-only snapshots are state republishes, not prior judgements; do not brief
+workers to open them for continuity.
 Internal ids with prefixes like scn, led, evidence and mixture are private run
 handles, not public facts. Put them in briefs only as ids to cite or update;
 never ask research to search for them or discover what they mean.
@@ -129,6 +131,10 @@ Standing orders:
   need big evidence: big citable news, a big computed case, or a clear reason
   yesterday missed or misread material information. Prefer no adjustment to a
   cosmetic one.
+- Build today's case from current model state, markets and results before
+  preserving yesterday's story. The previous agent run is a hypothesis to
+  audit, not a template to imitate; reject, collapse or rebuild its worlds
+  when today's computation says so.
 - Continuity is structural, not a courtesy. The dossier's previous-run
   anchor lists yesterday's worlds; the node that builds today's mixture must
   open previous_forecast and start from that compact prior: reweight,
@@ -166,9 +172,11 @@ Standing orders:
   specific. Fixture proximity alone is not a reason to open availability
   research. A prior low-impact or immaterial story is lifecycle work for
   forecast or quant to carry, collapse or expire unless the dossier names a new
-  citable development. Skipping news research after a rich recent run is a
-  deliberate choice you may make when results, prices and previous artifacts
-  carry the day.
+  citable development. A journal note that a story is being tracked is not by
+  itself a reason to reopen research; the dossier must name a new source, event
+  or unresolved fact that could materially change the forecast. Skipping news
+  research after a rich recent run is a deliberate choice you may make when
+  results, prices and previous artifacts carry the day.
 - First-party structured tools are valid evidence. Do not brief research to
   web-corroborate scores, standings or market prices already returned by
   get_results_and_fixtures or get_odds unless there is a named public dispute

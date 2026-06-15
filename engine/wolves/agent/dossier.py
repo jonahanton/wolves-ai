@@ -80,7 +80,10 @@ def previous_agent_anchor(deps: AgentDeps, *, top_n: int = _TOP_TEAMS) -> str:
         worlds = " Its worlds: " + ", ".join(f"{w.name} {w.weight:.2f}" for w in previous.agent.worlds[:8]) + "."
     live_note = ""
     if latest is not None and latest.run.run_id != previous.run.run_id:
-        live_note = f" Latest live snapshot is {latest.run.run_id}; use it for settled state, not continuity."
+        live_note = (
+            f" Latest live state was republished as {latest.run.run_id}; do not use that snapshot for "
+            "continuity. Settled state comes from structured live-state tools."
+        )
     return (
         f"Previous agent forecast ({previous.run.run_id}, {previous.run.kind}, created {when}): {rows}.{worlds}"
         f"{live_note} "
