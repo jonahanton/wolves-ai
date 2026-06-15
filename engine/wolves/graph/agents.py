@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import cache
 from typing import Any
+from urllib.parse import urlparse
 
 from pydantic_ai import Agent, ModelRetry, RunContext
 
@@ -39,6 +40,8 @@ _FREE_SPECS: list[ToolSpec] = [think.SPEC, todo.SPEC, read_artifact.SPEC]
 _RESEARCH_FREE_SPECS: list[ToolSpec] = [read_artifact.SPEC]
 _POST_CLEAN_CHECK_TOOLS = {"submit_forecast", "write_journal"}
 _COPY_REPAIR_TOOLS = {"submit_forecast", "check_forecast"}
+_LINEUP_TERMS = ("starting xi", "lineup", "line-up", "teamsheet", "team sheet")
+_OFFICIAL_LINEUP_HOSTS = ("fifa.com", "englandfootball.com", "thefa.com")
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
     "research": [
@@ -127,6 +130,32 @@ def _forecast_post_check_refusal(tool_name: str, deps: AgentDeps) -> ToolResult 
     )
 
 
+def _host(source_url: str) -> str:
+    return urlparse(source_url).netloc.lower().removeprefix("www.")
+
+
+def _official_lineup_source(source_url: str) -> bool:
+    host = _host(source_url)
+    return any(host == allowed or host.endswith(f".{allowed}") for allowed in _OFFICIAL_LINEUP_HOSTS)
+
+
+def _research_source_issues(output: ResearchOutput) -> list[str]:
+    issues: list[str] = []
+    for index, item in enumerate(output.evidence, start=1):
+        text = f"{item.claim} {item.mechanism}".lower()
+        if item.status != "confirmed" or not any(term in text for term in _LINEUP_TERMS):
+            continue
+        if _official_lineup_source(item.source_url):
+            continue
+        source = _host(item.source_url) or item.source_url
+        issues.append(
+            f"evidence {index} calls a line-up or starting-XI claim confirmed from {source!r}. "
+            "Only official team, federation or FIFA pages may confirm line-ups. Reword it as reported "
+            "or predicted with probable/rumour status, or omit it."
+        )
+    return issues
+
+
 async def _truncated(spec: ToolSpec, args: Any, ctx: RunContext[AgentDeps], result: ToolResult) -> str:
     return truncate_result(result.model_dump_json(), ctx.deps.settings.tool_result_max_chars)
 
@@ -148,7 +177,7 @@ async def _before_node_tool(spec: ToolSpec, args: Any, ctx: RunContext[AgentDeps
 @cache
 def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
     """One agent per node kind, built once; model and deps vary per run call."""
-    return Agent(
+    agent: Agent[AgentDeps, Any] = Agent(
         deps_type=AgentDeps,
         output_type=_NODE_OUTPUTS[kind],
         system_prompt=prompt(kind),
@@ -160,6 +189,16 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
             )
         ],
     )
+    if kind == "research":
+
+        @agent.output_validator
+        def _research_source_discipline(output: ResearchOutput) -> ResearchOutput:
+            issues = _research_source_issues(output)
+            if issues:
+                raise ModelRetry(" ".join(issues))
+            return output
+
+    return agent
 
 
 @cache

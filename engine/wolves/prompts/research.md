@@ -47,6 +47,10 @@ Evidence discipline:
   nothing and carry zero delta. Never fabricate; only quote text present in
   pages you actually fetched, and attribute internal tool numbers to the tool,
   not to a news URL.
+- Future line-ups and starting XIs are confirmed only from official team,
+  federation or FIFA pages. Newspaper, aggregator or prediction pages are
+  probable at most, and usually should be omitted unless the brief specifically
+  asks for likely line-ups.
 - Lifecycle decisions such as collapse, reweight, carry or expire belong to
   forecast or quant nodes with scenario_update. Your job is to source the
   public fact that would support that decision.
