@@ -46,7 +46,7 @@ def _snapshots_before(snapshot_dir: Path, *, before: date) -> list[Snapshot]:
 def latest_snapshot_by_kind(snapshot_dir: Path, *, before: date, kind: str) -> Snapshot | None:
     """Latest snapshot of one kind before the run date."""
     matches = [snapshot for snapshot in _snapshots_before(snapshot_dir, before=before) if snapshot.run.kind == kind]
-    return max(matches, key=lambda snapshot: snapshot.run.created_at, default=None)
+    return max(matches, key=_snapshot_sort_key, default=None)
 
 
 def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapshot | None, Snapshot | None]:
@@ -54,11 +54,17 @@ def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapsh
     latest: Snapshot | None = None
     baseline: Snapshot | None = None
     for snapshot in _snapshots_before(snapshot_dir, before=before):
-        if latest is None or snapshot.run.created_at > latest.run.created_at:
+        if latest is None or _snapshot_sort_key(snapshot) > _snapshot_sort_key(latest):
             latest = snapshot
-        if snapshot.run.kind == "sim_only" and (baseline is None or snapshot.run.created_at > baseline.run.created_at):
+        if snapshot.run.kind == "sim_only" and (
+            baseline is None or _snapshot_sort_key(snapshot) > _snapshot_sort_key(baseline)
+        ):
             baseline = snapshot
     return latest, baseline
+
+
+def _snapshot_sort_key(snapshot: Snapshot) -> tuple[date, str]:
+    return date.fromisoformat(run_day(snapshot.run)), snapshot.run.created_at
 
 
 def _outcome(result: PlayedResult) -> str:

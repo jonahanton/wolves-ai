@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, date, datetime, time
 from typing import Any
 
 from pydantic import BaseModel
@@ -32,15 +33,17 @@ def _empty_page(url: str, chars: int) -> ToolResult[Any]:
 def _from_cache(args: WebFetchArgs, deps: AgentDeps) -> ToolResult[Any] | None:
     if args.refresh or deps.articles is None:
         return None
-    cached = deps.articles.get(args.url)
+    cached = deps.articles.get(args.url, as_of=deps.as_of, current_run_id=deps.runtime.run_id)
     if cached is None or cached.run_id == deps.runtime.run_id:
         return None
-    age = cached.age_hours()
+    age = cached.age_hours(now=_freshness_clock(deps.as_of))
     if age > deps.settings.article_cache_max_age_hours:
         return None
     if deps.source_memory is not None:
         # Cached text is the text this run read; confirmed claims may cite it.
         deps.source_memory.record(args.url, run_id=deps.runtime.run_id, disposition="fetched")
+        if cached.final_url != args.url:
+            deps.source_memory.record(cached.final_url, run_id=deps.runtime.run_id, disposition="fetched")
     return ToolResult(
         payload={
             "url": cached.final_url,
@@ -62,7 +65,7 @@ async def _web_fetch(args: WebFetchArgs, deps: AgentDeps) -> ToolResult[Any]:
     if refused is not None:
         return refused
     if deps.source_memory is not None:
-        seen = deps.source_memory.seen(args.url)
+        seen = deps.source_memory.seen(args.url, as_of=deps.as_of, current_run_id=deps.runtime.run_id)
         if seen is not None:
             if seen.disposition == "empty":
                 return _empty_page(args.url, 0)
@@ -111,3 +114,14 @@ SPEC = ToolSpec(
     args_model=WebFetchArgs,
     fn=_web_fetch,
 )
+
+
+def _freshness_clock(as_of: str | None) -> datetime:
+    now = datetime.now(UTC)
+    if not as_of:
+        return now
+    try:
+        latest = datetime.combine(date.fromisoformat(as_of), time.max, tzinfo=UTC)
+    except ValueError:
+        return now
+    return min(latest, now)

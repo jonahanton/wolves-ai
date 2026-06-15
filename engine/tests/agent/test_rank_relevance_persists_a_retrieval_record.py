@@ -49,6 +49,7 @@ async def test_ranking_records_artifact_memory_and_tiers(tmp_path: Path):
 
     assert deps.artifacts is not None
     [record] = [r for r in deps.artifacts.all() if r.kind == "retrieval"]
+    assert result.payload["retrieval_id"] == record.id
     artifact = deps.artifacts.get(record.id)
     assert artifact is not None
     assert artifact.payload["sub_question"].startswith("is the keeper fit")
@@ -59,6 +60,43 @@ async def test_ranking_records_artifact_memory_and_tiers(tmp_path: Path):
     deps.runtime.shutdown()
 
 
+def test_relevance_memory_latest_can_be_bounded_to_run_date(tmp_path: Path):
+    path = tmp_path / "agent-state" / "relevance_memory.jsonl"
+    relevance = RelevanceMemory(path)
+    url = "https://www.reuters.com/a"
+    old = relevance.record(url=url, sub_question="old", score=0.7, reason="old read", run_id="agent-old").model_copy(
+        update={"ranked_at": "2026-06-13T12:00:00+00:00"}
+    )
+    new = relevance.record(url=url, sub_question="new", score=0.2, reason="new read", run_id="agent-new").model_copy(
+        update={"ranked_at": "2026-06-15T12:00:00+00:00"}
+    )
+    path.write_text(old.model_dump_json() + "\n" + new.model_dump_json() + "\n", encoding="utf-8")
+
+    reloaded = RelevanceMemory(path)
+
+    assert reloaded.latest(url, as_of="2026-06-14").score == 0.7
+    assert reloaded.latest(url, as_of="2026-06-15").score == 0.2
+
+
+def test_relevance_memory_keeps_current_run_visible_when_replaying_past_as_of(tmp_path: Path):
+    path = tmp_path / "agent-state" / "relevance_memory.jsonl"
+    relevance = RelevanceMemory(path)
+    url = "https://www.reuters.com/a"
+    current = relevance.record(
+        url=url,
+        sub_question="current",
+        score=0.6,
+        reason="current run read",
+        run_id="agent-backfill",
+    ).model_copy(update={"ranked_at": "2026-06-15T12:00:00+00:00"})
+    path.write_text(current.model_dump_json() + "\n", encoding="utf-8")
+
+    reloaded = RelevanceMemory(path)
+
+    assert reloaded.latest(url, as_of="2026-06-14") is None
+    assert reloaded.latest(url, as_of="2026-06-14", current_run_id="agent-backfill").score == 0.6
+
+
 async def test_ranking_failure_degrades_to_judgement(tmp_path: Path):
     deps = dataclasses.replace(build_graph_deps(tmp_path, structured=[]), actor="research-1")
     args = RankRelevanceArgs(sub_question="q", candidates=[Candidate(url="https://example.com/x", title="t")])
@@ -66,6 +104,31 @@ async def test_ranking_failure_degrades_to_judgement(tmp_path: Path):
     assert not result.ok
     assert result.error is not None and result.error.type == "ranking_unavailable"
     deps.runtime.shutdown()
+
+
+def test_rank_relevance_accepts_web_search_payload():
+    args = RankRelevanceArgs(
+        sub_question="q",
+        candidates={
+            "hits": [
+                {
+                    "url": "https://www.reuters.com/a",
+                    "title": "Contender latest",
+                    "snippet": "Fresh squad detail.",
+                    "published_at": "2026-06-15",
+                }
+            ]
+        },
+    )
+
+    assert args.candidates == [
+        Candidate(
+            url="https://www.reuters.com/a",
+            title="Contender latest",
+            snippet="Fresh squad detail.",
+            published_at="2026-06-15",
+        )
+    ]
 
 
 def test_snapshot_sources_merge_ranked_fetched_and_cited_urls(tmp_path: Path):

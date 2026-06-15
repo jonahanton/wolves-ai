@@ -6,6 +6,8 @@ import pytest
 
 from tests.graph.conftest import build_graph_deps
 from wolves.agent.tools.retrieval.web_search import WebSearchArgs, _web_search
+from wolves.connectors import ObservedWeb
+from wolves.toolkit._budget_gate import BudgetGate
 
 
 @pytest.fixture
@@ -53,3 +55,21 @@ async def test_retrieval_artifact_ids_are_not_web_search_terms(deps):
 
     assert not result.ok
     assert result.error.type == "internal_id_query"
+
+
+async def test_deterministic_run_ids_are_not_web_search_terms(deps):
+    result = await _web_search(WebSearchArgs(query="run-20260617 England forecast"), deps)
+
+    assert not result.ok
+    assert result.error.type == "internal_id_query"
+
+
+async def test_unavailable_provider_does_not_spend_tool_budget(deps):
+    deps.gate = BudgetGate(1)
+    deps.web = ObservedWeb(runtime=deps.runtime)
+
+    result = await _web_search(WebSearchArgs(query="World Cup 2026 contender news", provider="exa"), deps)
+
+    assert not result.ok
+    assert result.error.type == "search_provider_unavailable"
+    assert deps.gate.used == 0

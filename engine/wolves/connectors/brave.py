@@ -9,6 +9,7 @@ from ._http import _raise_for_status, async_retrying
 from .contracts import SearchClient, SearchHit, SearchResult
 
 _ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
+_FRESHNESS_DAYS = {"pd": 1, "pw": 7, "pm": 31, "py": 365}
 
 
 class BraveClient(SearchClient):
@@ -49,9 +50,7 @@ class BraveClient(SearchClient):
         }
         if self._extra_snippets:
             params["extra_snippets"] = "true"
-        # Bound results at the as_of date (absolute window) rather than 'now', so
-        # point-in-time queries don't leak future sources.
-        freshness_value = freshness_range(end_published_date) if end_published_date else freshness
+        freshness_value = _freshness_value(freshness, end_published_date)
         if freshness_value:
             params["freshness"] = freshness_value
 
@@ -101,3 +100,9 @@ class BraveClient(SearchClient):
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()
+
+
+def _freshness_value(freshness: str | None, end_published_date: str | None) -> str | None:
+    if end_published_date is None:
+        return freshness
+    return freshness_range(end_published_date, lookback_days=_FRESHNESS_DAYS.get(freshness or "", 3650))

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 _FORMATS = (
     "%Y-%m-%dT%H:%M:%S.%f%z",
@@ -52,3 +52,12 @@ def to_iso8601(value: object) -> str | None:
     if dt is None:
         return None
     return dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def to_end_iso8601(value: object) -> str | None:
+    """ISO 8601 UTC instant at the end of a publish date."""
+    dt = parse_date(value)
+    if dt is None:
+        return None
+    end = datetime.combine(dt.date(), time(23, 59, 59, 999000), tzinfo=UTC)
+    return f"{end:%Y-%m-%dT%H:%M:%S}.{end.microsecond // 1000:03d}Z"

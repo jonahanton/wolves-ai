@@ -13,6 +13,7 @@ from wolves.agent.calibration import CalibrationLedger, summarise_scores
 from wolves.agent.deps import AgentDeps
 from wolves.insights.market import market_movement
 from wolves.insights.market_gaps import market_gaps
+from wolves.sim.format import GroupMatch, KnockoutMatch
 from wolves.sim.venues import HOST_COUNTRY
 
 logger = logging.getLogger(__name__)
@@ -78,11 +79,21 @@ def previous_agent_anchor(deps: AgentDeps, *, top_n: int = _TOP_TEAMS) -> str:
 
     if not deps.as_of:
         return ""
+    if getattr(deps, "disable_continuity", False):
+        return (
+            "Previous agent forecast: disabled for this run. Treat this as a fresh forecast: build from current "
+            "model state, markets, tournament results and today's research, not from prior worlds."
+        )
     snapshot_dir = deps.settings.runs_root / "snapshots"
     latest = load_latest_snapshot(snapshot_dir, before=date.fromisoformat(deps.as_of))
-    previous = latest_snapshot_by_kind(snapshot_dir, before=date.fromisoformat(deps.as_of), kind="agent") or latest
+    previous = latest_snapshot_by_kind(snapshot_dir, before=date.fromisoformat(deps.as_of), kind="agent")
     if previous is None:
-        return ""
+        if latest is None:
+            return ""
+        return (
+            f"Latest settled/live snapshot is {latest.run.run_id} ({latest.run.kind}); no previous agent forecast "
+            "is available. Treat this as first-run continuity, while structured tools still carry current state."
+        )
     top = sorted(previous.teams, key=lambda t: t.champion_prob, reverse=True)[:top_n]
     rows = ", ".join(f"{t.team_id} {t.champion_prob * 100:.1f}" for t in top)
     when = previous.run.created_at
@@ -94,6 +105,15 @@ def previous_agent_anchor(deps: AgentDeps, *, top_n: int = _TOP_TEAMS) -> str:
     worlds = ""
     if previous.agent is not None and previous.agent.worlds:
         worlds = " Its worlds: " + ", ".join(f"{w.name} {w.weight:.2f}" for w in previous.agent.worlds[:8]) + "."
+    process = ""
+    try:
+        from wolves.agent.continuity import build_previous_run_digest
+
+        digest = build_previous_run_digest(previous, settings=deps.settings)
+        if digest.events_available or digest.artifact_index_available:
+            process = f" Prior process: {digest.master_summary()}"
+    except Exception as exc:
+        logger.warning("previous-run digest skipped: %s", exc)
     live_note = ""
     if latest is not None and latest.run.run_id != previous.run.run_id:
         live_note = (
@@ -102,9 +122,10 @@ def previous_agent_anchor(deps: AgentDeps, *, top_n: int = _TOP_TEAMS) -> str:
         )
     return (
         f"Previous agent forecast ({previous.run.run_id}, {previous.run.kind}, created {when}): {rows}.{worlds}"
-        f"{live_note} "
-        "This is not a first run. It is the anchor your run moves from; unexplained drift against it is rejected "
-        "at submission. Nodes can open its full narrative, evidence and artifact index with previous_forecast."
+        f"{process}{live_note} "
+        "This is not a first run. It is continuity context for audit, not a required world shape. "
+        "Unexplained drift against it is rejected at submission. Nodes can open its full narrative, evidence "
+        "and artifact index with previous_forecast."
     )
 
 
@@ -116,12 +137,14 @@ def _what_changed(deps: AgentDeps, titles: dict[str, float] | None) -> str:
 
     if not deps.as_of:
         return ""
-    previous = latest_snapshot_by_kind(
-        deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of), kind="agent"
-    )
-    previous = previous or load_latest_snapshot(
-        deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of)
-    )
+    previous = None
+    if not getattr(deps, "disable_continuity", False):
+        previous = latest_snapshot_by_kind(
+            deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of), kind="agent"
+        )
+        previous = previous or load_latest_snapshot(
+            deps.settings.runs_root / "snapshots", before=_date.fromisoformat(deps.as_of)
+        )
     played, market_moves, fixtures = diff_inputs(
         previous=previous,
         forecaster=deps.forecaster,
@@ -150,14 +173,16 @@ def _tournament(deps: AgentDeps, titles: dict[str, float] | None) -> str:
         return ""
     played = persisted_results(deps.settings)
     today = date.fromisoformat(deps.as_of)
+    group_matches = sorted(fc.fmt.group_matches, key=lambda m: m.date)
+    knockout = sorted(fc.fmt.knockout, key=lambda m: m.date)
     fixtures = [
         f"m{m.match} {m.home} v {m.away} ({m.date[:10]})"
-        for m in sorted(fc.fmt.group_matches + fc.fmt.knockout, key=lambda m: m.date)
+        for m in group_matches + knockout
         if m.match not in played and 0 <= (date.fromisoformat(m.date[:10]) - today).days <= 1
     ]
-    parts = []
+    parts = [_phase_summary(group_matches, knockout, played=set(played), today=today)]
     if played:
-        group_results = [m for m in fc.fmt.group_matches if m.match in played]
+        group_results = [m for m in group_matches if m.match in played]
         points: dict[str, dict[str, int]] = {}
         for m in group_results:
             r = played[m.match]
@@ -172,6 +197,33 @@ def _tournament(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     if fixtures:
         parts.append(f"Fixtures today and tomorrow: {', '.join(fixtures[:16])}.")
     return " ".join(parts)
+
+
+def _phase_summary(
+    group_matches: list[GroupMatch], knockout: list[KnockoutMatch], *, played: set[int], today: date
+) -> str:
+    matches = group_matches + knockout
+    if not matches:
+        return f"Tournament state as of {today.isoformat()}: fixture list unavailable."
+    first_date = min(date.fromisoformat(m.date[:10]) for m in matches)
+    if today < first_date:
+        days = (first_date - today).days
+        return f"Tournament state as of {today.isoformat()}: pre-tournament, first fixture in {days} day(s)."
+    played_group = sum(1 for m in group_matches if m.match in played)
+    played_knockout = sum(1 for m in knockout if m.match in played)
+    if played_group < len(group_matches):
+        stage = "group stage"
+    elif knockout and played_knockout < len(knockout):
+        stage = "knockout stage"
+    else:
+        stage = "tournament complete"
+    day = (today - first_date).days + 1
+    return (
+        f"Tournament state as of {today.isoformat()}: {stage}, tournament day {day}; "
+        f"{played_group}/{len(group_matches)} group matches played"
+        + (f", {played_knockout}/{len(knockout)} knockout matches played" if knockout else "")
+        + "."
+    )
 
 
 def _matchday(deps: AgentDeps, titles: dict[str, float] | None) -> str:
@@ -277,6 +329,7 @@ def _gaps(deps: AgentDeps, titles: dict[str, float] | None) -> str:
     return (
         f"Model vs market, largest gaps: {rows}. No market leg is added after submission, so every large gap "
         f"must be reconciled inside the mixture: priced as a weighted world or disputed with a computation. "
+        "The first row is the top current gap and should be audited before a market-weighted submission. "
         f"The blend column is reference only (weight {table.model_weight:.2f}); check_forecast previews any "
         f"calibration governor shrink before publication."
         f"{freshness}"

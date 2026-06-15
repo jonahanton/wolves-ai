@@ -203,6 +203,7 @@ SOURCE_TIERS: dict[str, int] = {
     "mediotiempo.com": 3,
     # USA and Canada
     "espn.com": 2,
+    "nytimes.com": 2,
     "cbssports.com": 2,
     "foxsports.com": 2,
     "si.com": 3,
@@ -280,6 +281,52 @@ SOURCE_TIERS: dict[str, int] = {
     "essentiallysports.com": 3,
 }
 
+OFFICIAL_BODY_HOSTS = frozenset(
+    {
+        "fifa.com",
+        "uefa.com",
+        "conmebol.com",
+        "concacaf.com",
+        "the-afc.com",
+        "cafonline.com",
+        "oceaniafootball.com",
+        "thefa.com",
+        "englandfootball.com",
+        "scottishfa.co.uk",
+        "faw.cymru",
+        "fff.fr",
+        "dfb.de",
+        "rfef.es",
+        "figc.it",
+        "fpf.pt",
+        "knvb.nl",
+        "rbfa.be",
+        "hns-cff.hr",
+        "dbu.dk",
+        "svenskfotboll.se",
+        "fotball.no",
+        "cbf.com.br",
+        "afa.com.ar",
+        "auf.org.uy",
+        "fcf.com.co",
+        "ecuafutbol.org",
+        "fmf.mx",
+        "ussoccer.com",
+        "canadasoccer.com",
+        "jfa.jp",
+        "kfa.or.kr",
+        "footballaustralia.com.au",
+        "saff.com.sa",
+        "qfa.qa",
+        "frmf.ma",
+        "fsfoot.sn",
+        "thenff.com",
+        "ghanafa.org",
+        "faf.dz",
+        "ftf.tn",
+    }
+)
+
 
 def source_domain(url: str) -> str:
     host = urlparse(url).netloc.lower()
@@ -294,3 +341,8 @@ def source_tier(url: str) -> int | None:
             return tier
         _, _, domain = domain.partition(".")
     return None
+
+
+def official_body_source(url: str) -> bool:
+    domain = source_domain(url)
+    return any(domain == allowed or domain.endswith(f".{allowed}") for allowed in OFFICIAL_BODY_HOSTS)

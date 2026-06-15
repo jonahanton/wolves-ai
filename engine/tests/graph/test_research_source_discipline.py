@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from tests.graph.conftest import build_graph_deps
+from wolves.agent.source_memory import SourceMemory
 from wolves.graph.agents import _research_source_issues
 from wolves.graph.contracts import LedgerEvidence, ResearchOutput
 
@@ -41,6 +42,24 @@ def test_official_lineup_confirmation_is_allowed():
     assert _research_source_issues(output) == []
 
 
+def test_federation_lineup_confirmation_is_allowed_for_non_england_team():
+    output = ResearchOutput(
+        summary="France line-up confirmed.",
+        evidence=[
+            LedgerEvidence(
+                claim="France confirm their starting XI",
+                source_url="https://www.fff.fr/article/france-starting-xi",
+                quote="Le onze de depart.",
+                status="confirmed",
+                mechanism="lineup announcement",
+                team_id="france",
+            )
+        ],
+    )
+
+    assert _research_source_issues(output) == []
+
+
 def test_non_lineup_injury_claim_can_be_confirmed_from_news():
     output = ResearchOutput(
         summary="Saka load management note.",
@@ -57,6 +76,52 @@ def test_non_lineup_injury_claim_can_be_confirmed_from_news():
     )
 
     assert _research_source_issues(output) == []
+
+
+def test_public_evidence_must_be_fetched_this_run(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.source_memory = SourceMemory(tmp_path / "sources_seen.jsonl")
+    output = ResearchOutput(
+        summary="Availability note.",
+        evidence=[
+            LedgerEvidence(
+                claim="A France forward returned to training",
+                source_url="https://www.reuters.com/sports/soccer/france-training",
+                quote="returned to training",
+                status="confirmed",
+                mechanism="availability",
+                team_id="france",
+            )
+        ],
+    )
+
+    [issue] = _research_source_issues(output, deps)
+
+    assert "without fetching" in issue
+    deps.runtime.shutdown()
+
+
+def test_fetched_public_evidence_passes_source_discipline(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.source_memory = SourceMemory(tmp_path / "sources_seen.jsonl")
+    url = "https://www.reuters.com/sports/soccer/france-training"
+    deps.source_memory.record(url, run_id=deps.runtime.run_id, disposition="fetched")
+    output = ResearchOutput(
+        summary="Availability note.",
+        evidence=[
+            LedgerEvidence(
+                claim="A France forward returned to training",
+                source_url=url,
+                quote="returned to training",
+                status="confirmed",
+                mechanism="availability",
+                team_id="france",
+            )
+        ],
+    )
+
+    assert _research_source_issues(output, deps) == []
+    deps.runtime.shutdown()
 
 
 def test_first_party_tool_claims_need_internal_source_urls():
@@ -96,6 +161,32 @@ def test_first_party_tool_claims_need_canonical_internal_urls():
 
     [issue] = _research_source_issues(output)
     assert "non-canonical internal source" in issue
+
+
+def test_canonical_internal_tool_urls_are_allowed():
+    output = ResearchOutput(
+        summary="Markets fetched.",
+        evidence=[
+            LedgerEvidence(
+                claim="England market consensus is 10.3%",
+                source_url="internal://get_odds",
+                quote="england: 0.103",
+                status="confirmed",
+                mechanism="market consensus",
+                team_id="england",
+            ),
+            LedgerEvidence(
+                claim="England play Croatia on 17 June",
+                source_url="internal://get_results_and_fixtures",
+                quote="England v Croatia, 2026-06-17",
+                status="confirmed",
+                mechanism="fixture context",
+                team_id="england",
+            ),
+        ],
+    )
+
+    assert _research_source_issues(output) == []
 
 
 def test_placeholder_urls_are_rejected():

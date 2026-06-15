@@ -32,10 +32,13 @@ class ObservedWeb:
     def can_fetch(self) -> bool:
         return self._fetch is not None
 
-    def _select(self, provider: str | None) -> SearchClient:
-        if provider and provider in self._search_clients:
-            return self._search_clients[provider]
-        for preferred in ("brave", "exa"):
+    def _select(self, provider: str | None, *, freshness: str | None = None) -> SearchClient:
+        if provider:
+            if provider in self._search_clients:
+                return self._search_clients[provider]
+            raise RuntimeError(f"Search provider {provider!r} is not configured")
+        preferred_order = ("brave", "exa") if freshness else ("exa", "brave")
+        for preferred in preferred_order:
             if preferred in self._search_clients:
                 return self._search_clients[preferred]
         raise RuntimeError("No search provider configured (set BRAVE_API_KEY or EXA_API_KEY)")
@@ -53,13 +56,18 @@ class ObservedWeb:
         include_highlights: bool = False,
         domains: list[str] | None = None,
     ) -> SearchResult:
-        client = self._select(provider)
+        client = self._select(provider, freshness=freshness)
         self._runtime.charge_search()
         with self._runtime.observe(
             kind="web_search",
             actor=actor,
             name=f"search:{client.provider}",
-            input={"query": query, "freshness": freshness, "count": count},
+            input={
+                "query": query,
+                "freshness": freshness,
+                "count": count,
+                "end_published_date": end_published_date,
+            },
             metadata={"provider": client.provider},
         ) as rec:
             result = await client.search(

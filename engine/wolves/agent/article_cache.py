@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -34,19 +34,36 @@ class ArticleCache:
     def _path(self, url: str) -> Path:
         return self.root / f"{_url_hash(url)}.json"
 
-    def get(self, url: str) -> CachedArticle | None:
+    def get(self, url: str, *, as_of: str | None = None, current_run_id: str | None = None) -> CachedArticle | None:
         path = self._path(url)
         if not path.exists():
             return None
         try:
-            return CachedArticle.model_validate_json(path.read_text(encoding="utf-8"))
+            article = CachedArticle.model_validate_json(path.read_text(encoding="utf-8"))
         except ValueError:
             return None
+        latest = _end_of_day(as_of)
+        if (
+            latest is not None
+            and article.run_id != current_run_id
+            and datetime.fromisoformat(article.retrieved_at) > latest
+        ):
+            return None
+        return article
 
-    def recent(self, *, max_age_hours: float, limit: int = 12) -> list[CachedArticle]:
+    def recent(
+        self,
+        *,
+        max_age_hours: float,
+        limit: int = 12,
+        as_of: str | None = None,
+        current_run_id: str | None = None,
+    ) -> list[CachedArticle]:
         """Newest-first cached articles still inside the freshness window."""
         articles: list[CachedArticle] = []
         seen: set[str] = set()
+        latest = _end_of_day(as_of)
+        now = _freshness_clock(as_of)
         if not self.root.exists():
             return articles
         for path in self.root.glob("*.json"):
@@ -58,7 +75,13 @@ class ArticleCache:
             if article.final_url in seen:
                 continue
             seen.add(article.final_url)
-            if article.age_hours() <= max_age_hours:
+            if (
+                latest is not None
+                and article.run_id != current_run_id
+                and datetime.fromisoformat(article.retrieved_at) > latest
+            ):
+                continue
+            if article.age_hours(now=now) <= max_age_hours:
                 articles.append(article)
         articles.sort(key=lambda a: a.retrieved_at, reverse=True)
         return articles[:limit]
@@ -78,3 +101,18 @@ class ArticleCache:
         if final_url != url:
             self._path(final_url).write_text(body, encoding="utf-8")
         return article
+
+
+def _end_of_day(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.combine(date.fromisoformat(value), time.max, tzinfo=UTC)
+    except ValueError:
+        return None
+
+
+def _freshness_clock(as_of: str | None) -> datetime:
+    now = datetime.now(UTC)
+    latest = _end_of_day(as_of)
+    return min(latest, now) if latest is not None else now

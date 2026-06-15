@@ -19,6 +19,10 @@ Weigh holistically, not arithmetically:
   forecast; score it down unless the sub-question is about what changed since.
 - Penalise speculation, engagement-bait and headlines that promise more than
   the snippet supports.
+- On broad coverage questions, score generic match previews and injury-only
+  pages below sources that actually reveal a material change in squad state,
+  market context, tactics, scheduling, federation statements or tournament
+  conditions.
 
 The weighing is judgement: a three-day-old federation statement can outrank a
 fresh aggregator rumour, or not, depending on the question.

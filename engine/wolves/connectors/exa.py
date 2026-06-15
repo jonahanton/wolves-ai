@@ -4,11 +4,12 @@ from typing import Any
 
 import httpx
 
-from ._dates import parse_date, to_iso8601
+from ._dates import freshness_range, parse_date, to_end_iso8601, to_iso8601
 from ._http import _raise_for_status, async_retrying
 from .contracts import SearchClient, SearchHit, SearchResult
 
 _ENDPOINT = "https://api.exa.ai/search"
+_FRESHNESS_DAYS = {"pd": 1, "pw": 7, "pm": 31, "py": 365}
 
 
 class ExaClient(SearchClient):
@@ -42,9 +43,14 @@ class ExaClient(SearchClient):
             "numResults": max(1, min(count, 100)),  # Exa allows 1-100
         }
         # Exa requires a full ISO 8601 instant, not a bare date.
-        end_iso = to_iso8601(end_published_date) if end_published_date else None
+        end_iso = to_end_iso8601(end_published_date) if end_published_date else None
         if end_iso:
             body["endPublishedDate"] = end_iso
+        if freshness and end_published_date:
+            window = freshness_range(end_published_date, lookback_days=_FRESHNESS_DAYS.get(freshness, 3650)) or ""
+            start, _, _end = window.partition("to")
+            if start_iso := to_iso8601(start):
+                body["startPublishedDate"] = start_iso
         if domains:
             body["includeDomains"] = domains
 

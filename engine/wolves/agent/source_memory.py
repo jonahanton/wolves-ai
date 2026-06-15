@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -37,13 +37,17 @@ class SourceMemory:
     def __init__(self, path: Path) -> None:
         self.path = path
         self._seen: dict[str, SeenSource] = {}
+        self._history: dict[str, list[SeenSource]] = {}
         if self.path.exists():
             for line in self.path.read_text(encoding="utf-8").splitlines():
                 if line.strip():
                     record = SeenSource.model_validate_json(line)
+                    self._history.setdefault(record.url_hash, []).append(record)
                     self._seen[record.url_hash] = record
 
-    def seen(self, url: str) -> SeenSource | None:
+    def seen(self, url: str, *, as_of: str | None = None, current_run_id: str | None = None) -> SeenSource | None:
+        if as_of is not None:
+            return _latest_before(self._history.get(_url_hash(url), []), as_of, current_run_id=current_run_id)
         return self._seen.get(_url_hash(url))
 
     def record(self, url: str, *, run_id: str, disposition: str) -> SeenSource:
@@ -63,6 +67,7 @@ class SourceMemory:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(record.model_dump_json() + "\n")
+        self._history.setdefault(key, []).append(record)
         self._seen[key] = record
         return record
 
@@ -71,3 +76,24 @@ class SourceMemory:
 
     def seen_in_run(self, run_id: str) -> list[SeenSource]:
         return [r for r in self._seen.values() if r.last_seen_run == run_id]
+
+
+def _latest_before(records: list[SeenSource], as_of: str, *, current_run_id: str | None) -> SeenSource | None:
+    latest = _end_of_day(as_of)
+    if latest is None:
+        return records[-1] if records else None
+    visible = [
+        record
+        for record in records
+        if record.last_seen_run == current_run_id or datetime.fromisoformat(record.last_seen_at) <= latest
+    ]
+    return visible[-1] if visible else None
+
+
+def _end_of_day(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.combine(date.fromisoformat(value), time.max, tzinfo=UTC)
+    except ValueError:
+        return None

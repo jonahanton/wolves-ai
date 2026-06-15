@@ -28,7 +28,7 @@ async def test_observed_web_search_and_fetch(tmp_path: Path):
     assert runtime.budget.search_calls == 1 and runtime.budget.fetch_calls == 1
 
 
-async def test_provider_selection_prefers_brave_then_exa(tmp_path: Path):
+async def test_provider_selection_uses_exa_for_semantic_and_brave_for_fresh(tmp_path: Path):
     runtime = _runtime(tmp_path)
     brave = FakeSearchClient(provider="brave")
     exa = FakeSearchClient(provider="exa")
@@ -36,8 +36,10 @@ async def test_provider_selection_prefers_brave_then_exa(tmp_path: Path):
 
     with runtime.observe(kind="node", actor="r"):
         default = await web.search(actor="r", query="q")
+        fresh = await web.search(actor="r", query="q", freshness="pd")
         explicit = await web.search(actor="r", query="q", provider="exa")
     runtime.shutdown()
 
-    assert default.provider == "brave"
+    assert default.provider == "exa"
+    assert fresh.provider == "brave"
     assert explicit.provider == "exa"

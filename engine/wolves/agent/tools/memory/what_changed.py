@@ -19,8 +19,10 @@ async def _what_changed(args: WhatChangedArgs, deps: AgentDeps) -> ToolResult[An
     from wolves.agent.scoring import latest_snapshot_by_kind
 
     snapshot_dir = deps.settings.runs_root / "snapshots"
-    previous = latest_snapshot_by_kind(snapshot_dir, before=date.fromisoformat(deps.as_of), kind="agent")
-    previous = previous or load_latest_snapshot(snapshot_dir, before=date.fromisoformat(deps.as_of))
+    previous = None
+    if not deps.disable_continuity:
+        previous = latest_snapshot_by_kind(snapshot_dir, before=date.fromisoformat(deps.as_of), kind="agent")
+        previous = previous or load_latest_snapshot(snapshot_dir, before=date.fromisoformat(deps.as_of))
     titles = None
     if deps.forecaster is not None:
         titles = deps.forecaster.title_probs(n_sims=50_000, seed=0)

@@ -41,6 +41,7 @@ def test_standings_score_three_one_zero_and_upcoming_fixtures_listed(deps, monke
 
     section = _tournament(deps, None)
 
+    assert "Tournament state as of 2026-06-12: group stage, tournament day 2; 1/2 group matches played" in section
     assert "1 played" in section
     assert "L: croatia 1, england 1" in section or "L: england 1, croatia 1" in section
     assert "m2 ghana v croatia (2026-06-13)" in section
@@ -108,6 +109,47 @@ def test_previous_anchor_prefers_agent_snapshot_over_later_live(tmp_path):
     assert "Its worlds: market_base 0.70" in section
     assert "Latest live state was republished as live-20260613-210542" in section
     assert "Settled state comes from structured live-state tools" in section
+
+
+def test_previous_anchor_does_not_label_live_snapshot_as_agent_forecast(tmp_path):
+    snapshot_dir = tmp_path / "snapshots" / "2026" / "06" / "13"
+    snapshot_dir.mkdir(parents=True)
+    live_snapshot = _snapshot(
+        run_id="live-20260613-210542",
+        created_at="2026-06-13T21:05:42+00:00",
+        kind="live",
+    )
+    (snapshot_dir / "live-20260613-210542.json").write_text(live_snapshot.model_dump_json())
+    deps = SimpleNamespace(
+        settings=Settings(_env_file=None, runs_root=tmp_path, storage_mode="local"),
+        as_of="2026-06-14",
+    )
+
+    section = _published(deps, None)
+
+    assert "Previous agent forecast" not in section
+    assert "no previous agent forecast is available" in section
+
+
+def test_previous_anchor_can_be_disabled_for_scratch_run(tmp_path):
+    snapshot_dir = tmp_path / "snapshots" / "2026" / "06" / "13"
+    snapshot_dir.mkdir(parents=True)
+    agent_snapshot = _snapshot(
+        run_id="agent-20260613-140248",
+        created_at="2026-06-13T14:56:13+00:00",
+        kind="agent",
+    )
+    (snapshot_dir / "agent-20260613-140248.json").write_text(agent_snapshot.model_dump_json())
+    deps = SimpleNamespace(
+        settings=Settings(_env_file=None, runs_root=tmp_path, storage_mode="local"),
+        as_of="2026-06-14",
+        disable_continuity=True,
+    )
+
+    section = _published(deps, None)
+
+    assert "disabled for this run" in section
+    assert "agent-20260613-140248" not in section
 
 
 def test_open_scenarios_group_duplicate_names(tmp_path):
