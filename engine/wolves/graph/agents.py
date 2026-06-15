@@ -4,6 +4,7 @@ from functools import cache
 from typing import Any
 from urllib.parse import urlparse
 
+from pydantic import BaseModel
 from pydantic_ai import Agent, ModelRetry, RunContext
 
 from wolves.agent.deps import AgentDeps
@@ -156,6 +157,35 @@ def _research_source_issues(output: ResearchOutput) -> list[str]:
     return issues
 
 
+def _em_dash_paths(value: Any, path: str = "$") -> list[str]:
+    if isinstance(value, BaseModel):
+        return _em_dash_paths(value.model_dump(mode="json"), path)
+    if isinstance(value, dict):
+        paths: list[str] = []
+        for key, item in value.items():
+            paths.extend(_em_dash_paths(item, f"{path}.{key}"))
+        return paths
+    if isinstance(value, list):
+        paths: list[str] = []
+        for index, item in enumerate(value):
+            paths.extend(_em_dash_paths(item, f"{path}[{index}]"))
+        return paths
+    if isinstance(value, str) and "\u2014" in value:
+        return [path]
+    return []
+
+
+def _reject_em_dashes(value: Any) -> None:
+    paths = _em_dash_paths(value)
+    if not paths:
+        return
+    shown = ", ".join(paths[:8])
+    extra = "" if len(paths) <= 8 else f" and {len(paths) - 8} more"
+    raise ModelRetry(
+        f"Replace em dashes with commas, semicolons, parentheses or hyphens in {shown}{extra}."
+    )
+
+
 async def _truncated(spec: ToolSpec, args: Any, ctx: RunContext[AgentDeps], result: ToolResult) -> str:
     return truncate_result(result.model_dump_json(), ctx.deps.settings.tool_result_max_chars)
 
@@ -189,6 +219,12 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
             )
         ],
     )
+
+    @agent.output_validator
+    def _node_copy_style(output: Any) -> Any:
+        _reject_em_dashes(output)
+        return output
+
     if kind == "research":
 
         @agent.output_validator
@@ -210,6 +246,7 @@ def master_agent(output_retries: int) -> Agent[None, GraphPatch]:
 
     @agent.output_validator
     def _ops_or_stop(patch: GraphPatch) -> GraphPatch:
+        _reject_em_dashes(patch)
         # Opus narrates a wave in reason while emitting ops=[].
         if not patch.ops and not patch.stop:
             raise ModelRetry(
