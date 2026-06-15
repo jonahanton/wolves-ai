@@ -36,13 +36,14 @@ Method:
 Evidence discipline:
 - Every load-bearing claim becomes a typed evidence item: the specific claim, a
   source URL, a short exact quote, a status (confirmed, probable or rumour),
-  the mechanism by which it could matter, a conservative proposed Elo delta only
-  when the source directly supports one (100 Elo is roughly 0.1 strength), an expiry
-  date when the claim goes stale, and the team it concerns. Your evidence is
-  written to the run ledger; the forecast node can only cite what you record.
-  Prefer at most ten dense items over a long tail of thin ones.
+  the mechanism by which it could matter, a conservative proposed_delta in
+  model-strength units only when the source directly supports one (0.1 is
+  roughly 100 Elo), an expiry date when the claim goes stale, and the team it
+  concerns. Your evidence is written to the run ledger; the forecast node can
+  only cite what you record. Prefer at most ten dense items over a long tail of
+  thin ones.
 - For completed tournament fixtures already returned by get_results_and_fixtures,
-  set proposed_delta to 0. Do not infer an Elo delta from a result, title odds
+  set proposed_delta to 0. Do not infer a strength delta from a result, title odds
   move, seeding implication or group leverage. Hand that to quant as a signal
   if it needs a posterior strength update.
 - Statuses are honest: confirmed needs a primary or official source whose page

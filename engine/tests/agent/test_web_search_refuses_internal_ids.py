@@ -33,3 +33,13 @@ async def test_internal_scenario_names_are_not_web_search_terms(deps):
 
     assert not result.ok
     assert result.error.type == "internal_id_query"
+
+
+async def test_ledger_and_live_snapshot_ids_are_not_web_search_terms(deps):
+    result = await _web_search(
+        WebSearchArgs(query="led-0001 live-20260613-210542 England evidence"),
+        deps,
+    )
+
+    assert not result.ok
+    assert result.error.type == "internal_id_query"

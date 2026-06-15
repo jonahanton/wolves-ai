@@ -47,7 +47,11 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
     script = workspace.next_analysis_name()
     deps.quant.write_analysis(actor=deps.actor, workspace=workspace, code=args.code, filename=script)
     result = await deps.quant.execute(actor=deps.actor, workspace=workspace, script=script)
-    _register_mixtures(deps, workspace_dir=workspace.dir.name, files=[o.filename for o in result.output_files])
+    registered = _register_mixtures(
+        deps,
+        workspace_dir=workspace.dir.name,
+        files=[o.filename for o in result.output_files],
+    )
     result_text = json.dumps(result.result_value, ensure_ascii=False, default=str)
     return ToolResult(
         ok=result.ok,
@@ -60,17 +64,19 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
             "timed_out": result.timed_out,
             "usage": result.usage,
             "output_files": [o.filename for o in result.output_files],
+            "registered_artifact_ids": registered,
             **({"error": result.error} if result.error else {}),
         },
     )
 
 
-def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str]) -> None:
+def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str]) -> list[str]:
     """Mixture artifacts computed in the sandbox become run artifacts the
     forecast node can cite and submit by reference."""
     store = deps.artifacts
     if store is None:
-        return
+        return []
+    artifact_ids: list[str] = []
     registered = {r.summary.split(":", 1)[0] for r in store.all() if r.kind == "mixture"}
     for filename in files:
         if not filename.endswith(".json"):
@@ -87,13 +93,15 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
         # scenario_mixture(name=...) output registers.
         if not (isinstance(payload, dict) and {"mixture", "conditionals", "weights"} <= payload.keys()):
             continue
-        store.add(
+        artifact = store.add(
             kind="mixture",
             created_by=deps.actor,
             summary=f"{marker}: {_describe_mixture(payload)}",
             payload=payload,
             workspace_prefix=f"runs/{store.run_id}/workspace/quant/{workspace_dir}",
         )
+        artifact_ids.append(artifact.id)
+    return artifact_ids
 
 
 def _describe_mixture(payload: dict) -> str:
@@ -122,11 +130,17 @@ SPEC = ToolSpec(
         "for the model's own diagnostics, wq.artifact/artifact_path to open prior nodes' work), "
         "pd (pandas) and np (numpy); scipy, statsmodels, sklearn, emcee, polars, duckdb and "
         "matplotlib are importable. "
+        "Exact common shapes: wq.teams() columns are team, name, group, strength; wq.fixtures() "
+        "columns are match, stage, group, date, city, home, away; wq.market_gaps() columns are "
+        "team, model_p_title, market_p_title, polymarket_p_title, blend_p_title, gap_pp, "
+        "polymarket_gap_pp, legs_disagree_pp; wq.mixture_spread(...) returns a dict whose teams "
+        "value is a DataFrame. "
         "End every script by assigning the finding to `result` "
         "(JSON-safe; a bare expression or print() does not count). Deltas from wq.impact carry a "
         "paired-seed noise floor: treat anything below it as simulation noise. This tool is capped "
         "per node, including failed scripts, so compute in compact scripts and publish from the "
-        "material already gathered once the cap is near."
+        "material already gathered once the cap is near. If a script writes a valid mixture JSON "
+        "under outputs/, registered_artifact_ids returns the artifact ids to cite or submit."
     ),
     args_model=RunPythonArgs,
     fn=_run_python,

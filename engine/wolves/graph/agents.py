@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from functools import cache
 from typing import Any
 from urllib.parse import urlparse
@@ -32,6 +33,7 @@ from wolves.agent.tools.submission import check_forecast, submit_forecast
 from wolves.agent.tools.workbench import data_query, run_python, team_dossier
 from wolves.graph.contracts import CritiqueOutput, ForecastOutput, GraphPatch, NodeKind, QuantOutput, ResearchOutput
 from wolves.prompts import prompt
+from wolves.sim.format import load_format
 from wolves.toolkit._truncation import truncate_result
 from wolves.toolkit.adapters.pydantic_ai import build_toolset
 from wolves.toolkit.core import ToolSpec
@@ -43,6 +45,10 @@ _COPY_REPAIR_TOOLS = {"submit_forecast", "check_forecast"}
 _LINEUP_TERMS = ("starting xi", "lineup", "line-up", "teamsheet", "team sheet")
 _OFFICIAL_LINEUP_HOSTS = ("fifa.com", "englandfootball.com", "thefa.com")
 _FAKE_TOOL_HOSTS = {"get_odds", "get_results_and_fixtures"}
+_INTERNAL_SOURCE_URLS = {"internal://get_odds", "internal://get_results_and_fixtures"}
+_PLACEHOLDER_HOSTS = {"example.com", "example.org", "example.net"}
+_GROUP_MENTION = re.compile(r"\bgroup\s+([A-L])\b", re.IGNORECASE)
+_MAX_REASONABLE_STRENGTH_DELTA = 0.5
 
 _NODE_SPECS: dict[NodeKind, list[ToolSpec]] = {
     "research": [
@@ -149,15 +155,45 @@ def _source_label(source_url: str) -> str:
     return host or source_url
 
 
-def _research_source_issues(output: ResearchOutput) -> list[str]:
+def _team_groups(deps: AgentDeps) -> dict[str, str]:
+    try:
+        return {team.id: team.group for team in load_format(deps.settings.data_dir).teams}
+    except (OSError, ValueError):
+        return {}
+
+
+def _research_source_issues(output: ResearchOutput, deps: AgentDeps | None = None) -> list[str]:
     issues: list[str] = []
+    groups = _team_groups(deps) if deps is not None else {}
     for index, item in enumerate(output.evidence, start=1):
+        source_url = item.source_url.strip()
+        if not source_url.startswith(("http://", "https://")) and source_url not in _INTERNAL_SOURCE_URLS:
+            issues.append(
+                f"evidence {index} uses non-canonical internal source {source_url!r}. "
+                "Use internal://get_odds, internal://get_results_and_fixtures, or a fetched public URL."
+            )
+        if _host(source_url) in _PLACEHOLDER_HOSTS:
+            issues.append(f"evidence {index} cites placeholder URL {source_url!r}; cite the real source.")
         if _fake_tool_source(item.source_url):
             issues.append(
                 f"evidence {index} cites first-party tool output as fake web URL {item.source_url!r}. "
                 "Use source_url 'internal://get_odds' or 'internal://get_results_and_fixtures', "
                 "or cite a fetched public URL."
             )
+        if abs(item.proposed_delta) > _MAX_REASONABLE_STRENGTH_DELTA:
+            issues.append(
+                f"evidence {index} proposed_delta {item.proposed_delta:g} is not in model-strength units. "
+                "Use strength units where 0.1 is roughly 100 Elo, or leave it at 0."
+            )
+        if item.team_id and item.team_id in groups:
+            text_for_group = " ".join([item.claim, item.quote, item.mechanism])
+            mentioned = {match.upper() for match in _GROUP_MENTION.findall(text_for_group)}
+            wrong = sorted(group for group in mentioned if group != groups[item.team_id])
+            if wrong:
+                issues.append(
+                    f"evidence {index} assigns {item.team_id} to group {', '.join(wrong)}, "
+                    f"but the tournament format has group {groups[item.team_id]}."
+                )
         text = f"{item.claim} {item.mechanism}".lower()
         if item.status != "confirmed" or not any(term in text for term in _LINEUP_TERMS):
             continue
@@ -244,7 +280,7 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
 
         @agent.output_validator
         def _research_source_discipline(ctx: RunContext[AgentDeps], output: ResearchOutput) -> ResearchOutput:
-            issues = _research_source_issues(output)
+            issues = _research_source_issues(output, ctx.deps)
             if issues:
                 raise ModelRetry(" ".join(issues))
             return output

@@ -11,7 +11,10 @@ from wolves.toolkit._timeout import run_with_timeout
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import SourceRef, ToolError, ToolResult
 
-_INTERNAL_ID = re.compile(r"\b(?:scn|led|mixture|evidence|quant)-\d{3}\b|\b[a-z]+_watch_\d{4}-\d{2}-\d{2}\b")
+_INTERNAL_ID = re.compile(
+    r"\b(?:scn-\d{3}|led-\d{4}|(?:mixture|evidence|quant)-\d{3}|live-\d{8}-\d{6})\b"
+    r"|\b[a-z]+_watch_\d{4}-\d{2}-\d{2}\b"
+)
 
 
 class WebSearchArgs(BaseModel):

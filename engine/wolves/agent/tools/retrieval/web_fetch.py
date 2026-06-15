@@ -63,10 +63,10 @@ async def _web_fetch(args: WebFetchArgs, deps: AgentDeps) -> ToolResult[Any]:
         return refused
     if deps.source_memory is not None:
         seen = deps.source_memory.seen(args.url)
-        if seen is not None and seen.last_seen_run == deps.runtime.run_id:
+        if seen is not None:
             if seen.disposition == "empty":
                 return _empty_page(args.url, 0)
-            if seen.disposition == "fetched":
+            if seen.disposition == "fetched" and seen.last_seen_run == deps.runtime.run_id:
                 return ToolResult(
                     payload={
                         "url": args.url,

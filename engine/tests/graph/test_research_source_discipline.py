@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from tests.graph.conftest import build_graph_deps
 from wolves.graph.agents import _research_source_issues
 from wolves.graph.contracts import LedgerEvidence, ResearchOutput
 
@@ -77,3 +78,82 @@ def test_first_party_tool_claims_need_internal_source_urls():
     assert "fake web URL" in issue
     assert "internal://get_odds" in issue
 
+
+def test_first_party_tool_claims_need_canonical_internal_urls():
+    output = ResearchOutput(
+        summary="Markets fetched.",
+        evidence=[
+            LedgerEvidence(
+                claim="England market consensus is 10.3%",
+                source_url="internal:get_odds",
+                quote="england: 0.103",
+                status="confirmed",
+                mechanism="market consensus",
+                team_id="england",
+            )
+        ],
+    )
+
+    [issue] = _research_source_issues(output)
+    assert "non-canonical internal source" in issue
+
+
+def test_placeholder_urls_are_rejected():
+    output = ResearchOutput(
+        summary="Placeholder source.",
+        evidence=[
+            LedgerEvidence(
+                claim="England trained normally",
+                source_url="https://example.com/england",
+                quote="England trained normally.",
+                status="probable",
+                mechanism="availability",
+                team_id="england",
+            )
+        ],
+    )
+
+    [issue] = _research_source_issues(output)
+    assert "placeholder URL" in issue
+
+
+def test_proposed_delta_uses_strength_units():
+    output = ResearchOutput(
+        summary="Elo-scale delta.",
+        evidence=[
+            LedgerEvidence(
+                claim="England lose a starter",
+                source_url="https://www.reuters.com/sports/soccer/england",
+                quote="A starter is out.",
+                status="confirmed",
+                mechanism="availability",
+                proposed_delta=-15.0,
+                team_id="england",
+            )
+        ],
+    )
+
+    [issue] = _research_source_issues(output)
+    assert "model-strength units" in issue
+
+
+def test_group_claims_match_the_tournament_format(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    output = ResearchOutput(
+        summary="Wrong group.",
+        evidence=[
+            LedgerEvidence(
+                claim="England remain in Group A contention",
+                source_url="https://www.reuters.com/sports/soccer/england",
+                quote="England are in Group A.",
+                status="probable",
+                mechanism="group state",
+                team_id="england",
+            )
+        ],
+    )
+
+    [issue] = _research_source_issues(output, deps)
+    assert "group A" in issue
+    assert "group L" in issue
+    deps.runtime.shutdown()

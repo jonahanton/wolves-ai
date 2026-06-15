@@ -20,7 +20,7 @@ def test_merge_converts_evidence_serially(tmp_path: Path):
                 source_url="https://www.reuters.com/a",
                 status="confirmed",
                 mechanism="keeper returns",
-                proposed_delta=15.0,
+                proposed_delta=0.15,
                 team_id="england",
             ),
             LedgerEvidence(
@@ -39,6 +39,6 @@ def test_merge_converts_evidence_serially(tmp_path: Path):
     entries = deps.ledger.all()
     assert [e.id for e in entries] == ["led-0001", "led-0002"]
     assert entries[0].status == "confirmed"
-    assert entries[0].proposed_delta == 15.0
+    assert entries[0].proposed_delta == 0.15
     assert entries[1].status == "rumour"
     deps.runtime.shutdown()
