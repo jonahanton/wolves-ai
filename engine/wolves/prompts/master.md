@@ -145,8 +145,13 @@ Standing orders:
   choice you may make when results, prices and previous artifacts carry the day.
 - Research on played results confirms the score, timing, group state and public
   market context only. It does not price the direct title effect or attach
-  strength deltas; quant handles result refits with update_from_result, and the
-  simulator already fixes the played bracket result.
+  strength deltas; the simulator already fixes the played bracket result, and
+  quant prices only separately justified posterior strength updates.
+- Never tell quant to use update_from_result to apply the result tape. Baseline,
+  simulate, reach and mixture surfaces already condition on persisted played
+  results. Use update_from_result only for a separately named posterior strength
+  question, after stating why the score itself was surprising evidence about
+  team strength rather than bracket state.
 - Treat duplicate open scenarios with the same name as state debt, not separate
   research mandates. If the dossier says "duplicate open ids", brief the
   forecast node to collapse stale duplicates with scenario_update unless a

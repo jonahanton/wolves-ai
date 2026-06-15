@@ -53,3 +53,28 @@ def test_admission_respects_remaining_node_budget(tmp_path: Path):
 
     assert [b.node_id for b in admit(plan, board=board, settings=settings)[0]] == ["research-1"]
     deps.runtime.shutdown()
+
+
+def test_admission_drops_quant_briefs_that_apply_played_results_with_update_from_result(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(
+        ops=[
+            NodePatch(
+                node_id="quant-refit",
+                kind="quant",
+                objective="refit results",
+                brief="Use update_from_result for USA 4-1 Paraguay and Brazil 1-1 Morocco from the played ledger.",
+            )
+        ]
+    )
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert admitted == []
+    assert dropped == [
+        "quant-refit: update_from_result is for separately justified posterior strength updates, "
+        "not applying played results"
+    ]
+    deps.runtime.shutdown()

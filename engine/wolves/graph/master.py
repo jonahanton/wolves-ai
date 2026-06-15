@@ -110,6 +110,10 @@ def _kind_cap(kind: NodeKind, settings: Settings) -> int:
     }[kind]
 
 
+def _unsafe_result_refit_brief(op: NodePatch) -> bool:
+    return op.kind == "quant" and "update_from_result" in op.brief.lower()
+
+
 def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[list[NodePatch], list[str]]:
     """Trim a graph patch against hard caps and lineage rules; drops are
     returned for the blackboard so the master can react, never fatal."""
@@ -142,6 +146,13 @@ def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[
         unknown = [a for a in op.input_artifact_ids if not board.artifacts.has(a)]
         if unknown:
             drop(op, f"unknown artifact ids {unknown}")
+            continue
+        if _unsafe_result_refit_brief(op):
+            drop(
+                op,
+                "update_from_result is for separately justified posterior strength updates, "
+                "not applying played results",
+            )
             continue
         if op.kind == "forecast" and forecast_admitted:
             drop(op, "one forecast node per wave")
