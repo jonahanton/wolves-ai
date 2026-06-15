@@ -149,6 +149,31 @@ def test_admission_allows_named_dataset_gap_mechanism(tmp_path: Path):
     deps.runtime.shutdown()
 
 
+def test_admission_allows_explicit_market_inversion(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(
+        ops=[
+            NodePatch(
+                node_id="quant-invert",
+                kind="quant",
+                objective="Price England and France model-vs-market gaps",
+                brief=(
+                    "For England and France, invert the market implied strength delta and test it against "
+                    "the noise floor. Avoid generic dataset mining."
+                ),
+            )
+        ]
+    )
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert [op.node_id for op in admitted] == ["quant-invert"]
+    assert dropped == []
+    deps.runtime.shutdown()
+
+
 def test_admission_drops_patch_when_focus_team_drifts(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
     store = build_run_store(tmp_path)

@@ -34,6 +34,12 @@ _NAMED_DATASET_MECHANISMS = (
     "injury class",
     "availability class",
     "calibration",
+    "implied strength",
+    "implied delta",
+    "market inversion",
+    "market-implied",
+    "invert the market",
+    "invert market",
 )
 
 _SIMPLIFIED_PREAMBLE = (
@@ -144,9 +150,16 @@ def _generic_dataset_gap_brief(op: NodePatch) -> bool:
     if op.kind != "quant":
         return False
     text = f"{op.objective} {op.brief}".lower()
+    unsafe_mining = False
+    for match in _DATASET_MINING_RE.finditer(text):
+        window = text[max(0, match.start() - 80) : match.start()]
+        if _RESULT_REFIT_FORBID_RE.search(window):
+            continue
+        unsafe_mining = True
+        break
     return (
         "dataset" in text
-        and _DATASET_MINING_RE.search(text) is not None
+        and unsafe_mining
         and any(term in text for term in _MARKET_GAP_TERMS)
         and not any(term in text for term in _NAMED_DATASET_MECHANISMS)
     )
