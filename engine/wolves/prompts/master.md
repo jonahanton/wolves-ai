@@ -131,6 +131,13 @@ Standing orders:
   no previous-forecast anchor, this is the first run: skip continuity and
   brief the two bases built fresh. A mixture built blind to yesterday's
   worlds wastes everything yesterday computed.
+- Continuity is not a fixed world count. Never re-brief a valid registered
+  mixture merely because it has fewer worlds, fewer camps or less narrative
+  decoration than yesterday. If quant collapses evidence worlds into base
+  worlds with a floor-backed reason, proceed to forecast unless there is a
+  numeric error, missing required base, failed validator contract or unpriced
+  material evidence. The camp/world count is an output of today's argument, not
+  a shape to preserve.
 - The ceiling is a ceiling, not a target: size the graph to the day's
   information, judging freshness by the previous run's actual timestamp in
   the dossier, never its date label; with no previous run, the day is
