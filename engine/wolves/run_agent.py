@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import logging
+import math
 import re
 import sys
 import time
@@ -20,14 +21,14 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 
 from wolves import ENGINE_VERSION
-from wolves.agent.article_cache import ArticleCache
+from wolves.agent.article_cache import ArticleCache, CachedArticle
 from wolves.agent.attribution import decompose
 from wolves.agent.calibration import CalibrationLedger, total_spread_pnl
 from wolves.agent.consensus import publish_scale
 from wolves.agent.deps import AgentDeps, SubmissionState
 from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.forecast_artifact import govern_outputs, mixed_outputs, simulate_worlds, worlds_from_payload
-from wolves.agent.ledger import EvidenceLedger
+from wolves.agent.ledger import EvidenceLedger, LedgerEntry
 from wolves.agent.market_base import seed_baseline_payload
 from wolves.agent.memory import RunMemory
 from wolves.agent.relevance_feedback import append_feedback, relevance_feedback
@@ -35,6 +36,7 @@ from wolves.agent.relevance_memory import RelevanceMemory
 from wolves.agent.scenarios import ScenarioRegistry
 from wolves.agent.scoring import score_yesterday
 from wolves.agent.source_memory import SourceMemory
+from wolves.agent.sources import source_tier
 from wolves.agent.stream import band_coverage, load_stream, movement_stats, record_stream
 from wolves.agent.validator import ValidatorLimits
 from wolves.clients.api_football import FakeFixturesClient, FixturesClient, MergedFixturesClient
@@ -105,6 +107,7 @@ from wolves.snapshot import (
     RunMeta,
     ScenarioWeightOut,
     Snapshot,
+    SourceRelevanceOut,
     TeamDriver,
     WorldOut,
     run_day,
@@ -552,6 +555,175 @@ def _ledger_entries(ledger: EvidenceLedger, articles: ArticleCache) -> list[Ledg
     return entries
 
 
+def _text(value: object) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _float_or_none(value: object) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return None
+    return out if math.isfinite(out) and 0.0 <= out <= 1.0 else None
+
+
+def _int_or_none(value: object) -> int | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        out = int(value)
+    except (TypeError, ValueError):
+        return None
+    return out if out in {1, 2, 3} else None
+
+
+def _web_source(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.scheme in {"http", "https"} and parsed.hostname != "tools.internal"
+
+
+def _article_for(deps: AgentDeps, url: str) -> CachedArticle | None:
+    return deps.articles.get(url) if deps.articles is not None else None
+
+
+def _source_key(deps: AgentDeps, url: str) -> str:
+    article = _article_for(deps, url)
+    return article.final_url if article is not None else url
+
+
+def _source_title(deps: AgentDeps, url: str, fallback: str = "") -> str:
+    article = _article_for(deps, url)
+    if article is None:
+        return fallback
+    return article.title or fallback
+
+
+def _source_relevance(deps: AgentDeps, *, limit: int = 30) -> list[SourceRelevanceOut]:
+    sources: dict[str, SourceRelevanceOut] = {}
+    seen_by_key = {}
+    if deps.source_memory is not None:
+        for seen in deps.source_memory.seen_in_run(deps.runtime.run_id):
+            if not _web_source(seen.url):
+                continue
+            key = _source_key(deps, seen.url)
+            previous = seen_by_key.get(key)
+            if previous is None or previous.disposition != "fetched":
+                seen_by_key[key] = seen
+    fetched_keys = {key for key, seen in seen_by_key.items() if seen.disposition == "fetched"}
+
+    if deps.artifacts is not None:
+        for record in deps.artifacts.all():
+            if record.kind != "retrieval":
+                continue
+            artifact = deps.artifacts.get(record.id)
+            if artifact is None:
+                continue
+            sub_question = _text(artifact.payload.get("sub_question"))
+            rankings = artifact.payload.get("rankings") or []
+            if not isinstance(rankings, list):
+                continue
+            for item in rankings:
+                if not isinstance(item, dict):
+                    continue
+                url = _text(item.get("url")).strip()
+                if not url or not _web_source(url):
+                    continue
+                key = _source_key(deps, url)
+                score = _float_or_none(item.get("score"))
+                previous = sources.get(key)
+                if previous is not None and (previous.score or -1.0) > (score or -1.0):
+                    continue
+                sources[key] = SourceRelevanceOut(
+                    url=key,
+                    title=_source_title(deps, url, _text(item.get("title"))),
+                    hostname=urlparse(key).hostname or "",
+                    tier=_int_or_none(item.get("tier")) or source_tier(key),
+                    score=score,
+                    reason=_text(item.get("reason"))[:300],
+                    sub_question=sub_question[:200],
+                    ranked=True,
+                    seen_in_run=_text(item.get("seen_in_run")) or None,
+                    retrieval_id=record.id,
+                    created_by=record.created_by,
+                )
+
+    cited: dict[str, tuple[str, LedgerEntry]] = {}
+    for entry in deps.ledger.all():
+        if not _web_source(entry.source_url):
+            continue
+        key = _source_key(deps, entry.source_url)
+        previous = cited.get(key)
+        if previous is None:
+            cited[key] = (entry.source_url, entry)
+            continue
+        previous_entry = previous[1]
+        if (_float_or_none(entry.relevance) or -1.0) > (_float_or_none(previous_entry.relevance) or -1.0):
+            cited[key] = (entry.source_url, entry)
+    for key, (url, entry) in cited.items():
+        previous = sources.get(key)
+        host = urlparse(key).hostname or ""
+        hostname = host or (previous.hostname if previous else "")
+        sources[key] = SourceRelevanceOut(
+            url=key,
+            title=previous.title if previous and previous.title else _source_title(deps, url),
+            hostname=hostname,
+            tier=previous.tier if previous and previous.tier is not None else entry.source_tier,
+            score=previous.score if previous and previous.score is not None else _float_or_none(entry.relevance),
+            reason=previous.reason if previous else "cited evidence",
+            sub_question=previous.sub_question if previous else "",
+            ranked=previous.ranked if previous else False,
+            cited=True,
+            fetched=key in fetched_keys,
+            seen_in_run=previous.seen_in_run if previous else None,
+            retrieval_id=previous.retrieval_id if previous else None,
+            created_by=previous.created_by if previous else "",
+        )
+
+    for key, seen in seen_by_key.items():
+        if seen.disposition != "fetched" or key in sources:
+            continue
+        sources[key] = SourceRelevanceOut(
+            url=key,
+            title=_source_title(deps, seen.url),
+            hostname=urlparse(key).hostname or "",
+            tier=source_tier(key),
+            reason="fetched this run",
+            fetched=True,
+            seen_in_run=seen.last_seen_run,
+        )
+
+    out: list[SourceRelevanceOut] = []
+    for key, source in sources.items():
+        seen = seen_by_key.get(key)
+        fetched = source.fetched or key in fetched_keys
+        seen_in_run = source.seen_in_run
+        if seen is not None and seen_in_run is None:
+            seen_in_run = seen.last_seen_run
+        out.append(
+            source.model_copy(
+                update={
+                    "fetched": fetched,
+                    "seen_in_run": seen_in_run,
+                }
+            )
+        )
+    out.sort(
+        key=lambda source: (
+            source.cited,
+            source.ranked,
+            source.fetched,
+            source.score is not None,
+            source.score or -1.0,
+            -(source.tier or 99),
+            source.url,
+        ),
+        reverse=True,
+    )
+    return out[:limit]
+
+
 def _world_match_probs(
     forecaster, per_world_results: dict[str, SimResult], *, n_sims: int, seed: int, played: dict
 ) -> dict[str, dict[str, dict[str, float]]]:
@@ -791,6 +963,7 @@ def _build_snapshot(
         narrative=narrative,
         artifact_id=submission.artifact_id,
         ledger_entries=_ledger_entries(deps.ledger, deps.articles),
+        sources=_source_relevance(deps),
         scenario_weights=[ScenarioWeightOut(**w.model_dump()) for w in submission.scenario_weights],
         camps=_build_camps(submission),
         worlds=[

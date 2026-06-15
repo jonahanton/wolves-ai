@@ -167,6 +167,24 @@ class LedgerEntryOut(BaseModel):
     created_at: str
 
 
+class SourceRelevanceOut(BaseModel):
+    """One source the agent ranked, fetched or cited during the run."""
+
+    url: str
+    title: str = ""
+    hostname: str = ""
+    tier: int | None = None
+    score: float | None = None
+    reason: str = ""
+    sub_question: str = ""
+    ranked: bool = False
+    cited: bool = False
+    fetched: bool = False
+    seen_in_run: str | None = None
+    retrieval_id: str | None = None
+    created_by: str = ""
+
+
 class ScenarioWeightOut(BaseModel):
     name: str
     weight: float
@@ -257,6 +275,7 @@ class AgentBlock(BaseModel):
     narrative: NarrativeBlock
     artifact_id: str = ""
     ledger_entries: list[LedgerEntryOut] = Field(default_factory=list)
+    sources: list[SourceRelevanceOut] = Field(default_factory=list)
     scenario_weights: list[ScenarioWeightOut] = Field(default_factory=list)
     camps: list[CampOut] = Field(default_factory=list)
     worlds: list[WorldOut] = Field(default_factory=list)

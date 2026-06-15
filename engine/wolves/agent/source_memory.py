@@ -20,6 +20,16 @@ def _url_hash(url: str) -> str:
     return hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
 
 
+def _merged_disposition(existing: SeenSource | None, *, run_id: str, disposition: str) -> str:
+    if existing is None or disposition == "fetched":
+        return disposition
+    if disposition == "ranked" and existing.disposition == "empty":
+        return "empty"
+    if disposition == "ranked" and existing.disposition == "fetched" and existing.last_seen_run == run_id:
+        return "fetched"
+    return disposition
+
+
 class SourceMemory:
     """Cross-run memory of sources already considered, so today's run can
     skip refetching yesterday's articles and report genuinely new ones."""
@@ -48,7 +58,7 @@ class SourceMemory:
             first_seen_run=existing.first_seen_run if existing else run_id,
             last_seen_run=run_id,
             last_seen_at=now,
-            disposition=disposition,
+            disposition=_merged_disposition(existing, run_id=run_id, disposition=disposition),
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
@@ -58,3 +68,6 @@ class SourceMemory:
 
     def new_since(self, run_id: str) -> list[SeenSource]:
         return [r for r in self._seen.values() if r.first_seen_run == run_id]
+
+    def seen_in_run(self, run_id: str) -> list[SeenSource]:
+        return [r for r in self._seen.values() if r.last_seen_run == run_id]

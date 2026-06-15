@@ -158,6 +158,22 @@ export interface LedgerEntryOut {
   created_at: string;
 }
 
+export interface SourceRelevanceOut {
+  url: string;
+  title?: string;
+  hostname?: string;
+  tier?: number | null;
+  score?: number | null;
+  reason?: string;
+  sub_question?: string;
+  ranked?: boolean;
+  cited?: boolean;
+  fetched?: boolean;
+  seen_in_run?: string | null;
+  retrieval_id?: string | null;
+  created_by?: string;
+}
+
 export interface ScenarioWeightOut {
   name: string;
   weight: number;
@@ -238,6 +254,7 @@ export interface AgentBlock {
   narrative: NarrativeBlock;
   artifact_id: string;
   ledger_entries: LedgerEntryOut[];
+  sources?: SourceRelevanceOut[];
   scenario_weights: ScenarioWeightOut[];
   camps?: CampOut[];
   worlds: WorldOut[];
