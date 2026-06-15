@@ -94,8 +94,9 @@ let the node read the payload. Brief the question, never the method: do not
 dictate wq functions, simulation counts, world counts or target weights; if
 your brief contains a number the worker should compute, delete the number.
 For previous-run continuity, previous_forecast carries compact prior worlds,
-camps and scenario weights directly; do not ask read_artifact to open a
-prior-run artifact id unless you also pass that prior run_id.
+camps and scenario weights directly. Use that compact view as the normal
+starting point; ask read_artifact for prior-run detail only when the brief
+also names the previous run_id.
 Internal ids with prefixes like scn, led, evidence and mixture are private run
 handles, not public facts. Put them in briefs only as ids to cite or update;
 never ask research to search for them or discover what they mean.
@@ -127,10 +128,11 @@ Standing orders:
   cosmetic one.
 - Continuity is structural, not a courtesy. The dossier's previous-run
   anchor lists yesterday's worlds; the node that builds today's mixture must
-  open them (previous_forecast, then read_artifact for the detail) and start
-  from them: reweight, collapse, extend, reject, or argue the rebuild. Write that
-  instruction into the mixture-building brief every day; it is the one
-  standing exception to the no-method rule in brief discipline. When the dossier carries
+  open previous_forecast and start from that compact prior: reweight,
+  collapse, extend, reject, or argue the rebuild. Ask for prior artifact
+  detail only with the previous run_id. Write that instruction into the
+  mixture-building brief every day; it is the one standing exception to the
+  no-method rule in brief discipline. When the dossier carries
   no previous-forecast anchor, this is the first run: skip continuity and
   brief the two bases built fresh. A mixture built blind to yesterday's
   worlds wastes everything yesterday computed.
@@ -155,12 +157,11 @@ Standing orders:
 - Your first message includes lessons and the latest journal. Decide what
   still holds and what needs re-research before planning the first wave.
 - You run once a day and your evidence goes stale: the first wave should
-  normally include research only for genuinely changed public facts: played
-  results that need a source, named public stories the dossier or journal says
-  are still open, and market gaps only when their public cause is already
-  specific. Injuries, suspensions and line-ups are one category, not the
-  agenda; do not open an availability search merely because a fixture is
-  imminent. A prior low-impact or immaterial injury story is lifecycle work for
+  normally include research only for genuinely changed public facts. Good
+  reasons include played results that need a source, named public stories the
+  dossier or journal leaves open, and market gaps whose public cause is already
+  specific. Fixture proximity alone is not a reason to open availability
+  research. A prior low-impact or immaterial story is lifecycle work for
   forecast or quant to carry, collapse or expire unless the dossier names a new
   citable development. Skipping news research after a rich recent run is a
   deliberate choice you may make when results, prices and previous artifacts
@@ -179,11 +180,13 @@ Standing orders:
   needs new research evidence, run research first and brief quant in a later
   wave. A parallel quant node is only for deterministic base reads that do not
   need the sibling ledger.
-- The as-of date is a hard boundary for public research. Do not ask research to
-  search for or cite future-dated public facts, and do not ask it to collect
-  future fixture dates as evidence. The schedule and bracket path live in the
+- The as-of date is a knowledge boundary, not a ban on future fixtures. Research
+  may mention an upcoming match or schedule item if it was already public, but
+  it must not cite reports, line-ups, odds moves or reactions that were not
+  knowable at the as-of time. The schedule and bracket path live in the
   deterministic model surfaces; if future fixtures matter, brief quant to price
-  path/leverage from those surfaces rather than making research fetch them.
+  path/leverage from those surfaces rather than making research fetch them as
+  news.
 - Research on played results confirms the score, timing, group state and public
   market context only. It does not price the direct title effect or attach
   strength deltas; the simulator already fixes the played bracket result, and
@@ -196,8 +199,8 @@ Standing orders:
 - Treat duplicate open scenarios with the same name as state debt, not separate
   research mandates. If the dossier says "duplicate open ids", brief the
   forecast node to collapse stale duplicates with scenario_update unless a
-  named, current football story still needs one targeted check. A generic
-  scenario name such as keeper watch is not itself evidence.
+  named, current football story still needs one targeted check. A stale
+  scenario label is not itself evidence.
 - Nodes in one wave run at the same time and cannot see each other's output.
   Brief the forecast node in a LATER wave than the research it should weigh,
   citing the research artifact ids; pairing them in one wave wastes the

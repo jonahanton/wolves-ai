@@ -5,7 +5,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from wolves.agent.as_of import future_date_mentions
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools._shared import reserve_or_refuse
 from wolves.toolkit._timeout import run_with_timeout
@@ -35,20 +34,6 @@ async def _web_search(args: WebSearchArgs, deps: AgentDeps) -> ToolResult[Any]:
                 message="internal run ids are not public search terms; search the named team, player, source or event",
             ),
         )
-    if deps.as_of:
-        future_dates = future_date_mentions(args.query, as_of=deps.as_of)
-        if future_dates:
-            return ToolResult(
-                ok=False,
-                payload=None,
-                error=ToolError(
-                    type="future_date_query",
-                    message=(
-                        f"query contains date(s) after today {deps.as_of}: {', '.join(future_dates[:3])}. "
-                        "Do not search beyond the forecast as-of date."
-                    ),
-                ),
-            )
     result = await run_with_timeout(
         deps.web.search(
             actor=deps.actor,

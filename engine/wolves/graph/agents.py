@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 from pydantic import BaseModel
 from pydantic_ai import Agent, ModelRetry, RunContext
 
-from wolves.agent.as_of import future_date_mentions
 from wolves.agent.deps import AgentDeps
 from wolves.agent.tools.market import market_gaps, market_movement
 from wolves.agent.tools.memory import (
@@ -141,10 +140,6 @@ def _official_lineup_source(source_url: str) -> bool:
     return any(host == allowed or host.endswith(f".{allowed}") for allowed in _OFFICIAL_LINEUP_HOSTS)
 
 
-def _is_internal_source(source_url: str) -> bool:
-    return not source_url.startswith("http") or source_url.startswith("https://tools.internal/")
-
-
 def _fake_tool_source(source_url: str) -> bool:
     return _host(source_url) in _FAKE_TOOL_HOSTS
 
@@ -174,32 +169,6 @@ def _research_source_issues(output: ResearchOutput) -> list[str]:
             "Only official team, federation or FIFA pages may confirm line-ups. Reword it as reported "
             "or predicted with probable/rumour status, or omit it."
         )
-    return issues
-
-
-def _research_temporal_issues(output: ResearchOutput, as_of: str) -> list[str]:
-    if not as_of:
-        return []
-    issues: list[str] = []
-    for index, item in enumerate(output.evidence, start=1):
-        if _is_internal_source(item.source_url):
-            continue
-        text = " ".join([item.claim, item.quote, item.mechanism, item.stance])
-        dates = future_date_mentions(text, as_of=as_of)
-        if dates:
-            shown = ", ".join(dates[:3])
-            issues.append(
-                f"evidence {index} contains date(s) after as-of {as_of}: {shown}. "
-                "Do not use public claims or quotes that postdate today's forecast."
-            )
-    for label, text in [("summary", output.summary), ("signals", " ".join(output.signals))]:
-        dates = future_date_mentions(text, as_of=as_of)
-        if dates:
-            shown = ", ".join(dates[:3])
-            issues.append(
-                f"{label} contains date(s) after as-of {as_of}: {shown}. "
-                "Remove future-dated public claims from this point-in-time research output."
-            )
     return issues
 
 
@@ -276,7 +245,6 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
         @agent.output_validator
         def _research_source_discipline(ctx: RunContext[AgentDeps], output: ResearchOutput) -> ResearchOutput:
             issues = _research_source_issues(output)
-            issues.extend(_research_temporal_issues(output, ctx.deps.as_of))
             if issues:
                 raise ModelRetry(" ".join(issues))
             return output

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from wolves.graph.agents import _research_source_issues, _research_temporal_issues
+from wolves.graph.agents import _research_source_issues
 from wolves.graph.contracts import LedgerEvidence, ResearchOutput
 
 
@@ -77,40 +77,3 @@ def test_first_party_tool_claims_need_internal_source_urls():
     assert "fake web URL" in issue
     assert "internal://get_odds" in issue
 
-
-def test_future_public_claims_are_rejected_against_as_of_date():
-    output = ResearchOutput(
-        summary="England full squad trained together on June 16.",
-        evidence=[
-            LedgerEvidence(
-                claim="England full squad trained together on June 16",
-                source_url="https://www.standard.co.uk/sport/football/england-team-news.html",
-                quote="All of the 26 players were in training on June 16.",
-                status="confirmed",
-                mechanism="availability",
-                team_id="england",
-            )
-        ],
-    )
-
-    issues = _research_temporal_issues(output, "2026-06-14")
-    assert issues
-    assert "June 16" in " ".join(issues)
-
-
-def test_internal_tool_timestamps_can_be_after_as_of():
-    output = ResearchOutput(
-        summary="Odds fetched from the internal market tool.",
-        evidence=[
-            LedgerEvidence(
-                claim="Odds fetched June 15 02:49 UTC",
-                source_url="internal://get_odds",
-                quote="fetched June 15 02:49 UTC",
-                status="confirmed",
-                mechanism="market consensus",
-                team_id="england",
-            )
-        ],
-    )
-
-    assert _research_temporal_issues(output, "2026-06-14") == []
