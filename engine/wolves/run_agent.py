@@ -1009,12 +1009,14 @@ def _build_snapshot(
 
 
 def _attribution_block(deps: AgentDeps, outputs) -> AttributionOut | None:
-    from wolves.insights.what_changed import load_latest_snapshot
+    from wolves.agent.scoring import latest_snapshot_by_kind
 
     if deps.forecaster is None or not deps.as_of:
         return None
     try:
-        previous = load_latest_snapshot(deps.settings.runs_root / "snapshots", before=date.fromisoformat(deps.as_of))
+        previous = latest_snapshot_by_kind(
+            deps.settings.runs_root / "snapshots", before=date.fromisoformat(deps.as_of), kind="agent"
+        )
         if previous is None:
             return None
         previous_as_of = date.fromisoformat(run_day(previous.run))
