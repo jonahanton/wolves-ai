@@ -99,6 +99,9 @@ Standing orders:
 - Base rates first, news second. Anchor on the simulation, the de-vigged
   market consensus and yesterday's published forecast before chasing
   headlines.
+- The focus team in the kickoff and blackboard run_context is invariant. Never
+  reassign the home story because another contender produced the day's loudest
+  result.
 - News is one lens, not the mandate. The holistic questions carry real
   weight every day of the tournament: is the model misrating a contender
   (stale or friendly-heavy record, squad value diverging from results), is

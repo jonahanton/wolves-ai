@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from pydantic_ai import Agent, UnexpectedModelBehavior, capture_run_messages
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, RetryPromptPart, ToolCallPart
@@ -17,6 +18,7 @@ from wolves.observability.runtime import ObservedRuntime
 logger = logging.getLogger(__name__)
 
 _RAW_OUTPUT_MAX_CHARS = 4000
+_FOCUS_TEAM_RE = re.compile(r"\bfocus team is ([a-z][a-z0-9_-]*)", re.IGNORECASE)
 
 _SIMPLIFIED_PREAMBLE = (
     "The previous planning turn failed output validation. Return a minimal valid GraphPatch: "
@@ -114,6 +116,15 @@ def _unsafe_result_refit_brief(op: NodePatch) -> bool:
     return op.kind == "quant" and "update_from_result" in op.brief.lower()
 
 
+def _focus_team_drift(text: str, settings: Settings) -> str | None:
+    expected = settings.focus_team.lower()
+    for match in _FOCUS_TEAM_RE.finditer(text):
+        found = match.group(1).lower()
+        if found != expected:
+            return f"focus team drifted to {found}; focus team is {expected}"
+    return None
+
+
 def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[list[NodePatch], list[str]]:
     """Trim a graph patch against hard caps and lineage rules; drops are
     returned for the blackboard so the master can react, never fatal."""
@@ -125,6 +136,10 @@ def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[
     for node in board.nodes:
         kind_counts[node.kind] = kind_counts.get(node.kind, 0) + 1
     forecast_admitted = False
+
+    if focus_drift := _focus_team_drift(patch.reason, settings):
+        logger.warning("admission dropped patch: %s", focus_drift)
+        return [], [f"patch: {focus_drift}"]
 
     def drop(op: NodePatch, why: str) -> None:
         drops.append(f"{op.node_id}: {why}")
@@ -146,6 +161,9 @@ def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[
         unknown = [a for a in op.input_artifact_ids if not board.artifacts.has(a)]
         if unknown:
             drop(op, f"unknown artifact ids {unknown}")
+            continue
+        if focus_drift := _focus_team_drift(f"{op.objective} {op.brief}", settings):
+            drop(op, focus_drift)
             continue
         if _unsafe_result_refit_brief(op):
             drop(

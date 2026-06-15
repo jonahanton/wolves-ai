@@ -101,7 +101,10 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
         ledger=deps.ledger,
         runtime=deps.runtime,
         source_memory=deps.source_memory,
-        run_context={"continuity_anchor": continuity_anchor} if continuity_anchor else None,
+        run_context={
+            "focus_team": deps.settings.focus_team,
+            **({"continuity_anchor": continuity_anchor} if continuity_anchor else {}),
+        },
     )
     settings = deps.settings
     submission_state = deps.submission

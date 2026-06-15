@@ -78,3 +78,16 @@ def test_admission_drops_quant_briefs_that_apply_played_results_with_update_from
         "not applying played results"
     ]
     deps.runtime.shutdown()
+
+
+def test_admission_drops_patch_when_focus_team_drifts(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(ops=[_brief("quant-germany", kind="quant")], reason="The focus team is Germany today.")
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert admitted == []
+    assert dropped == ["patch: focus team drifted to germany; focus team is england"]
+    deps.runtime.shutdown()
