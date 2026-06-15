@@ -47,10 +47,14 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
     script = workspace.next_analysis_name()
     deps.quant.write_analysis(actor=deps.actor, workspace=workspace, code=args.code, filename=script)
     result = await deps.quant.execute(actor=deps.actor, workspace=workspace, script=script)
-    registered = _register_mixtures(
-        deps,
-        workspace_dir=workspace.dir.name,
-        files=[o.filename for o in result.output_files],
+    registered = (
+        _register_mixtures(
+            deps,
+            workspace_dir=workspace.dir.name,
+            files=[o.filename for o in result.output_files],
+        )
+        if result.ok
+        else []
     )
     result_text = json.dumps(result.result_value, ensure_ascii=False, default=str)
     return ToolResult(
@@ -134,7 +138,11 @@ SPEC = ToolSpec(
         "columns are match, stage, group, date, city, home, away; wq.market_gaps() columns are "
         "team, model_p_title, market_p_title, polymarket_p_title, blend_p_title, gap_pp, "
         "polymarket_gap_pp, legs_disagree_pp; wq.mixture_spread(...) returns a dict whose teams "
-        "value is a DataFrame indexed by team and also carrying a team column. "
+        "value is a DataFrame indexed by team and also carrying a team column. Build mixtures with "
+        "wq.Scenario(...) or dicts and wq.scenario_mixture(..., name='...'); there is no wq.scenario "
+        "helper, no label= argument, and scenario_mixture returns mixture/conditionals/worlds/weights, "
+        "not a teams table. wq.update_from_result(...) returns a dict with posterior_mean_delta, "
+        "posterior_sd and prior_sd, not a scalar. "
         "End every script by assigning the finding to `result` "
         "(JSON-safe; a bare expression or print() does not count). Deltas from wq.impact carry a "
         "paired-seed noise floor: treat anything below it as simulation noise. This tool is capped "

@@ -43,3 +43,13 @@ async def test_ledger_and_live_snapshot_ids_are_not_web_search_terms(deps):
 
     assert not result.ok
     assert result.error.type == "internal_id_query"
+
+
+async def test_retrieval_artifact_ids_are_not_web_search_terms(deps):
+    result = await _web_search(
+        WebSearchArgs(query="retrieval-001 England injury relevance"),
+        deps,
+    )
+
+    assert not result.ok
+    assert result.error.type == "internal_id_query"

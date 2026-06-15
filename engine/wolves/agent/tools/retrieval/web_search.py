@@ -12,7 +12,7 @@ from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import SourceRef, ToolError, ToolResult
 
 _INTERNAL_ID = re.compile(
-    r"\b(?:scn-\d{3}|led-\d{4}|(?:mixture|evidence|quant)-\d{3}|live-\d{8}-\d{6})\b"
+    r"\b(?:scn-\d{3}|led-\d{4}|(?:mixture|evidence|quant|retrieval)-\d{3}|live-\d{8}-\d{6})\b"
     r"|\b[a-z]+_watch_\d{4}-\d{2}-\d{2}\b"
 )
 
@@ -66,8 +66,8 @@ SPEC = ToolSpec(
     description=(
         "Search the web. Use Exa for semantic source-finding and Brave for fresh news; "
         "leave provider unset to use whichever is available. Set freshness (e.g. 'pd', 'pw') "
-        "when recency matters. Never include internal ids such as scn-001, led-0001 or mixture-002; "
-        "search the underlying team, player, source or event instead."
+        "when recency matters. Never include internal ids such as scn-001, led-0001, retrieval-001 "
+        "or mixture-002; search the underlying team, player, source or event instead."
     ),
     args_model=WebSearchArgs,
     fn=_web_search,

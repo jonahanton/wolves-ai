@@ -54,15 +54,24 @@ discovering them:
   not title_uncertainty, which stays the parameter-only diagnostic);
   wq.path_difficulty() -> DataFrame indexed by team with per-stage
   expected opponent strength columns and a "difficulty" column (draw luck);
-  wq.update_from_result(team, opponent, "win"|"draw"|"loss") -> the
-  posterior strength delta one played match justifies.
-- wq.scenario_mixture(scenarios=[...], factors=[...]) integrates weighted
-  worlds, attaches the noise floor, and REGISTERS a submit-ready mixture
-  artifact; building the day's mixture for the forecaster means calling this,
-  nothing else makes a citable artifact. The registered worlds and weights
-  also fix the published distribution, so weights are width decisions as
-  much as mean decisions; on contested days read wq.mixture_spread before
-  registering. When that is your brief, start from
+  wq.update_from_result(team, opponent, "win"|"draw"|"loss") -> dict with
+  posterior_mean_delta, posterior_sd and prior_sd; format those named fields,
+  not the whole dict.
+- wq.scenario_mixture(scenarios=[...], factors=[...], name="...") integrates
+  weighted worlds, attaches the noise floor, writes outputs/<name>.json, and
+  the host registers that JSON as a submit-ready mixture artifact after
+  run_python returns. Build scenarios with wq.Scenario(name=, weight=,
+  perturbations=[...]) or dicts of that shape; there is no wq.scenario helper
+  and no label= argument. The return value has mixture, conditionals,
+  marginals, worlds, weights, baseline and noise_floor_pp; it does not have a
+  "teams" table. To read the just-created artifact, use the
+  registered_artifact_ids returned by run_python in a later turn, or call
+  wq.mixture_spread(scenarios=...) / factors=... before registering. Building
+  the day's mixture for the forecaster means calling this; nothing else makes a
+  citable artifact. The registered worlds and weights also fix the published
+  distribution, so weights are width decisions as much as mean decisions; on
+  contested days read wq.mixture_spread before registering. When that is your
+  brief, start from
   the previous run's worlds (previous_forecast lists them): reweight,
   collapse, extend or reject them under today's refit, and rebuild from
   scratch with an argued reason. Reading previous_forecast is not deference:

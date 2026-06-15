@@ -31,6 +31,25 @@ def _n_sims(n_sims: int | None) -> int:
     return n_sims or context().default_n_sims
 
 
+def _tournament_team_ids() -> list[str]:
+    return [team.id for team in forecaster().fmt.teams]
+
+
+def _checked_tournament_teams(teams: list[str] | None) -> list[str]:
+    allowed = _tournament_team_ids()
+    if teams is None:
+        return allowed
+    bad = sorted(set(teams) - set(allowed))
+    if bad:
+        from wolves.quant.wolves_quant._state import SandboxContextError
+
+        raise SandboxContextError(
+            f"tournament team(s) {', '.join(bad)}",
+            f"use ids from wq.teams(); valid ids include {', '.join(allowed[:8])}",
+        )
+    return teams
+
+
 def baseline(*, n_sims: int | None = None, seed: int = 0) -> dict[str, float]:
     """Unperturbed title probabilities, cached per (n_sims, seed)."""
     n = _n_sims(n_sims)
@@ -110,6 +129,7 @@ def match_probs(
     """W/D/L for one fixture; pass the match id to bind match-keyed
     perturbations (without it they would be silently ignored, so the
     facade refuses instead)."""
+    _checked_tournament_teams([home, away])
     perturbations = tuple(perturbations)
     _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
@@ -127,6 +147,7 @@ def score_grid(
     """Full scoreline grid for one fixture as a DataFrame (rows home goals)."""
     import pandas as pd
 
+    _checked_tournament_teams([home, away])
     perturbations = tuple(perturbations)
     _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
@@ -149,6 +170,7 @@ def implied_delta(
     argue about (bisection, common random numbers)."""
     from wolves.forecast import StrengthPerturbation
 
+    _checked_tournament_teams([team])
     for _ in range(iterations):
         mid = (lo + hi) / 2
         pert = StrengthPerturbation(team=team, delta=mid, reason="implied delta inversion")
@@ -175,8 +197,9 @@ def title_uncertainty(
 
     state = forecaster().state
     all_teams = list(state.teams)
+    row_teams = _checked_tournament_teams(teams)
     draws = posterior_draws(n_draws, seed=seed)
-    rows: dict[str, list[float]] = {t: [] for t in (teams or all_teams)}
+    rows: dict[str, list[float]] = {t: [] for t in row_teams}
     for k in range(n_draws):
         perts = tuple(
             StrengthPerturbation(team=t, delta=float(draws.iloc[k][t] - state.strengths[i]), reason="posterior draw")
@@ -218,6 +241,7 @@ def update_from_result(
 
     from wolves.forecast import StrengthPerturbation
 
+    _checked_tournament_teams([team, opponent])
     state = forecaster().state
     idx = list(state.teams).index(team)
     prior_sd = float(np.sqrt(state.covariance[idx, idx])) if state.covariance is not None else 0.12

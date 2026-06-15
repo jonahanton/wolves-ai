@@ -18,10 +18,7 @@ class ObservedQuant:
         return QuantWorkspace(self._quant_root, node_id)
 
     def write_context(self, workspace: QuantWorkspace, context: SandboxContext) -> None:
-        """Ship the sandbox context once per node; later calls keep the frozen one."""
-        path = workspace.inputs / "context.json"
-        if path.exists():
-            return
+        """Refresh the sandbox context before each script."""
         workspace.write("context.json", context.model_dump_json(indent=1), in_inputs=True)
 
     def write_analysis(self, *, actor: str, workspace: QuantWorkspace, code: str, filename: str) -> WorkspaceArtifact:

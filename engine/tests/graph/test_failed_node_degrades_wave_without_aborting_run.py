@@ -10,6 +10,7 @@ from wolves.graph.contracts import ForecastOutput, GraphPatch, NodePatch, Resear
 from wolves.graph.fakes import scripted_model
 from wolves.graph.nodes import execute_brief
 from wolves.graph.runner import GraphModels, run_graph
+from wolves.observability import EventLog
 
 GOOD_OUTPUT = ResearchOutput(summary="solid finding")
 
@@ -35,6 +36,10 @@ async def test_execute_brief_is_total(tmp_path: Path):
     assert not outcome.ok
     assert outcome.error is not None and "RuntimeError" in outcome.error
     assert outcome.artifact_ids == []
+    events = EventLog.read(deps.runtime.paths.events)
+    [error] = [event for event in events if event.kind == "node_error"]
+    assert error.actor == "research-bad"
+    assert error.payload["error"] == "scripted node failure"
     deps.runtime.shutdown()
 
 

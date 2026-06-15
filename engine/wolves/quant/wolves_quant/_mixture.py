@@ -25,7 +25,7 @@ ENUMERATION_LIMIT = 24
 class Scenario(BaseModel):
     """One named causal world: a sim configuration or a precomputed distribution."""
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = {"arbitrary_types_allowed": True, "extra": "forbid"}
 
     name: str
     weight: float
@@ -37,7 +37,7 @@ class Scenario(BaseModel):
 class Factor(BaseModel):
     """One independent uncertainty source with weighted variants."""
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = {"arbitrary_types_allowed": True, "extra": "forbid"}
 
     name: str
     variants: list[Scenario]

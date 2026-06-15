@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from wolves.forecast import StrengthPerturbation
 from wolves.quant.wolves_quant import _mixture
@@ -85,3 +86,18 @@ def test_weight_and_size_errors():
 
     with pytest.raises(ValueError):
         scenario_mixture(None)
+
+
+def test_scenario_and_factor_reject_unknown_fields():
+    with pytest.raises(ValidationError):
+        Scenario(name="base", weight=1.0, label="not accepted")
+
+    with pytest.raises(ValidationError):
+        Factor(name="axis", variants=[], rationale="not accepted")
+
+
+def test_scenario_mixture_return_shape_has_no_teams_table():
+    out = scenario_mixture(scenarios=[_variant("plays", 1.0)], name="m_shape")
+
+    assert {"mixture", "conditionals", "marginals", "worlds", "weights", "baseline", "noise_floor_pp"} <= out.keys()
+    assert "teams" not in out

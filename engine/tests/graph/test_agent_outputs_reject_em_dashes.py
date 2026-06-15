@@ -12,8 +12,10 @@ def test_worker_output_reports_em_dash_paths():
     output = ResearchOutput(summary=f"Prices moved{dash}slightly")
 
     assert _em_dash_paths(output) == ["$.summary"]
+    issues = _reject_em_dashes(output)
+    assert issues
     with pytest.raises(ModelRetry):
-        _reject_em_dashes(output)
+        raise ModelRetry(" ".join(issues))
 
 
 def test_master_patch_reports_nested_em_dash_paths():

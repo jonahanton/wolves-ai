@@ -157,3 +157,31 @@ def test_group_claims_match_the_tournament_format(tmp_path):
     assert "group A" in issue
     assert "group L" in issue
     deps.runtime.shutdown()
+
+
+def test_summary_group_context_must_match_the_tournament_format(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    output = ResearchOutput(
+        summary="Haiti 0-1 Scotland (Group J) is already settled.",
+        evidence=[],
+        signals=["Australia 1-0 Türkiye (Group K) shaped the table."],
+    )
+
+    issues = _research_source_issues(output, deps)
+
+    assert any("haiti is group C" in issue for issue in issues)
+    assert any("scotland is group C" in issue for issue in issues)
+    assert any("australia is group D" in issue for issue in issues)
+    assert any("turkiye is group D" in issue for issue in issues)
+    deps.runtime.shutdown()
+
+
+def test_summary_group_context_handles_comma_separated_result_lists(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    output = ResearchOutput(
+        summary="Non-England results: Haiti 0-1 Scotland (Group C), Australia 2-0 Türkiye (Group D).",
+        evidence=[],
+    )
+
+    assert _research_source_issues(output, deps) == []
+    deps.runtime.shutdown()

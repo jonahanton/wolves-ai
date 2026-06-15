@@ -164,6 +164,14 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
             settings=settings,
         )
     except Exception as exc:
+        body = getattr(exc, "body", None)
+        deps.runtime.emit(
+            "node_error",
+            brief.node_id,
+            f"{brief.kind} node failed: {type(exc).__name__}",
+            error=str(exc)[:2000],
+            **({"body": str(body)[:4000]} if body else {}),
+        )
         return NodeOutcome(node_id=brief.node_id, kind=brief.kind, ok=False, error=f"{type(exc).__name__}: {exc}")
     output = result.output
     workspace_prefix: str | None = None

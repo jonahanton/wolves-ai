@@ -53,6 +53,100 @@ result = {"built": True}
     assert deps.artifacts.get("mixture-001").payload["weights"] == {"model": 1.0}
 
 
+async def test_run_python_does_not_register_mixture_from_failed_script(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)
+    deps.actor = "quant-build"
+
+    with deps.runtime.run_trace(title="run_python test"):
+        result = await _run_python(
+            RunPythonArgs(
+                code="""
+import json
+
+payload = {
+    "weights": {"model": 1.0},
+    "worlds": {"model": {"perturbations": []}},
+    "mixture": {"england": 0.08},
+    "conditionals": {"model": {"england": 0.08}},
+}
+open("outputs/failed.json", "w", encoding="utf-8").write(json.dumps(payload))
+raise RuntimeError("after writing")
+"""
+            ),
+            deps,
+        )
+
+    deps.runtime.shutdown()
+    assert not result.ok
+    assert result.payload["registered_artifact_ids"] == []
+    assert deps.artifacts.get("mixture-001") is None
+
+
+async def test_run_python_does_not_register_stale_failed_output_after_success(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)
+    deps.actor = "quant-build"
+
+    with deps.runtime.run_trace(title="run_python test"):
+        failed = await _run_python(
+            RunPythonArgs(
+                code="""
+import json
+
+payload = {
+    "weights": {"model": 1.0},
+    "worlds": {"model": {"perturbations": []}},
+    "mixture": {"england": 0.08},
+    "conditionals": {"model": {"england": 0.08}},
+}
+open("outputs/stale.json", "w", encoding="utf-8").write(json.dumps(payload))
+raise RuntimeError("after writing")
+"""
+            ),
+            deps,
+        )
+        success = await _run_python(RunPythonArgs(code="result = {'ok': True}"), deps)
+
+    deps.runtime.shutdown()
+    assert not failed.ok
+    assert success.ok
+    assert success.payload["output_files"] == []
+    assert success.payload["registered_artifact_ids"] == []
+    assert deps.artifacts.get("mixture-001") is None
+
+
+async def test_run_python_refreshes_context_for_same_node_artifacts(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)
+    deps.actor = "quant-build"
+
+    with deps.runtime.run_trace(title="run_python test"):
+        first = await _run_python(
+            RunPythonArgs(
+                code="""
+import json
+
+payload = {
+    "weights": {"model": 1.0},
+    "worlds": {"model": {"perturbations": []}},
+    "mixture": {"england": 0.08},
+    "conditionals": {"model": {"england": 0.08}},
+}
+open("outputs/submit_ready.json", "w", encoding="utf-8").write(json.dumps(payload))
+result = {"built": True}
+"""
+            ),
+            deps,
+        )
+        second = await _run_python(RunPythonArgs(code="result = wq.artifact('mixture-001')['weights']"), deps)
+
+    deps.runtime.shutdown()
+    assert first.ok
+    assert second.ok
+    assert second.payload["result"] == {"model": 1.0}
+
+
 async def test_run_python_failure_events_include_stderr_tail(tmp_path):
     deps = build_graph_deps(tmp_path)
     deps.actor = "quant-build"

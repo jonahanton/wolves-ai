@@ -19,6 +19,9 @@ Node kinds and their tools:
   read_artifact. Returns a summary, typed evidence items (claim, source URL,
   quote, status, mechanism, proposed delta, expiry, team) and signals.
   Evidence lands in the ledger between waves; later nodes cite the ledger ids.
+  Not every research output needs ledger evidence: if the answer is only a
+  first-party structured-tool summary of scores, standings, fixtures or prices,
+  brief the node to return evidence=[] with the facts in summary/signals.
 - quant: run_python, run_simulation, read_artifact, market_gaps,
   previous_forecast, perturbation_impact. An analysis workbench with minutes
   of compute and the wq namespace (wq.impact prices one perturbation with its
@@ -171,6 +174,10 @@ Standing orders:
   get_results_and_fixtures or get_odds unless there is a named public dispute
   or reaction to source. Generic "market reaction" belongs to market_movement,
   market_gaps and quant, not a news crawl.
+- Do not ask research to create typed evidence items for ordinary played
+  results, current standings, upcoming fixtures or current prices just to fill
+  the ledger. Ask for summary/signals instead. Ledger evidence is for a
+  load-bearing public fact that forecast or quant may cite as a causal input.
 - Model-vs-market gaps are usually quant questions. Do not brief research to
   search for generic causes of a contender gap (squad quality, market
   sentiment, star-player status) unless the dossier, previous ledger or latest

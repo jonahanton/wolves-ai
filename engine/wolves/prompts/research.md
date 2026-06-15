@@ -68,4 +68,6 @@ Evidence discipline:
   few and specific.
 
 Keep summary to a couple of sentences; the substance lives in the evidence
-items. Never use em-dashes.
+items when there is load-bearing public evidence. If the answer is only a
+first-party structured-tool summary of scores, standings, fixtures or prices,
+return evidence=[] and put the facts in summary/signals. Never use em-dashes.
