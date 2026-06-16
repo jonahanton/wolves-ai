@@ -110,6 +110,10 @@ _NODE_OUTPUTS: dict[NodeKind, type] = {
     "critic": CritiqueOutput,
 }
 
+# The critic slot runs as an adversarial pre-mortem; its prompt differs from
+# its kind name so the dispatch maps stay keyed on the wired NodeKind.
+_PROMPT_NAME: dict[NodeKind, str] = {"critic": "premortem"}
+
 
 def _forecast_post_check_refusal(tool_name: str, deps: AgentDeps) -> ToolResult | None:
     if deps.submission.copy_repair_blocked:
@@ -382,7 +386,7 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
     agent: Agent[AgentDeps, Any] = Agent(
         deps_type=AgentDeps,
         output_type=_NODE_OUTPUTS[kind],
-        system_prompt=prompt(kind),
+        system_prompt=prompt(_PROMPT_NAME.get(kind, kind)),
         toolsets=[
             build_toolset(
                 _NODE_SPECS[kind],
