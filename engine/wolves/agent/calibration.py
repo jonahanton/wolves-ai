@@ -45,7 +45,9 @@ class MatchScore(BaseModel):
 
 class MurphyDecomposition(BaseModel):
     """Brier = reliability - resolution + uncertainty over a set of binary
-    forecast cells; lower reliability is better, higher resolution is better."""
+    forecast cells; lower reliability is better, higher resolution is better.
+    brier is the binned reconstruction of the three terms, which equals the raw
+    mean Brier only when every cell in a bin shares a forecast value."""
 
     reliability: float
     resolution: float
