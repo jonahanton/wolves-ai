@@ -689,17 +689,9 @@ def _check_market_gap_contract(
     seen: dict[str, int] = {}
     for gap in submission.market_gaps:
         seen[gap.team_id] = seen.get(gap.team_id, 0) + 1
-        computed = abs((gap.market_prob - gap.model_prob) * 100)
-        if gap.gap_pp < 0:
-            issues.append(_issue("market_gap_malformed", f"market_gaps[{gap.team_id}] gap_pp must be positive"))
-        elif abs(gap.gap_pp - computed) > _MARKET_GAP_TOLERANCE_PP:
-            issues.append(
-                _issue(
-                    "market_gap_malformed",
-                    f"market_gaps[{gap.team_id}] gap_pp is {gap.gap_pp:.2f}, but model_prob and market_prob imply "
-                    f"{computed:.2f}pp",
-                )
-            )
+        # gap_pp is fully derived from the two validated components, so correct
+        # it in place rather than burn a re-forecast on a mistyped derived field.
+        gap.gap_pp = round(abs((gap.market_prob - gap.model_prob) * 100), 2)
         if gap.floor_multiple is not None and gap.floor_multiple < 0:
             issues.append(
                 _issue("market_gap_malformed", f"market_gaps[{gap.team_id}] floor_multiple must be positive")
