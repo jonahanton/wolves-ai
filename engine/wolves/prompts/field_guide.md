@@ -226,6 +226,14 @@ vs market 15.6 inverted to +0.147; the gap sat outside France's own 80%
 parameter CI [4.9, 10.9] while Spain's and Brazil's gaps sat inside theirs
 (no action); the emcee posterior gave delta +0.126 (80% CI +0.076..+0.177),
 title 14.8%, published as DeltaDistribution(mean=0.126, sd=0.039).
+The reconciliation is the instrument that weighs the model against a market
+already pricing public results, form, squad value, ceiling and pedigree; the
+example lands near the market because no market-invisible edge offsets the
+gap, not because reconciliation defers by rule. Find such an edge and the
+posterior moves away from the market instead. Weighting a collapse world back
+down toward the raw model on results the baseline already absorbed is the
+double-count this method exists to prevent: the collapse delta is near zero
+by construction, so it cannot carry weight as a distinct down-stance.
 
 ### The score-test misrating hunt
 
