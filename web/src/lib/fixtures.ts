@@ -1,4 +1,4 @@
-import { gridX, samplesToBars, samplesToCurve, wdlBoundarySpread, type WdlShape } from "@/lib/distribution";
+import { gridX, samplesToBars, samplesToCurve, type WdlShape } from "@/lib/distribution";
 import { type LiveFixture, type LiveState, liveIsFresh } from "@/lib/live";
 import type { PlayedResultRow } from "@/lib/results";
 import type { MatchWdlDraws } from "@/lib/sidecars";
@@ -7,12 +7,10 @@ import { type RowColours, chartColour, resolveWdlColours, teamCode } from "@/lib
 
 export type FixtureStatus = "upcoming" | "live" | "completed";
 
-export interface WdlBar {
+export interface WdlMeans {
   home: number;
   draw: number;
   away: number;
-  sigmaHomeDraw: number;
-  sigmaDrawAway: number;
 }
 
 export interface CandidateTeam {
@@ -48,7 +46,7 @@ export interface FixtureRow {
   homeGoals: number | null;
   awayGoals: number | null;
   minute: number | null;
-  bar: WdlBar | null;
+  bar: WdlMeans | null;
   shape: WdlShape | null;
   colours: RowColours;
   slot: KnockoutSlot | null;
@@ -112,12 +110,6 @@ function shapeFor(draws: MatchWdlDraws | null, match: number): WdlShape | null {
   };
 }
 
-function barFor(probs: { home: number; draw: number; away: number }, draws: MatchWdlDraws | null, match: number): WdlBar {
-  const cell = draws?.matches[String(match)];
-  const spread = cell ? wdlBoundarySpread(cell) : { sigmaHomeDraw: 0, sigmaDrawAway: 0 };
-  return { ...probs, ...spread };
-}
-
 function candidateSide(side: { label: string; candidates: { team_id: string; prob: number }[] }, names: Record<string, string>): SlotSideView {
   return {
     label: side.label,
@@ -168,7 +160,7 @@ function buildRow(
     homeGoals: live?.homeGoals ?? result?.homeGoals ?? null,
     awayGoals: live?.awayGoals ?? result?.awayGoals ?? null,
     minute: status === "live" ? (live?.minute ?? null) : null,
-    bar: tbc ? null : barFor(probs, hasSpread ? draws : null, match.match),
+    bar: tbc ? null : probs,
     shape: hasSpread ? shapeFor(draws, match.match) : null,
     colours: resolveWdlColours(homeId, awayId),
     slot:

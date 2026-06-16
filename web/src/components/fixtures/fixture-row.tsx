@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { WdlBar } from "@/components/fixtures/wdl-bar";
 import { WdlCurves } from "@/components/fixtures/wdl-curves";
 import type { FixtureRow as Row } from "@/lib/fixtures";
 import { teamReachShifts } from "@/lib/fixtures-reach";
@@ -15,6 +14,17 @@ interface FixtureRowProps {
 
 function signed(pp: number): string {
   return `${pp > 0 ? "+" : ""}${pp.toFixed(1)}`;
+}
+
+function Outcome({ label, pct, colour }: { label: string; pct: number; colour: string }) {
+  return (
+    <span className="flex items-baseline gap-1">
+      <span className="font-display text-[10.5px] font-semibold text-cream-faint">{label}</span>
+      <span className="font-semibold tabular-nums" style={{ color: colour }}>
+        {formatPctBare(pct)}
+      </span>
+    </span>
+  );
 }
 
 function TeamCode({ code, colour, live, tbc }: { code: string; colour: string; live?: boolean; tbc?: boolean }) {
@@ -46,14 +56,14 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
           type="button"
           onClick={() => expandable && setOpen((v) => !v)}
           aria-expanded={open}
-          className="grid w-full grid-cols-[2.9rem_2.6rem_minmax(0,1fr)_3.2rem] items-center gap-3 py-2.5 text-left"
+          className="flex w-full items-center py-2.5 text-left"
         >
-          <TeamCode code={row.slot?.home.label ?? "TBC"} colour={row.colours.home} tbc />
-          <span className="text-center font-mono text-[12px] tabular-nums text-cream-dim">
-            {formatKickoffTimeEastern(row.kickoff)}
+          <span className="flex items-baseline gap-4">
+            <TeamCode code={row.slot?.home.label ?? "TBC"} colour={row.colours.home} tbc />
+            <span className="font-mono text-[12px] tabular-nums text-cream-dim">{formatKickoffTimeEastern(row.kickoff)}</span>
+            <TeamCode code={row.slot?.away.label ?? "TBC"} colour={row.colours.away} tbc />
           </span>
-          <TeamCode code={row.slot?.away.label ?? "TBC"} colour={row.colours.away} tbc />
-          <span className="text-right font-display text-[13px] font-semibold uppercase tracking-[0.06em] text-cream-dim">TBC</span>
+          <span className="ml-auto font-display text-[13px] font-semibold uppercase tracking-[0.06em] text-cream-dim">TBC</span>
         </button>
       ) : (
         <button
@@ -61,26 +71,23 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
           onClick={() => expandable && setOpen((v) => !v)}
           aria-expanded={expandable ? open : undefined}
           disabled={!expandable}
-          className="grid w-full grid-cols-[2.9rem_2.6rem_minmax(0,1fr)_5.2rem] items-center gap-3 py-2.5 text-left"
+          className="flex w-full items-center py-2.5 text-left"
         >
-          <TeamCode code={row.homeCode} colour={row.colours.home} live={live} />
-          <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
-            {live ? (score ?? "-") : (score ?? formatKickoffTimeEastern(row.kickoff))}
-          </span>
-          <span className="flex items-center gap-3">
-            <TeamCode code={row.awayCode} colour={row.colours.away} live={live} />
-            <span className="min-w-0 flex-1">
-              {!completed && row.bar && <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />}
+          <span className="flex items-baseline gap-4">
+            <TeamCode code={row.homeCode} colour={row.colours.home} live={live} />
+            <span className={`w-12 text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
+              {live ? (score ?? "-") : (score ?? formatKickoffTimeEastern(row.kickoff))}
             </span>
+            <TeamCode code={row.awayCode} colour={row.colours.away} live={live} />
           </span>
-          <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
+          <span className="ml-auto flex items-baseline gap-3.5 font-mono text-[12.5px] tabular-nums">
             {live ? (
               <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
             ) : completed ? null : row.bar ? (
               <>
-                <span style={{ color: row.colours.home }}>{formatPctBare(row.bar.home)}</span>
-                {!row.knockout && <span>/{formatPctBare(row.bar.draw)}</span>}
-                <span style={{ color: row.colours.away }}>/{formatPctBare(row.bar.away)}</span>
+                <Outcome label="W" pct={row.bar.home} colour={row.colours.home} />
+                {!row.knockout && <Outcome label="D" pct={row.bar.draw} colour={row.colours.draw} />}
+                <Outcome label="L" pct={row.bar.away} colour={row.colours.away} />
               </>
             ) : null}
           </span>

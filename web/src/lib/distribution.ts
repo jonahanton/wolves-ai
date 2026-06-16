@@ -1,6 +1,6 @@
-import { bin, deviation } from "d3-array";
+import { bin } from "d3-array";
 import type { ScenarioWeightOut } from "@/lib/snapshot";
-import type { CellShape, MatchWdl } from "@/lib/sidecars";
+import type { CellShape } from "@/lib/sidecars";
 
 export interface Frequency {
   denominator: number;
@@ -80,19 +80,6 @@ export function samplesToCurve(samples: number[], grid: number[]): DistroPoint[]
     y: b.length / (samples.length * width),
   }));
   return resampleCurve([{ x: 0, y: 0 }, ...points, { x: 1, y: 0 }], grid);
-}
-
-// Blur width for the two stacked-bar boundaries: the sd of each cumulative
-// boundary (home, home+draw) across the draws, in probability units.
-export function wdlBoundarySpread(d: MatchWdl): { sigmaHomeDraw: number; sigmaDrawAway: number } {
-  const n = d.p_home.length;
-  const homeDraw: number[] = [];
-  const drawAway: number[] = [];
-  for (let i = 0; i < n; i += 1) {
-    homeDraw.push(d.p_home[i]);
-    drawAway.push(d.p_home[i] + d.p_draw[i]);
-  }
-  return { sigmaHomeDraw: deviation(homeDraw) ?? 0, sigmaDrawAway: deviation(drawAway) ?? 0 };
 }
 
 export interface Bar {
