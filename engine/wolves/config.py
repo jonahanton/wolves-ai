@@ -111,7 +111,9 @@ class Settings(BaseSettings):
     graph_research_request_limit: int = 32
     graph_quant_request_limit: int = 28
     graph_forecast_request_limit: int = 24
-    graph_critic_request_limit: int = 8
+    # A pre-mortem critic reads the evidence, both mixtures and the branch audit
+    # before reasoning; the first metered run starved the node at a limit of 8.
+    graph_critic_request_limit: int = 16
     graph_research_tool_budget: int = 12
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
