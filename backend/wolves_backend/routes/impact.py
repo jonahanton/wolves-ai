@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
 
-from wolves.insights.impact import estimated_stages, stage_impacts
+from wolves.insights.impact import exit_impacts, stage_impacts
 from wolves.live_state import LiveFixture, LiveState
 from wolves.s3.layout import LIVE_STATE
+from wolves.sim.format import PlayedResult
+from wolves.sim.result_set import result_set_from_entries
+from wolves.snapshot import ResultSetBlock, ResultSetEntry
 from wolves_backend.deps import Deps, get_deps
-from wolves_backend.live_history import day_states
 from wolves_backend.models import Impact
 from wolves_backend.sim import Leg, Pin
 
@@ -22,7 +24,7 @@ router = APIRouter()
 DepsDep = Annotated[Deps, Depends(get_deps)]
 
 MAX_TEAMS = 12
-MAX_SERIES_POINTS = 120
+REACH_STAGES = ("r32", "r16", "qf", "sf", "final")
 
 
 def _held_pins(fixtures: list[LiveFixture]) -> tuple[Pin, ...]:
@@ -31,10 +33,6 @@ def _held_pins(fixtures: list[LiveFixture]) -> tuple[Pin, ...]:
         for f in fixtures
         if f.status == "live" and f.match is not None and f.home_goals is not None and f.away_goals is not None
     )
-
-
-def _pin_key(pins: tuple[Pin, ...]) -> tuple[tuple[int, int, int], ...]:
-    return tuple(sorted((p.match, p.home_goals, p.away_goals) for p in pins))
 
 
 def _fixture_block(fixture: LiveFixture) -> dict[str, Any]:
@@ -56,21 +54,21 @@ def _fixture_block(fixture: LiveFixture) -> dict[str, Any]:
 
 
 def _selected_teams(
-    requested: str | None, agent_reach: dict[str, dict[str, float]], in_play: list[LiveFixture], focus: str
+    requested: str | None, agent_stages: dict[str, dict[str, float]], in_play: list[LiveFixture], focus: str
 ) -> list[str]:
     teams = [team for f in in_play for team in (f.home_id, f.away_id) if team is not None]
     if focus not in teams:
         teams.append(focus)
     if requested:
         names = [team.strip() for team in requested.split(",") if team.strip()]
-        unknown = sorted(set(names) - set(agent_reach))
+        unknown = sorted(set(names) - set(agent_stages))
         if unknown:
             raise HTTPException(status_code=404, detail=f"no agent forecast for team(s) {', '.join(unknown)}")
         teams.extend(team for team in names if team not in teams)
     else:
-        by_champion = sorted(agent_reach, key=lambda team: -agent_reach[team].get("champion", 0.0))
+        by_champion = sorted(agent_stages, key=lambda team: -agent_stages[team].get("champion", 0.0))
         teams.extend(team for team in by_champion[:4] if team not in teams)
-    return [team for team in teams if team in agent_reach][:MAX_TEAMS]
+    return [team for team in teams if team in agent_stages][:MAX_TEAMS]
 
 
 @router.get("/impact")
@@ -81,61 +79,50 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
     if body is None:
         raise HTTPException(status_code=404, detail="no agent forecast published")
     snapshot = json.loads(body)
-    agent_reach = {t["team_id"]: t["reach_probs"] for t in snapshot["teams"] if t.get("reach_probs")}
+    agent_stages = _agent_stages(snapshot)
     run = snapshot["run"]
     as_of = run.get("as_of") or run["created_at"][:10]
-    results_until = (date.fromisoformat(as_of) - timedelta(days=1)).isoformat()
-
+    current_result_set = await deps.engine.result_set()
+    agent_result_set = _agent_result_set(snapshot, current_result_set)
     live = await _live_state(deps)
     in_play = [f for f in live.fixtures if f.status == "live"] if live else []
-    held = _held_pins(in_play)
-    selected = _selected_teams(teams, agent_reach, in_play, snapshot["focus"]["team_id"])
-
-    today = datetime.now(UTC).date().isoformat()
-    polled = await day_states(deps.storage, today, bound=MAX_SERIES_POINTS)
-    # The landing series reads at tournament scale; one point per hour is the shape.
-    by_hour = {state.fetched_at[:13]: state for state in polled}
-    states = list(by_hour.values())
+    live_fresh = _live_is_fresh(live)
+    held = _held_pins(in_play) if live_fresh else ()
+    selected = _selected_teams(teams, agent_stages, in_play, snapshot["focus"]["team_id"])
+    agent_results = _played(agent_result_set)
+    current_results = _played(current_result_set)
     legs: dict[str, Leg] = {
-        "then": Leg(results_until=results_until, fitted_run_id=run["run_id"]),
-        "now": Leg(),
-        "held": Leg(pins=held),
+        "then": Leg(results=agent_results, fitted_run_id=run["run_id"]),
+        "now": Leg(results=current_results),
+        "held": Leg(results=current_results, pins=held),
     }
-    point_leg: list[str] = []
-    leg_by_pins: dict[tuple[tuple[int, int, int], ...], str] = {}
-    for state in states:
-        pins = _held_pins([f for f in state.fixtures if f.status == "live"])
-        key = _pin_key(pins)
-        name = leg_by_pins.get(key)
-        if name is None:
-            name = f"s{len(leg_by_pins)}"
-            leg_by_pins[key] = name
-            legs[name] = Leg(pins=pins)
-        point_leg.append(name)
 
     n_sims = deps.engine.settings.n_sims
-    result = await deps.engine.reach_legs(legs, n_sims=n_sims)
+    seed = 0
+    result = await deps.engine.reach_legs(legs, n_sims=n_sims, seed=seed)
     then, now, held_reach = result["legs"]["then"], result["legs"]["now"], result["legs"]["held"]
 
     payload = {
         "agent_run_id": run["run_id"],
         "agent_as_of": as_of,
         "agent_created_at": run["created_at"],
-        "fitted_run_id": result["fitted_run_id"],
         "then_basis": result["bases"]["then"],
+        "now_basis": result["bases"]["now"],
+        "current_fit_run_id": result["fitted_run_id"],
+        "current_fit_as_of": deps.engine.forecaster.state.as_of.isoformat(),
+        "dataset_id": deps.engine.forecaster.state.dataset_id,
+        "agent_result_set_digest": agent_result_set.digest,
+        "current_result_set_digest": current_result_set.digest,
+        "live_mode": "score_hold" if held else "none",
         "n_sims": n_sims,
-        "teams": {team: stage_impacts(agent_reach[team], then[team], now[team], held_reach[team]) for team in selected},
+        "seed": seed,
+        "parameter_uncertainty": False,
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "results_since_agent": _results_since_agent(agent_result_set, current_result_set),
         "fixtures": [_fixture_block(f) for f in in_play],
-        "series": [
-            {
-                "fetched_at": state.fetched_at,
-                "teams": {
-                    team: estimated_stages(agent_reach[team], then[team], result["legs"][leg][team])
-                    for team in selected
-                },
-            }
-            for state, leg in zip(states, point_leg, strict=True)
-        ],
+        "teams": {
+            team: _team_impact(agent_stages[team], then[team], now[team], held_reach[team]) for team in selected
+        },
     }
     return Impact.model_validate(payload)
 
@@ -148,3 +135,85 @@ async def _live_state(deps: Deps) -> LiveState | None:
         return LiveState.model_validate_json(raw)
     except ValidationError:
         return None
+
+
+def _agent_stages(snapshot: dict[str, Any]) -> dict[str, dict[str, float]]:
+    stages = {}
+    for team in snapshot.get("teams", []):
+        reach = dict(team.get("reach_probs") or {})
+        if "champion_prob" in team:
+            reach["champion"] = team["champion_prob"]
+        if all(stage in reach for stage in (*REACH_STAGES, "champion")):
+            stages[team["team_id"]] = reach
+    return stages
+
+
+def _agent_result_set(snapshot: dict[str, Any], current: ResultSetBlock) -> ResultSetBlock:
+    raw = snapshot.get("result_set")
+    if isinstance(raw, dict) and raw.get("digest"):
+        return ResultSetBlock.model_validate(raw)
+    if "matches" not in snapshot:
+        return ResultSetBlock()
+    open_matches = {match["match"] for match in snapshot.get("matches", []) if "match" in match}
+    return result_set_from_entries(entry for entry in current.results if entry.match not in open_matches)
+
+
+def _played(result_set: ResultSetBlock) -> dict[int, PlayedResult]:
+    return {
+        entry.match: PlayedResult(
+            match=entry.match,
+            home_goals=entry.home_goals,
+            away_goals=entry.away_goals,
+            winner=entry.winner,
+        )
+        for entry in result_set.results
+    }
+
+
+def _results_since_agent(agent: ResultSetBlock, current: ResultSetBlock) -> list[dict[str, Any]]:
+    previous = {entry.match: entry for entry in agent.results}
+    out = []
+    for entry in current.results:
+        old = previous.get(entry.match)
+        if old is None:
+            out.append(_result_block(entry, "new"))
+        elif _result_key(old) != _result_key(entry):
+            out.append(_result_block(entry, "corrected"))
+    return out
+
+
+def _result_block(entry: ResultSetEntry, kind: str) -> dict[str, Any]:
+    return {
+        **entry.model_dump(mode="json"),
+        "kind": kind,
+    }
+
+
+def _result_key(entry: ResultSetEntry) -> tuple[int, int, int, str | None]:
+    return (entry.match, entry.home_goals, entry.away_goals, entry.winner)
+
+
+def _live_is_fresh(live: LiveState | None) -> bool:
+    if live is None or live.poll_status != "ok":
+        return False
+    try:
+        stale_after = datetime.fromisoformat(live.stale_after)
+    except ValueError:
+        return False
+    if stale_after.tzinfo is None:
+        stale_after = stale_after.replace(tzinfo=UTC)
+    return datetime.now(UTC) <= stale_after
+
+
+def _team_impact(
+    agent: dict[str, float],
+    then: dict[str, float],
+    now: dict[str, float],
+    held: dict[str, float],
+) -> dict[str, Any]:
+    stages = stage_impacts(agent, then, now, held)
+    return {
+        "title": stages["champion"],
+        "reach": {stage: stages[stage] for stage in REACH_STAGES},
+        "exit": exit_impacts(agent, then, now, held),
+    }

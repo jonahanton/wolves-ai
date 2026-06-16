@@ -715,6 +715,31 @@ def test_team_story_internal_worker_labels_flag_as_copy(store: RunArtifactStore,
     assert "team_story_jargon" in _codes(report)
 
 
+def test_team_story_counts_visible_camps_not_raw_worlds(store: RunArtifactStore, ledger: EvidenceLedger):
+    narrative = build_narrative(
+        team_stories={
+            "england": {
+                "summary": "England are lifted by the same visible stance.",
+                "why": "England appear across all two worlds with consistent probabilities.",
+            },
+            "spain": {"summary": "Spain stay first.", "why": "Their title chance is stable."},
+            "rest": {"summary": "The rest share the tail.", "why": "No single side dominates it."},
+        }
+    )
+    submission = build_submission(
+        narrative=narrative,
+        scenario_weights=[
+            {"name": "plays", "weight": 0.6, "camp": "single", "label": "Plays", "summary": "Saka plays."},
+            {"name": "out", "weight": 0.4, "camp": "single", "label": "Out", "summary": "Saka is out."},
+        ],
+        camps=[{"key": "single", "label": "Single camp", "summary": "One visible bucket.", "order": 1}],
+    )
+
+    report = _validate(submission, store, ledger)
+
+    assert "team_story_bucket_count_mismatch" in _codes(report)
+
+
 def test_rambling_headline_flags_as_copy(store: RunArtifactStore, ledger: EvidenceLedger):
     headline = (
         "Spain lead but the market keeps France close after a fresh audit of their squad value and recent results. "

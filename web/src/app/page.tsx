@@ -6,8 +6,8 @@ import { titleBoard } from "@/lib/derive";
 import type { ChartTeamInput } from "@/lib/forecast-series";
 import { formatRunStampEastern } from "@/lib/format";
 import { loadFullRunIds } from "@/lib/full-runs";
+import { impactForAgent, loadImpact } from "@/lib/impact";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
-import { loadResults } from "@/lib/results";
 import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
 import { loadDistributions } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
@@ -15,10 +15,9 @@ import { chartColour } from "@/lib/team-colours";
 const CHART_TEAM_COUNT = 7;
 
 export default async function LandingPage() {
-  const [result, indexResult, resultsResult] = await Promise.all([
+  const [result, indexResult] = await Promise.all([
     loadLatestSnapshot(),
     loadSnapshotIndex(),
-    loadResults(),
   ]);
   if (!result.ok) return <ErrorState error={result.error} />;
   const snapshot = result.data;
@@ -45,11 +44,14 @@ export default async function LandingPage() {
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
     .map((t) => t.team_id);
 
-  const [fullRunIds, distributions, ...histories] = await Promise.all([
+  const impactIds = [...topIds];
+  const [fullRunIds, distributions, impactResult, ...histories] = await Promise.all([
     loadFullRunIds(index),
     loadDistributions(agentSnapshot.run.run_id),
+    loadImpact(impactIds),
     ...allIds.map((teamId) => loadTeamHistory(teamId)),
   ] as const);
+  const impact = impactForAgent(orNull(impactResult), agentSnapshot.run.run_id);
 
   const sidecar = orNull(distributions);
   const championCells = Object.fromEntries(
@@ -84,7 +86,6 @@ export default async function LandingPage() {
       <LandingForecast
         runLabel={formatRunStampEastern(agentSnapshot.run.created_at)}
         teams={chartTeams}
-        results={orNull(resultsResult)?.results ?? []}
         names={names}
         leaderId={leaderId}
         board={board}
@@ -95,6 +96,7 @@ export default async function LandingPage() {
         camps={camps}
         drivers={drivers}
         stories={stories}
+        impact={impact}
       />
       <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">
         <FestivalBand family="euros" tag="Euros 2024 · the Wolves" />

@@ -89,7 +89,8 @@ from wolves.s3.layout import ARTICLE, RELEVANCE_FEEDBACK, RELEVANCE_MEMORY, SCEN
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.format import load_format
 from wolves.sim.mc import SimResult
-from wolves.sim.results_store import persisted_results, played_match_records, stored_fixtures
+from wolves.sim.result_set import build_result_set
+from wolves.sim.results_store import ResultsStore, persisted_results, played_match_records, stored_fixtures
 from wolves.snapshot import (
     AgentBlock,
     AttributionOut,
@@ -949,7 +950,8 @@ def _build_snapshot(
         logger.error("run %s: artifact %s cannot publish; no snapshot", run_id, submission.artifact_id)
         return None
     worlds = surface.worlds
-    played = persisted_results(settings)
+    stored_results = ResultsStore(ArtifactStore(settings)).load()
+    played = stored_results.results
     n_sims = surface.n_sims
     per_world_results = surface.per_world_results
     outputs = surface.outputs
@@ -1070,6 +1072,13 @@ def _build_snapshot(
         markets=_markets_block(deps, model_probs, market),
         agent=agent_block,
         distributions=distributions,
+        result_set=build_result_set(
+            deps.forecaster.fmt,
+            deps.forecaster.played_results(extra_results=played),
+            fixtures=stored_results.fixtures,
+            fetched_at=stored_results.fetched_at,
+            source_matches=played,
+        ),
     )
     return snapshot, sidecars
 

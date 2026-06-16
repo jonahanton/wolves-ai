@@ -123,6 +123,22 @@ class MatchProbs(BaseModel):
     modal_score: str | None = None
 
 
+class ResultSetEntry(BaseModel):
+    match: int
+    home_id: str | None = None
+    away_id: str | None = None
+    home_goals: int
+    away_goals: int
+    winner: str | None = None
+    source_fixture_id: int | None = None
+    fetched_at: str | None = None
+
+
+class ResultSetBlock(BaseModel):
+    digest: str = ""
+    results: list[ResultSetEntry] = Field(default_factory=list)
+
+
 class RunMeta(BaseModel):
     run_id: str
     created_at: str
@@ -405,3 +421,4 @@ class Snapshot(BaseModel):
     intervals: list[TeamInterval] = Field(default_factory=list)
     markets: MarketsBlock | None = None
     distributions: DistributionsBlock | None = None
+    result_set: ResultSetBlock = Field(default_factory=ResultSetBlock)

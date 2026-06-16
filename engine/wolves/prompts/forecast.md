@@ -232,7 +232,10 @@ Submission rules (the validator enforces these):
   market differ on a team, state the public contrast and the published landing
   point, then explain the football mechanism in words: international-results
   ratings, club-player quality, path, availability, form already in the refit,
-  or whatever truly mattered. Do not write "quant confirmed", "above p90",
+  or whatever truly mattered. The page displays camps as the visible buckets
+  in the distribution chart, so if public copy counts or compares the visible
+  buckets, refer to camps and count camps; use worlds only when the distinction
+  genuinely helps the reader. Do not write "quant confirmed", "above p90",
   "structural" or "premium" unless the next words explain the idea in plain
   public language. Keep the summary caption simpler: if it states a title
   percentage, it must be the team's published preview number only.

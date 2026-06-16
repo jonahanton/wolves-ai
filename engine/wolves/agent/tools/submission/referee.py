@@ -135,9 +135,11 @@ def record_referee_block(report: RefereeReport, deps: AgentDeps) -> str | None:
 
 def _referee_context(args: ForecastSubmission, deps: AgentDeps, validation: ValidationReport) -> dict[str, object]:
     artifact = deps.artifacts.get(args.artifact_id) if deps.artifacts is not None else None
+    payload = artifact.payload if artifact is not None else {}
     return {
         "as_of": deps.as_of,
         "focus_team": deps.settings.focus_team,
+        "public_surface": _public_surface(args, payload),
         "submission": {
             "artifact_id": args.artifact_id,
             "headline": args.narrative.headline,
@@ -163,7 +165,7 @@ def _referee_context(args: ForecastSubmission, deps: AgentDeps, validation: Vali
         "world_metadata": world_metadata_section(deps, args.artifact_id),
         "market_gap_contract": market_gap_contract(deps, args),
         "advisories": branch_advisories(deps, args.artifact_id),
-        "artifact": _artifact_digest(artifact.payload if artifact is not None else {}),
+        "artifact": _artifact_digest(payload),
         "artifact_index": _artifact_index(deps),
         "research_artifacts": _research_artifacts(deps),
         "retrieval_artifacts": _retrieval_artifacts(deps),
@@ -171,6 +173,52 @@ def _referee_context(args: ForecastSubmission, deps: AgentDeps, validation: Vali
         "ledger": _ledger_context(args, deps),
         "previous_agent_anchor": _previous_agent_anchor(deps),
     }
+
+
+def _public_surface(args: ForecastSubmission, payload: dict[str, object]) -> dict[str, object]:
+    worlds = _as_dict(payload.get("worlds"))
+    bucket_type = "camps" if args.camps else "worlds"
+    buckets = _camp_buckets(args) if args.camps else _world_buckets(payload)
+    return {
+        "headline": args.narrative.headline,
+        "team_stories": {team: story.model_dump() for team, story in args.narrative.team_stories.items()},
+        "visible_distribution": {
+            "bucket_type": bucket_type,
+            "bucket_count": len(buckets),
+            "raw_world_count": len(worlds),
+            "buckets": buckets,
+        },
+    }
+
+
+def _camp_buckets(args: ForecastSubmission) -> list[dict[str, object]]:
+    return [
+        {
+            "key": camp.key,
+            "label": camp.label,
+            "summary": camp.summary,
+            "weight": round(sum(weight.weight for weight in args.scenario_weights if weight.camp == camp.key), 6),
+        }
+        for camp in args.camps
+    ]
+
+
+def _world_buckets(payload: dict[str, object]) -> list[dict[str, object]]:
+    weights = _as_dict(payload.get("weights"))
+    metadata = _as_dict(payload.get("world_metadata"))
+    return [
+        {
+            "key": name,
+            "label": _as_dict(metadata.get(name)).get("label"),
+            "summary": _as_dict(metadata.get(name)).get("summary"),
+            "weight": weights.get(name),
+        }
+        for name in _as_dict(payload.get("worlds"))
+    ]
+
+
+def _as_dict(value: object) -> dict[str, object]:
+    return value if isinstance(value, dict) else {}
 
 
 def _top_preview(preview: dict[str, object]) -> dict[str, object]:

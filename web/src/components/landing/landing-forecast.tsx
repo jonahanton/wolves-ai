@@ -7,8 +7,9 @@ import { ForecastChart } from "@/components/landing/forecast-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
 import { TeamSelector } from "@/components/landing/team-selector";
 import type { BoardRow } from "@/lib/derive";
-import { assembleChartData, type ChartTeamInput } from "@/lib/forecast-series";
-import type { PlayedResultRow } from "@/lib/results";
+import { assembleChartData, type ChartImpactPoint, type ChartTeamInput, type FixtureResultView } from "@/lib/forecast-series";
+import type { Impact } from "@/lib/impact";
+import { resultLabel } from "@/lib/impact-view";
 import type {
   CampOut,
   ScenarioWeightOut,
@@ -21,7 +22,6 @@ import { chartColour } from "@/lib/team-colours";
 interface LandingForecastProps {
   runLabel: string;
   teams: ChartTeamInput[];
-  results: PlayedResultRow[];
   names: Record<string, string>;
   leaderId: string;
   board: BoardRow[];
@@ -32,25 +32,25 @@ interface LandingForecastProps {
   camps: CampOut[];
   drivers: Record<string, TeamDriver>;
   stories: Record<string, TeamStoryOut>;
+  impact: Impact | null;
 }
 
 export function LandingForecast(props: LandingForecastProps) {
   const {
     runLabel,
     teams,
-    results,
     names,
     leaderId,
     board,
     fullBoard,
     championCells,
   } = props;
-  const { xMax, weights, camps, drivers, stories } = props;
+  const { xMax, weights, camps, drivers, stories, impact } = props;
   const [selectedTeamId, setSelectedTeamId] = useState(leaderId);
 
   const data = useMemo(
-    () => assembleChartData(teams, results, names),
-    [teams, results, names],
+    () => ({ ...assembleChartData(teams, [], names), results: impactResultTicks(impact) }),
+    [teams, names, impact],
   );
   const selectedRow =
     fullBoard.find((row) => row.teamId === selectedTeamId) ?? fullBoard[0];
@@ -64,6 +64,7 @@ export function LandingForecast(props: LandingForecastProps) {
 
   const hasDistribution = selectedCell && selectedRow;
   const colour = chartColour(selectedTeamId);
+  const impactPoint = chartImpactPoint(impact, selectedTeamId);
 
   const distribution = hasDistribution ? (
     <EpistemicDistribution
@@ -105,6 +106,7 @@ export function LandingForecast(props: LandingForecastProps) {
                 othersCount={othersCount}
                 onSelectTeam={setSelectedTeamId}
                 ariaLabel="Chance of winning the World Cup over time"
+                impactPoint={impactPoint}
               />
             </div>
 
@@ -116,7 +118,7 @@ export function LandingForecast(props: LandingForecastProps) {
           </div>
 
           <div className="mt-[clamp(10px,1.6vh,20px)] flex justify-center">
-            {selectedRow && <ChampionStat row={selectedRow} />}
+            {selectedRow && <ChampionStat row={selectedRow} impact={impact?.teams[selectedTeamId]?.title} />}
           </div>
         </div>
       </HeroVideo>
@@ -133,4 +135,24 @@ export function LandingForecast(props: LandingForecastProps) {
       )}
     </>
   );
+}
+
+function chartImpactPoint(impact: Impact | null, teamId: string): ChartImpactPoint | null {
+  const title = impact?.teams[teamId]?.title;
+  if (!impact || !title) return null;
+  return {
+    teamId,
+    t: Date.parse(impact.generatedAt),
+    value: title.estimated,
+    fromResultsPp: title.fromResultsPp,
+    fromIngamePp: title.fromIngamePp,
+    displayFloorPp: title.displayFloorPp,
+  };
+}
+
+function impactResultTicks(impact: Impact | null): FixtureResultView[] {
+  return (impact?.resultsSinceAgent ?? []).map((result) => ({
+    t: Date.parse(result.fetchedAt ?? impact?.generatedAt ?? ""),
+    label: resultLabel(result),
+  }));
 }

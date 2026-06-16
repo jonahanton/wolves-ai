@@ -23,6 +23,15 @@ export interface FixtureResultView {
   label: string;
 }
 
+export interface ChartImpactPoint {
+  teamId: string;
+  t: number;
+  value: number;
+  fromResultsPp: number;
+  fromIngamePp: number;
+  displayFloorPp: number;
+}
+
 export interface ForecastChartData {
   teams: TeamLine[];
   results: FixtureResultView[];

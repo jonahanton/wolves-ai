@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { LiveDigest } from "@/components/shell/live-digest";
 import { SiteNav } from "@/components/shell/site-nav";
+import { orNull } from "@/lib/api";
+import { loadImpact } from "@/lib/impact";
+import { loadLiveState } from "@/lib/live";
 import "./globals.css";
 
 const albert = localFont({
@@ -59,9 +63,11 @@ export const viewport: Viewport = {
   themeColor: "#1c1a17",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const [live, impact] = await Promise.all([loadLiveState(), loadImpact()]);
+
   return (
     <html
       lang="en-GB"
@@ -69,6 +75,7 @@ export default function RootLayout({
     >
       <body>
         <SiteNav />
+        <LiveDigest initialLive={orNull(live)} initialImpact={orNull(impact)} />
         <main>{children}</main>
       </body>
     </html>

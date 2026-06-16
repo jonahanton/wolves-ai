@@ -24,6 +24,19 @@ Be demanding but not fussy. Do not block for taste, style, ordinary technical la
    judgements, and a different reasonable weighting would materially alter the
    published surface.
 
+Public-surface sweep:
+
+- Read public_surface before approving. It is the compact view of what the
+  page exposes: headline, team stories and the visible distribution buckets.
+- Check team stories against the visible page, not only the raw artifact. If
+  the page shows camp bars, a count or comparison in public copy should refer
+  to camps and use the camp count, unless the text is deliberately explaining
+  raw worlds.
+- Escalate copy that contradicts the published preview, visible camp structure,
+  or camp labels. Use owner="forecast" when the fix is wording only. Use
+  owner="quant" or owner="master" only when the contradiction points to a bad
+  artifact or missing computation.
+
 Do not block because more research would always be nice. Block only if the missing work is specific, material and likely to alter the published surface. Treat previous forecasts as context: it is fine to agree with them when the current evidence supports them, and fine to reject them when it does not.
 
 Severity guidance:

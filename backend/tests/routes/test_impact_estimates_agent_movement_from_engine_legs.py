@@ -1,15 +1,28 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from tests.fakes import build_test_app, client_for, published_engine
+from wolves.s3.artifacts import ArtifactStore
+from wolves.sim.format import PlayedResult
+from wolves.sim.results_store import ResultsStore
 
 STAGES = {"r32": 0.95, "r16": 0.6, "qf": 0.4, "sf": 0.25, "final": 0.15, "champion": 0.08}
 
 
 def write_agent_snapshot(runs_root, fmt) -> None:
-    teams = [{"team_id": t.id, "name": t.id, "group": "A", "elo": 1800, "reach_probs": STAGES} for t in fmt.teams]
+    teams = [
+        {
+            "team_id": t.id,
+            "name": t.id,
+            "group": "A",
+            "elo": 1800,
+            "champion_prob": STAGES["champion"],
+            "reach_probs": {k: v for k, v in STAGES.items() if k != "champion"},
+        }
+        for t in fmt.teams
+    ]
     snapshot = {
         "run": {
             "run_id": "agent-20260611-133152",
@@ -21,6 +34,7 @@ def write_agent_snapshot(runs_root, fmt) -> None:
         },
         "focus": {"team_id": fmt.teams[2].id},
         "teams": teams,
+        "matches": [{"match": m.match} for m in fmt.group_matches],
     }
     path = runs_root / "snapshots" / "2026" / "06" / "11" / "agent-20260611-133152.json"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -29,11 +43,12 @@ def write_agent_snapshot(runs_root, fmt) -> None:
 
 def live_state(fmt, *, home_goals: int, fetched_at: str = "2026-06-12T15:00:00+00:00") -> dict:
     opener = fmt.group_matches[0]
+    stale_after = (datetime.now(UTC) + timedelta(minutes=2)).isoformat(timespec="seconds")
     return {
         "schema_version": 1,
         "generated_at": fetched_at,
         "fetched_at": fetched_at,
-        "stale_after": "2026-06-12T15:02:00+00:00",
+        "stale_after": stale_after,
         "live_match_count": 1,
         "fixtures": [
             {
@@ -61,13 +76,6 @@ async def test_impact_estimates_in_game_movement_on_the_agent_scale(tmp_path):
     write_agent_snapshot(tmp_path, fmt)
     (tmp_path / "live").mkdir()
     (tmp_path / "live" / "state.json").write_text(json.dumps(live_state(fmt, home_goals=9)), encoding="utf-8")
-    today = datetime.now(UTC).date().isoformat()
-    history = tmp_path / "live" / "history" / today
-    history.mkdir(parents=True)
-    (history / "140500.json").write_text(
-        json.dumps(live_state(fmt, home_goals=0, fetched_at="2026-06-12T14:05:00+00:00")), encoding="utf-8"
-    )
-    (history / "150000.json").write_text(json.dumps(live_state(fmt, home_goals=9)), encoding="utf-8")
 
     app = build_test_app(storage_dir=tmp_path, engine=engine)
     async with client_for(app) as client:
@@ -76,19 +84,21 @@ async def test_impact_estimates_in_game_movement_on_the_agent_scale(tmp_path):
     assert response.status_code == 200
     body = response.json()
     assert body["agentRunId"] == "agent-20260611-133152"
+    assert body["liveMode"] == "score_hold"
     home = fmt.group_matches[0].home
     assert home in body["teams"]
-    r32 = body["teams"][home]["r32"]
+    r32 = body["teams"][home]["reach"]["r32"]
     assert r32["agent"] == 0.95
+    assert r32["afterResults"] == r32["agent"]
     assert r32["fromResultsPp"] == 0.0
     assert r32["fromIngamePp"] > 0.0
     assert r32["estimated"] > r32["agent"]
+    assert body["teams"][home]["title"]["agent"] == 0.08
+    assert set(body["teams"][home]["exit"]) == {"groups", "r32", "r16", "qf", "sf", "final", "champion"}
 
     fixture = body["fixtures"][0]
     assert (fixture["homeGoals"], fixture["minute"]) == (9, 61)
-    points = body["series"]
-    assert len(points) == 2
-    assert points[1]["teams"][home]["r32"] > points[0]["teams"][home]["r32"]
+    assert "series" not in body
 
 
 async def test_impact_requires_a_published_agent_forecast(tmp_path):
@@ -129,7 +139,7 @@ async def test_then_leg_simulates_under_the_agent_runs_own_fitted_state(tmp_path
     assert response.status_code == 200
     body = response.json()
     assert body["thenBasis"] == "run:agent-20260611-133152"
-    moved = [team for team, stages in body["teams"].items() if stages["champion"]["fromResultsPp"] != 0.0]
+    moved = [team for team, impact in body["teams"].items() if impact["title"]["fromResultsPp"] != 0.0]
     assert moved, "a refit between the agent run and now must show in the results component"
 
 
@@ -143,3 +153,57 @@ async def test_then_leg_falls_back_to_the_current_fit_without_an_artifact(tmp_pa
 
     assert response.status_code == 200
     assert response.json()["thenBasis"] == "current"
+
+
+async def test_impact_infers_old_snapshot_result_set_from_open_matches(tmp_path):
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    opener = fmt.group_matches[0]
+    ResultsStore(ArtifactStore(engine.settings)).record(
+        {opener.match: PlayedResult(match=opener.match, home_goals=2, away_goals=0)}
+    )
+    await engine.refresh()
+    write_agent_snapshot(tmp_path, fmt)
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        response = await client.get("/impact")
+
+    assert response.status_code == 200
+    body = response.json()
+    [result] = body["resultsSinceAgent"]
+    assert result | {"fetchedAt": None} == {
+        "match": opener.match,
+        "homeId": opener.home,
+        "awayId": opener.away,
+        "homeGoals": 2,
+        "awayGoals": 0,
+        "winner": None,
+        "sourceFixtureId": None,
+        "fetchedAt": None,
+        "kind": "new",
+    }
+    assert result["fetchedAt"] is not None
+    assert body["agentResultSetDigest"] != body["currentResultSetDigest"]
+
+
+async def test_impact_suppresses_ingame_deltas_when_live_state_is_stale(tmp_path):
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    stale = live_state(fmt, home_goals=9)
+    stale["stale_after"] = "2026-06-12T15:02:00+00:00"
+    (tmp_path / "live").mkdir()
+    (tmp_path / "live" / "state.json").write_text(json.dumps(stale), encoding="utf-8")
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        response = await client.get("/impact")
+
+    assert response.status_code == 200
+    body = response.json()
+    home = fmt.group_matches[0].home
+    assert body["liveMode"] == "none"
+    assert body["teams"][home]["reach"]["r32"]["fromIngamePp"] == 0.0

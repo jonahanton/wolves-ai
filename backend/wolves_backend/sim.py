@@ -23,7 +23,8 @@ from wolves.s3.fitted import FittedStateStore
 from wolves.s3.layout import IMPLIED_REACH, ODDS_SNAPSHOT
 from wolves.sim.format import load_results
 from wolves.sim.outputs import build_team_reach
-from wolves.sim.results_store import played_match_records
+from wolves.sim.result_set import build_result_set
+from wolves.sim.results_store import ResultsStore, played_match_records
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from wolves.insights.path_tree import PathTree
     from wolves.run_policy import DayPolicy
     from wolves.sim.format import FormatData, PlayedResult
+    from wolves.snapshot import ResultSetBlock
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,7 @@ class Leg:
     pins: tuple[Pin, ...] = ()
     results_until: str | None = None
     fitted_run_id: str | None = None
+    results: dict[int, PlayedResult] | None = None
 
 
 @dataclass(frozen=True)
@@ -222,6 +225,7 @@ class EngineService:
                 n_sims=n_sims,
                 seed=seed,
                 results_until=leg.results_until,
+                results=leg.results,
                 forecaster=forecaster,
                 basis=basis,
             )
@@ -244,6 +248,10 @@ class EngineService:
         """Final scores joined with the schedule, newest first."""
         fit = self._snapshot()
         return await self._cached(("results", fit.revision), lambda: self._played(fit))
+
+    async def result_set(self) -> ResultSetBlock:
+        fit = self._snapshot()
+        return await self._cached(("result-set", fit.revision), lambda: self._result_set(fit))
 
     async def scores_hold(self, held: list[Pin], *, n_sims: int, seed: int = 0) -> dict[str, Any]:
         """Champion-probability deltas if every in-play score becomes the final one."""
@@ -342,13 +350,19 @@ class EngineService:
         n_sims: int,
         seed: int,
         results_until: str | None = None,
+        results: dict[int, PlayedResult] | None = None,
         forecaster: Forecaster | None = None,
         basis: str = "current",
     ) -> dict[str, dict[str, float]]:
         pin_key = tuple(sorted((p.match, p.home_goals, p.away_goals) for p in pins))
-        key = ("reach", fit.revision, basis, pin_key, n_sims, seed, results_until)
+        result_key = None
+        if results is not None:
+            result_key = tuple(
+                sorted((m, r.home_goals, r.away_goals, r.winner) for m, r in results.items())
+            )
+        key = ("reach", fit.revision, basis, pin_key, result_key, n_sims, seed, results_until)
         chosen = forecaster if forecaster is not None else fit.forecaster
-        return await self._cached(key, lambda: self._reach(fit, chosen, pins, n_sims, seed, results_until))
+        return await self._cached(key, lambda: self._reach(fit, chosen, pins, n_sims, seed, results_until, results))
 
     def _run_policy(self, forecaster: Forecaster, today: date) -> dict[str, Any]:
         fmt = forecaster.fmt
@@ -394,12 +408,13 @@ class EngineService:
         n_sims: int,
         seed: int,
         results_until: str | None,
+        result_override: dict[int, PlayedResult] | None,
     ) -> dict[str, dict[str, float]]:
         perturbations = tuple(
             ScorelinePerturbation(match=p.match, home_goals=p.home_goals, away_goals=p.away_goals, reason="api pin")
             for p in pins
         )
-        results = fit.results
+        results = fit.results if result_override is None else result_override
         if results_until is not None:
             dates = match_dates(forecaster.fmt)
             results = {m: r for m, r in results.items() if dates.get(m, "") <= results_until}
@@ -411,6 +426,16 @@ class EngineService:
             parameter_uncertainty=False,
         )
         return build_team_reach(forecaster.fmt, result)
+
+    def _result_set(self, fit: _Fit) -> ResultSetBlock:
+        stored = ResultsStore(self._artifacts).load()
+        return build_result_set(
+            fit.forecaster.fmt,
+            fit.results,
+            fixtures=stored.fixtures,
+            fetched_at=stored.fetched_at,
+            source_matches=stored.results,
+        )
 
     def _played(self, fit: _Fit) -> list[dict[str, Any]]:
         fmt = fit.forecaster.fmt

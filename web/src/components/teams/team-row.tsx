@@ -6,6 +6,7 @@ import { ExitStageHistogram } from "@/components/teams/exit-stage-histogram";
 import { OpponentDraw } from "@/components/teams/opponent-draw";
 import type { BoardRow } from "@/lib/derive";
 import { formatPct1 } from "@/lib/format";
+import type { TeamImpact } from "@/lib/impact";
 import type { PlayedResultRow } from "@/lib/results";
 import type { PairingMatrices } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
@@ -20,10 +21,12 @@ interface TeamRowProps {
   rounds: PairingMatrices["rounds"];
   results: PlayedResultRow[];
   names: Record<string, string>;
+  deltaPp: number | null;
+  impact: TeamImpact | null;
 }
 
 export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
-  { rank, row, value, open, onToggle, reachProbs, rounds, results, names },
+  { rank, row, value, open, onToggle, reachProbs, rounds, results, names, deltaPp, impact },
   ref,
 ) {
   const colour = chartColour(row.teamId);
@@ -70,6 +73,9 @@ export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
           >
             {formatPct1(value)}
           </span>
+          <span className="w-12 shrink-0 text-right font-mono text-[10.5px] font-semibold tabular-nums text-cream-faint">
+            {deltaPp !== null ? `${deltaPp > 0 ? "+" : ""}${deltaPp.toFixed(1)}` : ""}
+          </span>
         </span>
         <ChevronRight
           size={15}
@@ -114,6 +120,7 @@ export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
                     reachProbs={reachProbs}
                     colour={colour}
                     teamName={row.name}
+                    impact={impact}
                   />
                 ) : (
                   <OpponentDraw
@@ -124,6 +131,7 @@ export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
                     reachProbs={reachProbs}
                     results={results}
                     names={names}
+                    impact={impact}
                   />
                 )}
               </div>

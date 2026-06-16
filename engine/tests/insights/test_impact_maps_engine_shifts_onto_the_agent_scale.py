@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from wolves.insights.impact import estimated_stages, shifted, stage_impacts
+from wolves.insights.impact import estimated_stages, exit_distribution, shifted, stage_impacts
 
 AGENT = {"r32": 0.95, "champion": 0.10}
 
@@ -30,8 +30,10 @@ def test_components_split_sequentially_and_sum_to_the_estimate():
     impacts = stage_impacts(AGENT, then, now, held)
     champion = impacts["champion"]
     assert champion["agent"] == 0.10
+    assert champion["after_results"] > champion["agent"]
     assert champion["from_results_pp"] > 0
     assert champion["from_ingame_pp"] > champion["from_results_pp"]
+    assert champion["display_floor_pp"] == 0.5
     total = champion["agent"] + (champion["from_results_pp"] + champion["from_ingame_pp"]) / 100
     assert champion["estimated"] == pytest.approx(total, abs=0.011)
     assert set(impacts) == {"r32", "champion"}
@@ -41,3 +43,10 @@ def test_series_point_shifts_the_full_then_to_point_leg():
     point = estimated_stages(AGENT, {"r32": 0.90, "champion": 0.06}, {"r32": 0.90, "champion": 0.12})
     assert point["r32"] == pytest.approx(0.95)
     assert point["champion"] > 0.10
+
+
+def test_exit_distribution_projects_reach_without_moving_champion():
+    exits = exit_distribution({"r32": 0.7, "r16": 0.72, "qf": 0.45, "sf": 0.3, "final": 0.18, "champion": 0.2})
+    assert exits["champion"] == pytest.approx(0.2)
+    assert min(exits.values()) >= 0
+    assert sum(exits.values()) == pytest.approx(1.0)

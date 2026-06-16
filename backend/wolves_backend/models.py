@@ -208,9 +208,17 @@ class RunPolicy(WireModel):
 
 class StageImpact(WireModel):
     agent: float
+    after_results: float
     estimated: float
     from_results_pp: float
     from_ingame_pp: float
+    display_floor_pp: float
+
+
+class TeamImpact(WireModel):
+    title: StageImpact
+    reach: dict[Literal["r32", "r16", "qf", "sf", "final"], StageImpact]
+    exit: dict[Literal["groups", "r32", "r16", "qf", "sf", "final", "champion"], StageImpact]
 
 
 class ImpactFixture(WireModel):
@@ -228,21 +236,37 @@ class ImpactFixture(WireModel):
     p_away: float | None
 
 
-class ImpactSeriesPoint(WireModel):
-    fetched_at: str
-    teams: dict[str, dict[str, float]]
+class ImpactResult(WireModel):
+    match: int
+    home_id: str | None
+    away_id: str | None
+    home_goals: int
+    away_goals: int
+    winner: str | None = None
+    source_fixture_id: int | None = None
+    fetched_at: str | None = None
+    kind: Literal["new", "corrected"]
 
 
 class Impact(WireModel):
     agent_run_id: str
     agent_as_of: str
     agent_created_at: str
-    fitted_run_id: str
     then_basis: str
+    now_basis: str
+    current_fit_run_id: str
+    current_fit_as_of: str
+    dataset_id: str
+    agent_result_set_digest: str
+    current_result_set_digest: str
+    live_mode: Literal["score_hold", "in_match_distribution", "none"]
     n_sims: int
-    teams: dict[str, dict[str, StageImpact]]
+    seed: int
+    parameter_uncertainty: bool
+    generated_at: str
+    results_since_agent: list[ImpactResult]
     fixtures: list[ImpactFixture]
-    series: list[ImpactSeriesPoint]
+    teams: dict[str, TeamImpact]
 
 
 class Health(BaseModel):

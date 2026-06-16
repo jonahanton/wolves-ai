@@ -5,7 +5,9 @@ import json
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.agent.fakes import ScriptedLLM
+from wolves.agent.tools.submission.referee import _referee_context
 from wolves.agent.tools.submission.submit_forecast import _submit_forecast
+from wolves.agent.validator import ValidationReport
 from wolves.graph.agents import _forecast_post_check_refusal
 from wolves.llm.observed import ObservedLLM
 
@@ -321,6 +323,37 @@ async def test_referee_context_includes_cited_ledger_rows(tmp_path):
     assert "branch_audit" in context
     assert "factor_audit" in context
     assert "world_metadata" in context
+    deps.runtime.shutdown()
+
+
+async def test_referee_context_names_visible_camp_surface(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.settings.graph_referee_enabled = True
+    deps.artifacts = build_run_store(tmp_path)
+    deps.artifacts.add(
+        kind="mixture",
+        created_by="quant-1",
+        summary="two worlds, one visible camp",
+        payload={
+            "weights": {"model_base": 0.5, "market_base": 0.5},
+            "worlds": {"model_base": {"perturbations": []}, "market_base": {"perturbations": []}},
+            "mixture": {"england": 0.08, "rest": 0.92},
+        },
+    )
+    submission = build_submission(
+        scenario_weights=[
+            {"name": "model_base", "weight": 0.5, "camp": "baseline", "rationale": "Model base."},
+            {"name": "market_base", "weight": 0.5, "camp": "baseline", "rationale": "Market base."},
+        ],
+        camps=[{"key": "baseline", "label": "Baseline blend", "summary": "Model and market agree.", "order": 1}],
+    )
+
+    context = _referee_context(submission, deps, ValidationReport(ok=True))
+    visible = context["public_surface"]["visible_distribution"]
+    assert visible["bucket_type"] == "camps"
+    assert visible["bucket_count"] == 1
+    assert visible["raw_world_count"] == 2
+    assert visible["buckets"][0]["weight"] == 1.0
     deps.runtime.shutdown()
 
 

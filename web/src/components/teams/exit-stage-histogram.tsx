@@ -5,12 +5,14 @@ import { curveMonotoneX, line as d3Line } from "d3-shape";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Accent, ChartHeading } from "@/components/teams/chart-heading";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
+import type { TeamImpact } from "@/lib/impact";
 import { type ExitStageBar, exitStageBars, meanStageIndex, modeBar, settledBar } from "@/lib/reach";
 
 interface ExitStageHistogramProps {
   reachProbs: Record<string, number>;
   colour: string;
   teamName: string;
+  impact: TeamImpact | null;
 }
 
 const HEIGHT = 132;
@@ -33,7 +35,7 @@ function pct(p: number): string {
   return `${(p * 100).toFixed(1)}%`;
 }
 
-export function ExitStageHistogram({ reachProbs, colour, teamName }: ExitStageHistogramProps) {
+export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: ExitStageHistogramProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<Hover | null>(null);
@@ -115,8 +117,24 @@ export function ExitStageHistogram({ reachProbs, colour, teamName }: ExitStageHi
           const bracket = isMode && b.p > 0 ? `${b.label}, ${pct(b.p)}` : b.label;
           const caption = tag ? `${tag} (${bracket})` : "";
           const showPct = b.p > 0 && !isMode && (isSettled || b.key === "champion");
+          const estimate = impact?.exit[b.key];
+          const estimateDelta = estimate ? estimate.fromResultsPp + estimate.fromIngamePp : 0;
+          const showEstimate = estimate && Math.abs(estimateDelta) >= estimate.displayFloorPp;
           return (
             <g key={b.key}>
+              {showEstimate && (
+                <rect
+                  x={cx - barW / 2 + 1}
+                  y={y(estimate.estimated)}
+                  width={Math.max(0, barW - 2)}
+                  height={Math.max(0, y(0) - y(estimate.estimated))}
+                  fill="none"
+                  stroke={colour}
+                  strokeOpacity={0.58}
+                  strokeWidth={1.4}
+                  pointerEvents="none"
+                />
+              )}
               <rect
                 x={cx - barW / 2}
                 y={y(b.p)}
@@ -174,6 +192,13 @@ export function ExitStageHistogram({ reachProbs, colour, teamName }: ExitStageHi
               {hover.bar.phrase}
             </div>
             <div className="mt-1 tabular-nums text-cream-dim">{pct(hover.bar.p)} of simulations</div>
+            {impact?.exit[hover.bar.key] &&
+              Math.abs(impact.exit[hover.bar.key].fromResultsPp + impact.exit[hover.bar.key].fromIngamePp) >=
+                impact.exit[hover.bar.key].displayFloorPp && (
+                <div className="mt-1 tabular-nums text-cream-faint">
+                  Running estimate {pct(impact.exit[hover.bar.key].estimated)}
+                </div>
+              )}
           </div>
         </ChartTooltip>
       )}

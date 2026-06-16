@@ -8,7 +8,7 @@ import { area as d3Area, curveMonotoneX, line as d3Line } from "d3-shape";
 import "d3-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
-import { type ChartPoint, type ForecastChartData, type TeamLine } from "@/lib/forecast-series";
+import { type ChartImpactPoint, type ChartPoint, type ForecastChartData, type TeamLine } from "@/lib/forecast-series";
 import { teamCode } from "@/lib/team-colours";
 
 interface ForecastChartProps {
@@ -17,6 +17,7 @@ interface ForecastChartProps {
   othersCount: number;
   onSelectTeam: (teamId: string) => void;
   ariaLabel: string;
+  impactPoint?: ChartImpactPoint | null;
 }
 
 interface HoverState {
@@ -31,11 +32,14 @@ const MARGIN = { top: 22, right: 150, bottom: 36, left: 14 };
 const MOBILE_MARGIN = { top: 18, right: 110, bottom: 34, left: 10 };
 const MOBILE_BREAK = 560;
 const DAY_MS = 86_400_000;
+const ESTIMATE_OFFSET_PX = 24;
+const RESULT_LANE_PX = 16;
 
 const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.42)";
 const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
 const GRID_LINE = "oklch(0.965 0.008 95 / 0.1)";
 const GUIDE = "oklch(0.965 0.008 95 / 0.24)";
+const RESULT_TICK = "oklch(0.965 0.008 95 / 0.5)";
 
 function formatValue(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -55,7 +59,14 @@ function formatStamp(t: number): string {
   });
 }
 
-export function ForecastChart({ data, selectedTeamId, othersCount, onSelectTeam, ariaLabel }: ForecastChartProps) {
+export function ForecastChart({
+  data,
+  selectedTeamId,
+  othersCount,
+  onSelectTeam,
+  ariaLabel,
+  impactPoint: rawImpactPoint = null,
+}: ForecastChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const scaffoldedRef = useRef(false);
@@ -92,8 +103,11 @@ export function ForecastChart({ data, selectedTeamId, othersCount, onSelectTeam,
   const empty = lines.length === 0;
   const height = empty ? 180 : width < MOBILE_BREAK ? 300 : 392;
 
-  const { x, y, runTimes } = useMemo(() => {
+  const impactPoint = data.teams.some((team) => team.teamId === selectedTeamId) ? rawImpactPoint : null;
+
+  const { x, y, runTimes, lastRunTime } = useMemo(() => {
     const linePoints = lines.flatMap((team) => team.points);
+    const yPoints = impactPoint ? [...linePoints, impactPoint] : linePoints;
     const times = linePoints.map((p) => p.t);
     const lo = times.length ? Math.min(...times) : 0;
     const hi = times.length ? Math.max(...times) : DAY_MS;
@@ -101,13 +115,24 @@ export function ForecastChart({ data, selectedTeamId, othersCount, onSelectTeam,
     const xScale = scaleTime()
       .domain([lo - pad, hi + pad])
       .range([margin.left, Math.max(margin.left + 1, width - margin.right)]);
-    const maxValue = Math.max(0.04, ...linePoints.map((p) => p.value));
+    const maxValue = Math.max(0.04, ...yPoints.map((p) => p.value));
     const yScale = scaleLinear()
       .domain([0, maxValue * 1.06])
       .range([height - margin.bottom, margin.top]);
     const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
-    return { x: xScale, y: yScale, runTimes: uniqueTimes };
-  }, [lines, width, margin, height]);
+    return { x: xScale, y: yScale, runTimes: uniqueTimes, lastRunTime: times.length ? hi : null };
+  }, [lines, impactPoint, width, margin, height]);
+
+  const liveX = useMemo(() => {
+    return (t: number, kind: "result" | "estimate" = "result") => {
+      if (lastRunTime === null || t <= lastRunTime || !impactPoint) return x(t);
+      const lastX = x(lastRunTime);
+      if (kind === "estimate") return lastX + ESTIMATE_OFFSET_PX;
+      const span = Math.max(1, impactPoint.t - lastRunTime);
+      const progress = Math.min(1, Math.max(0, (t - lastRunTime) / span));
+      return lastX + 5 + progress * RESULT_LANE_PX;
+    };
+  }, [x, lastRunTime, impactPoint]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -125,8 +150,10 @@ export function ForecastChart({ data, selectedTeamId, othersCount, onSelectTeam,
     const svg = select(svgRef.current);
     svg.append("g").attr("class", "x-axis");
     svg.append("g").attr("class", "baseline");
+    svg.append("g").attr("class", "result-ticks");
     svg.append("g").attr("class", "envelope");
     svg.append("g").attr("class", "series");
+    svg.append("g").attr("class", "live-estimate");
     svg.append("g").attr("class", "ends");
     svg.append("g").attr("class", "hover-layer");
     scaffoldedRef.current = true;
@@ -195,6 +222,25 @@ export function ForecastChart({ data, selectedTeamId, othersCount, onSelectTeam,
       .attr("y2", y(0))
       .attr("stroke", "oklch(0.965 0.008 95 / 0.16)")
       .attr("stroke-width", 1);
+
+    const resultTicks = svg
+      .select<SVGGElement>(".result-ticks")
+      .selectAll<SVGGElement, { t: number; label: string }>("g.tick")
+      .data(data.results, (d) => `${d.t}-${d.label}`)
+      .join((enter) => {
+        const g = enter.append("g").attr("class", "tick");
+        g.append("line");
+        g.append("title");
+        return g;
+      });
+    resultTicks.attr("transform", (d) => `translate(${liveX(d.t)},0)`);
+    resultTicks
+      .select("line")
+      .attr("y1", baseY - 5)
+      .attr("y2", baseY + 5)
+      .attr("stroke", RESULT_TICK)
+      .attr("stroke-width", 1.4);
+    resultTicks.select("title").text((d) => d.label);
 
     const areaGen = d3Area<{ t: number; lo: number; hi: number }>()
       .x((d) => x(d.t))
@@ -307,7 +353,67 @@ export function ForecastChart({ data, selectedTeamId, othersCount, onSelectTeam,
           ? sel.transition().delay(DRAW_MS * 0.6).duration(200).ease(easeCubicOut).attr("opacity", 1)
           : sel.attr("opacity", 1),
       );
-  }, [lines, envelope, selectedTeamId, onSelectTeam, x, y, width, height, margin, empty, runTimes]);
+
+    const estimate = impactPoint?.teamId === selectedTeamId ? impactPoint : null;
+    const estimateLayer = svg.select<SVGGElement>(".live-estimate");
+    const selected = lines.find((team) => team.teamId === selectedTeamId);
+    const delta = estimate ? estimate.fromResultsPp + estimate.fromIngamePp : 0;
+    const estimateRows =
+      estimate && selected && Math.abs(delta) >= estimate.displayFloorPp
+        ? [{ ...estimate, colour: selected.colour, delta }]
+        : [];
+    const estimateMark = estimateLayer
+      .selectAll<SVGGElement, (typeof estimateRows)[number]>("g")
+      .data(estimateRows, (d) => d.teamId);
+    const entered = estimateMark.enter().append("g").attr("opacity", 0);
+    entered.append("circle");
+    entered.append("text");
+    entered.append("title");
+    const merged = entered.merge(estimateMark);
+    merged
+      .transition()
+      .duration(DURATION)
+      .ease(easeCubicInOut)
+      .attr("opacity", (d) => (Math.abs(d.delta) >= d.displayFloorPp ? 1 : 0.72))
+      .attr("transform", (d) => `translate(${liveX(d.t, "estimate")},${y(d.value)})`);
+    merged
+      .select("circle")
+      .attr("r", 5.2)
+      .attr("fill", "oklch(0.17 0.025 248)")
+      .attr("stroke", (d) => d.colour)
+      .attr("stroke-width", 2);
+    merged
+      .select("text")
+      .attr("x", 8)
+      .attr("y", -7)
+      .attr("font-family", "var(--font-mono)")
+      .attr("font-size", 11)
+      .attr("font-weight", 700)
+      .attr("fill", (d) => d.colour)
+      .text((d) => (Math.abs(d.delta) >= d.displayFloorPp ? `${d.delta > 0 ? "+" : ""}${d.delta.toFixed(1)}` : ""));
+    merged
+      .select("title")
+      .text(
+        (d) =>
+          `Running estimate ${(d.value * 100).toFixed(1)}%. Results ${d.fromResultsPp.toFixed(1)}pp, in-game ${d.fromIngamePp.toFixed(1)}pp.`,
+      );
+    estimateMark.exit().transition().duration(DURATION).attr("opacity", 0).remove();
+  }, [
+    lines,
+    envelope,
+    selectedTeamId,
+    onSelectTeam,
+    x,
+    y,
+    liveX,
+    width,
+    height,
+    margin,
+    empty,
+    runTimes,
+    data.results,
+    impactPoint,
+  ]);
 
   useEffect(() => {
     if (!svgRef.current || !scaffoldedRef.current) return;

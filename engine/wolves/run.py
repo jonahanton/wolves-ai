@@ -23,7 +23,8 @@ from wolves.s3.cli import add_storage_argument, apply_storage_choice
 from wolves.s3.fitted import FittedStateStore
 from wolves.s3.publish import SnapshotPublisher
 from wolves.sim.api import run_simulation
-from wolves.sim.results_store import persisted_results, played_match_records
+from wolves.sim.result_set import build_result_set
+from wolves.sim.results_store import ResultsStore, played_match_records
 from wolves.snapshot import ChampionBlock, MarketsBlock, RunMeta, Snapshot
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,8 @@ def generate_snapshot(
     forecaster = Forecaster(settings)
     # Read through this run's settings so a per-run --storage choice governs
     # which persisted results the published snapshot sees.
-    played = persisted_results(settings)
+    store = ResultsStore(ArtifactStore(settings)).load()
+    played = store.results
     model_path = forecaster.champion.model_id != ELO_CHAMPION_ID
     champion = None
     markets = None
@@ -102,6 +104,13 @@ def generate_snapshot(
         outputs = run_simulation({}, {}, n_sims, seed, extra_results=played)
 
     now = datetime.now(UTC)
+    result_set = build_result_set(
+        forecaster.fmt,
+        forecaster.played_results(extra_results=played),
+        fixtures=store.fixtures,
+        fetched_at=store.fetched_at,
+        source_matches=played,
+    )
     snapshot = Snapshot(
         run=RunMeta(
             run_id=run_id or now.strftime("run-%Y%m%d-%H%M%S"),
@@ -118,6 +127,7 @@ def generate_snapshot(
         champion=champion,
         markets=markets,
         distributions=distributions,
+        result_set=result_set,
     )
     return snapshot, sidecars
 

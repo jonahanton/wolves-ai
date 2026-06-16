@@ -4,6 +4,7 @@ import { FestivalBand } from "@/components/walls/festival-band";
 import { orNull } from "@/lib/api";
 import { titleBoard } from "@/lib/derive";
 import { formatRunStampEastern } from "@/lib/format";
+import { impactForAgent, loadImpact } from "@/lib/impact";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
 import { loadResults } from "@/lib/results";
 import { loadSnapshotIndex } from "@/lib/runs";
@@ -32,6 +33,8 @@ export default async function TeamsPage() {
     agentSnapshot.teams.filter((t) => t.reach_probs).map((t) => [t.team_id, t.reach_probs ?? {}]),
   );
   const board = titleBoard(agentSnapshot, agentSnapshot.teams.length);
+  const impactIds = board.slice(0, 12).map((row) => row.teamId);
+  const impact = impactForAgent(orNull(await loadImpact(impactIds)), agentSnapshot.run.run_id);
 
   return (
     <>
@@ -43,6 +46,7 @@ export default async function TeamsPage() {
           reachProbs={reachProbs}
           rounds={pairing?.rounds ?? {}}
           results={orNull(resultsResult)?.results ?? []}
+          impact={impact}
         />
       </main>
       <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">

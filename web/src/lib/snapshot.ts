@@ -131,6 +131,22 @@ export interface MatchProbs {
   modal_score?: string | null;
 }
 
+export interface ResultSetEntry {
+  match: number;
+  home_id?: string | null;
+  away_id?: string | null;
+  home_goals: number;
+  away_goals: number;
+  winner?: string | null;
+  source_fixture_id?: number | null;
+  fetched_at?: string | null;
+}
+
+export interface ResultSetBlock {
+  digest: string;
+  results: ResultSetEntry[];
+}
+
 export interface TeamStoryOut {
   summary: string;
   why: string;
@@ -348,6 +364,7 @@ export interface Snapshot {
   intervals?: TeamInterval[];
   markets?: MarketsBlock | null;
   distributions?: DistributionsBlock | null;
+  result_set?: ResultSetBlock;
 }
 
 export function teamNames(snapshot: Snapshot): Map<string, string> {

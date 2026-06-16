@@ -68,7 +68,7 @@ class ValidationReport(BaseModel):
 
 
 UNDERDISPERSED_VS_FLOOR = 1.05
-COPY_GUARD_VERSION = 2
+COPY_GUARD_VERSION = 3
 
 
 def validate_submission(
@@ -97,7 +97,12 @@ def validate_submission(
         issues += _check_coherence(payload)
         issues += _check_evidence_priced(submission, payload, ledger)
         issues += _check_weight_dilution(payload, limits)
-        issues += _check_team_stories(submission, titles, limits)
+        issues += _check_team_stories(
+            submission,
+            titles,
+            limits,
+            visible_bucket_count=_visible_distribution_bucket_count(submission, payload),
+        )
         issues += _check_scenario_metadata(submission, payload)
         issues += _check_factor_audit(submission, payload, has_previous_context=previous_titles is not None)
         issues += _check_market_gap_contract(submission, titles=titles, market_titles=market_titles)
@@ -218,7 +223,11 @@ _ORDINAL_PATTERN = "|".join(re.escape(word) for word in sorted(_ORDINAL_RANKS, k
 
 
 def _check_team_stories(
-    submission: ForecastSubmission, titles: dict[str, float], limits: ValidatorLimits
+    submission: ForecastSubmission,
+    titles: dict[str, float],
+    limits: ValidatorLimits,
+    *,
+    visible_bucket_count: int | None = None,
 ) -> list[ValidationIssue]:
     """Copy-severity: once the agent writes stories, cover the mixture leaders, jargon-free, in length."""
     stories = submission.narrative.team_stories
@@ -267,7 +276,66 @@ def _check_team_stories(
             titles,
             only_team=team,
         )
+        issues += _visible_bucket_count_issues(
+            f"team_stories[{team}]",
+            f"{story.summary} {story.why}",
+            visible_bucket_count,
+            visible_label="camps" if submission.camps else "worlds",
+        )
     return issues
+
+
+_COUNT_WORDS = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
+_COUNT_PATTERN = "|".join(str(n) for n in range(1, 11)) + "|" + "|".join(_COUNT_WORDS)
+_BUCKET_COUNT_CLAIM = re.compile(
+    rf"\b(?:all\s+)?(?P<count>{_COUNT_PATTERN})\s+(?P<label>worlds|camps)\b",
+    re.IGNORECASE,
+)
+
+
+def _visible_distribution_bucket_count(submission: ForecastSubmission, payload: dict) -> int | None:
+    if submission.camps:
+        return len(submission.camps)
+    worlds = payload.get("worlds") or {}
+    return len(worlds) or None
+
+
+def _visible_bucket_count_issues(
+    field: str, text: str, visible_count: int | None, *, visible_label: str
+) -> list[ValidationIssue]:
+    if visible_count is None:
+        return []
+    issues: list[ValidationIssue] = []
+    for match in _BUCKET_COUNT_CLAIM.finditer(text):
+        count = _count_value(match.group("count"))
+        if count == visible_count:
+            continue
+        issues.append(
+            _copy_issue(
+                "team_story_bucket_count_mismatch",
+                f"{field} says {match.group(0)!r}, but the public distribution shows "
+                f"{visible_count} {visible_label}; count the visible buckets or remove the count",
+            )
+        )
+    return issues
+
+
+def _count_value(value: str) -> int:
+    lowered = value.lower()
+    if lowered.isdigit():
+        return int(lowered)
+    return _COUNT_WORDS[lowered]
 
 
 def _rank_copy_issues(
