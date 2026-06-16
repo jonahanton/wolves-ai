@@ -57,6 +57,7 @@ class GraphRunResult:
     budget_exhausted: bool = False
     waves: int = 0
     validation_failures: int = 0
+    revisions_used: int = 0
 
 
 def _kickoff(deps: AgentDeps, as_of: str) -> str:
@@ -201,6 +202,13 @@ def _should_continue_after_acceptance(deps: AgentDeps, board: Blackboard) -> tup
     submission_state.escalation_fired = False
     _reset_forecast_copy_state(deps)
     submission_state.revisions_used += 1
+    deps.runtime.emit(
+        "revision",
+        "runner",
+        f"re-opened accepted forecast for revision {submission_state.revisions_used}",
+        artifact_id=accepted.artifact_id,
+        revisions_used=submission_state.revisions_used,
+    )
     return True, "re-opening for one revision turn"
 
 
@@ -365,4 +373,5 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             budget_exhausted=budget_exhausted,
             waves=board.wave,
             validation_failures=submission_state.validation_failures,
+            revisions_used=submission_state.revisions_used,
         )

@@ -285,6 +285,16 @@ class ProvenanceOut(BaseModel):
     n_camps: int = 1
 
 
+class RevisionOut(BaseModel):
+    """Trace of a post-acceptance revision: the count spent and the
+    pre-revision artifact, kept so a counterfactual scorer can compare the
+    revised forecast against what would have published once outcomes resolve."""
+
+    revisions_used: int = 0
+    counterfactual_artifact_id: str = ""
+    revision_rationale: str = ""
+
+
 class AgentBlock(BaseModel):
     """Agent-run extras; absent on sim-only snapshots. Additive by design."""
 
@@ -309,6 +319,7 @@ class AgentBlock(BaseModel):
     provenance: ProvenanceOut | None = None
     branch_audit: dict[str, object] | None = None
     world_metadata: dict[str, dict[str, object]] = Field(default_factory=dict)
+    revision: RevisionOut | None = None
 
 
 class ChampionBlock(BaseModel):

@@ -148,6 +148,9 @@ class Settings(BaseSettings):
     graph_revision_min_shift_pp: float = 0.3
     graph_premortem_enabled: bool = True
     graph_premortem_on_escalation_only: bool = True
+    # Write the trailing-window calibration scorecard (Brier, Murphy split,
+    # adjustment and spread P&L) back into the next run's lessons.
+    graph_debrief_enabled: bool = True
 
     @property
     def lessons_path(self) -> Path:
