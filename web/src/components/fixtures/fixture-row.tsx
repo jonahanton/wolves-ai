@@ -181,7 +181,7 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
         </p>
         <span className="shrink-0 whitespace-nowrap text-right leading-tight">
           <span className="block font-display text-[12px] font-bold tracking-[0.01em] text-cream-dim">Est. shift</span>
-          <span className="block font-display text-[11px] font-medium tracking-[0.01em] text-cream-faint">from latest results</span>
+          <span className="block font-display text-[11px] font-medium tracking-[0.01em] text-cream-faint">from current score</span>
         </span>
       </div>
       <div className="space-y-3">
