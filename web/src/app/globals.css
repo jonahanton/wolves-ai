@@ -56,6 +56,39 @@
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@utility shimmer-red {
+  background: linear-gradient(
+    90deg,
+    oklch(0.69 0.19 25 / 0.4) 0%,
+    oklch(0.74 0.2 25) 50%,
+    oklch(0.69 0.19 25 / 0.4) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-red {
+    animation: none;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    color: var(--color-red);
+  }
+}
+
 @utility wrap {
   max-width: 1140px;
   margin-inline: auto;
