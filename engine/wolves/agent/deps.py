@@ -75,7 +75,7 @@ class SubmissionState:
     # Post-acceptance revision loop: the count spent, the previous accepted
     # submission to fall back to, the first-accepted submission kept as the
     # pre-revision counterfactual for later scoring, and the artifact
-    # fingerprints already pre-morteme d so an unchanged mixture is not redone.
+    # fingerprints already pre-mortemed so an unchanged mixture is not redone.
     revisions_used: int = 0
     last_accepted: ForecastSubmission | None = None
     counterfactual: ForecastSubmission | None = None

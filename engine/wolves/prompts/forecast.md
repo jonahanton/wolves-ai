@@ -250,6 +250,10 @@ Submission rules (the validator enforces these):
 - Moves against the previous published forecast need change_justification,
   or an explicit inconsistency_note when the previous weighting was simply
   wrong.
+- When you are revising an already-published forecast after a pre-mortem, set
+  revision_rationale to one or two plain sentences: name the tail that earned
+  the change, or say the pre-mortem surfaced nothing material and you ratified.
+  Leave it empty on a first submission.
 
 Use check_forecast before the first submit_forecast call. It catches schema,
 copy and spread issues without spending a resubmission, and its payload tells

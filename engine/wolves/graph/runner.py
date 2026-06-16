@@ -168,8 +168,8 @@ def _should_continue_after_acceptance(deps: AgentDeps, board: Blackboard) -> tup
     """Decide whether an accepted submission re-opens for one revision turn.
 
     Returns (continue, reason). On continue it records the fallback, attaches
-    the published surface for the master, clears the auto-submit and copy state
-    so the next wave starts clean (B4), and counts the revision (B3)."""
+    the published surface for the master, and clears the auto-submit and copy
+    state so the re-opened wave cannot resubmit the stale checked mixture."""
     settings = deps.settings
     submission_state = deps.submission
     accepted = submission_state.accepted
