@@ -16,6 +16,16 @@ if TYPE_CHECKING:
     from wolves.config import Settings
 
 _INTERNAL_SOURCE_URLS = {"internal://get_odds", "internal://get_results_and_fixtures"}
+_BASE_WORLDS = {"baseline", "model_base", "market_base"}
+
+
+def _has_non_base_perturbation(worlds: dict) -> bool:
+    """A live branch the agent actually built: a non-base world that perturbs
+    strengths, the cheap proxy for a material day before the publish surface."""
+    return any(
+        name not in _BASE_WORLDS and isinstance(spec, dict) and spec.get("perturbations")
+        for name, spec in worlds.items()
+    )
 
 
 class NodeRecord(BaseModel):
@@ -55,6 +65,7 @@ class Blackboard:
         self.dropped: list[str] = []
         self.wave = 0
         self.coverage_nudges = 0
+        self.premortem_nudges = 0
         self.last_wave_cost_micros = 0
         self._cost_at_wave_start = runtime.budget.cost_micros
 
@@ -235,6 +246,39 @@ class Blackboard:
             return None
         coverage = self.branch_coverage()
         return coverage.reason if coverage.needs_follow_up else None
+
+    def premortem_follow_up_reason(self, settings: Settings) -> str | None:
+        """One-shot nudge to pre-mortem a candidate mixture before publishing.
+
+        Fires when a candidate mixture carries a material move (a non-base world
+        with perturbations), no pre-mortem has run, and the budget affords one.
+        graph_premortem_on_escalation_only=False relaxes it to any mixture; the
+        counter caps the nudge so it can never deadlock the wave."""
+        if not settings.graph_premortem_enabled or self.premortem_nudges:
+            return None
+        budget, caps = self._runtime.budget, self._runtime.caps
+        reserve = int(settings.graph_forecast_reserve_usd * 1_000_000)
+        if caps.max_cost_micros and caps.max_cost_micros - budget.cost_micros <= reserve:
+            return None
+        if any(record.kind == "critique" for record in self.artifacts.all()):
+            return None
+        if not self._has_premortem_candidate(material_only=settings.graph_premortem_on_escalation_only):
+            return None
+        return "pre-mortem the candidate mixture before publishing"
+
+    def _has_premortem_candidate(self, *, material_only: bool) -> bool:
+        for record in self.artifacts.all():
+            if record.kind not in {"mixture", "forecast"}:
+                continue
+            if not material_only:
+                return True
+            artifact = self.artifacts.get(record.id)
+            if artifact is None:
+                continue
+            worlds = artifact.payload.get("worlds")
+            if isinstance(worlds, dict) and _has_non_base_perturbation(worlds):
+                return True
+        return False
 
     def _artifact_entry(self, record: ArtifactRecord) -> dict[str, object]:
         entry = {"id": record.id, "kind": record.kind, "summary": record.summary[:100], "by": record.created_by}

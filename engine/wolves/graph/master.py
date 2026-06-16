@@ -233,6 +233,10 @@ def admit(patch: GraphPatch, *, board: Blackboard, settings: Settings) -> tuple[
             board.coverage_nudges += 1
             drop(op, f"branch coverage needs one focused follow-up before forecast: {coverage_reason}")
             continue
+        if op.kind == "forecast" and (premortem_reason := board.premortem_follow_up_reason(settings)):
+            board.premortem_nudges += 1
+            drop(op, f"run an adversarial critic node first: {premortem_reason}")
+            continue
         if kind_counts.get(op.kind, 0) >= _kind_cap(op.kind, settings):
             drop(op, f"{op.kind} node budget for the run is spent")
             continue

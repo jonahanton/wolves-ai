@@ -45,7 +45,9 @@ def branch_coverage(
         if artifact is None:
             continue
         if artifact.kind == "evidence":
-            _collect_candidates(candidates, artifact.payload)
+            _collect_candidates(candidates, artifact.payload, key="candidate_branches")
+        elif artifact.kind == "critique":
+            _collect_candidates(candidates, artifact.payload, key="tail_branches", analytical=True)
         _collect_audit_statuses(statuses, artifact.payload)
 
     candidate_keys = sorted(candidates)
@@ -77,15 +79,17 @@ def branch_coverage(
     )
 
 
-def _collect_candidates(candidates: dict[str, dict], payload: dict) -> None:
-    branches = payload.get("candidate_branches")
+def _collect_candidates(candidates: dict[str, dict], payload: dict, *, key: str, analytical: bool = False) -> None:
+    branches = payload.get(key)
     if not isinstance(branches, list):
         return
     for branch in branches:
         if not isinstance(branch, dict) or not branch.get("branch_id"):
             continue
-        key = str(branch["branch_id"])
-        candidates.setdefault(key, branch)
+        branch_key = str(branch["branch_id"])
+        # Pre-mortem tails are analytical: they carry no ledger source but still
+        # earn quant adjudication, so mark them for the source-free serious path.
+        candidates.setdefault(branch_key, {**branch, "_analytical": True} if analytical else branch)
 
 
 def _collect_audit_statuses(statuses: dict[str, str], payload: dict) -> None:
@@ -104,7 +108,9 @@ def _collect_audit_statuses(statuses: dict[str, str], payload: dict) -> None:
 def _serious_branch(branch: dict, ledger: EvidenceLedger) -> bool:
     source_ids = {str(value) for value in branch.get("source_ids") or []}
     if not source_ids:
-        return False
+        # A pre-mortem tail has no ledger tie by construction; it still needs
+        # quant to price or collapse it, so it counts as serious on its own.
+        return bool(branch.get("_analytical"))
     material_ledger_ids = {
         entry.id for entry in ledger.all() if entry.status in {"confirmed", "probable"} and entry.proposed_delta
     }
