@@ -250,7 +250,7 @@ export function buildFixtures(input: {
   live: LiveState | null;
   teamNames: Record<string, string>;
   nowIso: string;
-}): { sections: StageSection[]; openGroupDay: string | null } {
+}): { sections: StageSection[]; openGroupDay: string | null; openStage: string | null } {
   const liveByMatch = new Map<number, LiveFixture>();
   // A stale poll cannot be trusted to a live minute, so live rows fall back to the pre-game shape.
   const fresh = liveIsFresh(input.live, Date.parse(input.nowIso));
@@ -289,5 +289,16 @@ export function buildFixtures(input: {
       sections.push({ key, label: STAGE_LABEL[key], layout: "flat", days: [], rows });
     }
   }
-  return { sections, openGroupDay };
+  return { sections, openGroupDay, openStage: openStageKey(sections) };
+}
+
+// The live stage if any game is in play, else the earliest stage with an unplayed
+// fixture, else the last stage; so the default-open section is the one in focus now.
+function openStageKey(sections: StageSection[]): string | null {
+  const allRows = (s: StageSection) => (s.layout === "days" ? s.days.flatMap((d) => d.rows) : s.rows);
+  const live = sections.find((s) => allRows(s).some((r) => r.status === "live"));
+  if (live) return live.key;
+  const pending = sections.find((s) => allRows(s).some((r) => r.status !== "completed"));
+  if (pending) return pending.key;
+  return sections.length > 0 ? sections[sections.length - 1].key : null;
 }

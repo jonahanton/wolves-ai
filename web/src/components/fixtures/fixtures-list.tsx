@@ -23,11 +23,12 @@ interface FixturesListProps {
 
 export function FixturesList({ matches, slots, draws, brackets, results, initialLive, impact, teamNames }: FixturesListProps) {
   const live = useLivePoll(initialLive);
-  const { sections, openGroupDay } = useMemo(
+  const { sections, openGroupDay, openStage } = useMemo(
     () => buildFixtures({ matches, slots, draws, brackets, results, live, teamNames, nowIso: new Date().toISOString() }),
     [matches, slots, draws, brackets, results, live, teamNames],
   );
   const [openDay, setOpenDay] = useState<string | null>(openGroupDay);
+  const [openStageKey, setOpenStageKey] = useState<string | null>(openStage);
 
   return (
     <div className="mx-auto max-w-[680px]">
@@ -36,6 +37,8 @@ export function FixturesList({ matches, slots, draws, brackets, results, initial
           key={section.key}
           section={section}
           impact={impact}
+          open={openStageKey === section.key}
+          onToggle={() => setOpenStageKey((current) => (current === section.key ? null : section.key))}
           openDay={openDay}
           onToggleDay={(key) => setOpenDay((current) => (current === key ? null : key))}
         />

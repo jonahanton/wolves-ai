@@ -33,7 +33,8 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
   const tbc = row.slot !== null;
   const live = row.status === "live";
   const completed = row.status === "completed";
-  const expandable = row.shape !== null || live || tbc;
+  // A finished match is just its result: no forecast bar, no expand.
+  const expandable = !completed && (row.shape !== null || live || tbc);
   const score = row.homeGoals !== null && row.awayGoals !== null ? `${row.homeGoals}-${row.awayGoals}` : null;
 
   return (
@@ -46,18 +47,18 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
         className="grid w-full grid-cols-[2.9rem_2.6rem_minmax(0,1fr)_5.2rem] items-center gap-3 py-2.5 text-left"
       >
         <TeamCode code={tbc ? (row.slot?.home.label ?? "TBC") : row.homeCode} colour={row.colours.home} live={live} tbc={tbc} />
-        <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : "text-cream-dim"}`}>
+        <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
           {live && row.minute !== null ? `${row.minute}'` : (score ?? formatKickoffTimeEastern(row.kickoff))}
         </span>
         <span className="flex items-center gap-3">
           <TeamCode code={tbc ? (row.slot?.away.label ?? "TBC") : row.awayCode} colour={row.colours.away} live={live} tbc={tbc} />
           <span className="min-w-0 flex-1">
-            {row.bar ? <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} /> : <TbcRail />}
+            {!completed && row.bar && <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />}
           </span>
         </span>
         <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
-          {tbc ? (
-            <span className="text-cream-faint">TBC</span>
+          {completed ? null : tbc ? (
+            <span className="font-display text-[12px] font-semibold uppercase tracking-[0.06em] text-cream-dim">TBC</span>
           ) : row.bar ? (
             <>
               <span style={{ color: row.colours.home }}>{formatPctBare(row.bar.home)}</span>
@@ -92,10 +93,6 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
   );
 }
 
-function TbcRail() {
-  return <span className="block h-[10px] w-full rounded-[2px] bg-cream/8" />;
-}
-
 function Legend({ row }: { row: Row }) {
   return (
     <div className="mb-1 flex items-center gap-3 font-mono text-[10.5px] tabular-nums text-cream-faint">
@@ -108,12 +105,12 @@ function Legend({ row }: { row: Row }) {
 
 function CandidateList({ label, candidates }: { label: string; candidates: { teamId: string; code: string; prob: number; colour: string }[] }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-      <span className="font-mono text-[10.5px] text-cream-faint">{label}</span>
+    <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1.5">
+      <span className="w-7 shrink-0 font-mono text-[12px] font-semibold text-cream-dim">{label}</span>
       {candidates.map((c) => (
-        <span key={c.teamId} className="font-display text-[12px]">
+        <span key={c.teamId} className="font-display text-[13.5px]">
           <span className="font-semibold" style={{ color: c.colour }}>{c.code}</span>
-          <span className="ml-1 font-mono text-[11px] tabular-nums text-cream-dim">{formatPctBare(c.prob)}%</span>
+          <span className="ml-1.5 font-mono text-[12px] tabular-nums text-cream-faint">{formatPctBare(c.prob)}%</span>
         </span>
       ))}
     </div>
@@ -124,20 +121,21 @@ function SlotDetail({ row }: { row: Row }) {
   const slot = row.slot;
   if (!slot) return null;
   return (
-    <div className="space-y-2.5">
-      {row.city && <p className="font-mono text-[10.5px] text-cream-faint">{row.city} · teams to be confirmed</p>}
-      <CandidateList label={`${slot.home.label}:`} candidates={slot.home.candidates} />
-      <CandidateList label={`${slot.away.label}:`} candidates={slot.away.candidates} />
+    <div className="space-y-4">
+      <div className="space-y-2.5">
+        <CandidateList label={slot.home.label} candidates={slot.home.candidates} />
+        <CandidateList label={slot.away.label} candidates={slot.away.candidates} />
+      </div>
       {slot.pairings.length > 0 && (
-        <div className="pt-1">
-          <p className="mb-1 font-mono text-[10.5px] text-cream-faint">likely ties</p>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1">
+        <div>
+          <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-cream-faint">Likely ties</p>
+          <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
             {slot.pairings.map((p) => (
-              <li key={`${p.homeId}|${p.awayId}`} className="font-display text-[12px]">
+              <li key={`${p.homeId}|${p.awayId}`} className="font-display text-[13.5px]">
                 <span className="font-semibold" style={{ color: p.colours.home }}>{p.homeCode}</span>
-                <span className="px-1 text-cream-faint">v</span>
+                <span className="px-1.5 text-cream-faint">v</span>
                 <span className="font-semibold" style={{ color: p.colours.away }}>{p.awayCode}</span>
-                <span className="ml-1.5 font-mono text-[11px] tabular-nums text-cream">{formatPctBare(p.pPairing)}%</span>
+                <span className="ml-2 font-mono text-[12px] tabular-nums text-cream">{formatPctBare(p.pPairing)}%</span>
               </li>
             ))}
           </ul>
