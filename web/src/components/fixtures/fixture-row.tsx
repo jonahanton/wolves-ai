@@ -55,15 +55,16 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
         <span className="flex items-center gap-3">
           <TeamCode code={tbc ? (row.slot?.away.label ?? "TBC") : row.awayCode} colour={row.colours.away} live={live} tbc={tbc} />
           <span className="min-w-0 flex-1">
-            {!completed && row.bar && <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />}
+            {tbc ? (
+              <span className="block h-px w-full bg-hairline" />
+            ) : (
+              !completed && row.bar && <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />
+            )}
           </span>
         </span>
-        <span className="flex items-center justify-end gap-1.5 font-mono text-[11px] tabular-nums text-cream-faint">
+        <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
           {live ? (
-            <span className="flex items-center gap-1.5">
-              <span className="size-1.5 rounded-full bg-red motion-safe:animate-pulse" aria-hidden />
-              <span className="shimmer-red font-semibold tracking-[0.04em]">LIVE{row.minute !== null ? ` ${row.minute}'` : ""}</span>
-            </span>
+            <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
           ) : completed ? null : tbc ? (
             <span className="font-display text-[12px] font-semibold uppercase tracking-[0.06em] text-cream-dim">TBC</span>
           ) : row.bar ? (

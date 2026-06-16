@@ -25,7 +25,7 @@ export function FixtureDay({ day, open, onToggle, impact }: FixtureDayProps) {
         className="flex w-full items-baseline gap-2.5 py-3 text-left"
       >
         <span className="font-display text-[14px] font-semibold tracking-[-0.01em] text-cream">{day.label}</span>
-        {day.isToday && <span className="font-display text-[11.5px] font-semibold text-gold">today</span>}
+        {day.isToday && <span className="font-display text-[11.5px] font-semibold text-gold">Today</span>}
         <span className="ml-auto font-mono text-[11px] tabular-nums text-cream-faint">{day.rows.length}</span>
         <ChevronDown
           size={15}

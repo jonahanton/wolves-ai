@@ -144,7 +144,7 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw }: WdlC
           );
         })}
         <text x={width - PAD_X} y={29} textAnchor="end" fill={AXIS_TEXT} fontFamily="var(--font-display)" fontSize={11} letterSpacing="0.04em">
-          win probability &rarr;
+          Win probability &rarr;
         </text>
       </svg>
       {hover && (
