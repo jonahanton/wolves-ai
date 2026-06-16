@@ -286,9 +286,7 @@ class ProvenanceOut(BaseModel):
 
 
 class RevisionOut(BaseModel):
-    """Trace of a post-acceptance revision: the count spent and the
-    pre-revision artifact, kept so a counterfactual scorer can compare the
-    revised forecast against what would have published once outcomes resolve."""
+    """Post-acceptance revision trace for later counterfactual scoring."""
 
     revisions_used: int = 0
     counterfactual_artifact_id: str = ""

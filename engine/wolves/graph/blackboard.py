@@ -20,8 +20,7 @@ _BASE_WORLDS = {"baseline", "model_base", "market_base"}
 
 
 def _has_non_base_perturbation(worlds: dict) -> bool:
-    """A live branch the agent actually built: a non-base world that perturbs
-    strengths, the cheap proxy for a material day before the publish surface."""
+    """A non-base world that perturbs strengths: the material-day proxy."""
     return any(
         name not in _BASE_WORLDS and isinstance(spec, dict) and spec.get("perturbations")
         for name, spec in worlds.items()
@@ -248,12 +247,7 @@ class Blackboard:
         return coverage.reason if coverage.needs_follow_up else None
 
     def premortem_follow_up_reason(self, settings: Settings) -> str | None:
-        """One-shot nudge to pre-mortem a candidate mixture before publishing.
-
-        Fires when a candidate mixture carries a material move (a non-base world
-        with perturbations), no pre-mortem has run, and the budget affords one.
-        graph_premortem_on_escalation_only=False relaxes it to any mixture; the
-        counter caps the nudge so it can never deadlock the wave."""
+        """One-shot nudge to pre-mortem a material candidate mixture before forecast."""
         if not settings.graph_premortem_enabled or self.premortem_nudges:
             return None
         budget, caps = self._runtime.budget, self._runtime.caps

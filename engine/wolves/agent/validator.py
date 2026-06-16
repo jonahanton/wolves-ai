@@ -463,11 +463,7 @@ _BRANCH_SURVIVAL_MIN_WEIGHT = 1e-6
 
 
 def _check_audit_consistency(payload: dict) -> list[ValidationIssue]:
-    """The artifact must not contradict its own branch_audit: a branch quant
-    priced below the noise floor, collapsed or rejected cannot still carry a
-    standalone weighted world. This is the deterministic half of the
-    self-inconsistency guard; softer verdict-vs-move judgements stay with the
-    pre-mortem, never a hard block."""
+    """A branch the artifact's own branch_audit killed cannot keep a weighted world."""
     audit = payload.get("branch_audit")
     if not isinstance(audit, dict):
         return []

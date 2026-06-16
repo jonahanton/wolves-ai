@@ -142,19 +142,14 @@ def _reset_forecast_copy_state(deps: AgentDeps) -> None:
 
 
 def _published_titles_context(surface: PublishSurface, *, top_n: int = 8) -> str:
-    """A short JSON top-N title block for the master's next planning turn.
-
-    set_context stores str only and summary() truncates run_context values to
-    1000 chars, so this is a compact list, never the full surface."""
+    """Compact top-N title JSON for the master; set_context stores str only."""
     ranked = sorted(surface.published_titles.items(), key=lambda kv: (-kv[1], kv[0]))
     top = [{"team": team, "pct": round(p * 100, 1)} for team, p in ranked[:top_n]]
     return json.dumps(top, ensure_ascii=False)
 
 
 def _has_fresh_premortem(deps: AgentDeps) -> bool:
-    """True when a critique artifact pre-mortems the accepted artifact and has
-    not yet been acted on, so the master gets exactly one review turn per
-    distinct candidate mixture."""
+    """True when a critique artifact exists and the accepted mixture is unreviewed."""
     store = deps.artifacts
     accepted = deps.submission.accepted
     if store is None or accepted is None:
@@ -166,11 +161,9 @@ def _has_fresh_premortem(deps: AgentDeps) -> bool:
 
 
 def _should_continue_after_acceptance(deps: AgentDeps, board: Blackboard) -> tuple[bool, str]:
-    """Decide whether an accepted submission re-opens for one revision turn.
-
-    Returns (continue, reason). On continue it records the fallback, attaches
-    the published surface for the master, and clears the auto-submit and copy
-    state so the re-opened wave cannot resubmit the stale checked mixture."""
+    """Whether an accepted submission re-opens for one revision turn; on continue
+    it records the fallback and clears checked_clean so the stale mixture cannot
+    auto-resubmit."""
     settings = deps.settings
     submission_state = deps.submission
     accepted = submission_state.accepted
@@ -330,9 +323,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 budget_exhausted = True
                 break
 
-        # A revision wave that re-opened the loop but never re-accepted leaves
-        # accepted=None; the prior accepted submission is the honest publish, so
-        # restore it before the final-chance block reads accepted is None.
+        # Restore before the final-chance block reads accepted is None.
         if submission_state.accepted is None and submission_state.last_accepted is not None:
             logger.info("revision did not re-accept; publishing the prior accepted submission")
             submission_state.accepted = submission_state.last_accepted

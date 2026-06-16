@@ -110,8 +110,7 @@ _NODE_OUTPUTS: dict[NodeKind, type] = {
     "critic": CritiqueOutput,
 }
 
-# The critic slot runs as an adversarial pre-mortem; its prompt differs from
-# its kind name so the dispatch maps stay keyed on the wired NodeKind.
+# The critic slot loads the pre-mortem prompt; dispatch maps stay keyed on kind.
 _PROMPT_NAME: dict[NodeKind, str] = {"critic": "premortem"}
 
 

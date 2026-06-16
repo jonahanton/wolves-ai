@@ -87,8 +87,7 @@ def _collect_candidates(candidates: dict[str, dict], payload: dict, *, key: str,
         if not isinstance(branch, dict) or not branch.get("branch_id"):
             continue
         branch_key = str(branch["branch_id"])
-        # Pre-mortem tails are analytical: they carry no ledger source but still
-        # earn quant adjudication, so mark them for the source-free serious path.
+        # Analytical tails carry no ledger source but still earn adjudication.
         candidates.setdefault(branch_key, {**branch, "_analytical": True} if analytical else branch)
 
 
@@ -108,8 +107,7 @@ def _collect_audit_statuses(statuses: dict[str, str], payload: dict) -> None:
 def _serious_branch(branch: dict, ledger: EvidenceLedger) -> bool:
     source_ids = {str(value) for value in branch.get("source_ids") or []}
     if not source_ids:
-        # A pre-mortem tail has no ledger tie by construction; it still needs
-        # quant to price or collapse it, so it counts as serious on its own.
+        # An analytical tail has no ledger tie but still needs adjudication.
         return bool(branch.get("_analytical"))
     material_ledger_ids = {
         entry.id for entry in ledger.all() if entry.status in {"confirmed", "probable"} and entry.proposed_delta
