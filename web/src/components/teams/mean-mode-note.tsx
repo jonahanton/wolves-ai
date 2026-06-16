@@ -9,7 +9,7 @@ export function MeanModeNote() {
       type="button"
       onClick={() => setOpen((v) => !v)}
       aria-expanded={open}
-      className="group mt-6 block max-w-[68ch] text-left font-display text-[12.5px] italic leading-relaxed text-cream-faint transition-colors hover:text-cream-dim"
+      className="group mt-6 block text-left font-display text-[12.5px] italic leading-relaxed text-cream-faint transition-colors hover:text-cream-dim"
     >
       {open ? (
         <span>
