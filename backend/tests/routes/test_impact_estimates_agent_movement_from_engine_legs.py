@@ -41,7 +41,7 @@ def write_agent_snapshot(runs_root, fmt) -> None:
     path.write_text(json.dumps(snapshot), encoding="utf-8")
 
 
-def live_state(fmt, *, home_goals: int, fetched_at: str = "2026-06-12T15:00:00+00:00") -> dict:
+def live_state(fmt, *, home_goals: int, minute: int = 61, fetched_at: str = "2026-06-12T15:00:00+00:00") -> dict:
     opener = fmt.group_matches[0]
     stale_after = (datetime.now(UTC) + timedelta(minutes=2)).isoformat(timespec="seconds")
     return {
@@ -56,7 +56,7 @@ def live_state(fmt, *, home_goals: int, fetched_at: str = "2026-06-12T15:00:00+0
                 "match": opener.match,
                 "status": "live",
                 "kickoff": "2026-06-12T14:00:00+00:00",
-                "minute": 61,
+                "minute": minute,
                 "home_id": opener.home,
                 "away_id": opener.away,
                 "home_name": opener.home,
@@ -67,6 +67,22 @@ def live_state(fmt, *, home_goals: int, fetched_at: str = "2026-06-12T15:00:00+0
             }
         ],
     }
+
+
+async def _ingame_shift(tmp_path, *, home_goals: int, minute: int) -> float:
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    (tmp_path / "live").mkdir(exist_ok=True)
+    (tmp_path / "live" / "state.json").write_text(
+        json.dumps(live_state(fmt, home_goals=home_goals, minute=minute)), encoding="utf-8"
+    )
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        body = (await client.get("/impact")).json()
+    home = fmt.group_matches[0].home
+    return body["teams"][home]["reach"]["r16"]["fromIngamePp"]
 
 
 async def test_impact_estimates_in_game_movement_on_the_agent_scale(tmp_path):
@@ -84,7 +100,7 @@ async def test_impact_estimates_in_game_movement_on_the_agent_scale(tmp_path):
     assert response.status_code == 200
     body = response.json()
     assert body["agentRunId"] == "agent-20260611-133152"
-    assert body["liveMode"] == "score_hold"
+    assert body["liveMode"] == "in_match_distribution"
     home = fmt.group_matches[0].home
     assert home in body["teams"]
     r32 = body["teams"][home]["reach"]["r32"]
@@ -186,6 +202,25 @@ async def test_impact_infers_old_snapshot_result_set_from_open_matches(tmp_path)
     }
     assert result["fetchedAt"] is not None
     assert body["agentResultSetDigest"] != body["currentResultSetDigest"]
+
+
+async def test_later_identical_lead_moves_reach_more_than_an_early_one(tmp_path):
+    early = await _ingame_shift(tmp_path / "early", home_goals=1, minute=20)
+    late = await _ingame_shift(tmp_path / "late", home_goals=1, minute=85)
+    assert late > early > 0.0
+
+
+async def test_no_live_game_gives_zero_ingame_delta(tmp_path):
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        body = (await client.get("/impact")).json()
+    assert body["liveMode"] == "none"
+    for team in body["teams"].values():
+        assert team["reach"]["r32"]["fromIngamePp"] == 0.0
 
 
 async def test_impact_suppresses_ingame_deltas_when_live_state_is_stale(tmp_path):

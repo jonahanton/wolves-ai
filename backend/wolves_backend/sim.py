@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from wolves.insights.explain import StrengthExplanation
     from wolves.insights.market_gaps import MarketGaps
     from wolves.insights.path_tree import PathTree
+    from wolves.models.contracts import ScorelineDistribution
     from wolves.run_policy import DayPolicy
     from wolves.sim.format import FormatData, PlayedResult
     from wolves.snapshot import ResultSetBlock
@@ -81,6 +82,7 @@ class Leg:
     results_until: str | None = None
     fitted_run_id: str | None = None
     results: dict[int, PlayedResult] | None = None
+    live_distributions: dict[int, ScorelineDistribution] | None = None
 
 
 @dataclass(frozen=True)
@@ -98,6 +100,15 @@ def match_dates(fmt: FormatData) -> dict[int, str]:
     dates = {m.match: m.date[:10] for m in fmt.group_matches}
     dates.update({m.match: m.date[:10] for m in fmt.knockout})
     return dates
+
+
+def _live_distributions_digest(
+    live_distributions: dict[int, ScorelineDistribution] | None,
+) -> tuple[tuple[int, bytes], ...] | None:
+    """A cache token keyed to the grids' bytes, so a changed minute busts the delta."""
+    if not live_distributions:
+        return None
+    return tuple(sorted((match, dist.grid.tobytes()) for match, dist in live_distributions.items()))
 
 
 class EngineService:
@@ -228,6 +239,7 @@ class EngineService:
                 results=leg.results,
                 forecaster=forecaster,
                 basis=basis,
+                live_distributions=leg.live_distributions,
             )
             bases[name] = basis
         return {"fitted_run_id": fit.fitted_id, "legs": reaches, "bases": bases}
@@ -353,6 +365,7 @@ class EngineService:
         results: dict[int, PlayedResult] | None = None,
         forecaster: Forecaster | None = None,
         basis: str = "current",
+        live_distributions: dict[int, ScorelineDistribution] | None = None,
     ) -> dict[str, dict[str, float]]:
         pin_key = tuple(sorted((p.match, p.home_goals, p.away_goals) for p in pins))
         result_key = None
@@ -360,9 +373,13 @@ class EngineService:
             result_key = tuple(
                 sorted((m, r.home_goals, r.away_goals, r.winner) for m, r in results.items())
             )
-        key = ("reach", fit.revision, basis, pin_key, result_key, n_sims, seed, results_until)
+        # The live grids carry the in-game minute, so a changing minute must bust the delta.
+        live_key = _live_distributions_digest(live_distributions)
+        key = ("reach", fit.revision, basis, pin_key, result_key, n_sims, seed, results_until, live_key)
         chosen = forecaster if forecaster is not None else fit.forecaster
-        return await self._cached(key, lambda: self._reach(fit, chosen, pins, n_sims, seed, results_until, results))
+        return await self._cached(
+            key, lambda: self._reach(fit, chosen, pins, n_sims, seed, results_until, results, live_distributions)
+        )
 
     def _run_policy(self, forecaster: Forecaster, today: date) -> dict[str, Any]:
         fmt = forecaster.fmt
@@ -409,6 +426,7 @@ class EngineService:
         seed: int,
         results_until: str | None,
         result_override: dict[int, PlayedResult] | None,
+        live_distributions: dict[int, ScorelineDistribution] | None = None,
     ) -> dict[str, dict[str, float]]:
         perturbations = tuple(
             ScorelinePerturbation(match=p.match, home_goals=p.home_goals, away_goals=p.away_goals, reason="api pin")
@@ -423,6 +441,7 @@ class EngineService:
             seed=seed,
             perturbations=perturbations,
             results=results,
+            live_distributions=live_distributions,
             parameter_uncertainty=False,
         )
         return build_team_reach(forecaster.fmt, result)

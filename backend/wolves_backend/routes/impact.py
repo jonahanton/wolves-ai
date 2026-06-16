@@ -4,20 +4,25 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
 
 from wolves.insights.impact import exit_impacts, stage_impacts
 from wolves.live_state import LiveFixture, LiveState
+from wolves.models.inmatch import MatchState
 from wolves.s3.layout import LIVE_STATE
 from wolves.sim.format import PlayedResult
 from wolves.sim.result_set import result_set_from_entries
 from wolves.snapshot import ResultSetBlock, ResultSetEntry
 from wolves_backend.deps import Deps, get_deps
 from wolves_backend.models import Impact
-from wolves_backend.sim import Leg, Pin
+from wolves_backend.sim import Leg
+
+if TYPE_CHECKING:
+    from wolves.forecast import Forecaster
+    from wolves.models.contracts import ScorelineDistribution
 
 router = APIRouter()
 
@@ -27,12 +32,30 @@ MAX_TEAMS = 12
 REACH_STAGES = ("r32", "r16", "qf", "sf", "final")
 
 
-def _held_pins(fixtures: list[LiveFixture]) -> tuple[Pin, ...]:
-    return tuple(
-        Pin(match=f.match, home_goals=f.home_goals, away_goals=f.away_goals)
-        for f in fixtures
-        if f.status == "live" and f.match is not None and f.home_goals is not None and f.away_goals is not None
+def _match_state(fixture: LiveFixture) -> MatchState | None:
+    # The persisted live state carries no period; regulation handles stoppage minutes cleanly.
+    if fixture.minute is None or fixture.home_goals is None or fixture.away_goals is None:
+        return None
+    return MatchState(
+        minute=float(fixture.minute),
+        home_goals=fixture.home_goals,
+        away_goals=fixture.away_goals,
+        home_reds=fixture.home_reds,
+        away_reds=fixture.away_reds,
     )
+
+
+def _live_distributions(
+    forecaster: Forecaster, fixtures: list[LiveFixture]
+) -> dict[int, ScorelineDistribution]:
+    out: dict[int, ScorelineDistribution] = {}
+    for f in fixtures:
+        if f.status != "live" or f.match is None or f.home_id is None or f.away_id is None:
+            continue
+        state = _match_state(f)
+        if state is not None:
+            out[f.match] = forecaster.live_distribution(f.home_id, f.away_id, state)
+    return out
 
 
 def _fixture_block(fixture: LiveFixture) -> dict[str, Any]:
@@ -87,20 +110,20 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
     live = await _live_state(deps)
     in_play = [f for f in live.fixtures if f.status == "live"] if live else []
     live_fresh = _live_is_fresh(live)
-    held = _held_pins(in_play) if live_fresh else ()
+    live_dists = _live_distributions(deps.engine.forecaster, in_play) if live_fresh else {}
     selected = _selected_teams(teams, agent_stages, in_play, snapshot["focus"]["team_id"])
     agent_results = _played(agent_result_set)
     current_results = _played(current_result_set)
     legs: dict[str, Leg] = {
         "then": Leg(results=agent_results, fitted_run_id=run["run_id"]),
         "now": Leg(results=current_results),
-        "held": Leg(results=current_results, pins=held),
+        "live": Leg(results=current_results, live_distributions=live_dists or None),
     }
 
     n_sims = deps.engine.settings.n_sims
     seed = 0
     result = await deps.engine.reach_legs(legs, n_sims=n_sims, seed=seed)
-    then, now, held_reach = result["legs"]["then"], result["legs"]["now"], result["legs"]["held"]
+    then, now, live_reach = result["legs"]["then"], result["legs"]["now"], result["legs"]["live"]
 
     payload = {
         "agent_run_id": run["run_id"],
@@ -113,7 +136,7 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
         "dataset_id": deps.engine.forecaster.state.dataset_id,
         "agent_result_set_digest": agent_result_set.digest,
         "current_result_set_digest": current_result_set.digest,
-        "live_mode": "score_hold" if held else "none",
+        "live_mode": "in_match_distribution" if live_dists else "none",
         "n_sims": n_sims,
         "seed": seed,
         "parameter_uncertainty": False,
@@ -121,7 +144,7 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
         "results_since_agent": _results_since_agent(agent_result_set, current_result_set),
         "fixtures": [_fixture_block(f) for f in in_play],
         "teams": {
-            team: _team_impact(agent_stages[team], then[team], now[team], held_reach[team]) for team in selected
+            team: _team_impact(agent_stages[team], then[team], now[team], live_reach[team]) for team in selected
         },
     }
     return Impact.model_validate(payload)
@@ -209,11 +232,11 @@ def _team_impact(
     agent: dict[str, float],
     then: dict[str, float],
     now: dict[str, float],
-    held: dict[str, float],
+    live: dict[str, float],
 ) -> dict[str, Any]:
-    stages = stage_impacts(agent, then, now, held)
+    stages = stage_impacts(agent, then, now, live)
     return {
         "title": stages["champion"],
         "reach": {stage: stages[stage] for stage in REACH_STAGES},
-        "exit": exit_impacts(agent, then, now, held),
+        "exit": exit_impacts(agent, then, now, live),
     }
