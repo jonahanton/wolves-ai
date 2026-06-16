@@ -30,7 +30,7 @@ export function FixturesList({ matches, slots, draws, results, initialLive, impa
   const [openStageKey, setOpenStageKey] = useState<string | null>(openStage);
 
   return (
-    <div className="mx-auto max-w-[680px]">
+    <div className="mx-auto max-w-[680px] px-1">
       {sections.map((section) => (
         <StageSection
           key={section.key}

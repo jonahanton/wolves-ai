@@ -4,7 +4,6 @@ export interface ReachShiftRow {
   teamId: string;
   code: string;
   stageLabel: string;
-  agentPct: number;
   fromPct: number;
   toPct: number;
   deltaPp: number;
@@ -32,7 +31,6 @@ export function teamReachShifts(impact: Impact | null, teamId: string, code: str
       teamId,
       code,
       stageLabel: STAGE_LABEL[stage],
-      agentPct: value.agent * 100,
       fromPct: value.afterResults * 100,
       toPct: value.estimated * 100,
       deltaPp: value.fromIngamePp,
