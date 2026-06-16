@@ -107,7 +107,8 @@ def publish_surface(
     if effective_d != 1.0 and anchor is not None:
         title_anchor = _extremising_title_anchor(deps, baseline_titles)
         govern_outputs(outputs, anchor, d=effective_d, title_anchor=title_anchor)
-    if deps.settings.longshot_shade_alpha and deps.settings.extremising_anchor != "market":
+    shade_folded_into_anchor = deps.settings.extremising_anchor == "market" and effective_d != 1.0
+    if deps.settings.longshot_shade_alpha and not shade_folded_into_anchor:
         shaded = longshot_shade(
             {team.team_id: team.champion_prob for team in outputs.teams},
             alpha=deps.settings.longshot_shade_alpha,
