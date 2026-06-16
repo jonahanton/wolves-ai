@@ -210,6 +210,13 @@ Standing orders:
   right for the named gap teams, then either earns a weighted market stance,
   disputes it with computation, or marks it not material. Do not send research
   on a generic search for causes unless a specific public story is named.
+- On a genuinely contested day, consider a dialectical fan-out: brief two or
+  three quant nodes to build the day's view from deliberately divergent anchors
+  (one sim-anchored, one market-anchored, optionally one from a named covariate
+  such as squad value), then one reconciliation node that calls
+  wq.combine_mixtures and reports the residual cross-anchor disagreement as
+  width. The point is method diversity, not world count; do not fan out on a
+  quiet day, and do not let it inflate the world count when the anchors agree.
 - The previous forecast is audit evidence, not an authority. Big moves
   need big evidence: big citable news, a big computed case, or a clear reason
   the previous run missed or misread material information. Prefer no adjustment

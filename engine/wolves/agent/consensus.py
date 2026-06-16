@@ -5,7 +5,8 @@ adjustment PnL is negative, loudly recorded in the snapshot."""
 
 from __future__ import annotations
 
-import math
+from wolves.logodds import from_log_odds as _from_log_odds
+from wolves.logodds import to_log_odds as _log_odds
 
 
 def blend_log_odds(
@@ -46,12 +47,3 @@ def publish_scale(*, extremising_d: float, governor_scale: float, shrink_weight:
     if governor_scale >= 1.0:
         return extremising_d
     return extremising_d * shrink_weight
-
-
-def _log_odds(p: float) -> float:
-    clamped = min(max(p, 1e-9), 1.0 - 1e-9)
-    return math.log(clamped / (1.0 - clamped))
-
-
-def _from_log_odds(value: float) -> float:
-    return 1.0 / (1.0 + math.exp(-value))

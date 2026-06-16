@@ -91,6 +91,13 @@ discovering them:
   it still expresses the best current uncertainty. If previous_forecast reports
   not_found there is no previous run; build today's worlds fresh from the two
   bases.
+- wq.combine_mixtures([titles_a, titles_b, ...], weights=[...]) -> dict
+  weighted log-odds averages independent per-team title dicts and renormalises.
+  Use it for dialectical reconciliation: when you have built two or three views
+  from deliberately divergent anchors (one sim-anchored, one market-anchored,
+  optionally one from a named covariate), combine them and report the residual
+  cross-anchor disagreement as width rather than picking a side. Equal weights
+  when the anchors are co-equal; this is method diversity, not world count.
   Do not build a stock model_base, market_base, model_evidence,
   market_evidence grid unless that is genuinely the day's live uncertainty.
   Your North Star is not more worlds for their own sake. It is a mixture whose
