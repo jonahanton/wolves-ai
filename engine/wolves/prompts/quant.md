@@ -248,7 +248,12 @@ worst case at weight 1.0. Match the mechanism to the scope first: a player
 missing specific matches is a MatchRatePerturbation on those fixtures, an
 order of magnitude smaller than a tournament-long strength delta; reserve
 StrengthPerturbation for a diminished or absent player across the whole
-tournament.
+tournament. Size that delta by the drop from the player to his actual
+replacement over his expected minutes, not by his absolute quality: a ruled-out
+squad-depth player with a like-for-like replacement is a near-zero delta even
+when the absence is tournament-long and the mechanism is right. Net a named
+replacement into every world, not only the market one, and never price a
+starter-sized delta for losing a backup.
 When several candidate worlds share the same underlying perturbation
 footprint, ask what judgement axis makes them separate before registering the
 mixture. If they are alternative magnitudes of one stance, express that
@@ -282,6 +287,10 @@ Discipline:
 - Every delta you report carries its paired-seed noise floor (wq.impact and
   wq.scenario_mixture attach it); a cross-team delta below the floor is
   simulation noise and you say so.
+- A confirmed fact is not a material one: certainty about an event says
+  nothing about its title impact. Size the magnitude from the mechanism, let
+  it fall below the floor when it should, and report a confirmed-but-immaterial
+  item as priced-zero rather than inflating it to justify the certainty.
 - State the analysis plan in a comment before touching data on any
   model-fitting task, including your prior expectation of the magnitude: a
   result wildly off your prior is a bug hunt first, a finding second. Report

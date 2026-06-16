@@ -92,6 +92,9 @@ in availability analysis. The second most consequential is certainty:
 across plays-diminished and misses-matches worlds (managed load sits near
 -0.03 strength, a true tournament-ending loss near -0.10), never the worst
 case at weight 1.0. Reserve certainty weighting for a confirmed ruling-out.
+These magnitudes are for a regular starter; size by the drop to the actual
+replacement, so a squad-depth player ruled out for a like-for-like deputy sits
+near -0.01 or below the floor even when the ruling-out is confirmed.
 
 ### Scenario mixtures and factor lattices
 
