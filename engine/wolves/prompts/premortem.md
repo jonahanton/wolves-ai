@@ -23,6 +23,15 @@ Method:
   reputation rather than evidence; a result or availability branch priced as a
   tournament-long strength shift when the news only touches one fixture; a
   correlated move across a confederation the worlds treat as independent.
+- Run the failure in both directions. When the published surface sits
+  materially below the de-vigged market on an established contender, the
+  prospective-hindsight chain that ends "it is August, that team won or reached
+  the final and we published far below the market" is as live as the
+  over-credit chain, and more easily missed. If the sub-market gap rests on
+  evidence the fitted ratings already absorbed (public results, form, friendly
+  losses) rather than a market-invisible edge, surface a "sub-market gap
+  unearned" tail and route it to quant like any other. Do not push toward the
+  market for its own sake; the test is whether the gap was earned.
 
 Output:
 - challenges: the few specific objections whose resolution would most change
