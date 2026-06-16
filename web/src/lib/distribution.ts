@@ -106,6 +106,34 @@ export function histogramBars(cell: CellShape): Bar[] {
   return cell.histogram.map((y, i) => ({ x0: edges[i], x1: edges[i + 1], y }));
 }
 
+// Density histogram of a raw draw array over [0,1], aligned to the curve bins.
+export function samplesToBars(samples: number[]): Bar[] {
+  if (samples.length === 0) return [];
+  const thresholds = Array.from({ length: WDL_BINS - 1 }, (_, i) => (i + 1) / WDL_BINS);
+  const bins = bin<number, number>().domain([0, 1]).thresholds(thresholds)(samples);
+  const width = 1 / WDL_BINS;
+  return bins.map((b) => ({
+    x0: b.x0 ?? 0,
+    x1: b.x1 ?? width,
+    y: b.length / (samples.length * width),
+  }));
+}
+
+export interface OutcomeShape {
+  curve: DistroPoint[];
+  bars: Bar[];
+}
+
+export interface WdlShape {
+  home: OutcomeShape;
+  draw: OutcomeShape;
+  away: OutcomeShape;
+}
+
+export function curvePeak(curves: DistroPoint[][]): number {
+  return Math.max(...curves.flat().map((p) => p.y), 1e-9);
+}
+
 // A world with no declared camp stands as its own camp, keyed by its world name.
 function campOfWorld(weights: ScenarioWeightOut[]): Record<string, string> {
   const map: Record<string, string> = {};

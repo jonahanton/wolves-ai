@@ -37,6 +37,7 @@ export default async function FixturesPage() {
     <main className="wrap py-[clamp(28px,5vh,56px)]">
       <FixturesList
         matches={agentSnapshot.matches ?? []}
+        slots={agentSnapshot.slots ?? []}
         draws={orNull(draws)}
         brackets={orNull(brackets)}
         results={orNull(resultsResult)?.results ?? []}

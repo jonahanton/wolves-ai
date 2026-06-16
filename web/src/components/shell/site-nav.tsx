@@ -1,4 +1,4 @@
-import { CalendarDays, ShieldHalf } from "lucide-react";
+import { ShieldHalf, Ticket } from "lucide-react";
 import Link from "next/link";
 import { EtClock } from "@/components/shell/et-clock";
 
@@ -17,20 +17,20 @@ export function SiteNav() {
         </div>
         <nav className="flex items-center gap-5">
           <Link
-            href="/fixtures"
-            aria-label="Fixtures"
-            className="flex items-center gap-1.5 font-display text-[13px] font-semibold tracking-[-0.01em] text-cream-faint transition-colors hover:text-cream"
-          >
-            <CalendarDays size={15} className="shrink-0" />
-            <span className="hidden sm:inline">Fixtures</span>
-          </Link>
-          <Link
             href="/teams"
             aria-label="Teams"
             className="flex items-center gap-1.5 font-display text-[13px] font-semibold tracking-[-0.01em] text-cream-faint transition-colors hover:text-cream"
           >
             <ShieldHalf size={15} className="shrink-0" />
             <span className="hidden sm:inline">Teams</span>
+          </Link>
+          <Link
+            href="/fixtures"
+            aria-label="Fixtures"
+            className="flex items-center gap-1.5 font-display text-[13px] font-semibold tracking-[-0.01em] text-cream-faint transition-colors hover:text-cream"
+          >
+            <Ticket size={15} className="shrink-0" />
+            <span className="hidden sm:inline">Fixtures</span>
           </Link>
         </nav>
       </div>

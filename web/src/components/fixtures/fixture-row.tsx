@@ -17,9 +17,12 @@ function signed(pp: number): string {
   return `${pp > 0 ? "+" : ""}${pp.toFixed(1)}`;
 }
 
-function TeamCode({ code, colour, live }: { code: string; colour: string; live: boolean }) {
+function TeamCode({ code, colour, live, tbc }: { code: string; colour: string; live?: boolean; tbc?: boolean }) {
   return (
-    <span className={`font-display text-[13.5px] font-semibold ${live ? "shimmer-red" : ""}`} style={live ? undefined : { color: colour }}>
+    <span
+      className={`font-display text-[13.5px] font-semibold ${live ? "shimmer-red" : ""}`}
+      style={live ? undefined : { color: tbc ? "var(--color-cream-faint)" : colour }}
+    >
       {code}
     </span>
   );
@@ -27,54 +30,51 @@ function TeamCode({ code, colour, live }: { code: string; colour: string; live: 
 
 export function FixtureRow({ row, impact }: FixtureRowProps) {
   const [open, setOpen] = useState(false);
-  const expandable = row.shape !== null || row.status === "live" || row.pairings !== null;
+  const tbc = row.slot !== null;
   const live = row.status === "live";
   const completed = row.status === "completed";
-  const lead = row.pairings?.[0] ?? null;
+  const expandable = row.shape !== null || live || tbc;
   const score = row.homeGoals !== null && row.awayGoals !== null ? `${row.homeGoals}-${row.awayGoals}` : null;
 
   return (
-    <li className={`border-b border-hairline/60 last:border-b-0 ${completed ? "opacity-70" : ""}`}>
+    <li className={`border-b border-hairline/50 last:border-b-0 ${completed ? "opacity-70" : ""}`}>
       <button
         type="button"
         onClick={() => expandable && setOpen((v) => !v)}
         aria-expanded={expandable ? open : undefined}
         disabled={!expandable}
-        className="grid w-full grid-cols-[3rem_2.6rem_minmax(0,1fr)_5.5rem] items-center gap-3 py-2.5 text-left"
+        className="grid w-full grid-cols-[2.9rem_2.6rem_minmax(0,1fr)_5.2rem] items-center gap-3 py-2.5 text-left"
       >
-        <TeamCode code={row.homeCode} colour={row.colours.home} live={live} />
+        <TeamCode code={tbc ? (row.slot?.home.label ?? "TBC") : row.homeCode} colour={row.colours.home} live={live} tbc={tbc} />
         <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : "text-cream-dim"}`}>
           {live && row.minute !== null ? `${row.minute}'` : (score ?? formatKickoffTimeEastern(row.kickoff))}
         </span>
         <span className="flex items-center gap-3">
-          <TeamCode code={row.awayCode} colour={row.colours.away} live={live} />
+          <TeamCode code={tbc ? (row.slot?.away.label ?? "TBC") : row.awayCode} colour={row.colours.away} live={live} tbc={tbc} />
           <span className="min-w-0 flex-1">
-            <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />
+            {row.bar ? <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} /> : <TbcRail />}
           </span>
         </span>
-        {lead ? (
-          <span className="flex items-center justify-end gap-1.5 font-mono text-[11px] tabular-nums text-cream-faint">
-            <span className="truncate">
-              {lead.homeCode} v {lead.awayCode}
-            </span>
-            <span className="text-cream">{formatPctBare(lead.pPairing)}%</span>
-          </span>
-        ) : (
-          <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
-            <span style={{ color: row.colours.home }}>{formatPctBare(row.bar.home)}</span>
-            {!row.knockout && <span>/{formatPctBare(row.bar.draw)}</span>}
-            <span style={{ color: row.colours.away }}>/{formatPctBare(row.bar.away)}</span>
-          </span>
-        )}
+        <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
+          {tbc ? (
+            <span className="text-cream-faint">TBC</span>
+          ) : row.bar ? (
+            <>
+              <span style={{ color: row.colours.home }}>{formatPctBare(row.bar.home)}</span>
+              {!row.knockout && <span>/{formatPctBare(row.bar.draw)}</span>}
+              <span style={{ color: row.colours.away }}>/{formatPctBare(row.bar.away)}</span>
+            </>
+          ) : null}
+        </span>
       </button>
 
       {expandable && (
         <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
           <div className="overflow-hidden" inert={!open}>
             {open && (
-              <div className="pb-5 pl-[5.6rem] pr-1 pt-1">
-                {row.pairings ? (
-                  <Pairings row={row} />
+              <div className="pb-5 pl-[5.5rem] pr-1 pt-1">
+                {tbc && row.slot ? (
+                  <SlotDetail row={row} />
                 ) : live ? (
                   <ReachStrip row={row} impact={impact} />
                 ) : row.shape ? (
@@ -92,38 +92,57 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
   );
 }
 
+function TbcRail() {
+  return <span className="block h-[10px] w-full rounded-[2px] bg-cream/8" />;
+}
+
 function Legend({ row }: { row: Row }) {
   return (
     <div className="mb-1 flex items-center gap-3 font-mono text-[10.5px] tabular-nums text-cream-faint">
       <span style={{ color: row.colours.home }}>{row.homeCode} win</span>
+      {!row.knockout && <span style={{ color: row.colours.draw }}>draw</span>}
       <span style={{ color: row.colours.away }}>{row.awayCode} win</span>
-      <span style={{ color: row.colours.draw }}>draw</span>
     </div>
   );
 }
 
-function Pairings({ row }: { row: Row }) {
+function CandidateList({ label, candidates }: { label: string; candidates: { teamId: string; code: string; prob: number; colour: string }[] }) {
   return (
-    <div>
-      <div className="mb-2 grid grid-cols-[5.4rem_3rem_auto] items-baseline gap-2 font-mono text-[10.5px] text-cream-faint">
-        <span>likely pairing</span>
-        <span>chance</span>
-        <span>win split</span>
-      </div>
-      <ul className="space-y-1.5">
-        {(row.pairings ?? []).map((p) => (
-          <li key={`${p.homeId}|${p.awayId}`} className="grid grid-cols-[5.4rem_3rem_auto] items-baseline gap-2 font-display text-[12.5px]">
-            <span className="flex gap-1.5">
-              <span className="font-semibold" style={{ color: p.colours.home }}>{p.homeCode}</span>
-              <span className="font-semibold" style={{ color: p.colours.away }}>{p.awayCode}</span>
-            </span>
-            <span className="font-mono text-[12px] tabular-nums text-cream">{formatPctBare(p.pPairing)}%</span>
-            <span className="font-mono text-[11px] tabular-nums text-cream-faint">
-              {formatPctBare(p.pHome)} / {formatPctBare(p.pAway)}
-            </span>
-          </li>
-        ))}
-      </ul>
+    <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+      <span className="font-mono text-[10.5px] text-cream-faint">{label}</span>
+      {candidates.map((c) => (
+        <span key={c.teamId} className="font-display text-[12px]">
+          <span className="font-semibold" style={{ color: c.colour }}>{c.code}</span>
+          <span className="ml-1 font-mono text-[11px] tabular-nums text-cream-dim">{formatPctBare(c.prob)}%</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function SlotDetail({ row }: { row: Row }) {
+  const slot = row.slot;
+  if (!slot) return null;
+  return (
+    <div className="space-y-2.5">
+      {row.city && <p className="font-mono text-[10.5px] text-cream-faint">{row.city} · teams to be confirmed</p>}
+      <CandidateList label={`${slot.home.label}:`} candidates={slot.home.candidates} />
+      <CandidateList label={`${slot.away.label}:`} candidates={slot.away.candidates} />
+      {slot.pairings.length > 0 && (
+        <div className="pt-1">
+          <p className="mb-1 font-mono text-[10.5px] text-cream-faint">likely ties</p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1">
+            {slot.pairings.map((p) => (
+              <li key={`${p.homeId}|${p.awayId}`} className="font-display text-[12px]">
+                <span className="font-semibold" style={{ color: p.colours.home }}>{p.homeCode}</span>
+                <span className="px-1 text-cream-faint">v</span>
+                <span className="font-semibold" style={{ color: p.colours.away }}>{p.awayCode}</span>
+                <span className="ml-1.5 font-mono text-[11px] tabular-nums text-cream">{formatPctBare(p.pPairing)}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

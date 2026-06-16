@@ -1,17 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FixtureDay } from "@/components/fixtures/fixture-day";
+import { StageSection } from "@/components/fixtures/stage-section";
 import { useLivePoll } from "@/hooks/use-live-poll";
-import { buildFixtureDays } from "@/lib/fixtures";
+import { buildFixtures } from "@/lib/fixtures";
 import type { Impact } from "@/lib/impact";
 import type { LiveState } from "@/lib/live";
 import type { PlayedResultRow } from "@/lib/results";
 import type { BracketSamples, MatchWdlDraws } from "@/lib/sidecars";
-import type { MatchProbs } from "@/lib/snapshot";
+import type { MatchProbs, Slot } from "@/lib/snapshot";
 
 interface FixturesListProps {
   matches: MatchProbs[];
+  slots: Slot[];
   draws: MatchWdlDraws | null;
   brackets: BracketSamples | null;
   results: PlayedResultRow[];
@@ -20,40 +21,23 @@ interface FixturesListProps {
   teamNames: Record<string, string>;
 }
 
-export function FixturesList({
-  matches,
-  draws,
-  brackets,
-  results,
-  initialLive,
-  impact,
-  teamNames,
-}: FixturesListProps) {
+export function FixturesList({ matches, slots, draws, brackets, results, initialLive, impact, teamNames }: FixturesListProps) {
   const live = useLivePoll(initialLive);
-  const { days, openIndex } = useMemo(
-    () =>
-      buildFixtureDays({
-        matches,
-        draws,
-        brackets,
-        results,
-        live,
-        teamNames,
-        nowIso: new Date().toISOString(),
-      }),
-    [matches, draws, brackets, results, live, teamNames],
+  const { sections, openGroupDay } = useMemo(
+    () => buildFixtures({ matches, slots, draws, brackets, results, live, teamNames, nowIso: new Date().toISOString() }),
+    [matches, slots, draws, brackets, results, live, teamNames],
   );
-  const [openDay, setOpenDay] = useState<string | null>(days[openIndex]?.dayKey ?? null);
+  const [openDay, setOpenDay] = useState<string | null>(openGroupDay);
 
   return (
     <div className="mx-auto max-w-[680px]">
-      {days.map((day) => (
-        <FixtureDay
-          key={day.dayKey}
-          day={day}
-          open={openDay === day.dayKey}
-          onToggle={() => setOpenDay((current) => (current === day.dayKey ? null : day.dayKey))}
+      {sections.map((section) => (
+        <StageSection
+          key={section.key}
+          section={section}
           impact={impact}
+          openDay={openDay}
+          onToggleDay={(key) => setOpenDay((current) => (current === key ? null : key))}
         />
       ))}
     </div>
