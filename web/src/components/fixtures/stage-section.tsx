@@ -16,10 +16,6 @@ interface StageSectionProps {
   onToggleDay: (dayKey: string) => void;
 }
 
-function sectionCount(section: Section): number {
-  return section.layout === "days" ? section.days.reduce((n, d) => n + d.rows.length, 0) : section.rows.length;
-}
-
 export function StageSection({ section, impact, open, onToggle, openDay, onToggleDay }: StageSectionProps) {
   const [everOpened, setEverOpened] = useState(false);
   if (open && !everOpened) setEverOpened(true);
@@ -27,7 +23,6 @@ export function StageSection({ section, impact, open, onToggle, openDay, onToggl
     <section className="mt-8 first:mt-0">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-2.5 py-2 text-left">
         <h2 className="font-display text-[15px] font-bold tracking-[-0.01em] text-cream">{section.label}</h2>
-        <span className="font-mono text-[11px] tabular-nums text-cream-faint">{sectionCount(section)}</span>
         <span className="ml-1 h-px flex-1 bg-hairline" />
         <ChevronDown
           size={16}
