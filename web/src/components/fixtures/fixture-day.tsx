@@ -17,18 +17,18 @@ export function FixtureDay({ day, open, onToggle, impact }: FixtureDayProps) {
   const [everOpened, setEverOpened] = useState(false);
   if (open && !everOpened) setEverOpened(true);
   return (
-    <section className="border-b border-hairline last:border-b-0">
+    <section className="border-b border-hairline/40 last:border-b-0">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-baseline gap-2.5 py-3 text-left"
+        className="flex w-full items-baseline gap-2 py-2.5 text-left"
       >
-        <span className="font-display text-[14px] font-semibold tracking-[-0.01em] text-cream">{day.label}</span>
-        {day.isToday && <span className="font-display text-[11.5px] font-semibold text-gold">Today</span>}
-        <span className="ml-auto font-mono text-[11px] tabular-nums text-cream-faint">{day.rows.length}</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.07em] text-cream-dim">{day.label}</span>
+        {day.isToday && <span className="font-mono text-[10.5px] uppercase tracking-[0.07em] text-gold">Today</span>}
+        <span className="ml-auto font-mono text-[10.5px] tabular-nums text-cream-faint">{day.rows.length}</span>
         <ChevronDown
-          size={15}
+          size={13}
           className="shrink-0 text-cream-faint transition-transform duration-300 motion-reduce:transition-none"
           style={{ transform: open ? "rotate(180deg)" : "none" }}
         />

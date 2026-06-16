@@ -100,7 +100,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
         <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
           <div className="overflow-hidden" inert={!open}>
             {everOpened && (
-              <div className="mt-0.5 border-t border-hairline/60 pb-5 pl-0.5 pr-1 pt-3">
+              <div className="-mx-3 mt-1 rounded-md bg-night-2/60 px-3 pb-5 pt-3.5">
                 {tbc && row.slot ? (
                   <SlotDetail row={row} />
                 ) : live ? (
