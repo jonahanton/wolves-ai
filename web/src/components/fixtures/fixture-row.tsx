@@ -30,6 +30,8 @@ function TeamCode({ code, colour, live, tbc }: { code: string; colour: string; l
 
 export function FixtureRow({ row, impact }: FixtureRowProps) {
   const [open, setOpen] = useState(false);
+  const [everOpened, setEverOpened] = useState(false);
+  if (open && !everOpened) setEverOpened(true);
   const tbc = row.slot !== null;
   const live = row.status === "live";
   const completed = row.status === "completed";
@@ -48,7 +50,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
       >
         <TeamCode code={tbc ? (row.slot?.home.label ?? "TBC") : row.homeCode} colour={row.colours.home} live={live} tbc={tbc} />
         <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
-          {live && row.minute !== null ? `${row.minute}'` : (score ?? formatKickoffTimeEastern(row.kickoff))}
+          {live ? (score ?? "-") : (score ?? formatKickoffTimeEastern(row.kickoff))}
         </span>
         <span className="flex items-center gap-3">
           <TeamCode code={tbc ? (row.slot?.away.label ?? "TBC") : row.awayCode} colour={row.colours.away} live={live} tbc={tbc} />
@@ -56,8 +58,13 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
             {!completed && row.bar && <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />}
           </span>
         </span>
-        <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
-          {completed ? null : tbc ? (
+        <span className="flex items-center justify-end gap-1.5 font-mono text-[11px] tabular-nums text-cream-faint">
+          {live ? (
+            <span className="flex items-center gap-1.5">
+              <span className="size-1.5 rounded-full bg-red motion-safe:animate-pulse" aria-hidden />
+              <span className="shimmer-red font-semibold tracking-[0.04em]">LIVE{row.minute !== null ? ` ${row.minute}'` : ""}</span>
+            </span>
+          ) : completed ? null : tbc ? (
             <span className="font-display text-[12px] font-semibold uppercase tracking-[0.06em] text-cream-dim">TBC</span>
           ) : row.bar ? (
             <>
@@ -72,8 +79,8 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
       {expandable && (
         <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
           <div className="overflow-hidden" inert={!open}>
-            {open && (
-              <div className="pb-5 pl-[5.5rem] pr-1 pt-1">
+            {everOpened && (
+              <div className="pb-5 pl-0.5 pr-1 pt-1">
                 {tbc && row.slot ? (
                   <SlotDetail row={row} />
                 ) : live ? (
@@ -118,7 +125,6 @@ function SlotDetail({ row }: { row: Row }) {
   if (!slot) return null;
   return (
     <div className="space-y-2">
-      <p className="font-mono text-[11px] text-cream-faint">most likely to fill each side</p>
       <CandidateList label={slot.home.label} candidates={slot.home.candidates} />
       <CandidateList label={slot.away.label} candidates={slot.away.candidates} />
     </div>

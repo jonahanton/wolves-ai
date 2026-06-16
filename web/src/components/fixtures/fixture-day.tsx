@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { FixtureRow } from "@/components/fixtures/fixture-row";
 import type { DayGroup } from "@/lib/fixtures";
 import type { Impact } from "@/lib/impact";
@@ -13,6 +14,8 @@ interface FixtureDayProps {
 }
 
 export function FixtureDay({ day, open, onToggle, impact }: FixtureDayProps) {
+  const [everOpened, setEverOpened] = useState(false);
+  if (open && !everOpened) setEverOpened(true);
   return (
     <section className="border-b border-hairline last:border-b-0">
       <button
@@ -35,7 +38,7 @@ export function FixtureDay({ day, open, onToggle, impact }: FixtureDayProps) {
         style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden" inert={!open}>
-          {open && (
+          {everOpened && (
             <ul className="pb-2">
               {day.rows.map((row) => (
                 <FixtureRow key={row.match} row={row} impact={impact} />

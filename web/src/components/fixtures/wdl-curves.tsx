@@ -75,6 +75,7 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw }: WdlC
   const x = useMemo(() => scaleLinear().domain([0, 1]).range([PAD_X, Math.max(PAD_X, width - PAD_X)]), [width]);
   const y = useMemo(() => scaleLinear().domain([0, peak * Y_HEADROOM]).range([HEIGHT, TOP]), [peak]);
   const ticks = useMemo(() => x.ticks(TICKS), [x]);
+  const labels = useMemo(() => layoutLabels(lanes, x, width), [lanes, x, width]);
 
   return (
     <div ref={ref} className="relative">
@@ -104,16 +105,18 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw }: WdlC
         ))}
         {lanes.map((lane) => {
           const mx = x(lane.mean);
-          const anchor = mx < 30 ? "start" : mx > width - 30 ? "end" : "middle";
-          return (
-            <g key={lane.id}>
-              <line x1={mx} x2={mx} y1={TOP - 4} y2={HEIGHT} stroke={lane.colour} strokeWidth={1} strokeDasharray="2 3" strokeOpacity={0.7} />
-              <text x={mx} y={TOP - 9} textAnchor={anchor} fill={lane.colour} fontFamily="var(--font-display)" fontSize={13} fontWeight={600}>
-                {lane.label} {formatPctBare(lane.mean)}%
-              </text>
-            </g>
-          );
+          return <line key={lane.id} x1={mx} x2={mx} y1={TOP - 4} y2={HEIGHT} stroke={lane.colour} strokeWidth={1} strokeDasharray="2 3" strokeOpacity={0.7} />;
         })}
+        {labels.map((l) => (
+          <g key={l.id}>
+            {Math.abs(l.x - l.markerX) > 1 && (
+              <line x1={l.markerX} x2={l.x} y1={TOP - 6} y2={TOP - 9} stroke={l.colour} strokeWidth={1} strokeOpacity={0.5} />
+            )}
+            <text x={l.x} y={TOP - 11} textAnchor={l.anchor} fill={l.colour} fontFamily="var(--font-display)" fontSize={12.5} fontWeight={600}>
+              {l.text}
+            </text>
+          </g>
+        ))}
         {lanes.map((lane) => (
           <MorphPath
             key={lane.id}
@@ -162,4 +165,42 @@ function barMean(bars: Bar[]): number {
   let m = 0;
   for (const b of bars) m += ((b.x0 + b.x1) / 2) * b.y * (b.x1 - b.x0);
   return m;
+}
+
+interface LabelLayout {
+  id: string;
+  text: string;
+  colour: string;
+  markerX: number;
+  x: number;
+  anchor: "start" | "middle" | "end";
+}
+
+const CHAR_PX = 6.6;
+const LABEL_GAP = 8;
+
+// Place each peak label at its mean, then nudge colliding labels rightward so they
+// never overlap; a leader line keeps each label tied to its marker once nudged.
+function layoutLabels(lanes: Lane[], x: (v: number) => number, width: number): LabelLayout[] {
+  const items = lanes
+    .map((lane) => {
+      const text = `${lane.label} ${formatPctBare(lane.mean)}%`;
+      return { id: lane.id, text, colour: lane.colour, markerX: x(lane.mean), halfWidth: (text.length * CHAR_PX) / 2 };
+    })
+    .sort((a, b) => a.markerX - b.markerX);
+
+  let cursor = 0;
+  const placed = items.map((it) => {
+    const centre = Math.max(cursor + it.halfWidth, it.markerX);
+    cursor = centre + it.halfWidth + LABEL_GAP;
+    return { ...it, centre };
+  });
+  const overflow = placed.length > 0 ? Math.max(0, placed[placed.length - 1].centre + placed[placed.length - 1].halfWidth - width) : 0;
+
+  return placed.map((it) => {
+    const centre = it.centre - overflow;
+    const anchor: LabelLayout["anchor"] = centre - it.halfWidth < 0 ? "start" : centre + it.halfWidth > width ? "end" : "middle";
+    const xPos = anchor === "start" ? Math.max(0, centre - it.halfWidth) : anchor === "end" ? Math.min(width, centre + it.halfWidth) : centre;
+    return { id: it.id, text: it.text, colour: it.colour, markerX: it.markerX, x: xPos, anchor };
+  });
 }

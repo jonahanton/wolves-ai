@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { FixtureDay } from "@/components/fixtures/fixture-day";
 import { FixtureRow } from "@/components/fixtures/fixture-row";
 import type { FixtureRow as Row, StageSection as Section } from "@/lib/fixtures";
@@ -20,6 +21,8 @@ function sectionCount(section: Section): number {
 }
 
 export function StageSection({ section, impact, open, onToggle, openDay, onToggleDay }: StageSectionProps) {
+  const [everOpened, setEverOpened] = useState(false);
+  if (open && !everOpened) setEverOpened(true);
   return (
     <section className="mt-3.5 first:mt-0">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-baseline gap-2.5 border-b border-hairline py-2.5 text-left">
@@ -33,7 +36,7 @@ export function StageSection({ section, impact, open, onToggle, openDay, onToggl
       </button>
       <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
         <div className="overflow-hidden" inert={!open}>
-          {open &&
+          {everOpened &&
             (section.layout === "days" ? (
               <div className="pt-1">
                 {section.days.map((day) => (
