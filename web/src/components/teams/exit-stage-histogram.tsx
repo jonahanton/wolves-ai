@@ -196,7 +196,7 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
               Math.abs(impact.exit[hover.bar.key].fromResultsPp + impact.exit[hover.bar.key].fromIngamePp) >=
                 impact.exit[hover.bar.key].displayFloorPp && (
                 <div className="mt-1 tabular-nums text-cream-faint">
-                  Running estimate {pct(impact.exit[hover.bar.key].estimated)}
+                  Now an estimated {pct(impact.exit[hover.bar.key].estimated)}
                 </div>
               )}
           </div>

@@ -46,12 +46,14 @@ export function ChampionStat({ row, impact }: ChampionStatProps) {
       </div>
       {showMovement && (
         <div className="mt-1 font-display text-[12.5px] font-medium text-cream-faint">
-          Running estimate{" "}
+          Now an estimated{" "}
           <span className="font-mono tabular-nums" style={{ color: colour }}>
             {(impact.estimated * 100).toFixed(1)}%
-          </span>
-          , {movement > 0 ? "+" : ""}
-          {movement.toFixed(1)}pp since the full forecast
+          </span>{" "}
+          <span className="font-mono tabular-nums" style={{ color: colour }}>
+            ({movement > 0 ? "up" : "down"} {Math.abs(movement).toFixed(1)}pp)
+          </span>{" "}
+          after results since the last full forecast
         </div>
       )}
     </div>

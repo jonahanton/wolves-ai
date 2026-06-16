@@ -8,7 +8,12 @@ import { area as d3Area, curveMonotoneX, line as d3Line } from "d3-shape";
 import "d3-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
-import { type ChartImpactPoint, type ChartPoint, type ForecastChartData, type TeamLine } from "@/lib/forecast-series";
+import {
+  type ChartImpactPoint,
+  type ChartPoint,
+  type ForecastChartData,
+  type TeamLine,
+} from "@/lib/forecast-series";
 import { teamCode } from "@/lib/team-colours";
 
 interface ForecastChartProps {
@@ -17,7 +22,7 @@ interface ForecastChartProps {
   othersCount: number;
   onSelectTeam: (teamId: string) => void;
   ariaLabel: string;
-  impactPoint?: ChartImpactPoint | null;
+  impacts?: Record<string, ChartImpactPoint> | null;
 }
 
 interface HoverState {
@@ -28,12 +33,13 @@ interface HoverState {
 
 const DURATION = 400;
 const DRAW_MS = 560;
-const MARGIN = { top: 22, right: 150, bottom: 36, left: 14 };
-const MOBILE_MARGIN = { top: 18, right: 110, bottom: 34, left: 10 };
+const MARGIN = { top: 22, right: 78, bottom: 36, left: 14 };
+const MOBILE_MARGIN = { top: 18, right: 64, bottom: 34, left: 10 };
 const MOBILE_BREAK = 560;
 const DAY_MS = 86_400_000;
-const ESTIMATE_OFFSET_PX = 24;
+const RESULT_LANE_START_PX = 5;
 const RESULT_LANE_PX = 16;
+const ESTIMATE_LANE_PX = 26;
 
 const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.42)";
 const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
@@ -45,8 +51,33 @@ function formatValue(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+interface ImpactLegs {
+  net: number;
+  resultsPp: number;
+  ingamePp: number;
+}
+
+function impactLegs(
+  impacts: Record<string, ChartImpactPoint> | null,
+  teamId: string,
+): ImpactLegs | null {
+  const impact = impacts?.[teamId];
+  if (!impact) return null;
+  const net = impact.fromResultsPp + impact.fromIngamePp;
+  if (Math.abs(net) < impact.displayFloorPp) return null;
+  return {
+    net,
+    resultsPp: impact.fromResultsPp,
+    ingamePp: impact.fromIngamePp,
+  };
+}
+
 function formatTick(t: number): string {
-  return new Date(t).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", timeZone: "America/New_York" });
+  return new Date(t).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/New_York",
+  });
 }
 
 function formatStamp(t: number): string {
@@ -65,7 +96,7 @@ export function ForecastChart({
   othersCount,
   onSelectTeam,
   ariaLabel,
-  impactPoint: rawImpactPoint = null,
+  impacts = null,
 }: ForecastChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -75,13 +106,22 @@ export function ForecastChart({
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<HoverState | null>(null);
 
-  const allLines = useMemo(() => data.teams.filter((team) => team.points.length > 0), [data.teams]);
+  const allLines = useMemo(
+    () => data.teams.filter((team) => team.points.length > 0),
+    [data.teams],
+  );
   const topLines = useMemo(
-    () => allLines.filter((team) => team.tier === "top" || team.teamId === selectedTeamId),
+    () =>
+      allLines.filter(
+        (team) => team.tier === "top" || team.teamId === selectedTeamId,
+      ),
     [allLines, selectedTeamId],
   );
   const tailLines = useMemo(
-    () => allLines.filter((team) => team.tier === "rest" && team.teamId !== selectedTeamId),
+    () =>
+      allLines.filter(
+        (team) => team.tier === "rest" && team.teamId !== selectedTeamId,
+      ),
     [allLines, selectedTeamId],
   );
   const lines = topLines;
@@ -93,21 +133,40 @@ export function ForecastChart({
       for (const p of team.points) {
         const cur = byTime.get(p.t);
         if (!cur) byTime.set(p.t, { lo: p.value, hi: p.value });
-        else byTime.set(p.t, { lo: Math.min(cur.lo, p.value), hi: Math.max(cur.hi, p.value) });
+        else
+          byTime.set(p.t, {
+            lo: Math.min(cur.lo, p.value),
+            hi: Math.max(cur.hi, p.value),
+          });
       }
     }
-    return [...byTime.entries()].map(([t, v]) => ({ t, ...v })).sort((a, b) => a.t - b.t);
+    return [...byTime.entries()]
+      .map(([t, v]) => ({ t, ...v }))
+      .sort((a, b) => a.t - b.t);
   }, [tailLines]);
 
-  const margin = width < MOBILE_BREAK ? MOBILE_MARGIN : MARGIN;
   const empty = lines.length === 0;
   const height = empty ? 180 : width < MOBILE_BREAK ? 300 : 392;
+  const mobile = width < MOBILE_BREAK;
 
-  const impactPoint = data.teams.some((team) => team.teamId === selectedTeamId) ? rawImpactPoint : null;
+  const hasResults = (data.results?.length ?? 0) > 0;
+  const resultSpanEnd = useMemo(
+    () => (hasResults ? Math.max(...data.results.map((r) => r.t)) : 0),
+    [data.results, hasResults],
+  );
+  const selectedTeam = lines.find((team) => team.teamId === selectedTeamId) ?? null;
+  const selectedLegs = useMemo(
+    () => (selectedTeam ? impactLegs(impacts, selectedTeamId) : null),
+    [selectedTeam, impacts, selectedTeamId],
+  );
+  const deltaGutter = selectedLegs ? (mobile ? 58 : 74) : 0;
+  const margin = useMemo(() => {
+    const m = mobile ? MOBILE_MARGIN : MARGIN;
+    return { ...m, right: m.right + deltaGutter };
+  }, [mobile, deltaGutter]);
 
   const { x, y, runTimes, lastRunTime } = useMemo(() => {
     const linePoints = lines.flatMap((team) => team.points);
-    const yPoints = impactPoint ? [...linePoints, impactPoint] : linePoints;
     const times = linePoints.map((p) => p.t);
     const lo = times.length ? Math.min(...times) : 0;
     const hi = times.length ? Math.max(...times) : DAY_MS;
@@ -115,24 +174,28 @@ export function ForecastChart({
     const xScale = scaleTime()
       .domain([lo - pad, hi + pad])
       .range([margin.left, Math.max(margin.left + 1, width - margin.right)]);
-    const maxValue = Math.max(0.04, ...yPoints.map((p) => p.value));
+    const maxValue = Math.max(0.04, ...linePoints.map((p) => p.value));
     const yScale = scaleLinear()
       .domain([0, maxValue * 1.06])
       .range([height - margin.bottom, margin.top]);
     const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
-    return { x: xScale, y: yScale, runTimes: uniqueTimes, lastRunTime: times.length ? hi : null };
-  }, [lines, impactPoint, width, margin, height]);
+    return {
+      x: xScale,
+      y: yScale,
+      runTimes: uniqueTimes,
+      lastRunTime: times.length ? hi : null,
+    };
+  }, [lines, width, margin, height]);
 
   const liveX = useMemo(() => {
-    return (t: number, kind: "result" | "estimate" = "result") => {
-      if (lastRunTime === null || t <= lastRunTime || !impactPoint) return x(t);
+    return (t: number) => {
+      if (lastRunTime === null || t <= lastRunTime || !hasResults) return x(t);
       const lastX = x(lastRunTime);
-      if (kind === "estimate") return lastX + ESTIMATE_OFFSET_PX;
-      const span = Math.max(1, impactPoint.t - lastRunTime);
+      const span = Math.max(1, resultSpanEnd - lastRunTime);
       const progress = Math.min(1, Math.max(0, (t - lastRunTime) / span));
-      return lastX + 5 + progress * RESULT_LANE_PX;
+      return lastX + RESULT_LANE_START_PX + progress * RESULT_LANE_PX;
     };
-  }, [x, lastRunTime, impactPoint]);
+  }, [x, lastRunTime, hasResults, resultSpanEnd]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -160,11 +223,13 @@ export function ForecastChart({
   }, []);
 
   useEffect(() => {
-    if (!svgRef.current || !scaffoldedRef.current || width === 0 || empty) return;
+    if (!svgRef.current || !scaffoldedRef.current || width === 0 || empty)
+      return;
     const svg = select(svgRef.current);
     const baseY = height - margin.bottom;
     const reduce =
-      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const playIntro = !introRef.current && !reduce;
     if (!introRef.current) {
       introRef.current = true;
@@ -267,8 +332,22 @@ export function ForecastChart({
                 .attr("opacity", 1),
             ),
         (update) =>
-          update.call((u) => u.transition().duration(DURATION).ease(easeCubicInOut).attr("d", (d) => areaGen(d))),
-        (exit) => exit.call((x2) => x2.transition().duration(DURATION).ease(easeCubicInOut).attr("opacity", 0).remove()),
+          update.call((u) =>
+            u
+              .transition()
+              .duration(DURATION)
+              .ease(easeCubicInOut)
+              .attr("d", (d) => areaGen(d)),
+          ),
+        (exit) =>
+          exit.call((x2) =>
+            x2
+              .transition()
+              .duration(DURATION)
+              .ease(easeCubicInOut)
+              .attr("opacity", 0)
+              .remove(),
+          ),
       );
 
     const lineGen = d3Line<ChartPoint>()
@@ -282,10 +361,18 @@ export function ForecastChart({
       .selectAll<SVGPathElement, TeamLine>("path")
       .data(focusLines, (d) => d.teamId)
       .join(
-        (enter) => enter.append("path").attr("fill", "none").attr("d", (d) => lineGen(d.points)),
+        (enter) =>
+          enter
+            .append("path")
+            .attr("fill", "none")
+            .attr("d", (d) => lineGen(d.points)),
         (update) =>
           update.call((u) =>
-            u.transition().duration(DURATION).ease(easeCubicInOut).attr("d", (d) => lineGen(d.points)),
+            u
+              .transition()
+              .duration(DURATION)
+              .ease(easeCubicInOut)
+              .attr("d", (d) => lineGen(d.points)),
           ),
         (exit) => exit.remove(),
       )
@@ -295,7 +382,11 @@ export function ForecastChart({
       .attr("stroke-width", (d) => (d.teamId === selectedTeamId ? 3.4 : 1.8))
       .attr("opacity", (d) => (d.teamId === selectedTeamId ? 1 : 0.85))
       .style("cursor", "pointer")
-      .style("filter", (d) => (d.teamId === selectedTeamId ? `drop-shadow(0 0 6px ${d.colour})` : "none"))
+      .style("filter", (d) =>
+        d.teamId === selectedTeamId
+          ? `drop-shadow(0 0 6px ${d.colour})`
+          : "none",
+      )
       .on("click", (_e, d) => onSelectTeam(d.teamId));
 
     if (playIntro) {
@@ -327,7 +418,15 @@ export function ForecastChart({
     const ends: End[] = focusLines.flatMap((team) => {
       const last = team.points.at(-1);
       if (!last) return [];
-      return [{ teamId: team.teamId, cx: x(last.t), cy: y(last.value), colour: team.colour, selected: team.teamId === selectedTeamId }];
+      return [
+        {
+          teamId: team.teamId,
+          cx: x(last.t),
+          cy: y(last.value),
+          colour: team.colour,
+          selected: team.teamId === selectedTeamId,
+        },
+      ];
     });
     svg
       .select<SVGGElement>(".ends")
@@ -342,7 +441,12 @@ export function ForecastChart({
             .attr("opacity", playIntro ? 0 : 1),
         (update) =>
           update.call((u) =>
-            u.transition().duration(DURATION).ease(easeCubicInOut).attr("cx", (d) => d.cx).attr("cy", (d) => d.cy),
+            u
+              .transition()
+              .duration(DURATION)
+              .ease(easeCubicInOut)
+              .attr("cx", (d) => d.cx)
+              .attr("cy", (d) => d.cy),
           ),
         (exit) => exit.remove(),
       )
@@ -350,58 +454,70 @@ export function ForecastChart({
       .attr("fill", (d) => d.colour)
       .call((sel) =>
         playIntro
-          ? sel.transition().delay(DRAW_MS * 0.6).duration(200).ease(easeCubicOut).attr("opacity", 1)
+          ? sel
+              .transition()
+              .delay(DRAW_MS * 0.6)
+              .duration(200)
+              .ease(easeCubicOut)
+              .attr("opacity", 1)
           : sel.attr("opacity", 1),
       );
 
-    const estimate = impactPoint?.teamId === selectedTeamId ? impactPoint : null;
     const estimateLayer = svg.select<SVGGElement>(".live-estimate");
-    const selected = lines.find((team) => team.teamId === selectedTeamId);
-    const delta = estimate ? estimate.fromResultsPp + estimate.fromIngamePp : 0;
-    const estimateRows =
-      estimate && selected && Math.abs(delta) >= estimate.displayFloorPp
-        ? [{ ...estimate, colour: selected.colour, delta }]
-        : [];
-    const estimateMark = estimateLayer
-      .selectAll<SVGGElement, (typeof estimateRows)[number]>("g")
-      .data(estimateRows, (d) => d.teamId);
-    const entered = estimateMark.enter().append("g").attr("opacity", 0);
-    entered.append("circle");
-    entered.append("text");
-    entered.append("title");
-    const merged = entered.merge(estimateMark);
-    merged
-      .transition()
-      .duration(DURATION)
-      .ease(easeCubicInOut)
-      .attr("opacity", (d) => (Math.abs(d.delta) >= d.displayFloorPp ? 1 : 0.72))
-      .attr("transform", (d) => `translate(${liveX(d.t, "estimate")},${y(d.value)})`);
-    merged
-      .select("circle")
-      .attr("r", 5.2)
-      .attr("fill", "oklch(0.17 0.025 248)")
-      .attr("stroke", (d) => d.colour)
-      .attr("stroke-width", 2);
-    merged
-      .select("text")
-      .attr("x", 8)
-      .attr("y", -7)
-      .attr("font-family", "var(--font-mono)")
-      .attr("font-size", 11)
-      .attr("font-weight", 700)
-      .attr("fill", (d) => d.colour)
-      .text((d) => (Math.abs(d.delta) >= d.displayFloorPp ? `${d.delta > 0 ? "+" : ""}${d.delta.toFixed(1)}` : ""));
-    merged
-      .select("title")
-      .text(
-        (d) =>
-          `Running estimate ${(d.value * 100).toFixed(1)}%. Results ${d.fromResultsPp.toFixed(1)}pp, in-game ${d.fromIngamePp.toFixed(1)}pp.`,
-      );
-    estimateMark.exit().transition().duration(DURATION).attr("opacity", 0).remove();
+    estimateLayer.selectAll("*").remove();
+    const selectedLine = lines.find((team) => team.teamId === selectedTeamId);
+    const selectedLast = selectedLine?.points.at(-1);
+    if (selectedLegs && selectedLine && selectedLast && lastRunTime !== null) {
+      const colour = selectedLine.colour;
+      const ax = x(lastRunTime) + ESTIMATE_LANE_PX;
+      const y0 = y(selectedLast.value);
+      const y1 = y(selectedLast.value + selectedLegs.net / 100);
+      const up = selectedLegs.net > 0;
+      const head = 4.2;
+      const tip = up ? y1 + head : y1 - head;
+      const g = estimateLayer.append("g").attr("opacity", playIntro ? 0 : 1);
+      g.append("line")
+        .attr("x1", x(selectedLast.t))
+        .attr("y1", y0)
+        .attr("x2", ax)
+        .attr("y2", y0)
+        .attr("stroke", colour)
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "1 3")
+        .attr("opacity", 0.45);
+      g.append("line")
+        .attr("x1", ax)
+        .attr("y1", y0)
+        .attr("x2", ax)
+        .attr("y2", tip)
+        .attr("stroke", colour)
+        .attr("stroke-width", 2)
+        .attr("stroke-linecap", "round");
+      g.append("path")
+        .attr("d", `M${ax - head},${tip} L${ax + head},${tip} L${ax},${y1} Z`)
+        .attr("fill", colour);
+      g.append("text")
+        .attr("x", ax + 8)
+        .attr("y", (y0 + y1) / 2)
+        .attr("dominant-baseline", "middle")
+        .attr("font-family", "var(--font-mono)")
+        .attr("font-size", 11.5)
+        .attr("font-weight", 700)
+        .attr("fill", colour)
+        .text(`${up ? "+" : ""}${selectedLegs.net.toFixed(1)}pp`);
+      if (playIntro)
+        g.transition()
+          .delay(DRAW_MS * 0.6)
+          .duration(220)
+          .ease(easeCubicOut)
+          .attr("opacity", 1);
+    }
   }, [
     lines,
     envelope,
     selectedTeamId,
+    selectedLegs,
+    lastRunTime,
     onSelectTeam,
     x,
     y,
@@ -412,7 +528,6 @@ export function ForecastChart({
     empty,
     runTimes,
     data.results,
-    impactPoint,
   ]);
 
   useEffect(() => {
@@ -444,13 +559,29 @@ export function ForecastChart({
     if (width === 0 || empty) return [];
     const byValue = new Map<
       string,
-      { value: string; anchorY: number; anchorX: number; teams: { teamId: string; code: string; colour: string; emphasised: boolean; raw: number }[] }
+      {
+        value: string;
+        anchorY: number;
+        anchorX: number;
+        teams: {
+          teamId: string;
+          code: string;
+          colour: string;
+          emphasised: boolean;
+          raw: number;
+        }[];
+      }
     >();
     for (const team of topLines) {
       const last = team.points.at(-1);
       if (!last) continue;
       const value = formatValue(last.value);
-      const group = byValue.get(value) ?? { value, anchorY: y(last.value), anchorX: x(last.t), teams: [] };
+      const group = byValue.get(value) ?? {
+        value,
+        anchorY: y(last.value),
+        anchorX: x(last.t),
+        teams: [],
+      };
       group.teams.push({
         teamId: team.teamId,
         code: teamCode(team.name),
@@ -460,18 +591,34 @@ export function ForecastChart({
       });
       byValue.set(value, group);
     }
-    for (const group of byValue.values()) group.teams.sort((a, b) => b.raw - a.raw);
-    const teamGroups = [...byValue.values()].map((g) => ({ ...g, kind: "team" as const }));
+    for (const group of byValue.values())
+      group.teams.sort((a, b) => b.raw - a.raw);
+    const teamGroups = [...byValue.values()].map((g) => ({
+      ...g,
+      kind: "team" as const,
+    }));
 
     const othersGroup =
       envelope.length > 0
-        ? [{ kind: "others" as const, anchorY: y(envelope.at(-1)!.hi), anchorX: x(envelope.at(-1)!.t), value: "", teams: [] }]
+        ? [
+            {
+              kind: "others" as const,
+              anchorY: y(envelope.at(-1)!.hi),
+              anchorX: x(envelope.at(-1)!.t),
+              value: "",
+              teams: [],
+            },
+          ]
         : [];
 
-    const rows = [...teamGroups, ...othersGroup].sort((a, b) => a.anchorY - b.anchorY);
+    const rows = [...teamGroups, ...othersGroup].sort(
+      (a, b) => a.anchorY - b.anchorY,
+    );
     const teamGap = width < MOBILE_BREAK ? 36 : 42;
     const othersGap = width < MOBILE_BREAK ? 22 : 26;
-    const gapBefore = (i: number) => (rows[i].kind === "others" ? othersGap : teamGap);
+    const rowGap = (i: number) =>
+      rows[i].kind === "others" ? othersGap : teamGap;
+    const gapBefore = (i: number) => Math.max(rowGap(i - 1), rowGap(i));
 
     const top = margin.top;
     const bottom = height - margin.bottom - 8;
@@ -480,7 +627,8 @@ export function ForecastChart({
       if (rows[i].anchorY < minY) rows[i].anchorY = minY;
     }
     for (let i = rows.length - 1; i >= 0; i--) {
-      const maxY = i === rows.length - 1 ? bottom : rows[i + 1].anchorY - gapBefore(i + 1);
+      const maxY =
+        i === rows.length - 1 ? bottom : rows[i + 1].anchorY - gapBefore(i + 1);
       if (rows[i].anchorY > maxY) rows[i].anchorY = maxY;
     }
     if (rows.length) rows[0].anchorY = Math.max(rows[0].anchorY, top);
@@ -492,7 +640,11 @@ export function ForecastChart({
     const rect = svgRef.current.getBoundingClientRect();
     const t = x.invert(event.clientX - rect.left).getTime();
     const index = bisector((time: number) => time).center(runTimes, t);
-    setHover({ clientX: event.clientX, clientY: event.clientY, t: runTimes[index] });
+    setHover({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      t: runTimes[index],
+    });
   }
 
   const hovered = hover
@@ -501,7 +653,14 @@ export function ForecastChart({
         rows: topLines.flatMap((team) => {
           const point = team.points.find((p) => p.t === hover.t);
           if (!point) return [];
-          return [{ teamId: team.teamId, code: teamCode(team.name), colour: team.colour, value: point.value }];
+          return [
+            {
+              teamId: team.teamId,
+              code: teamCode(team.name),
+              colour: team.colour,
+              value: point.value,
+            },
+          ];
         }),
       }
     : null;
@@ -533,7 +692,11 @@ export function ForecastChart({
             <span
               key="others"
               className="pointer-events-none absolute -translate-y-1/2 font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint transition-opacity duration-300"
-              style={{ left: group.anchorX + 13, top: group.anchorY, opacity: intro ? 1 : 0 }}
+              style={{
+                left: group.anchorX + 13 + deltaGutter,
+                top: group.anchorY,
+                opacity: intro ? 1 : 0,
+              }}
             >
               +{othersCount} others
             </span>
@@ -544,7 +707,14 @@ export function ForecastChart({
           <div
             key={group.value + group.teams[0].teamId}
             className="absolute flex -translate-y-1/2 items-stretch gap-x-2.5 text-left leading-none transition-opacity duration-300"
-            style={{ left: group.anchorX + 13, top: group.anchorY, opacity: intro ? (emphasised ? 1 : 0.7) : 0 }}
+            style={{
+              left: group.anchorX + 13 + deltaGutter,
+              top: group.anchorY,
+              opacity: intro ? (emphasised ? 1 : 0.7) : 0,
+              zIndex: emphasised ? 3 : 1,
+              textShadow:
+                "0 0 5px var(--color-night), 0 0 5px var(--color-night), 0 0 9px var(--color-night)",
+            }}
           >
             {group.teams.map((team) => (
               <button
@@ -554,7 +724,9 @@ export function ForecastChart({
                 className="flex flex-col items-start gap-y-0 transition-opacity hover:opacity-100"
                 style={{ color: team.colour }}
               >
-                <span className="font-display text-[14px] font-bold leading-none tracking-[0.01em]">{team.code}</span>
+                <span className="font-display text-[14px] font-bold leading-none tracking-[0.01em]">
+                  {team.code}
+                </span>
                 <span className="font-display text-[clamp(20px,2.2vw,28px)] font-extrabold tabular-nums tracking-[-0.02em]">
                   {group.value}
                 </span>
@@ -563,6 +735,26 @@ export function ForecastChart({
           </div>
         );
       })}
+      {selectedLegs && selectedTeam && lastRunTime !== null && (
+        <div
+          className="pointer-events-none absolute z-10 whitespace-nowrap text-right transition-opacity duration-300"
+          style={{
+            right: Math.max(8, width - (x(lastRunTime) + ESTIMATE_LANE_PX - 6)),
+            top: 2,
+            opacity: intro ? 1 : 0,
+          }}
+        >
+          <span
+            className="block font-display text-[11px] font-bold leading-tight tracking-[0.01em]"
+            style={{ color: selectedTeam.colour }}
+          >
+            {teamCode(selectedTeam.name)} est. shift
+          </span>
+          <span className="block font-display text-[10px] font-medium leading-tight tracking-[0.01em] text-cream-faint">
+            from latest results
+          </span>
+        </div>
+      )}
       {empty && width > 0 && (
         <p className="absolute inset-0 flex items-center font-display text-[14px] text-cream-faint">
           no published forecasts yet
@@ -570,14 +762,25 @@ export function ForecastChart({
       )}
       {hover && hovered && hovered.rows.length > 0 && (
         <ChartTooltip x={hover.clientX} y={hover.clientY}>
-          <div className="font-display text-[11px] font-semibold text-cream-faint">{hovered.stamp}</div>
+          <div className="font-display text-[11px] font-semibold text-cream-faint">
+            {hovered.stamp}
+          </div>
           <div className="mt-1.5 space-y-0.5">
             {hovered.rows.map((row) => (
-              <div key={row.teamId} className="flex items-baseline justify-between gap-5">
-                <span className="font-display text-[13px] font-bold tracking-[0.01em]" style={{ color: row.colour }}>
+              <div
+                key={row.teamId}
+                className="flex items-baseline justify-between gap-5"
+              >
+                <span
+                  className="font-display text-[13px] font-bold tracking-[0.01em]"
+                  style={{ color: row.colour }}
+                >
                   {row.code}
                 </span>
-                <span className="font-display text-[13px] font-extrabold tabular-nums" style={{ color: row.colour }}>
+                <span
+                  className="font-display text-[13px] font-extrabold tabular-nums"
+                  style={{ color: row.colour }}
+                >
                   {formatValue(row.value)}
                 </span>
               </div>

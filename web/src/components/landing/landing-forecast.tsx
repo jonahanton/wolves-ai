@@ -64,7 +64,7 @@ export function LandingForecast(props: LandingForecastProps) {
 
   const hasDistribution = selectedCell && selectedRow;
   const colour = chartColour(selectedTeamId);
-  const impactPoint = chartImpactPoint(impact, selectedTeamId);
+  const impacts = useMemo(() => chartImpacts(impact), [impact]);
 
   const distribution = hasDistribution ? (
     <EpistemicDistribution
@@ -106,7 +106,7 @@ export function LandingForecast(props: LandingForecastProps) {
                 othersCount={othersCount}
                 onSelectTeam={setSelectedTeamId}
                 ariaLabel="Chance of winning the World Cup over time"
-                impactPoint={impactPoint}
+                impacts={impacts}
               />
             </div>
 
@@ -137,17 +137,19 @@ export function LandingForecast(props: LandingForecastProps) {
   );
 }
 
-function chartImpactPoint(impact: Impact | null, teamId: string): ChartImpactPoint | null {
-  const title = impact?.teams[teamId]?.title;
-  if (!impact || !title) return null;
-  return {
-    teamId,
-    t: Date.parse(impact.generatedAt),
-    value: title.estimated,
-    fromResultsPp: title.fromResultsPp,
-    fromIngamePp: title.fromIngamePp,
-    displayFloorPp: title.displayFloorPp,
-  };
+function chartImpacts(impact: Impact | null): Record<string, ChartImpactPoint> | null {
+  if (!impact) return null;
+  const out: Record<string, ChartImpactPoint> = {};
+  for (const [teamId, team] of Object.entries(impact.teams)) {
+    const title = team.title;
+    out[teamId] = {
+      teamId,
+      fromResultsPp: title.fromResultsPp,
+      fromIngamePp: title.fromIngamePp,
+      displayFloorPp: title.displayFloorPp,
+    };
+  }
+  return out;
 }
 
 function impactResultTicks(impact: Impact | null): FixtureResultView[] {

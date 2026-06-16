@@ -25,8 +25,6 @@ export interface FixtureResultView {
 
 export interface ChartImpactPoint {
   teamId: string;
-  t: number;
-  value: number;
   fromResultsPp: number;
   fromIngamePp: number;
   displayFloorPp: number;
@@ -89,8 +87,4 @@ function resultViews(results: PlayedResultRow[], names: Record<string, string>):
 function teamName(teamId: string | null, names: Record<string, string>): string {
   if (teamId === null) return "TBC";
   return names[teamId] ?? teamId;
-}
-
-export function resultsBetween(results: FixtureResultView[], from: number, to: number): FixtureResultView[] {
-  return results.filter((row) => row.t > from && row.t <= to).sort((a, b) => a.t - b.t);
 }
