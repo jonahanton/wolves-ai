@@ -161,9 +161,7 @@ def _has_fresh_premortem(deps: AgentDeps) -> bool:
 
 
 def _should_continue_after_acceptance(deps: AgentDeps, board: Blackboard) -> tuple[bool, str]:
-    """Whether an accepted submission re-opens for one revision turn; on continue
-    it records the fallback and clears checked_clean so the stale mixture cannot
-    auto-resubmit."""
+    """Re-open an accepted submission once for revision; clears checked_clean so the stale mixture cannot re-submit."""
     settings = deps.settings
     submission_state = deps.submission
     accepted = submission_state.accepted

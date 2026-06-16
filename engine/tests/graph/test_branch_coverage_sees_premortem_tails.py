@@ -1,6 +1,6 @@
 """A pre-mortem tail lives on a critique artifact and carries no ledger source,
-so without the analytical path branch_coverage would silently ignore it (B2).
-It must surface as a serious, unaudited branch so the forecast nudge fires."""
+so without the analytical path branch_coverage would silently ignore it. It must
+surface as a serious, unaudited branch so the forecast nudge fires."""
 
 from __future__ import annotations
 

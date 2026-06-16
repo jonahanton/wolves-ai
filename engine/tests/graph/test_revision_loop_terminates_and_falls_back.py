@@ -1,8 +1,8 @@
 """The post-acceptance revision loop is bounded and self-healing: it re-opens
-at most graph_max_revisions times, clears the auto-submit state when it does so
-(B4), and republishes the prior accepted submission when a revision never
-re-accepts. The published surface is stubbed; the contract under test is the
-loop control, not the simulation."""
+at most graph_max_revisions times, clears the auto-submit state when it does so,
+and republishes the prior accepted submission when a revision never re-accepts.
+The published surface is stubbed; the contract under test is the loop control,
+not the simulation."""
 
 from __future__ import annotations
 
@@ -46,12 +46,14 @@ def test_reopen_once_then_stop_when_budget_spent(deps_with_premortem):
     accepted = build_submission()
     deps.submission.accepted = accepted
     deps.submission.checked_clean = accepted
+    deps.submission.escalation_fired = True
 
     reopen, _ = _should_continue_after_acceptance(deps, board)
     assert reopen is True
     assert deps.submission.revisions_used == 1
     assert deps.submission.accepted is None
     assert deps.submission.checked_clean is None
+    assert deps.submission.escalation_fired is False
     assert deps.submission.last_accepted is accepted
     assert deps.submission.counterfactual is accepted
 

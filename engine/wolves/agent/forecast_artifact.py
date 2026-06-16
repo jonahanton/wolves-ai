@@ -138,10 +138,8 @@ def mixed_outputs(
 def govern_outputs(
     outputs: SimOutputs, anchor: SimOutputs, *, d: float, title_anchor: dict[str, float] | None = None
 ) -> None:
-    """Shrink the published probabilities towards the deterministic anchor in
-    log-odds. title_anchor overrides the title channel only (market or blend
-    extremising); reach chains always govern against the sim anchor, which is
-    the only one carrying them."""
+    """Shrink published probabilities towards the anchor in log-odds. title_anchor
+    overrides the title channel only; reach chains keep the sim anchor."""
     from wolves.agent.consensus import blend_log_odds
 
     if d == 1.0:

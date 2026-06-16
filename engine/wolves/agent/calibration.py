@@ -37,21 +37,15 @@ class MatchScore(BaseModel):
     log_loss: dict[str, float] = Field(default_factory=dict)
     adjustment_pnl: float | None = None
     spread_pnl: float | None = None
-    # The model probabilities scored, kept so the Murphy decomposition can
-    # recompute reliability and resolution over a trailing window; absent on
-    # rows written before title-level scoring existed.
+    # Kept so the Murphy split can recompute over a window; absent on old rows.
     model_probs: dict[str, float] = Field(default_factory=dict)
 
 
 class MurphyDecomposition(BaseModel):
-    """Brier = reliability - resolution + uncertainty over a set of binary
-    forecast cells; lower reliability is better, higher resolution is better.
-    brier is the binned reconstruction of the three terms, which equals the raw
-    mean Brier only when every cell in a bin shares a forecast value."""
-
     reliability: float
     resolution: float
     uncertainty: float
+    # Binned reconstruction; equals raw mean Brier only when a bin's cells share a forecast value.
     brier: float
     n: int
 
@@ -123,13 +117,7 @@ def score_match(forecast: MatchForecast, outcome: str) -> MatchScore:
 
 
 def reliability_resolution(scores: list[MatchScore], *, window: int = 20, bins: int = 10) -> MurphyDecomposition | None:
-    """Murphy three-term split of the model's Brier over a trailing window.
-
-    Each scored match contributes one binary cell per outcome class (the
-    forecast probability and whether that class occurred), binned by forecast
-    probability. Reliability is the calibration gap, resolution the spread of
-    bin base rates around the overall rate. Returns None until enough cells
-    carry stored probabilities to mean anything."""
+    """Murphy three-term split of the model's Brier; None until enough cells carry probabilities."""
     cells: list[tuple[float, float]] = []
     for score in scores[-window:]:
         if not score.model_probs:

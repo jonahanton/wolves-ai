@@ -135,11 +135,7 @@ def scenario_mixture(
 def combine_mixtures(
     mixtures: list[dict[str, float]], weights: list[float] | None = None
 ) -> dict[str, float]:
-    """Weighted log-odds average of independent per-team title dicts, renormalised.
-
-    The dialectical reconciliation step: divergent-anchor builds combine into one
-    view, and the residual cross-anchor disagreement shows up as width. Equal
-    weights when none are given; raises on a length mismatch or empty input."""
+    """Weighted log-odds average of independent per-team title dicts, renormalised; equal weights when none given."""
     if not mixtures:
         raise ValueError("combine_mixtures needs at least one mixture")
     if weights is None:
