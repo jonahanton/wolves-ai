@@ -1,8 +1,6 @@
 import type { Impact, ReachStage } from "@/lib/impact";
 
 export interface ReachShiftRow {
-  teamId: string;
-  code: string;
   stageLabel: string;
   fromPct: number;
   toPct: number;
@@ -22,14 +20,12 @@ const STAGES: (ReachStage | "champion")[] = ["r32", "r16", "qf", "sf", "final", 
 const MIN_PP = 0.1;
 
 // The two biggest in-game stage moves for one team, after-results to estimated.
-export function teamReachShifts(impact: Impact | null, teamId: string, code: string): ReachShiftRow[] {
+export function teamReachShifts(impact: Impact | null, teamId: string): ReachShiftRow[] {
   const team = impact?.teams[teamId];
   if (!team) return [];
   return STAGES.map((stage) => {
     const value = stage === "champion" ? team.title : team.reach[stage];
     return {
-      teamId,
-      code,
       stageLabel: STAGE_LABEL[stage],
       fromPct: value.afterResults * 100,
       toPct: value.estimated * 100,

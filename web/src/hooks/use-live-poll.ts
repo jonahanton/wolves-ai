@@ -1,18 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Impact } from "@/lib/impact";
 import type { LiveState } from "@/lib/live";
 
 const FAST_MS = 30_000;
 const SLOW_MS = 180_000;
 
+interface LivePayload {
+  live: LiveState | null;
+  impact: Impact | null;
+}
+
 function liveCount(state: LiveState | null): number {
   return (state?.fixtures ?? []).filter((f) => f.status === "live").length;
 }
 
-export function useLivePoll(initial: LiveState | null): LiveState | null {
-  const [state, setState] = useState(initial);
-  const pollMs = liveCount(state) > 0 ? FAST_MS : SLOW_MS;
+// Live scorelines and the impact deltas keyed to them are polled together, so the
+// reach strip's minute and its numbers never drift onto different clocks.
+export function useLivePoll(initial: LivePayload): LivePayload {
+  const [payload, setPayload] = useState(initial);
+  const pollMs = liveCount(payload.live) > 0 ? FAST_MS : SLOW_MS;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -20,7 +28,7 @@ export function useLivePoll(initial: LiveState | null): LiveState | null {
       try {
         const response = await fetch("/api/fixtures-live", { cache: "no-store", signal: controller.signal });
         if (!response.ok) return;
-        setState((await response.json()) as LiveState | null);
+        setPayload((await response.json()) as LivePayload);
       } catch {
         return;
       }
@@ -32,5 +40,5 @@ export function useLivePoll(initial: LiveState | null): LiveState | null {
     };
   }, [pollMs]);
 
-  return state;
+  return payload;
 }

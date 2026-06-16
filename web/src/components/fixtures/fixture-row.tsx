@@ -164,7 +164,7 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
   ].filter((s): s is { id: string; code: string } => s.id !== null);
   const groups =
     impact?.liveMode === "in_match_distribution"
-      ? sides.map((s) => ({ ...s, shifts: teamReachShifts(impact, s.id, s.code) })).filter((g) => g.shifts.length > 0)
+      ? sides.map((s) => ({ ...s, shifts: teamReachShifts(impact, s.id) })).filter((g) => g.shifts.length > 0)
       : [];
 
   if (groups.length === 0) {

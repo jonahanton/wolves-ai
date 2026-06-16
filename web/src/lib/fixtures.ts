@@ -34,7 +34,6 @@ export interface FixtureRow {
   match: number;
   stage: string;
   kickoff: string;
-  city: string | null;
   dayKey: string;
   dayLabel: string;
   status: FixtureStatus;
@@ -148,7 +147,6 @@ function buildRow(
     match: match.match,
     stage: match.stage,
     kickoff: match.date,
-    city: match.city ?? null,
     dayKey: dayKey(match.date),
     dayLabel: dayLabel(match.date),
     status,

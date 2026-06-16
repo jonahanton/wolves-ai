@@ -16,12 +16,12 @@ interface FixturesListProps {
   draws: MatchWdlDraws | null;
   results: PlayedResultRow[];
   initialLive: LiveState | null;
-  impact: Impact | null;
+  initialImpact: Impact | null;
   teamNames: Record<string, string>;
 }
 
-export function FixturesList({ matches, slots, draws, results, initialLive, impact, teamNames }: FixturesListProps) {
-  const live = useLivePoll(initialLive);
+export function FixturesList({ matches, slots, draws, results, initialLive, initialImpact, teamNames }: FixturesListProps) {
+  const { live, impact } = useLivePoll({ live: initialLive, impact: initialImpact });
   const { sections, openGroupDay, openStage } = useMemo(
     () => buildFixtures({ matches, slots, draws, results, live, teamNames, nowIso: new Date().toISOString() }),
     [matches, slots, draws, results, live, teamNames],

@@ -37,7 +37,7 @@ export default async function FixturesPage() {
         draws={orNull(draws)}
         results={orNull(resultsResult)?.results ?? []}
         initialLive={orNull(liveResult)}
-        impact={orNull(impact)}
+        initialImpact={orNull(impact)}
         teamNames={teamNames}
       />
     </main>
