@@ -99,6 +99,13 @@ class ForecastOutput(BaseModel):
 class CritiqueOutput(BaseModel):
     summary: str
     challenges: list[str] = Field(default_factory=list)
+    # Prospective-hindsight tails for quant to price, in the same shape as a
+    # research branch so the master routes them identically. implied_shift_pp
+    # is the pre-mortem's own estimate and is advisory triage only: the
+    # revision gate reads the quant-priced shift, never this self-report.
+    tail_branches: list[CandidateBranch] = Field(default_factory=list)
+    revision_recommendation: str = ""
+    implied_shift_pp: float | None = None
 
 
 class NodeOutcome(BaseModel):

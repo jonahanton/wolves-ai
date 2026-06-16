@@ -72,6 +72,14 @@ class SubmissionState:
     # Spread rows are a multi-world resimulation; cached per cited artifact.
     spread_by_artifact: dict[str, dict | None] = field(default_factory=dict)
     publish_surface_by_artifact: dict[tuple[str, int, int], PublishSurface] = field(default_factory=dict)
+    # Post-acceptance revision loop: the count spent, the previous accepted
+    # submission to fall back to, the first-accepted submission kept as the
+    # pre-revision counterfactual for later scoring, and the artifact
+    # fingerprints already pre-morteme d so an unchanged mixture is not redone.
+    revisions_used: int = 0
+    last_accepted: ForecastSubmission | None = None
+    counterfactual: ForecastSubmission | None = None
+    premortem_seen: set[str] = field(default_factory=set)
 
 
 @dataclass
