@@ -1,4 +1,4 @@
-import type { Impact, ImpactResult, ImpactStage, TeamImpact } from "@/lib/impact";
+import type { Impact, ImpactResult, ImpactStage } from "@/lib/impact";
 import type { LiveFixture, LiveState } from "@/lib/live";
 import { liveIsFresh } from "@/lib/live";
 import { teamCode } from "@/lib/team-colours";
@@ -193,20 +193,8 @@ export function topTitleMovers(impact: Impact | null, limit = 3): ImpactMover[] 
     .slice(0, limit);
 }
 
-export function stageDelta(stage: ImpactStage | undefined): number | null {
-  if (!stage) return null;
-  const delta = stage.fromResultsPp + stage.fromIngamePp;
-  return Math.abs(delta) >= stage.displayFloorPp ? delta : null;
-}
-
 export function resultLabel(result: ImpactResult): string {
   return `${teamLabel(result.homeId)} ${result.homeGoals}-${result.awayGoals} ${teamLabel(result.awayId)}`;
-}
-
-export function teamImpactDelta(team: TeamImpact | undefined, metric: string): number | null {
-  if (!team) return null;
-  if (metric === "champion") return stageDelta(team.title);
-  return stageDelta(team.reach[metric as keyof TeamImpact["reach"]]);
 }
 
 function mover(teamId: string, stage: ImpactStage): ImpactMover {

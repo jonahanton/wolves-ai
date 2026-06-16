@@ -1,12 +1,15 @@
 "use client";
 
+import { easeCubicInOut } from "d3-ease";
 import { scaleLinear } from "d3-scale";
 import { curveMonotoneX, line as d3Line } from "d3-shape";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Accent, ChartHeading } from "@/components/teams/chart-heading";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
+import { EstimateToggle } from "@/components/shell/estimate-toggle";
 import type { TeamImpact } from "@/lib/impact";
 import { type ExitStageBar, exitStageBars, meanStageIndex, modeBar, settledBar } from "@/lib/reach";
+import { teamCode } from "@/lib/team-colours";
 
 interface ExitStageHistogramProps {
   reachProbs: Record<string, number>;
@@ -35,15 +38,87 @@ function pct(p: number): string {
   return `${(p * 100).toFixed(1)}%`;
 }
 
+interface StageShiftProps {
+  colour: string;
+  active: boolean;
+  agent: ExitStageBar;
+  estimate: ExitStageBar;
+  shownNoun: string;
+}
+
+function Arrowed({ colour, from, to }: { colour: string; from: string; to: string }) {
+  return (
+    <span className="whitespace-nowrap font-semibold" style={{ color: colour }}>
+      <span className="text-cream-faint">{from}</span>
+      <span className="mx-0.5">&rarr;</span>
+      {to}
+    </span>
+  );
+}
+
+// One leg of the heading: morphs the noun if the typical round changed, else the %.
+function StageShift({ colour, active, agent, estimate, shownNoun }: StageShiftProps) {
+  if (!active) {
+    return (
+      <>
+        <Accent colour={colour}>{shownNoun}</Accent> (<Accent colour={colour}>{pct(agent.p)}</Accent>)
+      </>
+    );
+  }
+  if (agent.key !== estimate.key) {
+    return (
+      <>
+        <Arrowed colour={colour} from={agent.noun} to={estimate.noun} /> (<Accent colour={colour}>{pct(estimate.p)}</Accent>)
+      </>
+    );
+  }
+  return (
+    <>
+      <Accent colour={colour}>{shownNoun}</Accent> (<Arrowed colour={colour} from={pct(agent.p)} to={pct(estimate.p)} />)
+    </>
+  );
+}
+
 export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: ExitStageHistogramProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<Hover | null>(null);
+  const [showEstimate, setShowEstimate] = useState(false);
+  const [blend, setBlend] = useState(0);
 
-  const bars = useMemo(() => exitStageBars(reachProbs), [reachProbs]);
+  const agentBars = useMemo(() => exitStageBars(reachProbs), [reachProbs]);
+  const estimateBars = useMemo<ExitStageBar[]>(
+    () => agentBars.map((b) => ({ ...b, p: Math.max(0, impact?.exit[b.key]?.estimated ?? b.p) })),
+    [agentBars, impact],
+  );
+  const hasEstimate = useMemo(
+    () =>
+      agentBars.some((b) => {
+        const stage = impact?.exit[b.key];
+        return stage && Math.abs(stage.fromResultsPp + stage.fromIngamePp) >= stage.displayFloorPp;
+      }),
+    [agentBars, impact],
+  );
+
+  const bars = useMemo<ExitStageBar[]>(
+    () => agentBars.map((b, i) => ({ ...b, p: b.p + (estimateBars[i].p - b.p) * blend })),
+    [agentBars, estimateBars, blend],
+  );
   const settled = useMemo(() => settledBar(bars), [bars]);
   const meanIndex = useMemo(() => meanStageIndex(bars), [bars]);
   const mode = useMemo(() => modeBar(bars), [bars]);
+  const active = blend > 0.001;
+
+  const agentMeanBar = useMemo(() => agentBars[Math.round(meanStageIndex(agentBars))], [agentBars]);
+  const agentMode = useMemo(() => modeBar(agentBars), [agentBars]);
+  const estMeanBar = useMemo(() => estimateBars[Math.round(meanStageIndex(estimateBars))], [estimateBars]);
+  const estMode = useMemo(() => modeBar(estimateBars), [estimateBars]);
+
+  // Track the live blend so a mid-flight toggle eases from where it is.
+  const blendRef = useRef(blend);
+  useEffect(() => {
+    blendRef.current = blend;
+  }, [blend]);
 
   useEffect(() => {
     const el = ref.current;
@@ -52,6 +127,24 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    const target = showEstimate ? 1 : 0;
+    const reduce =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reduce ? 0 : 520;
+    let raf = 0;
+    let start = 0;
+    const from = blendRef.current;
+    const tick = (ts: number) => {
+      if (!start) start = ts;
+      const k = duration === 0 ? 1 : Math.min(1, (ts - start) / duration);
+      setBlend(from + (target - from) * easeCubicInOut(k));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [showEstimate]);
 
   const plotLeft = AXIS_W;
   const inner = Math.max(0, width - plotLeft - PAD_R);
@@ -75,18 +168,30 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
 
   return (
     <div ref={ref} className="relative">
-      <ChartHeading>
-        {settled ? (
-          <>
-            <Accent colour={colour}>{teamName}</Accent> are settled at {mode.noun}.
-          </>
-        ) : (
-          <>
-            On average <Accent colour={colour}>{teamName}</Accent> exit in {meanBar?.noun} ({pct(meanBar?.p ?? 0)}). Their
-            most common exit is {mode.noun} ({pct(mode.p)}).
-          </>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <ChartHeading>
+          {settled ? (
+            <>
+              <Accent colour={colour}>{teamName}</Accent> are settled at <Accent colour={colour}>{mode.noun}</Accent>.
+            </>
+          ) : (
+            <>
+              On average <Accent colour={colour}>{teamName}</Accent> exit in{" "}
+              <StageShift colour={colour} active={active} agent={agentMeanBar} estimate={estMeanBar} shownNoun={meanBar?.noun ?? ""} />.
+              Their most common exit is{" "}
+              <StageShift colour={colour} active={active} agent={agentMode} estimate={estMode} shownNoun={mode.noun} />.
+            </>
+          )}
+        </ChartHeading>
+        {hasEstimate && (
+          <EstimateToggle
+            on={showEstimate}
+            onToggle={() => setShowEstimate((v) => !v)}
+            colour={colour}
+            code={teamCode(teamName)}
+          />
         )}
-      </ChartHeading>
+      </div>
 
       <svg
         width={width}
@@ -117,24 +222,8 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
           const bracket = isMode && b.p > 0 ? `${b.label}, ${pct(b.p)}` : b.label;
           const caption = tag ? `${tag} (${bracket})` : "";
           const showPct = b.p > 0 && !isMode && (isSettled || b.key === "champion");
-          const estimate = impact?.exit[b.key];
-          const estimateDelta = estimate ? estimate.fromResultsPp + estimate.fromIngamePp : 0;
-          const showEstimate = estimate && Math.abs(estimateDelta) >= estimate.displayFloorPp;
           return (
             <g key={b.key}>
-              {showEstimate && (
-                <rect
-                  x={cx - barW / 2 + 1}
-                  y={y(estimate.estimated)}
-                  width={Math.max(0, barW - 2)}
-                  height={Math.max(0, y(0) - y(estimate.estimated))}
-                  fill="none"
-                  stroke={colour}
-                  strokeOpacity={0.58}
-                  strokeWidth={1.4}
-                  pointerEvents="none"
-                />
-              )}
               <rect
                 x={cx - barW / 2}
                 y={y(b.p)}
@@ -192,13 +281,6 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
               {hover.bar.phrase}
             </div>
             <div className="mt-1 tabular-nums text-cream-dim">{pct(hover.bar.p)} of simulations</div>
-            {impact?.exit[hover.bar.key] &&
-              Math.abs(impact.exit[hover.bar.key].fromResultsPp + impact.exit[hover.bar.key].fromIngamePp) >=
-                impact.exit[hover.bar.key].displayFloorPp && (
-                <div className="mt-1 tabular-nums text-cream-faint">
-                  Now an estimated {pct(impact.exit[hover.bar.key].estimated)}
-                </div>
-              )}
           </div>
         </ChartTooltip>
       )}

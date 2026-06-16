@@ -7,7 +7,6 @@ import { TeamRow } from "@/components/teams/team-row";
 import { useFlipReorder } from "@/hooks/use-flip-reorder";
 import type { BoardRow } from "@/lib/derive";
 import type { Impact } from "@/lib/impact";
-import { teamImpactDelta } from "@/lib/impact-view";
 import { METRICS, type MetricKey, metricValue } from "@/lib/metrics";
 import type { PlayedResultRow } from "@/lib/results";
 import type { PairingMatrices } from "@/lib/sidecars";
@@ -75,9 +74,6 @@ export function TeamBoard({
         <span className="max-w-[640px] flex-1 text-right font-mono text-[10.5px] font-medium uppercase tracking-[0.04em] text-cream-faint">
           {column}
         </span>
-        <span className="w-12 shrink-0 text-right font-mono text-[10.5px] font-medium uppercase tracking-[0.04em] text-cream-faint">
-          Est.
-        </span>
         <span className="w-[15px] shrink-0" />
       </div>
 
@@ -97,7 +93,6 @@ export function TeamBoard({
             rounds={rounds}
             results={results}
             names={names}
-            deltaPp={teamImpactDelta(impact?.teams[row.teamId], metric)}
             impact={impact?.teams[row.teamId] ?? null}
           />
         ))}

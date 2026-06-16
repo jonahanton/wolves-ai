@@ -8,10 +8,9 @@ interface StageTabsProps {
   selected: StreamRound;
   colour: string;
   onSelect: (round: StreamRound) => void;
-  deltas?: Partial<Record<StreamRound, number | null>>;
 }
 
-export function StageTabs({ rounds, selected, colour, onSelect, deltas = {} }: StageTabsProps) {
+export function StageTabs({ rounds, selected, colour, onSelect }: StageTabsProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-[clamp(12px,1.8vw,22px)] gap-y-1.5">
       {rounds.map((r) => {
@@ -27,12 +26,6 @@ export function StageTabs({ rounds, selected, colour, onSelect, deltas = {} }: S
           >
             {r.played && <Check size={12} className="shrink-0 text-cream-dim" strokeWidth={3} />}
             {r.label}
-            {deltas[r.round] !== null && deltas[r.round] !== undefined && (
-              <span className="font-mono text-[10px] font-semibold tabular-nums text-cream-faint">
-                {deltas[r.round]! > 0 ? "+" : ""}
-                {deltas[r.round]!.toFixed(1)}
-              </span>
-            )}
             {active && <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full" style={{ backgroundColor: colour }} />}
           </button>
         );

@@ -21,12 +21,11 @@ interface TeamRowProps {
   rounds: PairingMatrices["rounds"];
   results: PlayedResultRow[];
   names: Record<string, string>;
-  deltaPp: number | null;
   impact: TeamImpact | null;
 }
 
 export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
-  { rank, row, value, open, onToggle, reachProbs, rounds, results, names, deltaPp, impact },
+  { rank, row, value, open, onToggle, reachProbs, rounds, results, names, impact },
   ref,
 ) {
   const colour = chartColour(row.teamId);
@@ -72,9 +71,6 @@ export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
             style={{ color: colour }}
           >
             {formatPct1(value)}
-          </span>
-          <span className="w-12 shrink-0 text-right font-mono text-[10.5px] font-semibold tabular-nums text-cream-faint">
-            {deltaPp !== null ? `${deltaPp > 0 ? "+" : ""}${deltaPp.toFixed(1)}` : ""}
           </span>
         </span>
         <ChevronRight
@@ -131,7 +127,6 @@ export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
                     reachProbs={reachProbs}
                     results={results}
                     names={names}
-                    impact={impact}
                   />
                 )}
               </div>

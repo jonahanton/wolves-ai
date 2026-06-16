@@ -5,8 +5,6 @@ import { useState } from "react";
 import { Accent, ChartHeading } from "@/components/teams/chart-heading";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import { StageTabs } from "@/components/teams/stage-tabs";
-import type { TeamImpact } from "@/lib/impact";
-import { stageDelta } from "@/lib/impact-view";
 import { opponentDraw, REMAINDER_ID, type OpponentSegment, type StreamRound } from "@/lib/opponents";
 import type { PlayedResultRow } from "@/lib/results";
 import type { PairingMatrices } from "@/lib/sidecars";
@@ -20,7 +18,6 @@ interface OpponentDrawProps {
   reachProbs: Record<string, number>;
   results: PlayedResultRow[];
   names: Record<string, string>;
-  impact: TeamImpact | null;
 }
 
 const REMAINDER_FILL = "oklch(0.965 0.008 95 / 0.1)";
@@ -31,7 +28,7 @@ interface Hover {
   seg: OpponentSegment;
 }
 
-export function OpponentDraw({ teamId, teamName, colour, rounds, reachProbs, results, names, impact }: OpponentDrawProps) {
+export function OpponentDraw({ teamId, teamName, colour, rounds, reachProbs, results, names }: OpponentDrawProps) {
   const draw = opponentDraw(rounds, teamId, reachProbs, results, names);
   const [stage, setStage] = useState<StreamRound>(draw.rounds[0]?.round ?? "r32");
   const [hover, setHover] = useState<Hover | null>(null);
@@ -46,9 +43,6 @@ export function OpponentDraw({ teamId, teamName, colour, rounds, reachProbs, res
   const top = ranked.find((s) => s.opponentId !== REMAINDER_ID);
   const reach = reachProbs[stage] ?? 0;
   const topName = top ? (names[top.opponentId] ?? top.opponentId) : "";
-  const deltas = Object.fromEntries(
-    draw.rounds.map((round) => [round.round, stageDelta(impact?.reach[round.round])]),
-  );
 
   return (
     <div className="relative">
@@ -81,7 +75,7 @@ export function OpponentDraw({ teamId, teamName, colour, rounds, reachProbs, res
         )}
       </ChartHeading>
 
-      <StageTabs rounds={draw.rounds} selected={stage} colour={colour} onSelect={setStage} deltas={deltas} />
+      <StageTabs rounds={draw.rounds} selected={stage} colour={colour} onSelect={setStage} />
 
       <ol className="mt-4 flex flex-col gap-2">
         {ranked.map((seg) => {
