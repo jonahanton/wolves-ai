@@ -1,11 +1,13 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { WdlCurves } from "@/components/fixtures/wdl-curves";
 import type { FixtureRow as Row } from "@/lib/fixtures";
 import { teamReachShifts } from "@/lib/fixtures-reach";
 import { formatKickoffTimeEastern, formatPctBare } from "@/lib/format";
 import type { Impact } from "@/lib/impact";
+import { chartColour } from "@/lib/team-colours";
 
 interface FixtureRowProps {
   row: Row;
@@ -25,12 +27,10 @@ function Outcome({ label, pct }: { label: string; pct: number }) {
   );
 }
 
-function TeamCode({ code, colour, live, tbc }: { code: string; colour: string; live?: boolean; tbc?: boolean }) {
+function TeamCode({ code, teamId, live, tbc }: { code: string; teamId?: string | null; live?: boolean; tbc?: boolean }) {
+  const colour = tbc || !teamId ? "var(--color-cream-faint)" : chartColour(teamId);
   return (
-    <span
-      className={`font-display text-[13.5px] font-semibold ${live ? "shimmer-red" : ""}`}
-      style={live ? undefined : { color: tbc ? "var(--color-cream-faint)" : colour }}
-    >
+    <span className={`font-display text-[13.5px] font-semibold ${live ? "shimmer-red" : ""}`} style={live ? undefined : { color: colour }}>
       {code}
     </span>
   );
@@ -56,10 +56,14 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
           aria-expanded={open}
           className="flex w-full items-center py-2.5 text-left"
         >
-          <span className="flex items-baseline gap-4">
-            <TeamCode code={row.slot?.home.label ?? "TBC"} colour={row.colours.home} tbc />
-            <span className="font-mono text-[12px] tabular-nums text-cream-dim">{formatKickoffTimeEastern(row.kickoff)}</span>
-            <TeamCode code={row.slot?.away.label ?? "TBC"} colour={row.colours.away} tbc />
+          <span className="grid w-[8.5rem] shrink-0 grid-cols-[1fr_3rem_1fr] items-baseline gap-2">
+            <span className="text-left">
+              <TeamCode code={row.slot?.home.label ?? "TBC"} tbc />
+            </span>
+            <span className="text-center font-mono text-[12px] tabular-nums text-cream-dim">{formatKickoffTimeEastern(row.kickoff)}</span>
+            <span className="text-right">
+              <TeamCode code={row.slot?.away.label ?? "TBC"} tbc />
+            </span>
           </span>
           <span className="ml-auto font-display text-[13px] font-semibold uppercase tracking-[0.06em] text-cream-dim">TBC</span>
         </button>
@@ -69,17 +73,17 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
           onClick={() => expandable && setOpen((v) => !v)}
           aria-expanded={expandable ? open : undefined}
           disabled={!expandable}
-          className="flex w-full items-center py-2.5 text-left"
+          className="flex w-full items-center gap-3 py-2.5 text-left"
         >
-          <span className="flex items-baseline gap-3.5">
-            <span className="w-9 text-right">
-              <TeamCode code={row.homeCode} colour={row.colours.home} live={live} />
+          <span className="grid w-[8.5rem] shrink-0 grid-cols-[1fr_3rem_1fr] items-baseline gap-2">
+            <span className="text-left">
+              <TeamCode code={row.homeCode} teamId={row.homeId} live={live} />
             </span>
-            <span className={`w-12 text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
+            <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
               {live ? (score ?? "-") : (score ?? formatKickoffTimeEastern(row.kickoff))}
             </span>
-            <span className="w-9 text-left">
-              <TeamCode code={row.awayCode} colour={row.colours.away} live={live} />
+            <span className="text-right">
+              <TeamCode code={row.awayCode} teamId={row.awayId} live={live} />
             </span>
           </span>
           <span className="ml-auto flex items-baseline gap-4 font-mono text-[12.5px] tabular-nums">
@@ -93,6 +97,13 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
               </>
             ) : null}
           </span>
+          {expandable && (
+            <ChevronRight
+              size={14}
+              className="shrink-0 text-cream-faint transition-transform duration-300 motion-reduce:transition-none"
+              style={{ transform: open ? "rotate(90deg)" : "none" }}
+            />
+          )}
         </button>
       )}
 
@@ -150,6 +161,7 @@ function SlotDetail({ row }: { row: Row }) {
 }
 
 function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
+  const score = row.homeGoals !== null && row.awayGoals !== null ? `${row.homeGoals}-${row.awayGoals}` : null;
   const sides = [
     { id: row.homeId, code: row.homeCode },
     { id: row.awayId, code: row.awayCode },
@@ -158,20 +170,30 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
     impact?.liveMode === "in_match_distribution"
       ? sides.map((s) => ({ ...s, shifts: teamReachShifts(impact, s.id, s.code) })).filter((g) => g.shifts.length > 0)
       : [];
-  const heading = row.minute !== null ? `Given the game state at ${row.minute}'` : "Given the game state";
+  const heading = (
+    <p className="mb-2.5 font-display text-[12px] text-cream-faint">
+      Estimated impact of{" "}
+      <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>{" "}
+      <span className="shimmer-red font-mono font-semibold tabular-nums">
+        {score ?? ""}
+        {row.minute !== null ? ` ${row.minute}'` : ""}
+      </span>{" "}
+      <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
+    </p>
+  );
 
   if (groups.length === 0) {
-    return <p className="font-display text-[12px] text-cream-faint">Given the game state, no material shift in either team&apos;s run.</p>;
+    return <p className="font-display text-[12px] text-cream-faint">No material shift in either team&apos;s run from the game state.</p>;
   }
   return (
     <div>
-      <p className="mb-2 font-display text-[12px] text-cream-faint">{heading}</p>
-      <div className="space-y-2">
+      {heading}
+      <div className="space-y-2.5">
         {groups.map((g) => (
-          <div key={g.id}>
+          <div key={g.id} className="space-y-0.5">
             {g.shifts.map((shift, i) => (
-              <div key={shift.stageLabel} className="grid grid-cols-[2.6rem_4.5rem_auto_3.5rem] items-baseline gap-2 font-display text-[12px] leading-tight">
-                <span className="font-semibold text-cream">{i === 0 ? g.code : ""}</span>
+              <div key={shift.stageLabel} className="grid grid-cols-[2.6rem_5rem_auto_3.6rem] items-baseline gap-2 font-display text-[12px] leading-tight">
+                <span className="font-semibold" style={{ color: i === 0 ? chartColour(g.id) : undefined }}>{i === 0 ? g.code : ""}</span>
                 <span className="text-cream-dim">{shift.stageLabel}</span>
                 <span className="font-mono text-[11px] tabular-nums text-cream-faint">
                   {shift.fromPct.toFixed(0)}% &rarr; {shift.toPct.toFixed(0)}%

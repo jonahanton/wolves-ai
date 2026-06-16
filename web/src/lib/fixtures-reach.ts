@@ -10,12 +10,12 @@ export interface ReachShiftRow {
 }
 
 const STAGE_LABEL: Record<ReachStage | "champion", string> = {
-  r32: "reach R32",
-  r16: "reach R16",
-  qf: "reach QF",
-  sf: "reach SF",
-  final: "reach final",
-  champion: "win cup",
+  r32: "Reach R32",
+  r16: "Reach R16",
+  qf: "Reach QF",
+  sf: "Reach SF",
+  final: "Reach final",
+  champion: "Win cup",
 };
 
 const STAGES: (ReachStage | "champion")[] = ["r32", "r16", "qf", "sf", "final", "champion"];
