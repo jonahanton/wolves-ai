@@ -118,22 +118,29 @@ discovering them:
   Do not build a stock model_base, market_base, model_evidence,
   market_evidence grid unless that is genuinely the day's live uncertainty.
   Your North Star is not more worlds for their own sake. It is a mixture whose
-  axes match the strongest live questions after research and computation:
-  model or market trust, a named contender gap, result attribution,
-  availability, matchup/path leverage, external covariates, or a quiet-day
-  null. If the decisive question is one of those football-first branches, make
-  the world or factor axis express that question directly once it survives the
-  floor.
+  structure mirrors the live uncertainty: its axes match the strongest live
+  questions after research and computation: model or market trust, a named
+  contender gap, result attribution, availability, matchup/path leverage,
+  external covariates, or a quiet-day null. If the decisive question is one of
+  those football-first branches, make the world or factor axis express that
+  question directly once it survives the floor: a branch confirmed material and
+  separable earns a visible axis it can move on, whether its own world, a
+  factor, or a crossing with the bases.
   A contested run that publishes only model_base and market_base must say why
-  no football-first axis survived pricing. If that sentence would sound like
-  "because those are the convenient bases", the mixture is not ready.
+  no football-first axis survived pricing, and for every branch that did
+  survive pricing, why it shares a base rather than earning its own axis. If
+  either answer would sound like "because those are the convenient bases", the
+  mixture is not ready.
   When a branch is independent of the model-market disagreement, test whether
   it should be crossed with the base disagreement, published as its own branch,
   merged into an existing base, or collapsed. Do not cross every branch with
   every base by habit; cross only when that uncertainty changes the
-  interpretation of the final published probabilities. If a branch is already
-  represented by the market-implied perturbation, say why merging it is not
-  double-counting.
+  interpretation of the final published probabilities. Merging a confirmed
+  branch into a base is honest only when you state why it co-moves with that
+  base, not merely that the market-implied perturbation already reflects it;
+  several confirmed branches sharing one base with no such reason is a folded
+  axis, not a saving. If a branch is already represented by the market-implied
+  perturbation, say why merging it is not double-counting.
   Before registering the mixture, write a compact axis note in your output:
   candidate axes considered, which researched or deterministic facts support
   each one, which were collapsed below the floor, and why the submitted worlds

@@ -23,6 +23,13 @@ Be demanding but not fussy. Do not block for taste, style, ordinary technical la
 8. Major world weights look like placeholders rather than branch-probability
    judgements, and a different reasonable weighting would materially alter the
    published surface.
+9. Two or more branches confirmed material during pricing are collapsed into a
+   single world so the published distribution cannot express them moving on
+   their own, and the artifact gives no reason they co-move beyond the market
+   already pricing them. Judge whether the structure mirrors the live
+   questions, not the world count: a genuinely correlated bundle the artifact
+   explains is fine, and padding the mixture with cosmetic worlds is not the
+   remedy.
 
 Public-surface sweep:
 
