@@ -14,10 +14,6 @@ interface FixtureRowProps {
   impact: Impact | null;
 }
 
-function signed(pp: number): string {
-  return `${pp > 0 ? "+" : ""}${pp.toFixed(1)}`;
-}
-
 function Outcome({ label, pct }: { label: string; pct: number }) {
   return (
     <span className="flex items-baseline gap-1.5">
@@ -174,7 +170,7 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
     <p className="mb-2.5 font-display text-[12px] text-cream-faint">
       Estimated impact of{" "}
       <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>{" "}
-      <span className="shimmer-red font-mono font-semibold tabular-nums">
+      <span className="font-mono font-semibold tabular-nums text-cream">
         {score ?? ""}
         {row.minute !== null ? ` ${row.minute}'` : ""}
       </span>{" "}
@@ -192,13 +188,12 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
         {groups.map((g) => (
           <div key={g.id} className="space-y-0.5">
             {g.shifts.map((shift, i) => (
-              <div key={shift.stageLabel} className="grid grid-cols-[2.6rem_5rem_auto_3.6rem] items-baseline gap-2 font-display text-[12px] leading-tight">
+              <div key={shift.stageLabel} className="grid grid-cols-[2.6rem_5rem_auto] items-baseline gap-2 font-display text-[12px] leading-tight">
                 <span className="font-semibold" style={{ color: i === 0 ? chartColour(g.id) : undefined }}>{i === 0 ? g.code : ""}</span>
                 <span className="text-cream-dim">{shift.stageLabel}</span>
                 <span className="font-mono text-[11px] tabular-nums text-cream-faint">
                   {shift.fromPct.toFixed(0)}% &rarr; {shift.toPct.toFixed(0)}%
                 </span>
-                <span className="text-right font-mono text-[11px] font-semibold tabular-nums text-cream">{signed(shift.deltaPp)}pp</span>
               </div>
             ))}
           </div>
