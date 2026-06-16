@@ -82,6 +82,7 @@ def validate_submission(
     market_titles: dict[str, float] | None = None,
     published_titles: dict[str, float] | None = None,
     focus_vs_floor: float | None = None,
+    revisions_used: int = 0,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
     citation discipline on weights, Paleka coherence on the artifact's own
@@ -160,6 +161,7 @@ def validate_submission(
     issues += _check_headline(submission, titles)
     issues += _check_public_copy_claims(submission)
     issues += _check_mixture_dispersion(submission, ledger, focus_vs_floor)
+    issues += _check_revision_rationale(submission, revisions_used)
     issues += _check_news_impacts(submission, artifacts)
     return ValidationReport(
         ok=not issues,
@@ -186,6 +188,19 @@ def _check_mixture_dispersion(
             f"the cited mixture's focus-team band is {focus_vs_floor}x the parameter-noise floor while the "
             "ledger holds material evidence; widen via a world you believe in, or say in "
             "change_justification why the evidence resolves nothing",
+        )
+    ]
+
+
+def _check_revision_rationale(submission: ForecastSubmission, revisions_used: int) -> list[ValidationIssue]:
+    """Copy-severity nudge: a revised forecast must say why it was revised or ratified."""
+    if revisions_used <= 0 or submission.revision_rationale.strip():
+        return []
+    return [
+        _copy_issue(
+            "revision_rationale_missing",
+            "this forecast was re-opened for revision after acceptance, so revision_rationale needs one or two "
+            "plain sentences on why the forecast was revised or ratified; it is empty",
         )
     ]
 
