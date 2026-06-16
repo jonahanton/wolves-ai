@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from wolves.agent.calibration import CalibrationLedger
-from wolves.agent.consensus import publish_scale
+from wolves.agent.consensus import longshot_shade, publish_scale
 from wolves.agent.forecast_artifact import (
     ForecastArtifactError,
     PublishedWorld,
@@ -39,6 +39,22 @@ class PublishSurface:
     @property
     def governor_active(self) -> bool:
         return self.effective_d != 1.0
+
+
+def _extremising_title_anchor(deps: AgentDeps, baseline_titles: dict[str, float]) -> dict[str, float] | None:
+    """The title anchor extremising pushes away from; None keeps the sim baseline."""
+    from wolves.agent.consensus import blend_log_odds
+    from wolves.agent.tools.submission._validation import _anchors
+
+    choice = deps.settings.extremising_anchor
+    if choice == "baseline":
+        return None
+    market = _anchors(deps).market_titles
+    if not market:
+        return None
+    if choice == "market":
+        return longshot_shade(market, alpha=deps.settings.longshot_shade_alpha)
+    return blend_log_odds(market, baseline_titles, d=0.5, renormalise=True)
 
 
 def publish_surface(
@@ -89,7 +105,15 @@ def publish_surface(
         anchor = deps.forecaster.sim_outputs(n_sims=n, seed=s, extra_results=played, result=anchor_result)
         baseline_titles = {team.team_id: team.champion_prob for team in anchor.teams}
     if effective_d != 1.0 and anchor is not None:
-        govern_outputs(outputs, anchor, d=effective_d)
+        title_anchor = _extremising_title_anchor(deps, baseline_titles)
+        govern_outputs(outputs, anchor, d=effective_d, title_anchor=title_anchor)
+    if deps.settings.longshot_shade_alpha and deps.settings.extremising_anchor != "market":
+        shaded = longshot_shade(
+            {team.team_id: team.champion_prob for team in outputs.teams},
+            alpha=deps.settings.longshot_shade_alpha,
+        )
+        for team in outputs.teams:
+            team.champion_prob = round(shaded[team.team_id], 6)
     surface = PublishSurface(
         artifact_id=artifact_id,
         worlds=worlds,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -128,6 +129,9 @@ class Settings(BaseSettings):
     dispersion_floor_enabled: bool = True
     weight_dilution_min_combined: float = 0.25
     extremising_d: float = 1.0
+    # The prior extremising pushes away from.
+    extremising_anchor: Literal["baseline", "market", "blend"] = "baseline"
+    longshot_shade_alpha: float = 0.0
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
 
@@ -140,16 +144,12 @@ class Settings(BaseSettings):
     graph_forecast_reserve_usd: float = 1.30
     graph_forecast_reserve_llm_calls: int = 26
 
-    # Post-acceptance behavioural loop: the master sees its own published
-    # surface and a pre-mortem, then ratifies or revises once. Zero recovers
-    # the exact single-pass behaviour.
+    # Zero recovers the exact single-pass behaviour.
     graph_max_revisions: int = 1
     graph_revision_reserve_usd: float = 1.10
     graph_revision_min_shift_pp: float = 0.3
     graph_premortem_enabled: bool = True
     graph_premortem_on_escalation_only: bool = True
-    # Write the trailing-window calibration scorecard (Brier, Murphy split,
-    # adjustment and spread P&L) back into the next run's lessons.
     graph_debrief_enabled: bool = True
 
     @property

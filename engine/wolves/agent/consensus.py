@@ -28,6 +28,19 @@ def blend_log_odds(
     return blended
 
 
+def longshot_shade(titles: dict[str, float], *, alpha: float) -> dict[str, float]:
+    """Favourite-longshot correction: raise each probability to (1 + alpha),
+    renormalise. alpha=0 is the identity; alpha>0 shaves probability off
+    longshots and gives it to favourites, the share monotone in the input."""
+    if alpha == 0.0 or not titles:
+        return dict(titles)
+    powered = {team: max(p, 0.0) ** (1.0 + alpha) for team, p in titles.items()}
+    total = sum(powered.values())
+    if total <= 0:
+        return dict(titles)
+    return {team: p / total for team, p in powered.items()}
+
+
 def publish_scale(*, extremising_d: float, governor_scale: float, shrink_weight: float) -> float:
     """The effective d at publish time: extremising tempered by the governor."""
     if governor_scale >= 1.0:

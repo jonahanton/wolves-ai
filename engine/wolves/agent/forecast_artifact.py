@@ -135,17 +135,19 @@ def mixed_outputs(
     return mixed
 
 
-def govern_outputs(outputs: SimOutputs, anchor: SimOutputs, *, d: float) -> None:
+def govern_outputs(
+    outputs: SimOutputs, anchor: SimOutputs, *, d: float, title_anchor: dict[str, float] | None = None
+) -> None:
     """Shrink the published probabilities towards the deterministic anchor in
-    log-odds. Stage-by-stage blending of two monotone reach chains stays
-    monotone at the magnitudes the governor produces; the governor block in
-    the snapshot makes the shrink loud either way."""
+    log-odds. title_anchor overrides the title channel only (market or blend
+    extremising); reach chains always govern against the sim anchor, which is
+    the only one carrying them."""
     from wolves.agent.consensus import blend_log_odds
 
     if d == 1.0:
         return
     titles = {t.team_id: t.champion_prob for t in outputs.teams}
-    anchor_titles = {t.team_id: t.champion_prob for t in anchor.teams}
+    anchor_titles = title_anchor or {t.team_id: t.champion_prob for t in anchor.teams}
     governed = blend_log_odds(titles, anchor_titles, d=d, renormalise=True)
     anchor_teams = {t.team_id: t for t in anchor.teams}
     for team in outputs.teams:
