@@ -1,7 +1,7 @@
 import { gridX, samplesToBars, samplesToCurve, wdlBoundarySpread, type WdlShape } from "@/lib/distribution";
 import { type LiveFixture, type LiveState, liveIsFresh } from "@/lib/live";
 import type { PlayedResultRow } from "@/lib/results";
-import type { BracketSamples, MatchWdlDraws } from "@/lib/sidecars";
+import type { MatchWdlDraws } from "@/lib/sidecars";
 import type { MatchProbs, Slot } from "@/lib/snapshot";
 import { type RowColours, chartColour, resolveWdlColours, teamCode } from "@/lib/team-colours";
 
@@ -13,15 +13,6 @@ export interface WdlBar {
   away: number;
   sigmaHomeDraw: number;
   sigmaDrawAway: number;
-}
-
-export interface PairingOption {
-  homeId: string;
-  awayId: string;
-  homeCode: string;
-  awayCode: string;
-  pPairing: number;
-  colours: RowColours;
 }
 
 export interface CandidateTeam {
@@ -39,7 +30,6 @@ export interface SlotSideView {
 export interface KnockoutSlot {
   home: SlotSideView;
   away: SlotSideView;
-  pairings: PairingOption[];
 }
 
 export interface FixtureRow {
@@ -80,8 +70,7 @@ export interface StageSection {
 }
 
 const GRID = gridX(1, 48);
-const MAX_PAIRINGS = 4;
-const MAX_CANDIDATES = 4;
+const MAX_CANDIDATES = 3;
 const EASTERN = "America/New_York";
 
 const STAGE_ORDER = ["group", "r32", "r16", "qf", "sf", "third_place", "final"] as const;
@@ -141,40 +130,12 @@ function candidateSide(side: { label: string; candidates: { team_id: string; pro
   };
 }
 
-function pairingsFor(brackets: BracketSamples | null, match: number, names: Record<string, string>): PairingOption[] {
-  if (!brackets) return [];
-  const counts = new Map<string, { home: string; away: string; n: number }>();
-  let total = 0;
-  for (const sample of brackets.samples) {
-    const entry = sample.matches.find((m) => m.match === match);
-    if (!entry) continue;
-    total += 1;
-    const key = `${entry.home}|${entry.away}`;
-    const row = counts.get(key) ?? { home: entry.home, away: entry.away, n: 0 };
-    row.n += 1;
-    counts.set(key, row);
-  }
-  if (total === 0) return [];
-  return [...counts.values()]
-    .sort((a, b) => b.n - a.n)
-    .slice(0, MAX_PAIRINGS)
-    .map((row) => ({
-      homeId: row.home,
-      awayId: row.away,
-      homeCode: codeOf(row.home, names),
-      awayCode: codeOf(row.away, names),
-      pPairing: row.n / total,
-      colours: resolveWdlColours(row.home, row.away),
-    }));
-}
-
 function buildRow(
   match: MatchProbs,
   live: LiveFixture | null,
   result: PlayedResultRow | null,
   slot: Slot | null,
   draws: MatchWdlDraws | null,
-  brackets: BracketSamples | null,
   names: Record<string, string>,
 ): FixtureRow {
   const knockout = match.stage !== "group";
@@ -215,7 +176,6 @@ function buildRow(
         ? {
             home: candidateSide(slot.home, names),
             away: candidateSide(slot.away, names),
-            pairings: pairingsFor(brackets, match.match, names),
           }
         : null,
   };
@@ -245,7 +205,6 @@ export function buildFixtures(input: {
   matches: MatchProbs[];
   slots: Slot[];
   draws: MatchWdlDraws | null;
-  brackets: BracketSamples | null;
   results: PlayedResultRow[];
   live: LiveState | null;
   teamNames: Record<string, string>;
@@ -269,7 +228,6 @@ export function buildFixtures(input: {
       resultByMatch.get(match.match) ?? null,
       slotByMatch.get(match.match) ?? null,
       input.draws,
-      input.brackets,
       input.teamNames,
     );
     (byStage.get(match.stage) ?? byStage.set(match.stage, []).get(match.stage)!).push(row);

@@ -6,7 +6,7 @@ import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
 import { loadLiveState } from "@/lib/live";
 import { loadResults } from "@/lib/results";
 import { loadSnapshotIndex } from "@/lib/runs";
-import { type BracketSamples, loadSidecar, type MatchWdlDraws } from "@/lib/sidecars";
+import { loadSidecar, type MatchWdlDraws } from "@/lib/sidecars";
 
 export default async function FixturesPage() {
   const [result, indexResult, resultsResult, liveResult] = await Promise.all([
@@ -26,11 +26,7 @@ export default async function FixturesPage() {
       : (orNull(await loadSnapshot(agentRef.runId)) ?? snapshot);
 
   const runId = agentSnapshot.run.run_id;
-  const [draws, brackets, impact] = await Promise.all([
-    loadSidecar<MatchWdlDraws>(runId, "match-wdl-draws"),
-    loadSidecar<BracketSamples>(runId, "bracket-samples"),
-    loadImpact(),
-  ]);
+  const [draws, impact] = await Promise.all([loadSidecar<MatchWdlDraws>(runId, "match-wdl-draws"), loadImpact()]);
   const teamNames = Object.fromEntries(agentSnapshot.teams.map((t) => [t.team_id, t.name]));
 
   return (
@@ -39,7 +35,6 @@ export default async function FixturesPage() {
         matches={agentSnapshot.matches ?? []}
         slots={agentSnapshot.slots ?? []}
         draws={orNull(draws)}
-        brackets={orNull(brackets)}
         results={orNull(resultsResult)?.results ?? []}
         initialLive={orNull(liveResult)}
         impact={orNull(impact)}

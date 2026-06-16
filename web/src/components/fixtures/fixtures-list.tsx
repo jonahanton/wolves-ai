@@ -7,25 +7,24 @@ import { buildFixtures } from "@/lib/fixtures";
 import type { Impact } from "@/lib/impact";
 import type { LiveState } from "@/lib/live";
 import type { PlayedResultRow } from "@/lib/results";
-import type { BracketSamples, MatchWdlDraws } from "@/lib/sidecars";
+import type { MatchWdlDraws } from "@/lib/sidecars";
 import type { MatchProbs, Slot } from "@/lib/snapshot";
 
 interface FixturesListProps {
   matches: MatchProbs[];
   slots: Slot[];
   draws: MatchWdlDraws | null;
-  brackets: BracketSamples | null;
   results: PlayedResultRow[];
   initialLive: LiveState | null;
   impact: Impact | null;
   teamNames: Record<string, string>;
 }
 
-export function FixturesList({ matches, slots, draws, brackets, results, initialLive, impact, teamNames }: FixturesListProps) {
+export function FixturesList({ matches, slots, draws, results, initialLive, impact, teamNames }: FixturesListProps) {
   const live = useLivePoll(initialLive);
   const { sections, openGroupDay, openStage } = useMemo(
-    () => buildFixtures({ matches, slots, draws, brackets, results, live, teamNames, nowIso: new Date().toISOString() }),
-    [matches, slots, draws, brackets, results, live, teamNames],
+    () => buildFixtures({ matches, slots, draws, results, live, teamNames, nowIso: new Date().toISOString() }),
+    [matches, slots, draws, results, live, teamNames],
   );
   const [openDay, setOpenDay] = useState<string | null>(openGroupDay);
   const [openStageKey, setOpenStageKey] = useState<string | null>(openStage);

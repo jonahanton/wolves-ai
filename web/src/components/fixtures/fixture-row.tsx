@@ -79,10 +79,13 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
                 ) : live ? (
                   <ReachStrip row={row} impact={impact} />
                 ) : row.shape ? (
-                  <>
-                    <Legend row={row} />
-                    <WdlCurves shape={row.shape} colours={row.colours} />
-                  </>
+                  <WdlCurves
+                    shape={row.shape}
+                    colours={row.colours}
+                    homeCode={row.homeCode}
+                    awayCode={row.awayCode}
+                    showDraw={!row.knockout}
+                  />
                 ) : null}
               </div>
             )}
@@ -93,26 +96,19 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
   );
 }
 
-function Legend({ row }: { row: Row }) {
-  return (
-    <div className="mb-1 flex items-center gap-3 font-mono text-[10.5px] tabular-nums text-cream-faint">
-      <span style={{ color: row.colours.home }}>{row.homeCode} win</span>
-      {!row.knockout && <span style={{ color: row.colours.draw }}>draw</span>}
-      <span style={{ color: row.colours.away }}>{row.awayCode} win</span>
-    </div>
-  );
-}
 
 function CandidateList({ label, candidates }: { label: string; candidates: { teamId: string; code: string; prob: number; colour: string }[] }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1.5">
-      <span className="w-7 shrink-0 font-mono text-[12px] font-semibold text-cream-dim">{label}</span>
-      {candidates.map((c) => (
-        <span key={c.teamId} className="font-display text-[13.5px]">
-          <span className="font-semibold" style={{ color: c.colour }}>{c.code}</span>
-          <span className="ml-1.5 font-mono text-[12px] tabular-nums text-cream-faint">{formatPctBare(c.prob)}%</span>
-        </span>
-      ))}
+    <div className="flex items-baseline gap-x-3.5">
+      <span className="w-8 shrink-0 font-mono text-[12px] text-cream-faint">{label}</span>
+      <span className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
+        {candidates.map((c) => (
+          <span key={c.teamId} className="font-display text-[13.5px]">
+            <span className="font-semibold text-cream">{c.code}</span>
+            <span className="ml-1.5 font-mono text-[12px] tabular-nums text-cream-faint">{formatPctBare(c.prob)}%</span>
+          </span>
+        ))}
+      </span>
     </div>
   );
 }
@@ -121,26 +117,10 @@ function SlotDetail({ row }: { row: Row }) {
   const slot = row.slot;
   if (!slot) return null;
   return (
-    <div className="space-y-4">
-      <div className="space-y-2.5">
-        <CandidateList label={slot.home.label} candidates={slot.home.candidates} />
-        <CandidateList label={slot.away.label} candidates={slot.away.candidates} />
-      </div>
-      {slot.pairings.length > 0 && (
-        <div>
-          <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.06em] text-cream-faint">Likely ties</p>
-          <ul className="flex flex-wrap gap-x-5 gap-y-1.5">
-            {slot.pairings.map((p) => (
-              <li key={`${p.homeId}|${p.awayId}`} className="font-display text-[13.5px]">
-                <span className="font-semibold" style={{ color: p.colours.home }}>{p.homeCode}</span>
-                <span className="px-1.5 text-cream-faint">v</span>
-                <span className="font-semibold" style={{ color: p.colours.away }}>{p.awayCode}</span>
-                <span className="ml-2 font-mono text-[12px] tabular-nums text-cream">{formatPctBare(p.pPairing)}%</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+    <div className="space-y-2">
+      <p className="font-mono text-[11px] text-cream-faint">most likely to fill each side</p>
+      <CandidateList label={slot.home.label} candidates={slot.home.candidates} />
+      <CandidateList label={slot.away.label} candidates={slot.away.candidates} />
     </div>
   );
 }
