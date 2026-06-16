@@ -12,6 +12,14 @@ stale anchor. England in the examples is simply the team the method was
 demonstrated on; every method applies unchanged to any team. The only
 low-altitude rules are in the statistical honesty section.
 
+A good mixture is not the one with the most worlds. It is the one whose axes
+match the strongest live questions after evidence and computation have met.
+Sometimes that is model trust against market trust. Sometimes it is a named
+contender gap, an availability branch, a result-attribution question, a path
+edge, a matchup read, a covariate disagreement or a quiet-day null. The field
+guide gives instruments for testing those branches; it is not permission to
+publish a stock template.
+
 ## Where your numbers come from
 
 Every probability you touch is produced by one deterministic pipeline with
@@ -42,18 +50,21 @@ goal timings drives minute-by-minute probabilities.
 On agent runs the submitted mixture is the agent's forecast surface. A
 calibration governor can shrink final published probabilities towards the
 deterministic anchor when the adjustment track record turns negative;
-check_forecast previews that final surface. You work from two bases of equal
-standing: this model, and the market consensus (a weighted log-odds blend of
-de-vigged bookmaker outrights and Polymarket), which historically beats the
-raw model by about 0.031 nats per match. The day's mixture carries both as
-worlds; the market base is built by inverting prices into implied strengths
-(wq.implied_delta) so its world simulates a coherent full distribution. A
-large gap between the bases is a finding that demands work, never a hidden
-market leg the harness will add. Reconcile it inside the mixture, in either
-direction. The snapshot still records the market and a reference blend for
-transparency. Deterministic (non-agent) runs do
-publish a fixed convex blend with the market; that is their guard against
-having no reasoning layer, not yours.
+check_forecast previews that final surface. You work from two reference views
+of equal standing: this model, and the market consensus (a weighted log-odds
+blend of de-vigged bookmaker outrights and Polymarket), which historically
+beats the raw model by about 0.031 nats per match. They are references, not
+mandatory worlds. A model-base and market-base split is correct only when
+trust in those instruments is the day's live uncertainty. If the live
+uncertainty is a named market gap, result-attribution question, availability
+branch, path edge, matchup read or covariate disagreement, make the worlds
+express that football question directly. The market base is available by
+inverting prices into implied strengths (wq.implied_delta), but a large gap
+between the bases is a finding that demands work, never a hidden market leg
+the harness will add. Reconcile it inside the mixture, in either direction.
+The snapshot still records the market and a reference blend for transparency.
+Deterministic (non-agent) runs do publish a fixed convex blend with the
+market; that is their guard against having no reasoning layer, not yours.
 
 ## Methods, each with an example output
 
@@ -84,10 +95,14 @@ case at weight 1.0. Reserve certainty weighting for a confirmed ruling-out.
 
 ### Scenario mixtures and factor lattices
 
-Method: express a story as a factor with weighted variants, compose factors
-into a lattice with wq.scenario_mixture, and read four things from the
-output: the mixture headline, the per-factor marginals (the attribution AND
-the noise check), the noise floor, and the implied spread against the
+Method: list the plausible axes first, then choose the smallest world shape
+that preserves the real uncertainty. Candidate axes can include reference
+trust (model vs market), a named contender gap, an availability branch,
+result attribution, matchup/path leverage, external covariates, or a true
+quiet day. Express a story as a factor with weighted variants, compose
+factors into a lattice with wq.scenario_mixture, and read four things from
+the output: the mixture headline, the per-factor marginals (the attribution
+AND the noise check), the noise floor, and the implied spread against the
 parameter floor (wq.mixture_spread). Ride magnitude uncertainty as
 Normal(mean, sd) deltas or MC draws; where the response is locally linear the
 mean magnitude is adequate and the draw sd is the cheap materiality test.
@@ -114,12 +129,15 @@ so the artifact said heat does not move the headline, and an MC heat
 magnitude Normal(-0.15, 0.05) over 20 draws moved the answer by 0.07pp with
 draw sd 0.04pp: immaterial.
 
-### The mixture spread read
+### The axis audit and mixture spread read
 
-Method: before registering a mixture on a contested day, read the band its
-worlds imply against the parameter-noise floor with wq.mixture_spread; the
-same read is available on the forecast node as the mixture_spread quick-look
-and in the spread section of check_forecast. Example output:
+Method: before registering a mixture on a contested day, write the axis audit
+in the result: which axes you considered, which evidence or computation made
+each live, which axes were collapsed, merged or rejected, and why the
+surviving worlds are the right branches. Then read the band those worlds
+imply against the parameter-noise floor with wq.mixture_spread; the same read
+is available on the forecast node as the mixture_spread quick-look and in the
+spread section of check_forecast. Example output:
 wq.mixture_spread(scenarios=worlds) gave Spain mean 0.138, band [10.4, 16.7],
 width 6.3pp against a 5.1pp floor, vs_floor 1.24, with world means model_base
 0.186 / market_base 0.160 / spain_injury 0.071 and the note "spain band 6.3pp

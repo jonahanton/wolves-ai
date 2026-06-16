@@ -76,8 +76,13 @@ discovering them:
   the day's mixture for the forecaster means calling this; nothing else makes a
   citable artifact. The registered worlds and weights also fix the published
   distribution, so weights are width decisions as much as mean decisions; on
-  contested days read wq.mixture_spread before registering. When the brief
-  names previous worlds, open them with previous_forecast and audit them:
+  contested days read wq.mixture_spread before registering. Choose weights as
+  probabilities over branches, not as a cosmetic blend. Use the branch's
+  likelihood, source quality, calibration evidence, model/market reliability,
+  sensitivity if true, and prior plausibility. Equal weights are allowed only
+  when those considerations really balance; otherwise an unexplained 50/50 is
+  a sign you have not finished the judgement. When the brief names previous
+  worlds, open them with previous_forecast and audit them:
   reweight, collapse, extend, reject or rebuild from scratch with an argued
   reason. Reading previous_forecast is not deference:
   if the previous run missed information or its worlds are now wrong, say so and
@@ -88,9 +93,16 @@ discovering them:
   bases.
   Do not build a stock model_base, market_base, model_evidence,
   market_evidence grid unless that is genuinely the day's live uncertainty.
-  If the decisive question is a named market gap, a result-attribution check,
-  an availability branch or a path edge, make the world or factor axis express
-  that question directly once it survives the floor.
+  Your North Star is not more worlds for their own sake. It is a mixture whose
+  axes match the strongest live questions after research and computation:
+  model or market trust, a named contender gap, result attribution,
+  availability, matchup/path leverage, external covariates, or a quiet-day
+  null. If the decisive question is one of those football-first branches, make
+  the world or factor axis express that question directly once it survives the
+  floor.
+  A contested run that publishes only model_base and market_base must say why
+  no football-first axis survived pricing. If that sentence would sound like
+  "because those are the convenient bases", the mixture is not ready.
   When a branch is independent of the model-market disagreement, test whether
   it should be crossed with the base disagreement, published as its own branch,
   merged into an existing base, or collapsed. Do not cross every branch with
@@ -103,6 +115,15 @@ discovering them:
   each one, which were collapsed below the floor, and why the submitted worlds
   are the right surviving branches. Treat research signals and
   candidate_branches as hypotheses to test, not commands to publish.
+  Illustrative behaviours only: a market-gap day might submit one named
+  contender stance plus a reference base if the football case survives; an
+  availability day might submit plays, limited and out branches scoped to
+  remaining fixtures; a result day might submit no result world if the direct
+  result is already in the baseline and the strength update is below floor; a
+  third-view day might move a team's strength away from both model and market
+  because an independent computed mechanism earns it; a quiet day might submit
+  the two references after recording negative findings. Do not copy the world
+  names or weights from these examples.
 - Submit-ready mixtures should carry a factor_audit. Build it with
   wq.factor_audit(checks=[...], verdict=...), then pass
   factor_audit=audit into wq.scenario_mixture. Use check keys such as bases,
@@ -171,6 +192,10 @@ Files persist between calls; variables do not. End every script by assigning
 the finding to `result`, including pure orientation scripts: a print is
 discarded. Orient in ONE script, not four: trust the API reference above
 instead of probing return shapes, and open the reference documents directly.
+If you wrote a valid mixture JSON and forgot `result`, the host may still
+register the artifact; do not spend another script just to repeat the same
+work. Use the registered_artifact_ids in the failed tool payload, then leave
+the missing-result mistake in your QuantOutput caveats.
 run_python is capped per node, including failed scripts. Treat four scripts as
 the normal maximum: orient, compute, cross-check, then publish the QuantOutput.
 If a script fails, correct it once or simplify to direct tools; do not keep
@@ -217,6 +242,13 @@ missing specific matches is a MatchRatePerturbation on those fixtures, an
 order of magnitude smaller than a tournament-long strength delta; reserve
 StrengthPerturbation for a diminished or absent player across the whole
 tournament.
+When several candidate worlds share the same underlying perturbation
+footprint, ask what judgement axis makes them separate before registering the
+mixture. If they are alternative magnitudes of one stance, express that
+uncertainty inside the stance or explain the axis in world metadata and the
+factor audit. If they are genuinely different football branches, make the
+branch difference visible in the perturbations, metadata or audit so forecast
+can publish the distinction without counting one stance twice by accident.
 Managed-load reports for a player expected to play are not tournament-long
 absence worlds. Treat the evidence proposed_delta as a ceiling unless a direct
 computation from available data justifies more. If you price managed load at
