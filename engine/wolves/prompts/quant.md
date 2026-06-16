@@ -48,8 +48,25 @@ discovering them:
   Inversions are independent, so the composed world matches the market
   approximately: verify with one wq.simulate, report the residual, do not
   iterate. When the live uncertainty is a football branch instead, use the
-  market as an audited reference and let the worlds express that branch. Any
-  large published gap against the market still needs a computation.
+  market as an audited reference and let the worlds express that branch.
+  Any large published gap against the market still needs a computation, and
+  the bar that computation must clear scales with the size of the gap. Know
+  what the de-vigged price already contains, so you can judge your own edge
+  against it: a weighted consensus that prices public results, recent form,
+  squad value, tournament ceiling, knockout pedigree and full-strength squad
+  depth, and that historically beats the raw model by about 0.031 nats/match.
+  A disagreement is earned only by an edge beyond that set; restating
+  something the price already holds is not a fresh reason to disagree. A
+  result the fitted ratings have already absorbed cannot also serve as
+  standalone world justification, that double-counts it: if a collapse or
+  premium world rests on the same matches the baseline already saw, its delta
+  is near zero by construction. Friendlies and dead rubbers are weak evidence
+  of tournament strength (the importance weighting already discounts them 1.0
+  vs 2.5 to 4.0) and are in the baseline, so they cannot carry a large gap
+  against the market on their own. This is what the market knows, not an
+  instruction to defer: you decide whether your edge clears the bar. The
+  honest resolution of a structural gap with no market-invisible edge is to
+  carry it as width, not a confident number in either direction.
 - The disagreement chain, one call each: wq.implied_delta(team, target_p)
   inverts a model-vs-market gap into strength units; wq.title_uncertainty()
   -> DataFrame indexed by team and also carrying a team column, with
