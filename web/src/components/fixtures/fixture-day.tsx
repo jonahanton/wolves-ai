@@ -11,10 +11,9 @@ interface FixtureDayProps {
   open: boolean;
   onToggle: () => void;
   impact: Impact | null;
-  reachProbs: Record<string, Record<string, number>>;
 }
 
-export function FixtureDay({ day, open, onToggle, impact, reachProbs }: FixtureDayProps) {
+export function FixtureDay({ day, open, onToggle, impact }: FixtureDayProps) {
   const [everOpened, setEverOpened] = useState(false);
   if (open && !everOpened) setEverOpened(true);
   return (
@@ -42,7 +41,7 @@ export function FixtureDay({ day, open, onToggle, impact, reachProbs }: FixtureD
           {everOpened && (
             <ul className="pb-2">
               {day.rows.map((row) => (
-                <FixtureRow key={row.match} row={row} impact={impact} reachProbs={reachProbs} />
+                <FixtureRow key={row.match} row={row} impact={impact} />
               ))}
             </ul>
           )}

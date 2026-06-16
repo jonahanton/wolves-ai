@@ -4,7 +4,7 @@ interface EstimateToggleProps {
   on: boolean;
   onToggle: () => void;
   colour: string;
-  code: string;
+  code?: string;
 }
 
 export function EstimateToggle({ on, onToggle, colour, code }: EstimateToggleProps) {
@@ -21,7 +21,7 @@ export function EstimateToggle({ on, onToggle, colour, code }: EstimateTogglePro
         className="block font-display text-[11px] font-bold leading-tight tracking-[0.01em] underline decoration-dotted decoration-1 underline-offset-[3px] transition-opacity group-hover:opacity-80"
         style={{ color: colour, textDecorationColor: on ? colour : "var(--color-cream-faint)" }}
       >
-        {code} Est. shift
+        {code ? `${code} Est. shift` : "Est. shift"}
       </span>
       <span className="block font-display text-[10px] font-medium leading-tight tracking-[0.01em] text-cream-faint">
         from latest results

@@ -10,7 +10,6 @@ import type { Impact } from "@/lib/impact";
 interface StageSectionProps {
   section: Section;
   impact: Impact | null;
-  reachProbs: Record<string, Record<string, number>>;
   open: boolean;
   onToggle: () => void;
   openDay: string | null;
@@ -21,7 +20,7 @@ function sectionCount(section: Section): number {
   return section.layout === "days" ? section.days.reduce((n, d) => n + d.rows.length, 0) : section.rows.length;
 }
 
-export function StageSection({ section, impact, reachProbs, open, onToggle, openDay, onToggleDay }: StageSectionProps) {
+export function StageSection({ section, impact, open, onToggle, openDay, onToggleDay }: StageSectionProps) {
   const [everOpened, setEverOpened] = useState(false);
   if (open && !everOpened) setEverOpened(true);
   return (
@@ -42,18 +41,11 @@ export function StageSection({ section, impact, reachProbs, open, onToggle, open
             (section.layout === "days" ? (
               <div className="pt-1">
                 {section.days.map((day) => (
-                  <FixtureDay
-                    key={day.dayKey}
-                    day={day}
-                    open={openDay === day.dayKey}
-                    onToggle={() => onToggleDay(day.dayKey)}
-                    impact={impact}
-                    reachProbs={reachProbs}
-                  />
+                  <FixtureDay key={day.dayKey} day={day} open={openDay === day.dayKey} onToggle={() => onToggleDay(day.dayKey)} impact={impact} />
                 ))}
               </div>
             ) : (
-              <FlatRows rows={section.rows} impact={impact} reachProbs={reachProbs} />
+              <FlatRows rows={section.rows} impact={impact} />
             ))}
         </div>
       </div>
@@ -61,7 +53,7 @@ export function StageSection({ section, impact, reachProbs, open, onToggle, open
   );
 }
 
-function FlatRows({ rows, impact, reachProbs }: { rows: Row[]; impact: Impact | null; reachProbs: Record<string, Record<string, number>> }) {
+function FlatRows({ rows, impact }: { rows: Row[]; impact: Impact | null }) {
   return (
     <ul>
       {rows.map((row, i) => {
@@ -74,7 +66,7 @@ function FlatRows({ rows, impact, reachProbs }: { rows: Row[]; impact: Impact | 
               </p>
             )}
             <ul>
-              <FixtureRow row={row} impact={impact} reachProbs={reachProbs} />
+              <FixtureRow row={row} impact={impact} />
             </ul>
           </li>
         );
