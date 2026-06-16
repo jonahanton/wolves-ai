@@ -129,6 +129,7 @@ def validate_submission(
                         f"{'; '.join(moved)}",
                     )
                 )
+        issues += _check_audit_consistency(payload)
         if market_titles is not None:
             gaps = _diff_escalations(
                 titles,
@@ -453,6 +454,51 @@ def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[Valid
             "these worlds share a directional perturbation footprint, so the artifact may count one stance "
             "more than once. This is an artifact structure issue, not a copy edit: submit another valid "
             f"artifact or ask master to brief quant for a corrected mixture. Details: {described}",
+        )
+    ]
+
+
+_KILLED_BRANCH_STATUSES = {"below_floor", "collapsed", "rejected"}
+_BRANCH_SURVIVAL_MIN_WEIGHT = 1e-6
+
+
+def _check_audit_consistency(payload: dict) -> list[ValidationIssue]:
+    """The artifact must not contradict its own branch_audit: a branch quant
+    priced below the noise floor, collapsed or rejected cannot still carry a
+    standalone weighted world. This is the deterministic half of the
+    self-inconsistency guard; softer verdict-vs-move judgements stay with the
+    pre-mortem, never a hard block."""
+    audit = payload.get("branch_audit")
+    if not isinstance(audit, dict):
+        return []
+    checks = audit.get("checks")
+    if not isinstance(checks, list):
+        return []
+    weights: dict[str, float] = payload.get("weights") or {}
+    contradictions: list[str] = []
+    for check in checks:
+        if not isinstance(check, dict) or str(check.get("status")) not in _KILLED_BRANCH_STATUSES:
+            continue
+        world_names = check.get("world_names")
+        if not isinstance(world_names, list):
+            continue
+        survivors = sorted(
+            str(name)
+            for name in world_names
+            if str(name) not in _BASE_WORLDS and weights.get(str(name), 0.0) > _BRANCH_SURVIVAL_MIN_WEIGHT
+        )
+        if survivors:
+            contradictions.append(
+                f"{check.get('key')} ({check.get('status')}) still weights {', '.join(survivors)}"
+            )
+    if not contradictions:
+        return []
+    return [
+        _issue(
+            "branch_audit_self_inconsistent",
+            "the mixture publishes worlds its own branch_audit killed; a branch priced below floor, collapsed or "
+            "rejected cannot keep a weighted standalone world. Drop the world or have quant re-audit the branch: "
+            + "; ".join(contradictions),
         )
     ]
 
