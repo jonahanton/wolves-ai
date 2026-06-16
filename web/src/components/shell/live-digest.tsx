@@ -27,7 +27,7 @@ function signed(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
 }
 
-const LIP_FILL = "oklch(0.17 0.025 248 / 0.92)";
+const LIP_FILL = "oklch(0.17 0.025 248 / 0.985)";
 const LIP_CAP_W = 28;
 const LIP_CAP_L = "M0 0 C0 15 7 24 18 24 L28 24 L28 0 Z";
 const LIP_CAP_R = "M28 0 C28 15 21 24 10 24 L0 24 L0 0 Z";

@@ -91,14 +91,20 @@ export function compactLiveDigest(live: LiveState | null, impact: Impact | null)
   }
 
   const next = nextScheduledFixture(live);
-  const tokens: DigestToken[] = [{ kind: "text", text: `No games since last forecast${at}` }];
+  const tokens: DigestToken[] = [{ kind: "text", text: "No games since last forecast" }];
+  const parts: DigestToken[] = [];
+  if (impact) parts.push({ kind: "text", text: `last forecast ${timeLabel(impact.agentCreatedAt)} ET` });
   if (next) {
-    tokens.push({ kind: "text", text: `, next ${timeLabel(next.kickoff)} ET ` });
-    tokens.push(teamToken(next.homeId, names));
-    tokens.push({ kind: "text", text: " v " });
-    tokens.push(teamToken(next.awayId, names));
+    if (parts.length > 0) parts.push({ kind: "text", text: ", " });
+    parts.push({ kind: "text", text: "next game " });
+    parts.push(teamToken(next.homeId, names));
+    parts.push({ kind: "text", text: " v " });
+    parts.push(teamToken(next.awayId, names));
+    parts.push({ kind: "text", text: ` ${timeLabel(next.kickoff)} ET` });
   }
-  tokens.push({ kind: "text", text: ")" });
+  if (parts.length > 0) {
+    tokens.push({ kind: "text", text: " (" }, ...parts, { kind: "text", text: ")" });
+  }
   return { tone: "quiet", tokens };
 }
 
