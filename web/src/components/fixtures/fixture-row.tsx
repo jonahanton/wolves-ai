@@ -170,11 +170,9 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
     <p className="mb-2.5 font-display text-[12px] text-cream-faint">
       Estimated impact of{" "}
       <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>{" "}
-      <span className="font-mono font-semibold tabular-nums text-cream">
-        {score ?? ""}
-        {row.minute !== null ? ` ${row.minute}'` : ""}
-      </span>{" "}
+      {score && <span className="font-mono font-semibold tabular-nums text-cream-dim">{score}</span>}{" "}
       <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
+      {row.minute !== null && <span className="ml-1.5 font-mono font-semibold tabular-nums text-cream-dim">{row.minute}&apos;</span>}
     </p>
   );
 
