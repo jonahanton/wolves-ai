@@ -199,7 +199,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
             data-open={open}
-            className="group relative z-20 -mt-px mx-auto flex h-6 w-full items-center justify-between gap-3 px-8 text-left outline-none motion-reduce:transition-none"
+            className="group relative z-20 -mt-px mx-auto flex h-6 w-full items-center justify-center gap-3 px-8 text-center outline-none motion-reduce:transition-none"
           >
             <span
               aria-hidden
@@ -228,7 +228,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
             </span>
             <ChevronDown
               size={15}
-              className="shrink-0 text-cream-faint transition-transform duration-200 ease-out group-hover:translate-y-0.5 group-data-[open=true]:translate-y-0 motion-reduce:transition-none"
+              className="absolute right-3 shrink-0 text-cream-faint transition-transform duration-200 ease-out group-hover:translate-y-0.5 group-data-[open=true]:translate-y-0 motion-reduce:transition-none"
               style={{ transform: open ? "rotate(180deg)" : "none" }}
             />
           </button>
