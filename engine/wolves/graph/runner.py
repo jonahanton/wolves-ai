@@ -130,6 +130,14 @@ def _seeded_research_model(models: GraphModels, hint_level: str) -> Model:
     return models.nodes["research"]
 
 
+def _reset_forecast_copy_state(deps: AgentDeps) -> None:
+    deps.submission.copy_repair_required = False
+    deps.submission.copy_issue_signature = None
+    deps.submission.copy_issue_repeats = 0
+    deps.submission.copy_repair_blocked = False
+    deps.submission.publication_blocked = False
+
+
 async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> GraphRunResult:
     """The wave loop: plan, admit, execute, merge, until acceptance or caps."""
     store = deps.artifacts or RunArtifactStore(ArtifactStore(deps.settings), run_id=deps.runtime.run_id)
@@ -208,10 +216,15 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 # blackboard, so give the master another planning turn.
                 logger.warning("wave %d fully dropped at admission; re-planning", board.wave)
                 continue
+            if any(op.kind == "forecast" for op in ops):
+                _reset_forecast_copy_state(deps)
             had_referee_replan = submission_state.referee_replan_required
             outcomes = await _execute_wave(ops, deps=deps, store=store, models=models)
             board.merge(ops, outcomes)
             await _submit_clean_preview(deps)
+            if submission_state.publication_blocked and not submission_state.referee_replan_required:
+                logger.info("publication blocked after wave %d", board.wave)
+                break
             if submission_state.referee_replan_required:
                 follow_up_ran = had_referee_replan and any(
                     outcome.ok and outcome.kind in {"research", "quant"} for outcome in outcomes
@@ -259,6 +272,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 input_artifact_ids=[a.id for a in store.all()],
             )
             try:
+                _reset_forecast_copy_state(deps)
                 outcome = await execute_brief(op, deps=deps, store=store, model=models.nodes["forecast"])
             except Exception as exc:
                 if not _cap_exceeded(exc):

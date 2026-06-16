@@ -3,7 +3,7 @@ from __future__ import annotations
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps
 from wolves.graph.agents import _forecast_post_check_refusal
-from wolves.graph.runner import _submit_clean_preview
+from wolves.graph.runner import _reset_forecast_copy_state, _submit_clean_preview
 from wolves.toolkit.result import ToolResult
 
 
@@ -45,6 +45,35 @@ def test_copy_repair_allows_recheck_and_resubmit(tmp_path):
 
     assert _forecast_post_check_refusal("check_forecast", deps) is None
     assert _forecast_post_check_refusal("submit_forecast", deps) is None
+
+
+def test_referee_copy_repair_can_resubmit_while_publication_is_blocked(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.submission.copy_repair_required = True
+    deps.submission.publication_blocked = True
+
+    assert _forecast_post_check_refusal("check_forecast", deps) is None
+    assert _forecast_post_check_refusal("submit_forecast", deps) is None
+    refusal = _forecast_post_check_refusal("team_path_tree", deps)
+    assert refusal is not None
+    assert refusal.error is not None
+    assert refusal.error.type == "copy_repair_required"
+
+
+def test_new_forecast_attempt_resets_copy_repair_loop(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.submission.copy_repair_required = True
+    deps.submission.publication_blocked = True
+    deps.submission.copy_issue_signature = ("headline_too_long:old",)
+    deps.submission.copy_issue_repeats = 3
+    deps.submission.copy_repair_blocked = True
+
+    _reset_forecast_copy_state(deps)
+
+    assert _forecast_post_check_refusal("read_artifact", deps) is None
+    assert deps.submission.copy_issue_signature is None
+    assert deps.submission.copy_issue_repeats == 0
+    assert deps.submission.publication_blocked is False
 
 
 async def test_runner_auto_submits_clean_preview(tmp_path, monkeypatch):

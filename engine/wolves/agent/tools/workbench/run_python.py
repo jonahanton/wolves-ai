@@ -47,13 +47,14 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
     script = workspace.next_analysis_name()
     deps.quant.write_analysis(actor=deps.actor, workspace=workspace, code=args.code, filename=script)
     result = await deps.quant.execute(actor=deps.actor, workspace=workspace, script=script)
+    clean_missing_result = result.no_result and result.exit_code == 0 and not result.timed_out
     registered = (
         _register_mixtures(
             deps,
             workspace_dir=workspace.dir.name,
             files=[o.filename for o in result.output_files],
         )
-        if result.ok
+        if result.ok or clean_missing_result
         else []
     )
     result_text = json.dumps(result.result_value, ensure_ascii=False, default=str)
@@ -69,6 +70,11 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
             "usage": result.usage,
             "output_files": [o.filename for o in result.output_files],
             "registered_artifact_ids": registered,
+            **(
+                {"recovery_hint": "valid mixture outputs were registered despite the missing result"}
+                if registered
+                else {}
+            ),
             **({"error": result.error} if result.error else {}),
         },
     )

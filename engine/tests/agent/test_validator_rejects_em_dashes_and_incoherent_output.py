@@ -658,9 +658,73 @@ def test_technical_market_language_is_allowed_in_copy(store: RunArtifactStore, l
     assert "headline_jargon" not in _codes(report)
 
 
+def test_technical_team_story_language_is_allowed(store: RunArtifactStore, ledger: EvidenceLedger):
+    narrative = build_narrative(
+        team_stories={
+            "england": {
+                "summary": "England are lifted by a market disagreement.",
+                "why": (
+                    "The story is technical: a partial perturbation towards the de-vigged market leaves England "
+                    "above the fitted model, while the bracket still caps the upside."
+                ),
+            },
+            "spain": {"summary": "Spain stay first.", "why": "Their title chance is stable."},
+            "rest": {"summary": "The rest share the tail.", "why": "No single side dominates it."},
+        }
+    )
+    submission = build_submission(narrative=narrative)
+
+    report = _validate(submission, store, ledger)
+
+    assert "team_story_jargon" not in _codes(report)
+
+
+def test_team_story_internal_ids_still_flag_as_copy(store: RunArtifactStore, ledger: EvidenceLedger):
+    narrative = build_narrative(
+        team_stories={
+            "england": {
+                "summary": "England are lifted by mixture-002.",
+                "why": "The validator accepted led-0001 after check_forecast.",
+            },
+            "spain": {"summary": "Spain stay first.", "why": "Their title chance is stable."},
+            "rest": {"summary": "The rest share the tail.", "why": "No single side dominates it."},
+        }
+    )
+    submission = build_submission(narrative=narrative)
+
+    report = _validate(submission, store, ledger)
+
+    assert "team_story_jargon" in _codes(report)
+
+
+def test_team_story_internal_worker_labels_flag_as_copy(store: RunArtifactStore, ledger: EvidenceLedger):
+    narrative = build_narrative(
+        team_stories={
+            "england": {
+                "summary": "England are lifted by market disagreement.",
+                "why": "The quant confirmed the market gap and moved England up.",
+            },
+            "spain": {"summary": "Spain stay first.", "why": "Their title chance is stable."},
+            "rest": {"summary": "The rest share the tail.", "why": "No single side dominates it."},
+        }
+    )
+    submission = build_submission(narrative=narrative)
+
+    report = _validate(submission, store, ledger)
+
+    assert "team_story_jargon" in _codes(report)
+
+
 def test_rambling_headline_flags_as_copy(store: RunArtifactStore, ledger: EvidenceLedger):
     headline = (
-        "Spain lead. England hold. France drift. Portugal rise. Brazil wobble. Italy fade. Croatia stall. Japan climb."
+        "Spain lead but the market keeps France close after a fresh audit of their squad value and recent results. "
+        "England are still in the chasing pack with Saka fit and their opening path intact. "
+        "Portugal, Argentina, Brazil, Germany and the Netherlands all remain live enough to matter, but none of them "
+        "has a single new public fact that moves the board on its own. "
+        "The forecast gives partial credit to market disagreement without turning that disagreement into certainty. "
+        "That means the top of the board is wider than a quiet model-only day while still leaving Spain first. "
+        "The remaining contenders mostly move through bracket interaction rather than direct news. "
+        "This copy is intentionally too long for the compact lede target."
     )
     submission = build_submission(narrative=build_narrative(headline=headline))
     report = _validate(submission, store, ledger)

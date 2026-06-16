@@ -469,7 +469,7 @@ def _prefer_last_clean(result: GraphRunResult, state: SubmissionState, *, run_id
     round never completed."""
     if result.submission is not None or state.last_clean is None:
         return result
-    if state.publication_blocked or state.referee_interventions or state.referee_replan_required:
+    if state.publication_blocked or state.referee_replan_required:
         logger.warning("run %s: referee intervened; refusing last clean fallback", run_id)
         return result
     logger.warning(
@@ -796,6 +796,33 @@ def _camp_probs(team: str, per_world_champion, weights, camp_of) -> dict[str, fl
     return {camp: round(num[camp] / den[camp], 6) for camp in num if den[camp] > 0}
 
 
+def _camp_probs_from_components(components: dict[str, dict[str, float]], camp_of: dict[str, str]) -> dict[str, float]:
+    num: dict[str, float] = {}
+    den: dict[str, float] = {}
+    for world, component in components.items():
+        camp = camp_of.get(world, world)
+        weight = component.get("weight", 0.0)
+        num[camp] = num.get(camp, 0.0) + weight * component.get("mean", 0.0)
+        den[camp] = den.get(camp, 0.0) + weight
+    return {camp: round(num[camp] / den[camp], 6) for camp in num if den[camp] > 0}
+
+
+def _driver_stats_from_distributions(
+    distributions_sidecar: object, camp_of: dict[str, str]
+) -> tuple[dict[str, dict[str, float]], dict[str, list[float]]]:
+    teams = getattr(distributions_sidecar, "teams", {})
+    camp_probs: dict[str, dict[str, float]] = {}
+    means: dict[str, list[float]] = {}
+    for team, stages in teams.items():
+        cell = stages.get("champion") if isinstance(stages, dict) else None
+        components = getattr(cell, "components", None) if cell is not None else None
+        if not components:
+            continue
+        camp_probs[team] = _camp_probs_from_components(components, camp_of)
+        means[team] = [component.get("mean", 0.0) for component in components.values()]
+    return camp_probs, means
+
+
 def _team_news(
     team: str, ledger: EvidenceLedger, articles: ArticleCache, priced: dict[str, PricedItem], impacts: dict[str, str]
 ) -> list[NewsItemOut]:
@@ -832,6 +859,8 @@ def _build_drivers(
     articles: ArticleCache,
     priced: dict[str, PricedItem],
     noise_floor_pp: float,
+    governed_camp_probs: dict[str, dict[str, float]] | None = None,
+    governed_means: dict[str, list[float]] | None = None,
 ) -> dict[str, TeamDriver]:
     """One driver record per team with news or more than one camp; the chart reads this."""
     camp_of = _camp_of_world(submission)
@@ -841,7 +870,7 @@ def _build_drivers(
     teams |= {t for champ in per_world_champion.values() for t in champ}
     drivers: dict[str, TeamDriver] = {}
     for team in teams:
-        camp_probs = _camp_probs(team, per_world_champion, weights, camp_of)
+        camp_probs = (governed_camp_probs or {}).get(team) or _camp_probs(team, per_world_champion, weights, camp_of)
         news = _team_news(team, ledger, articles, priced, impacts)
         gap = gaps.get(team)
         market_gap = (
@@ -853,7 +882,7 @@ def _build_drivers(
             else None
         )
         has_story = market_gap is not None or any(n.material for n in news)
-        means = [champ.get(team, 0.0) for champ in per_world_champion.values()]
+        means = (governed_means or {}).get(team) or [champ.get(team, 0.0) for champ in per_world_champion.values()]
         spread_pp = round((max(means) - min(means)) * 100, 2) if means else 0.0
         higher_camp = max(camp_probs, key=camp_probs.get) if has_story and camp_probs else None
         if not news and len(camp_probs) <= 1 and market_gap is None:
@@ -963,6 +992,9 @@ def _build_snapshot(
     per_world_champion = _per_world_champion(
         deps.forecaster, per_world_results, n_sims=n_sims, seed=seed, played=played
     )
+    governed_camp_probs, governed_means = _driver_stats_from_distributions(
+        sidecars["distributions"], _camp_of_world(submission)
+    )
     distributions.drivers = _build_drivers(
         submission,
         per_world_champion=per_world_champion,
@@ -971,6 +1003,8 @@ def _build_snapshot(
         articles=deps.articles,
         priced=priced,
         noise_floor_pp=noise_floor_pp,
+        governed_camp_probs=governed_camp_probs,
+        governed_means=governed_means,
     )
     provenance = _provenance(submission, deps.ledger, priced, n_worlds=len(worlds), noise_floor_pp=noise_floor_pp)
 

@@ -148,6 +148,18 @@ def _forecast_post_check_refusal(tool_name: str, deps: AgentDeps) -> ToolResult 
                 ),
             ),
         )
+    if deps.submission.publication_blocked and not deps.submission.copy_repair_required:
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="publication_blocked",
+                message=(
+                    "Publication is blocked by the final referee. Stop calling tools and return a short "
+                    "ForecastOutput summary so the master can replan or the run can fail for audit."
+                ),
+            ),
+        )
     if deps.submission.checked_clean is None or tool_name in _POST_CLEAN_CHECK_TOOLS:
         return None
     return ToolResult(

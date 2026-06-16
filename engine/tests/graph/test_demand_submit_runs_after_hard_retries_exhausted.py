@@ -162,3 +162,57 @@ async def test_referee_replan_returns_to_master_before_terminal_path(tmp_path: P
     assert deps.submission.publication_blocked is True
     assert any(event.kind == "node" and event.actor == "quant-follow-up" for event in events)
     assert not any(event.kind == "node" and event.actor == "runner-demand-submit" for event in events)
+
+
+async def test_referee_infrastructure_block_publishes_without_replan(tmp_path: Path):
+    settings = Settings(_env_file=None, runs_root=tmp_path, storage_mode="local", graph_referee_enabled=True)
+    deps = build_graph_deps(tmp_path, settings=settings)
+    deps.artifacts = build_run_store(tmp_path)
+    deps.artifacts.add(
+        kind="mixture",
+        created_by="quant-1",
+        summary="baseline",
+        payload={
+            "weights": {"baseline": 1.0},
+            "worlds": {"baseline": {"perturbations": []}},
+            "mixture": {"england": 0.08, "rest": 0.92},
+        },
+    )
+    deps.referee_llm = ObservedLLM(ScriptedLLM(turns=[], structured=[]), deps.runtime)
+    submission = build_submission(
+        evidence_ids=[],
+        scenario_weights=[{"name": "baseline", "weight": 1.0, "rationale": "Baseline remains live."}]
+    )
+    models = GraphModels(
+        master=scripted_model(
+            [
+                GraphPatch(
+                    ops=[NodePatch(node_id="forecast-1", kind="forecast", objective="submit", brief="submit")],
+                    stop=False,
+                ),
+                GraphPatch(
+                    ops=[NodePatch(node_id="quant-should-not-run", kind="quant", objective="audit", brief="audit")]
+                ),
+            ],
+            model_name="master",
+        ),
+        nodes={
+            "research": scripted_model([], model_name="unused"),
+            "quant": scripted_model([QuantOutput(summary="quant should not run")], model_name="quant"),
+            "forecast": scripted_model(
+                [[("submit_forecast", submission.model_dump())], ForecastOutput(summary="referee unavailable")],
+                model_name="forecast",
+            ),
+            "critic": scripted_model([], model_name="unused"),
+        },
+    )
+
+    result = await run_graph(deps, as_of="2026-06-10", models=models)
+    events = EventLog.read(deps.runtime.paths.events)
+    deps.runtime.shutdown()
+
+    assert result.submission is not None
+    assert deps.submission.publication_blocked is False
+    assert deps.submission.referee_replan_required is False
+    assert not any(event.kind == "node" and event.actor == "quant-should-not-run" for event in events)
+    assert not any(event.kind == "node" and event.actor == "runner-demand-submit" for event in events)

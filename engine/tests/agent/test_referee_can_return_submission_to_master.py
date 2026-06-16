@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.agent.fakes import ScriptedLLM
@@ -142,7 +144,41 @@ async def test_referee_blocking_issue_overrides_approved_flag(tmp_path):
     deps.runtime.shutdown()
 
 
-async def test_referee_disapproval_without_issue_blocks(tmp_path):
+async def test_referee_minor_issue_does_not_block_publication(tmp_path):
+    deps = _seed_clean_submission_deps(tmp_path)
+    deps.referee_llm = ObservedLLM(
+        ScriptedLLM(
+            turns=[],
+            structured=[
+                {
+                    "approved": False,
+                    "summary": "One caution, not a blocker.",
+                    "issues": [
+                        {
+                            "severity": "minor",
+                            "owner": "forecast",
+                            "threshold": "copy could be clearer",
+                            "message": "The market explanation could be clearer.",
+                            "suggested_next_step": "Consider tightening tomorrow.",
+                        }
+                    ],
+                    "suggested_master_brief": "",
+                }
+            ],
+        ),
+        deps.runtime,
+    )
+
+    with deps.runtime.run_trace():
+        result = await _submit_forecast(_clean_submission(), deps)
+
+    assert result.ok
+    assert result.payload["accepted"] is True
+    assert deps.submission.accepted is not None
+    deps.runtime.shutdown()
+
+
+async def test_referee_disapproval_without_blocking_issue_publishes_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
     deps.referee_llm = ObservedLLM(
         ScriptedLLM(
@@ -155,42 +191,49 @@ async def test_referee_disapproval_without_issue_blocks(tmp_path):
     with deps.runtime.run_trace():
         result = await _submit_forecast(_clean_submission(), deps)
 
-    assert not result.ok
-    assert result.error is not None
-    assert result.error.type == "referee_replan_required"
-    assert deps.submission.accepted is None
+    assert result.ok
+    assert result.payload["accepted"] is True
+    assert deps.submission.publication_blocked is False
+    assert deps.submission.referee_replan_required is False
+    assert deps.submission.referee_interventions == 0
+    assert deps.submission.accepted is not None
     deps.runtime.shutdown()
 
 
-async def test_referee_unavailable_blocks_publication(tmp_path):
+async def test_referee_unavailable_publishes_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
     deps.referee_llm = ObservedLLM(ScriptedLLM(turns=[], structured=[]), deps.runtime)
 
     with deps.runtime.run_trace():
         result = await _submit_forecast(_clean_submission(), deps)
 
-    assert not result.ok
-    assert result.error is not None
-    assert result.error.type == "referee_replan_required"
-    assert deps.submission.accepted is None
+    assert result.ok
+    assert result.payload["accepted"] is True
+    assert result.payload["referee"]["bypassed"] is True
+    assert deps.submission.publication_blocked is False
+    assert deps.submission.referee_replan_required is False
+    assert deps.submission.referee_interventions == 0
+    assert deps.submission.accepted is not None
     deps.runtime.shutdown()
 
 
-async def test_missing_referee_client_blocks_when_enabled(tmp_path):
+async def test_missing_referee_client_publishes_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
     deps.referee_llm = None
 
     result = await _submit_forecast(_clean_submission(), deps)
 
-    assert not result.ok
-    assert result.error is not None
-    assert result.error.type == "referee_replan_required"
-    assert deps.submission.publication_blocked is True
-    assert deps.submission.accepted is None
+    assert result.ok
+    assert result.payload["accepted"] is True
+    assert result.payload["referee"]["bypassed"] is True
+    assert deps.submission.publication_blocked is False
+    assert deps.submission.referee_replan_required is False
+    assert deps.submission.referee_interventions == 0
+    assert deps.submission.accepted is not None
     deps.runtime.shutdown()
 
 
-async def test_referee_intervention_cap_does_not_publish_blocker(tmp_path):
+async def test_referee_intervention_cap_publishes_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
     deps.submission.referee_interventions = deps.settings.graph_referee_max_interventions
     deps.referee_llm = ObservedLLM(
@@ -219,15 +262,43 @@ async def test_referee_intervention_cap_does_not_publish_blocker(tmp_path):
     with deps.runtime.run_trace():
         result = await _submit_forecast(_clean_submission(), deps)
 
-    assert not result.ok
-    assert result.error is not None
-    assert result.error.type == "referee_blocked"
-    assert deps.submission.accepted is None
+    assert result.ok
+    assert result.payload["accepted"] is True
+    assert result.payload["referee"]["bypassed"] is True
+    assert deps.submission.publication_blocked is False
+    assert deps.submission.referee_replan_required is False
+    assert deps.submission.accepted is not None
     deps.runtime.shutdown()
 
 
 async def test_referee_context_includes_cited_ledger_rows(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
+    assert deps.artifacts is not None
+    deps.artifacts.add(
+        kind="evidence",
+        created_by="research-1",
+        summary="research scan",
+        payload={
+            "summary": "England availability checked.",
+            "signals": ["Saka trained"],
+            "candidate_branches": [{"branch_id": "england-availability"}],
+        },
+    )
+    deps.artifacts.add(
+        kind="retrieval",
+        created_by="research-1",
+        summary="ranked sources",
+        payload={
+            "sub_question": "England availability",
+            "rankings": [{"url": "https://www.thefa.com/news", "score": 0.9, "reason": "official"}],
+        },
+    )
+    deps.artifacts.add(
+        kind="quant",
+        created_by="quant-1",
+        summary="market gap audit",
+        payload={"summary": "France gap priced.", "findings": ["market premium tested"]},
+    )
     client = CapturingScriptedLLM(
         turns=[],
         structured=[{"approved": True, "summary": "Ready.", "issues": [], "suggested_master_brief": ""}],
@@ -241,6 +312,15 @@ async def test_referee_context_includes_cited_ledger_rows(tmp_path):
     assert "led-0001" in client.last_user
     assert "England keeper trained" in client.last_user
     assert "https://www.thefa.com/news" in client.last_user
+    context = json.loads(client.last_user)
+    assert context["published_preview"]
+    assert context["artifact"]["weights"] == {"baseline": 1.0}
+    assert context["research_artifacts"][0]["candidate_branches"] == [{"branch_id": "england-availability"}]
+    assert context["retrieval_artifacts"][0]["rankings"][0]["score"] == 0.9
+    assert any(artifact["summary"] == "France gap priced." for artifact in context["quant_artifacts"])
+    assert "branch_audit" in context
+    assert "factor_audit" in context
+    assert "world_metadata" in context
     deps.runtime.shutdown()
 
 

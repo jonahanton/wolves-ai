@@ -101,6 +101,15 @@ def test_tiny_previous_drift_does_not_block_publication(store: RunArtifactStore,
     assert report.ok
 
 
+def test_tiny_market_tail_gap_does_not_need_justification(store: RunArtifactStore, tmp_path: Path):
+    ledger = _ledger(tmp_path)
+    market = {"england": 0.10, "ghana": 0.0109, "rest": 0.8891}
+
+    report = _validate(_submission(), store, ledger, market_titles=market)
+
+    assert report.ok
+
+
 def test_every_market_gap_needs_naming_in_market_justification(store: RunArtifactStore, tmp_path: Path):
     ledger = _ledger(tmp_path)
     market = {"england": 0.14, "ghana": 0.04}

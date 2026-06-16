@@ -189,6 +189,37 @@ raise RuntimeError("after writing")
     assert deps.artifacts.get("mixture-001") is None
 
 
+async def test_run_python_registers_mixture_when_result_assignment_is_missing(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)
+    deps.actor = "quant-build"
+
+    with deps.runtime.run_trace(title="run_python test"):
+        result = await _run_python(
+            RunPythonArgs(
+                code="""
+import json
+
+payload = {
+    "weights": {"model": 1.0},
+    "worlds": {"model": {"perturbations": []}},
+    "mixture": {"england": 0.08},
+    "conditionals": {"model": {"england": 0.08}},
+}
+open("outputs/submit_ready.json", "w", encoding="utf-8").write(json.dumps(payload))
+print("mixture written")
+"""
+            ),
+            deps,
+        )
+
+    deps.runtime.shutdown()
+    assert not result.ok
+    assert result.payload["registered_artifact_ids"] == ["mixture-001"]
+    assert result.payload["recovery_hint"] == "valid mixture outputs were registered despite the missing result"
+    assert deps.artifacts.get("mixture-001").payload["weights"] == {"model": 1.0}
+
+
 async def test_run_python_does_not_register_stale_failed_output_after_success(tmp_path):
     deps = build_graph_deps(tmp_path)
     deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)

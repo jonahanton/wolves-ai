@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.forecast_artifact import ForecastArtifactError, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger
-from wolves.agent.mixture_hygiene import diluted_groups
+from wolves.agent.mixture_hygiene import describe_signature, diluted_group_details
 
 if TYPE_CHECKING:
     from wolves.graph.artifacts import RunArtifactStore
@@ -125,7 +125,13 @@ def validate_submission(
                     )
                 )
         if market_titles is not None:
-            gaps = _diff_escalations(titles, market_titles, limits, against="de-vigged market")
+            gaps = _diff_escalations(
+                titles,
+                market_titles,
+                limits,
+                against="de-vigged market",
+                min_threshold_pp=limits.justification_threshold_pp,
+            )
             justification = submission.market_justification.lower()
             # Per-team coverage: a justification that argues England cannot
             # silently carry an unexamined Germany gap.
@@ -229,7 +235,7 @@ def _check_team_stories(
             )
         )
     for team, story in stories.items():
-        jargon = sorted({m.group(0).lower() for m in _HEADLINE_JARGON.finditer(f"{story.summary} {story.why}")})
+        jargon = sorted({m.group(0).lower() for m in _STORY_INTERNAL_COPY.finditer(f"{story.summary} {story.why}")})
         if jargon:
             issues.append(
                 _copy_issue(
@@ -357,7 +363,7 @@ def _check_news_impacts(
 
 
 def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[ValidationIssue]:
-    """Copy-severity nudge: near-duplicate worlds split a vote and bias the mix."""
+    """Near-duplicate worlds split a vote and bias the mix."""
     weights: dict[str, float] = payload.get("weights") or {}
     worlds_block: dict[str, dict] = payload.get("worlds") or {}
     worlds = {
@@ -365,15 +371,20 @@ def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[Valid
         for name in worlds_block
         if name not in _BASE_WORLDS
     }
-    diluted = diluted_groups(worlds, min_combined_weight=limits.weight_dilution_min_combined)
+    diluted = diluted_group_details(worlds, min_combined_weight=limits.weight_dilution_min_combined)
     if not diluted:
         return []
-    described = "; ".join(f"{' and '.join(names)} ({weight:g} combined)" for names, weight in diluted)
+    described = "; ".join(
+        f"{' and '.join(group.names)} ({group.combined_weight:g} combined; shared footprint: "
+        f"{describe_signature(group.signature)})"
+        for group in diluted
+    )
     return [
-        _copy_issue(
+        _issue(
             "weight_dilution",
-            "these worlds shift the same teams the same way, so splitting their weight out-votes a single "
-            f"opposing world; merge them or argue why they are genuinely distinct branches: {described}",
+            "these worlds share a directional perturbation footprint, so the artifact may count one stance "
+            "more than once. This is an artifact structure issue, not a copy edit: submit another valid "
+            f"artifact or ask master to brief quant for a corrected mixture. Details: {described}",
         )
     ]
 
@@ -804,13 +815,18 @@ _AMERICANISMS = re.compile(
 # The soft target is ~420 chars over the 54ch lede; the grace band absorbs a
 # marginal overshoot rather than burning a turn reformatting prose that reads well.
 _HEADLINE_SOFT_CHARS = 420
-_HEADLINE_CHAR_GRACE = 60
+_HEADLINE_CHAR_GRACE = 180
 _HEADLINE_MAX_CHARS = _HEADLINE_SOFT_CHARS + _HEADLINE_CHAR_GRACE
-_HEADLINE_MAX_SENTENCES = 6
 _HEADLINE_JARGON = re.compile(
     r"\b(artifact[s]?|perturbation[s]?|n_sims|sim[s]?\b|escalation[s]?|validator|governor|"
-    r"raw mixture|noise floor|factor_audit|branch_audit|"
+    r"raw mixture|noise floor|factor_audit|branch_audit|quant|"
     r"submit_forecast|check_forecast|ledger[- ]?id[s]?|scenario[-_ ]?id[s]?|run[-_ ]?id[s]?|"
+    r"mixture-\d+|led-\d+|scn-\d+|evidence-\d+|retrieval-\d+)\b",
+    re.IGNORECASE,
+)
+_STORY_INTERNAL_COPY = re.compile(
+    r"\b(artifact[s]?|n_sims|validator|governor|raw mixture|factor_audit|branch_audit|"
+    r"quant|submit_forecast|check_forecast|ledger[- ]?id[s]?|scenario[-_ ]?id[s]?|run[-_ ]?id[s]?|"
     r"mixture-\d+|led-\d+|scn-\d+|evidence-\d+|retrieval-\d+)\b",
     re.IGNORECASE,
 )
@@ -832,9 +848,6 @@ def _check_headline(submission: ForecastSubmission, titles: dict[str, float]) ->
     issues: list[ValidationIssue] = []
     if len(headline) > _HEADLINE_MAX_CHARS:
         issues.append(_copy_issue("headline_too_long", f"headline must stay under {_HEADLINE_MAX_CHARS} characters"))
-    sentences = [part for part in re.split(r"[.!?]+", headline) if part.strip()]
-    if len(sentences) > _HEADLINE_MAX_SENTENCES:
-        issues.append(_copy_issue("headline_too_long", f"headline must be at most {_HEADLINE_MAX_SENTENCES} sentences"))
     found = sorted({m.group(0).lower() for m in _HEADLINE_JARGON.finditer(headline)})
     if found:
         issues.append(

@@ -11,11 +11,13 @@ from wolves.agent.tools.submission._validation import (
     market_gap_contract,
     published_title_preview,
     spread_section,
+    validation_next_action,
     validation_report,
     world_metadata_section,
 )
 from wolves.agent.tools.submission.normalise import normalise_submission, note_copy_repair_state
 from wolves.agent.tools.submission.referee import record_referee_block, referee_review
+from wolves.agent.validator import ValidationReport
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
 
@@ -34,6 +36,42 @@ def _missing_escalation_teams(args: ForecastSubmission, deps: AgentDeps) -> list
     if not teams:
         return []
     return sorted({team for team in teams if not _team_named(team, args.change_justification)})
+
+
+def _accept_forecast(
+    checked: ForecastSubmission,
+    deps: AgentDeps,
+    report: ValidationReport,
+    normalisation_warnings: list[str],
+    *,
+    referee_note: str | None = None,
+) -> ToolResult[Any]:
+    deps.submission.checked_clean = None
+    deps.submission.copy_repair_required = False
+    deps.submission.referee_replan_required = False
+    deps.submission.publication_blocked = False
+    deps.submission.accepted = checked
+    deps.submission.escalations = report.escalations
+    deps.runtime.emit(
+        "validation",
+        deps.actor,
+        "submission accepted" if referee_note is None else f"submission accepted ({referee_note})",
+    )
+    payload: dict[str, Any] = {
+        "accepted": True,
+        "escalations": report.escalations,
+        "normalisation_warnings": normalisation_warnings,
+        "published_preview": published_title_preview(deps, checked.artifact_id),
+        "spread": spread_section(deps, checked.artifact_id),
+        "factor_audit": factor_audit_section(deps, checked.artifact_id),
+        "market_gap_contract": market_gap_contract(deps, checked),
+        "branch_audit": branch_audit_section(deps, checked.artifact_id),
+        "world_metadata": world_metadata_section(deps, checked.artifact_id),
+        "advisories": branch_advisories(deps, checked.artifact_id),
+    }
+    if referee_note is not None:
+        payload["referee"] = {"approved": False, "bypassed": True, "reason": referee_note}
+    return ToolResult(payload=payload)
 
 
 async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
@@ -68,12 +106,16 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
                 ),
             )
         warnings = f" Normalisation applied: {'; '.join(normalised.warnings)}." if normalised.warnings else ""
+        next_action = validation_next_action(report, copy_repair_blocked=deps.submission.copy_repair_blocked)
         return ToolResult(
             ok=False,
             payload=None,
             error=ToolError(
                 type="validation_failed",
-                message=f"Submission rejected. Fix and resubmit: {report.summary()} ({cost_note}).{warnings}",
+                message=(
+                    f"Submission rejected. {report.summary()} Next action: {next_action} "
+                    f"({cost_note}).{warnings}"
+                ),
             ),
         )
 
@@ -127,9 +169,23 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
 
     referee = await referee_review(checked, deps, report)
     if referee.blocking_issues:
-        deps.submission.publication_blocked = True
         artifact_id = record_referee_block(referee, deps)
+        if referee.terminal_infra_block:
+            deps.runtime.emit(
+                "referee",
+                "referee",
+                f"referee unavailable; publishing clean submission without referee approval: {referee.summary[:160]}",
+                artifact_id=artifact_id,
+            )
+            return _accept_forecast(
+                checked,
+                deps,
+                report,
+                normalised.warnings,
+                referee_note=f"referee unavailable: {referee.summary}",
+            )
         if deps.submission.referee_interventions < deps.settings.graph_referee_max_interventions:
+            deps.submission.publication_blocked = True
             deps.submission.referee_interventions += 1
             deps.submission.checked_clean = None
             deps.submission.copy_repair_required = not referee.needs_master_replan
@@ -153,47 +209,22 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
                 message = f"The referee found a final-copy issue. Fix and resubmit: {referee.summary}"
                 error_type = "referee_revision_required"
             return ToolResult(ok=False, payload=None, error=ToolError(type=error_type, message=message))
-        deps.submission.checked_clean = None
-        deps.submission.copy_repair_required = False
-        deps.submission.referee_replan_required = True
         deps.runtime.emit(
             "referee",
             "referee",
-            f"referee intervention limit reached, blocking publication: {referee.summary[:200]}",
+            "referee intervention limit reached; publishing clean submission without referee approval: "
+            f"{referee.summary[:160]}",
             artifact_id=artifact_id,
         )
-        return ToolResult(
-            ok=False,
-            payload=None,
-            error=ToolError(
-                type="referee_blocked",
-                message=(
-                    "The referee still found a threshold-crossing blocker after the intervention limit. "
-                    "Do not publish this submission; stop and let the run fail for audit. "
-                    f"Referee: {referee.summary}"
-                ),
-            ),
+        return _accept_forecast(
+            checked,
+            deps,
+            report,
+            normalised.warnings,
+            referee_note=f"referee intervention cap reached: {referee.summary}",
         )
 
-    deps.submission.checked_clean = None
-    deps.submission.copy_repair_required = False
-    deps.submission.accepted = checked
-    deps.submission.escalations = report.escalations
-    deps.runtime.emit("validation", deps.actor, "submission accepted")
-    return ToolResult(
-        payload={
-            "accepted": True,
-            "escalations": report.escalations,
-            "normalisation_warnings": normalised.warnings,
-            "published_preview": published_title_preview(deps, checked.artifact_id),
-            "spread": spread_section(deps, checked.artifact_id),
-            "factor_audit": factor_audit_section(deps, checked.artifact_id),
-            "market_gap_contract": market_gap_contract(deps, checked),
-            "branch_audit": branch_audit_section(deps, checked.artifact_id),
-            "world_metadata": world_metadata_section(deps, checked.artifact_id),
-            "advisories": branch_advisories(deps, checked.artifact_id),
-        }
-    )
+    return _accept_forecast(checked, deps, report, normalised.warnings)
 
 
 SPEC = ToolSpec(

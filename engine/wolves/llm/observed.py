@@ -28,7 +28,7 @@ class ObservedLLM:
         user: str,
         system: str | None = None,
         max_tokens: int = 900,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> T:
         schema = harden_schema(response_model.model_json_schema())
         schema_name = response_model.__name__
@@ -46,7 +46,7 @@ class ObservedLLM:
                 "prompt_name": prompt_name,
                 "schema": schema_name,
             },
-            model_parameters={"temperature": temperature, "max_tokens": max_tokens},
+            model_parameters=_model_parameters(temperature=temperature, max_tokens=max_tokens),
         ) as rec:
             resp = await self._client.complete(
                 user=user,
@@ -97,7 +97,7 @@ class ObservedLLM:
         tools: list[dict[str, Any]],
         system: str | None = None,
         max_tokens: int = 2000,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> ToolTurn:
         """One observed, charged assistant turn of a ReAct tool loop. The caller
         owns the message list and the loop; this owns one turn + its observation."""
@@ -110,7 +110,7 @@ class ObservedLLM:
             model=self._client.model,
             input={"system": system, "messages": messages},
             metadata={"provider": self._client.provider, "prompt_name": prompt_name},
-            model_parameters={"temperature": temperature, "max_tokens": max_tokens},
+            model_parameters=_model_parameters(temperature=temperature, max_tokens=max_tokens),
         ) as rec:
             turn = await self._client.complete_tools(
                 messages=messages,
@@ -145,3 +145,10 @@ class ObservedLLM:
                 stop_reason=turn.stop_reason,
             )
             return turn
+
+
+def _model_parameters(*, temperature: float | None, max_tokens: int) -> dict[str, float | int]:
+    params: dict[str, float | int] = {"max_tokens": max_tokens}
+    if temperature is not None:
+        params["temperature"] = temperature
+    return params

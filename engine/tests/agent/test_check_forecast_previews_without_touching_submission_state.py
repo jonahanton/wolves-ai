@@ -112,3 +112,39 @@ async def test_preview_reports_unpublishable_artifact_without_tool_error(deps: A
     assert result.ok
     assert not result.payload["ok"]
     assert result.payload["issues"][0]["code"] == "artifact_unpublishable"
+
+
+async def test_preview_routes_weight_dilution_back_to_artifact_repair(deps: AgentDeps):
+    deps.artifacts.add(
+        kind="mixture",
+        created_by="quant-1",
+        summary="split market view",
+        payload={
+            "weights": {"market_a": 0.35, "market_b": 0.35, "model": 0.3},
+            "worlds": {
+                "market_a": {"perturbations": [{"team": "spain", "delta": 0.09, "reason": "market"}]},
+                "market_b": {"perturbations": [{"team": "spain", "delta": 0.06, "reason": "market"}]},
+                "model": {"perturbations": []},
+            },
+            "mixture": {"spain": 0.17, "rest": 0.83},
+        },
+    )
+    submission = build_submission(
+        artifact_id="mixture-002",
+        evidence_ids=[],
+        scenario_weights=[
+            {"name": "market_a", "weight": 0.35, "rationale": "First market view."},
+            {"name": "market_b", "weight": 0.35, "rationale": "Second market view."},
+            {"name": "model", "weight": 0.3, "rationale": "Model view."},
+        ],
+    )
+
+    result = await _check_forecast(submission, deps)
+    deps.runtime.shutdown()
+
+    assert result.ok
+    assert not result.payload["ok"]
+    issue = next(issue for issue in result.payload["issues"] if issue["code"] == "weight_dilution")
+    assert issue["severity"] == "hard"
+    assert "structural artifact issue" in result.payload["next_action"]
+    assert "brief quant" in result.payload["next_action"]

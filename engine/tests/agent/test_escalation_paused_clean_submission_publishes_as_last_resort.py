@@ -40,7 +40,7 @@ def test_interrupted_steelman_publishes_the_last_clean_submission():
     assert result.escalations == ESCALATIONS
 
 
-def test_referee_intervention_blocks_last_clean_fallback():
+def test_referee_intervention_alone_keeps_last_clean_fallback_available():
     submission = build_submission()
     state = SubmissionState(
         last_clean=submission,
@@ -50,7 +50,7 @@ def test_referee_intervention_blocks_last_clean_fallback():
 
     result = _prefer_last_clean(GraphRunResult(submission=None), state, run_id="run-1")
 
-    assert result.submission is None
+    assert result.submission == submission
 
 
 def test_referee_publication_block_blocks_last_clean_and_fallback():

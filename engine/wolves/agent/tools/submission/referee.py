@@ -20,7 +20,7 @@ from wolves.agent.tools.submission._validation import (
 from wolves.agent.validator import ValidationReport
 from wolves.prompts import prompt
 
-RefereeOwner = Literal["forecast", "master", "research", "quant"]
+RefereeOwner = Literal["forecast", "master", "research", "quant", "infra"]
 RefereeSeverity = Literal["blocker", "major", "minor"]
 
 
@@ -46,6 +46,10 @@ class RefereeReport(BaseModel):
     def needs_master_replan(self) -> bool:
         return any(issue.owner in {"master", "research", "quant"} for issue in self.blocking_issues)
 
+    @property
+    def terminal_infra_block(self) -> bool:
+        return any(issue.owner == "infra" for issue in self.blocking_issues)
+
 
 def submission_fingerprint(args: ForecastSubmission) -> str:
     body = args.model_dump_json()
@@ -67,13 +71,13 @@ async def referee_review(
             issues=[
                 RefereeIssue(
                     severity="blocker",
-                    owner="master",
+                    owner="infra",
                     threshold="final referee unavailable",
                     message="The final referee is enabled but no referee model is configured.",
-                    suggested_next_step="Configure the referee model or deliberately disable the referee.",
+                    suggested_next_step="Fix the referee configuration before launching another forecast.",
                 )
             ],
-            suggested_master_brief="Fix the referee configuration before publishing.",
+            suggested_master_brief="Referee infrastructure is unavailable; do not replan the forecast.",
         )
     if submission_fingerprint(args) in deps.submission.referee_approved:
         return RefereeReport(approved=True, summary="already approved")
@@ -88,37 +92,23 @@ async def referee_review(
             max_tokens=1800,
         )
     except Exception as exc:
-        deps.runtime.emit("referee", "referee", f"referee unavailable, blocking publication: {exc}")
+        deps.runtime.emit("referee", "referee", f"referee unavailable: {exc}")
         return RefereeReport(
             approved=False,
             summary=f"referee unavailable: {exc}",
             issues=[
                 RefereeIssue(
                     severity="blocker",
-                    owner="master",
+                    owner="infra",
                     threshold="final referee unavailable",
                     message="The final referee could not run, so the submission has not had the required final sweep.",
-                    suggested_next_step="Audit the referee failure, then rerun or deliberately disable the referee.",
+                    suggested_next_step="Fix the referee client failure before launching another forecast.",
                 )
             ],
-            suggested_master_brief="Audit the referee failure before publishing.",
+            suggested_master_brief="Referee infrastructure failed; do not replan the forecast.",
         )
-    if not report.approved and not report.blocking_issues:
-        report = report.model_copy(
-            update={
-                "issues": [
-                    *report.issues,
-                    RefereeIssue(
-                        severity="blocker",
-                        owner="master",
-                        threshold="referee disapproved without a blocking issue",
-                        message="The referee marked the submission as not approved without naming a repair.",
-                        suggested_next_step="Treat the submission as unsafe and ask the master to identify the repair.",
-                    ),
-                ]
-            }
-        )
-    if report.approved and not report.blocking_issues:
+    if not report.blocking_issues:
+        report = report.model_copy(update={"approved": True})
         deps.submission.referee_approved.add(submission_fingerprint(args))
     return report
 

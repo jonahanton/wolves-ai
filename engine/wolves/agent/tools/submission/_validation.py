@@ -32,6 +32,25 @@ class MarketGapContract(TypedDict):
     anchor_gaps: list[dict[str, object]]
 
 
+def validation_next_action(report: ValidationReport, *, copy_repair_blocked: bool) -> str:
+    """Tell the forecast node which class of repair is possible."""
+    if report.ok:
+        return "Write the journal if still needed, then call submit_forecast with this checked payload."
+    if copy_repair_blocked:
+        return (
+            "The same copy issues repeated three times. Stop this forecast attempt and return a short "
+            "ForecastOutput summary so the master can replan finalisation."
+        )
+    if any(issue.code == "weight_dilution" for issue in report.hard_issues):
+        return (
+            "This is a structural artifact issue, not a wording issue. If another registered artifact avoids "
+            "the duplicate-world footprint, check or submit that artifact; otherwise stop this forecast attempt "
+            "and return a short ForecastOutput summary so the master can brief quant to register a corrected "
+            "mixture."
+        )
+    return "Fix exactly the listed issues before using any other tool."
+
+
 def _anchors(deps: AgentDeps) -> ValidatorAnchors:
     if deps.submission.anchors is None:
         deps.submission.anchors = ValidatorAnchors(

@@ -11,6 +11,7 @@ from wolves.agent.tools.submission._validation import (
     market_gap_contract,
     published_title_preview,
     spread_section,
+    validation_next_action,
     validation_report,
     world_metadata_section,
 )
@@ -49,16 +50,7 @@ async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResu
             "branch_audit": branch_audit_section(deps, checked.artifact_id),
             "world_metadata": world_metadata_section(deps, checked.artifact_id),
             "advisories": branch_advisories(deps, checked.artifact_id),
-            "next_action": (
-                "Write the journal if still needed, then call submit_forecast with this checked payload."
-                if report.ok
-                else (
-                    "The same copy issues repeated three times. Stop this forecast attempt and return a short "
-                    "ForecastOutput summary so the master can replan finalisation."
-                    if deps.submission.copy_repair_blocked
-                    else "Fix exactly the listed issues before using any other tool."
-                )
-            ),
+            "next_action": validation_next_action(report, copy_repair_blocked=deps.submission.copy_repair_blocked),
         }
     )
 
