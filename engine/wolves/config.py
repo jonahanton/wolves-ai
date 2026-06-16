@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     # Canned fixtures are display-only: a demo pass never records results or
     # publishes snapshots, so fake scores cannot leak into the forecast inputs.
     fixtures_demo: bool = False
+    # Serve Polymarket from the canned fixture so a live run needs no network for data.
+    polymarket_demo: bool = False
 
     data_dir: Path = REPO_ROOT / "data"
     focus_team: str = "england"

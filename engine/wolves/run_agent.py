@@ -1191,7 +1191,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
         web = build_web(settings, runtime)
         odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
-        polymarket: PolymarketClient = GammaPolymarketClient()
+        polymarket: PolymarketClient = (
+            FakePolymarketClient() if settings.polymarket_demo else GammaPolymarketClient()
+        )
         fixtures: FixturesClient = build_fixtures_client(settings)
         logger.info(
             "LIVE run %s: master=%s, workers=%s, referee=%s, ceiling=$%.2f",
