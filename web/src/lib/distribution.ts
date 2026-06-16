@@ -1,5 +1,6 @@
+import { bin, deviation } from "d3-array";
 import type { ScenarioWeightOut } from "@/lib/snapshot";
-import type { CellShape } from "@/lib/sidecars";
+import type { CellShape, MatchWdl } from "@/lib/sidecars";
 
 export interface Frequency {
   denominator: number;
@@ -63,6 +64,35 @@ export function resampleCurve(points: DistroPoint[], grid: number[]): DistroPoin
     const t = span > 0 ? (x - a.x) / span : 0;
     return { x, y: a.y + t * (b.y - a.y) };
   });
+}
+
+const WDL_BINS = 24;
+
+// A raw draw array becomes a density curve on the shared grid: bin over [0,1],
+// normalise to a density, then resample so every outcome shares the grid for morphing.
+export function samplesToCurve(samples: number[], grid: number[]): DistroPoint[] {
+  if (samples.length === 0) return grid.map((x) => ({ x, y: 0 }));
+  const edges = Array.from({ length: WDL_BINS + 1 }, (_, i) => i / WDL_BINS);
+  const bins = bin<number, number>().domain([0, 1]).thresholds(edges)(samples);
+  const width = 1 / WDL_BINS;
+  const points = bins.map((b) => ({
+    x: ((b.x0 ?? 0) + (b.x1 ?? width)) / 2,
+    y: b.length / (samples.length * width),
+  }));
+  return resampleCurve([{ x: 0, y: 0 }, ...points, { x: 1, y: 0 }], grid);
+}
+
+// Blur width for the two stacked-bar boundaries: the sd of each cumulative
+// boundary (home, home+draw) across the draws, in probability units.
+export function wdlBoundarySpread(d: MatchWdl): { sigmaHomeDraw: number; sigmaDrawAway: number } {
+  const n = d.p_home.length;
+  const homeDraw: number[] = [];
+  const drawAway: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    homeDraw.push(d.p_home[i]);
+    drawAway.push(d.p_home[i] + d.p_draw[i]);
+  }
+  return { sigmaHomeDraw: deviation(homeDraw) ?? 0, sigmaDrawAway: deviation(drawAway) ?? 0 };
 }
 
 export interface Bar {

@@ -140,9 +140,60 @@ export function chartColour(teamId: string): string {
   return teamColour(teamId).primary;
 }
 
+export function teamColours(teamId: string): { primary: string; secondary: string } {
+  return teamColour(teamId);
+}
+
 export function teamCode(name: string): string {
   return name
     .replace(/[^A-Za-z]/g, "")
     .slice(0, 3)
     .toUpperCase();
+}
+
+export const DRAW_CREAM = "oklch(0.78 0.02 95)";
+
+const HOME_ACCENT = "oklch(0.74 0.16 55)";
+const AWAY_ACCENT = "oklch(0.7 0.13 245)";
+const MIN_DISTANCE = 0.12;
+
+export interface RowColours {
+  home: string;
+  draw: string;
+  away: string;
+}
+
+function parseOklch(value: string): { l: number; a: number; b: number } {
+  const match = value.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+  if (!match) return { l: 0.7, a: 0, b: 0 };
+  const l = Number(match[1]);
+  const c = Number(match[2]);
+  const h = (Number(match[3]) * Math.PI) / 180;
+  return { l, a: c * Math.cos(h), b: c * Math.sin(h) };
+}
+
+function distance(p: string, q: string): number {
+  const a = parseOklch(p);
+  const b = parseOklch(q);
+  return Math.hypot(a.l - b.l, a.a - b.a, a.b - b.b);
+}
+
+function clashes(colour: string, others: string[]): boolean {
+  return others.some((other) => distance(colour, other) < MIN_DISTANCE);
+}
+
+// Team kits collide often (two reds, a pale kit near the draw cream). Shift a
+// colliding side to its secondary, then to a fixed role accent; the cream is fixed.
+export function resolveWdlColours(homeId: string | null, awayId: string | null): RowColours {
+  const home = homeId ? teamColour(homeId) : FALLBACK;
+  const away = awayId ? teamColour(awayId) : FALLBACK;
+  let homeColour = home.primary;
+  let awayColour = away.primary;
+  if (clashes(homeColour, [awayColour, DRAW_CREAM])) {
+    homeColour = clashes(home.secondary, [awayColour, DRAW_CREAM]) ? HOME_ACCENT : home.secondary;
+  }
+  if (clashes(awayColour, [homeColour, DRAW_CREAM])) {
+    awayColour = clashes(away.secondary, [homeColour, DRAW_CREAM]) ? AWAY_ACCENT : away.secondary;
+  }
+  return { home: homeColour, draw: DRAW_CREAM, away: awayColour };
 }
