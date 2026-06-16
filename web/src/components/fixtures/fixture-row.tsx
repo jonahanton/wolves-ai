@@ -16,13 +16,11 @@ function signed(pp: number): string {
   return `${pp > 0 ? "+" : ""}${pp.toFixed(1)}`;
 }
 
-function Outcome({ label, pct, colour }: { label: string; pct: number; colour: string }) {
+function Outcome({ label, pct }: { label: string; pct: number }) {
   return (
-    <span className="flex items-baseline gap-1">
-      <span className="font-display text-[10.5px] font-semibold text-cream-faint">{label}</span>
-      <span className="font-semibold tabular-nums" style={{ color: colour }}>
-        {formatPctBare(pct)}
-      </span>
+    <span className="flex items-baseline gap-1.5">
+      <span className="font-display text-[11px] text-cream-faint">{label}</span>
+      <span className="font-semibold tabular-nums text-cream">{formatPctBare(pct)}%</span>
     </span>
   );
 }
@@ -73,21 +71,25 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
           disabled={!expandable}
           className="flex w-full items-center py-2.5 text-left"
         >
-          <span className="flex items-baseline gap-4">
-            <TeamCode code={row.homeCode} colour={row.colours.home} live={live} />
+          <span className="flex items-baseline gap-3.5">
+            <span className="w-9 text-right">
+              <TeamCode code={row.homeCode} colour={row.colours.home} live={live} />
+            </span>
             <span className={`w-12 text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
               {live ? (score ?? "-") : (score ?? formatKickoffTimeEastern(row.kickoff))}
             </span>
-            <TeamCode code={row.awayCode} colour={row.colours.away} live={live} />
+            <span className="w-9 text-left">
+              <TeamCode code={row.awayCode} colour={row.colours.away} live={live} />
+            </span>
           </span>
-          <span className="ml-auto flex items-baseline gap-3.5 font-mono text-[12.5px] tabular-nums">
+          <span className="ml-auto flex items-baseline gap-4 font-mono text-[12.5px] tabular-nums">
             {live ? (
               <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
             ) : completed ? null : row.bar ? (
               <>
-                <Outcome label="W" pct={row.bar.home} colour={row.colours.home} />
-                {!row.knockout && <Outcome label="D" pct={row.bar.draw} colour={row.colours.draw} />}
-                <Outcome label="L" pct={row.bar.away} colour={row.colours.away} />
+                <Outcome label={row.homeCode} pct={row.bar.home} />
+                {!row.knockout && <Outcome label="Draw" pct={row.bar.draw} />}
+                <Outcome label={row.awayCode} pct={row.bar.away} />
               </>
             ) : null}
           </span>
@@ -98,7 +100,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
         <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
           <div className="overflow-hidden" inert={!open}>
             {everOpened && (
-              <div className="pb-5 pl-0.5 pr-1 pt-1">
+              <div className="mt-0.5 border-t border-hairline/60 pb-5 pl-0.5 pr-1 pt-3">
                 {tbc && row.slot ? (
                   <SlotDetail row={row} />
                 ) : live ? (
@@ -124,16 +126,14 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
 
 function CandidateList({ label, candidates }: { label: string; candidates: { teamId: string; code: string; prob: number; colour: string }[] }) {
   return (
-    <div className="flex items-baseline gap-x-3.5">
-      <span className="w-8 shrink-0 font-mono text-[12px] text-cream-faint">{label}</span>
-      <span className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
-        {candidates.map((c) => (
-          <span key={c.teamId} className="font-display text-[13.5px]">
-            <span className="font-semibold text-cream">{c.code}</span>
-            <span className="ml-1.5 font-mono text-[12px] tabular-nums text-cream-faint">{formatPctBare(c.prob)}%</span>
-          </span>
-        ))}
-      </span>
+    <div className="grid grid-cols-[2rem_repeat(3,5.5rem)] items-baseline gap-x-2">
+      <span className="font-mono text-[12px] text-cream-faint">{label}</span>
+      {candidates.map((c) => (
+        <span key={c.teamId} className="font-display text-[13.5px]">
+          <span className="font-semibold text-cream">{c.code}</span>
+          <span className="ml-1.5 font-mono text-[12px] tabular-nums text-cream-faint">{formatPctBare(c.prob)}%</span>
+        </span>
+      ))}
     </div>
   );
 }
