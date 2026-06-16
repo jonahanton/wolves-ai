@@ -9,6 +9,7 @@ from pathlib import Path
 
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps, build_run_store
+from wolves.config import Settings
 from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, NodePatch, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.runner import GraphModels, run_graph
@@ -80,7 +81,15 @@ def _forecast_wave(prompt: str) -> GraphPatch:
 
 
 async def test_full_graph_run(tmp_path: Path):
-    deps = build_graph_deps(tmp_path, run_id="e2e-run")
+    settings = Settings(
+        _env_file=None,
+        runs_root=tmp_path,
+        storage_mode="local",
+        n_sims=300,
+        graph_referee_enabled=False,
+        graph_premortem_enabled=False,
+    )
+    deps = build_graph_deps(tmp_path, run_id="e2e-run", settings=settings)
     deps.artifacts = build_run_store(tmp_path, run_id="e2e-run")
     deps.artifacts.add(
         kind="mixture",

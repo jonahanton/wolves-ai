@@ -391,7 +391,7 @@ def test_market_gap_audit_names_submitted_gap_teams(store: RunArtifactStore, led
     assert "england" in report.summary()
 
 
-def test_market_gap_numbers_must_match_their_probs(store: RunArtifactStore, ledger: EvidenceLedger):
+def test_market_gap_pp_is_corrected_in_place_not_rejected(store: RunArtifactStore, ledger: EvidenceLedger):
     submission = build_submission(
         market_gaps=[
             {"team_id": "france", "model_prob": 0.08, "market_prob": 0.16, "gap_pp": 3.0},
@@ -400,7 +400,8 @@ def test_market_gap_numbers_must_match_their_probs(store: RunArtifactStore, ledg
 
     report = _validate(submission, store, ledger)
 
-    assert "market_gap_malformed" in _codes(report)
+    assert "market_gap_malformed" not in _codes(report)
+    assert submission.market_gaps[0].gap_pp == 8.0
 
 
 def test_market_gap_probs_must_match_published_and_market_anchors(

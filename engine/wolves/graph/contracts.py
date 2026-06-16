@@ -99,6 +99,10 @@ class ForecastOutput(BaseModel):
 class CritiqueOutput(BaseModel):
     summary: str
     challenges: list[str] = Field(default_factory=list)
+    # implied_shift_pp is advisory triage only; the gate reads the priced shift.
+    tail_branches: list[CandidateBranch] = Field(default_factory=list)
+    revision_recommendation: str = ""
+    implied_shift_pp: float | None = None
 
 
 class NodeOutcome(BaseModel):

@@ -82,6 +82,7 @@ def validate_submission(
     market_titles: dict[str, float] | None = None,
     published_titles: dict[str, float] | None = None,
     focus_vs_floor: float | None = None,
+    revisions_used: int = 0,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
     citation discipline on weights, Paleka coherence on the artifact's own
@@ -129,6 +130,7 @@ def validate_submission(
                         f"{'; '.join(moved)}",
                     )
                 )
+        issues += _check_audit_consistency(payload)
         if market_titles is not None:
             gaps = _diff_escalations(
                 titles,
@@ -159,6 +161,7 @@ def validate_submission(
     issues += _check_headline(submission, titles)
     issues += _check_public_copy_claims(submission)
     issues += _check_mixture_dispersion(submission, ledger, focus_vs_floor)
+    issues += _check_revision_rationale(submission, revisions_used)
     issues += _check_news_impacts(submission, artifacts)
     return ValidationReport(
         ok=not issues,
@@ -185,6 +188,19 @@ def _check_mixture_dispersion(
             f"the cited mixture's focus-team band is {focus_vs_floor}x the parameter-noise floor while the "
             "ledger holds material evidence; widen via a world you believe in, or say in "
             "change_justification why the evidence resolves nothing",
+        )
+    ]
+
+
+def _check_revision_rationale(submission: ForecastSubmission, revisions_used: int) -> list[ValidationIssue]:
+    """Copy-severity nudge: a revised forecast must say why it was revised or ratified."""
+    if revisions_used <= 0 or submission.revision_rationale.strip():
+        return []
+    return [
+        _copy_issue(
+            "revision_rationale_missing",
+            "this forecast was re-opened for revision after acceptance, so revision_rationale needs one or two "
+            "plain sentences on why the forecast was revised or ratified; it is empty",
         )
     ]
 
@@ -457,6 +473,47 @@ def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[Valid
     ]
 
 
+_KILLED_BRANCH_STATUSES = {"below_floor", "collapsed", "rejected"}
+_BRANCH_SURVIVAL_MIN_WEIGHT = 1e-6
+
+
+def _check_audit_consistency(payload: dict) -> list[ValidationIssue]:
+    """A branch the artifact's own branch_audit killed cannot keep a weighted world."""
+    audit = payload.get("branch_audit")
+    if not isinstance(audit, dict):
+        return []
+    checks = audit.get("checks")
+    if not isinstance(checks, list):
+        return []
+    weights: dict[str, float] = payload.get("weights") or {}
+    contradictions: list[str] = []
+    for check in checks:
+        if not isinstance(check, dict) or str(check.get("status")) not in _KILLED_BRANCH_STATUSES:
+            continue
+        world_names = check.get("world_names")
+        if not isinstance(world_names, list):
+            continue
+        survivors = sorted(
+            str(name)
+            for name in world_names
+            if str(name) not in _BASE_WORLDS and weights.get(str(name), 0.0) > _BRANCH_SURVIVAL_MIN_WEIGHT
+        )
+        if survivors:
+            contradictions.append(
+                f"{check.get('key')} ({check.get('status')}) still weights {', '.join(survivors)}"
+            )
+    if not contradictions:
+        return []
+    return [
+        _issue(
+            "branch_audit_self_inconsistent",
+            "the mixture publishes worlds its own branch_audit killed; a branch priced below floor, collapsed or "
+            "rejected cannot keep a weighted standalone world. Drop the world or have quant re-audit the branch: "
+            + "; ".join(contradictions),
+        )
+    ]
+
+
 def _check_scenario_metadata(submission: ForecastSubmission, payload: dict) -> list[ValidationIssue]:
     weights: dict[str, float] = payload.get("weights") or {}
     worlds_block: dict[str, dict] = payload.get("worlds") or {}
@@ -647,17 +704,8 @@ def _check_market_gap_contract(
     seen: dict[str, int] = {}
     for gap in submission.market_gaps:
         seen[gap.team_id] = seen.get(gap.team_id, 0) + 1
-        computed = abs((gap.market_prob - gap.model_prob) * 100)
-        if gap.gap_pp < 0:
-            issues.append(_issue("market_gap_malformed", f"market_gaps[{gap.team_id}] gap_pp must be positive"))
-        elif abs(gap.gap_pp - computed) > _MARKET_GAP_TOLERANCE_PP:
-            issues.append(
-                _issue(
-                    "market_gap_malformed",
-                    f"market_gaps[{gap.team_id}] gap_pp is {gap.gap_pp:.2f}, but model_prob and market_prob imply "
-                    f"{computed:.2f}pp",
-                )
-            )
+        # Derived field: correct in place rather than burn a re-forecast on a mistype.
+        gap.gap_pp = round(abs((gap.market_prob - gap.model_prob) * 100), 2)
         if gap.floor_multiple is not None and gap.floor_multiple < 0:
             issues.append(
                 _issue("market_gap_malformed", f"market_gaps[{gap.team_id}] floor_multiple must be positive")

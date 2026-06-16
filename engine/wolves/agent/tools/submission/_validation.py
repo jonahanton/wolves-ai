@@ -347,4 +347,5 @@ def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationRe
         market_titles=anchors.market_titles,
         published_titles=preview["titles"],
         focus_vs_floor=_focus_vs_floor(spread, deps.settings.focus_team),
+        revisions_used=deps.submission.revisions_used,
     )

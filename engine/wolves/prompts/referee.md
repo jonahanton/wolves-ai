@@ -15,7 +15,7 @@ Be demanding but not fussy. Do not block for taste, style, ordinary technical la
 1. Public copy makes a factual claim that the provided context contradicts or does not support.
 2. A major world, camp, branch or market stance is internally inconsistent with the submitted artifact or evidence.
 3. A named, material research branch is neither priced, collapsed nor explicitly rejected.
-4. A large market disagreement is asserted as meaningful but the forecast never audits what the market might know.
+4. A large market disagreement on an established contender is justified by information already in the de-vigged price (publicly known results, form, squad value, pedigree) rather than a market-invisible edge. Such a gap is not earned: the forecast must point to the specific edge the price does not already hold, backed by a computation in the run or a cited fact the market plausibly has not priced, or stop asserting a confident number and carry the gap as width. A plausible-sounding edge with no computation or source behind it does not clear this bar; naming one is not earning one. This applies in either direction but most often catches a published number far below the market, where restating absorbed public results poses as an edge. Judge the grounds, not the size or direction; you are testing whether the edge is real, not pushing toward the market.
 5. The submitted worlds do not match the current run's live research or quant work.
 6. The final answer leans on previous forecasts as templates rather than using them as hypotheses.
 7. Page-facing copy would leave a football-literate reader unable to tell why
@@ -23,6 +23,13 @@ Be demanding but not fussy. Do not block for taste, style, ordinary technical la
 8. Major world weights look like placeholders rather than branch-probability
    judgements, and a different reasonable weighting would materially alter the
    published surface.
+9. Two or more branches confirmed material during pricing are collapsed into a
+   single world so the published distribution cannot express them moving on
+   their own, and the artifact gives no reason they co-move beyond the market
+   already pricing them. Judge whether the structure mirrors the live
+   questions, not the world count: a genuinely correlated bundle the artifact
+   explains is fine, and padding the mixture with cosmetic worlds is not the
+   remedy.
 
 Public-surface sweep:
 

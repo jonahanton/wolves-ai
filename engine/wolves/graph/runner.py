@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from pydantic_ai.models import Model
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
 from wolves.agent.dossier import build_dossier, previous_agent_anchor
+from wolves.agent.publish_surface import PublishSurface, publish_surface
 from wolves.agent.tools.submission.submit_forecast import _submit_forecast
 from wolves.config import Settings
 from wolves.graph.artifacts import RunArtifactStore
@@ -55,6 +57,7 @@ class GraphRunResult:
     budget_exhausted: bool = False
     waves: int = 0
     validation_failures: int = 0
+    revisions_used: int = 0
 
 
 def _kickoff(deps: AgentDeps, as_of: str) -> str:
@@ -136,6 +139,68 @@ def _reset_forecast_copy_state(deps: AgentDeps) -> None:
     deps.submission.copy_issue_repeats = 0
     deps.submission.copy_repair_blocked = False
     deps.submission.publication_blocked = False
+
+
+def _published_titles_context(surface: PublishSurface, *, top_n: int = 8) -> str:
+    """Compact top-N title JSON for the master; set_context stores str only."""
+    ranked = sorted(surface.published_titles.items(), key=lambda kv: (-kv[1], kv[0]))
+    top = [{"team": team, "pct": round(p * 100, 1)} for team, p in ranked[:top_n]]
+    return json.dumps(top, ensure_ascii=False)
+
+
+def _has_fresh_premortem(deps: AgentDeps) -> bool:
+    """True when a critique artifact exists and the accepted mixture is unreviewed."""
+    store = deps.artifacts
+    accepted = deps.submission.accepted
+    if store is None or accepted is None:
+        return False
+    fingerprint = accepted.artifact_id
+    if fingerprint in deps.submission.premortem_seen:
+        return False
+    return any(record.kind == "critique" for record in store.all())
+
+
+def _should_continue_after_acceptance(deps: AgentDeps, board: Blackboard) -> tuple[bool, str]:
+    """Re-open an accepted submission once for revision; clears checked_clean so the stale mixture cannot re-submit."""
+    settings = deps.settings
+    submission_state = deps.submission
+    accepted = submission_state.accepted
+    if accepted is None:
+        return False, "no accepted submission"
+    if settings.graph_max_revisions <= 0:
+        return False, "revisions disabled"
+    if submission_state.revisions_used >= settings.graph_max_revisions:
+        return False, "revision budget spent"
+    if _budget_at_caps(
+        deps.runtime,
+        reserve_micros=int(settings.graph_revision_reserve_usd * 1_000_000),
+        reserve_calls=settings.graph_forecast_reserve_llm_calls,
+    ):
+        return False, "budget within revision reserve"
+    if not _has_fresh_premortem(deps):
+        return False, "no fresh pre-mortem to review"
+    surface = publish_surface(deps, accepted.artifact_id)
+    if surface is None:
+        return False, "published surface unavailable"
+
+    if submission_state.counterfactual is None:
+        submission_state.counterfactual = accepted
+    submission_state.last_accepted = accepted
+    submission_state.premortem_seen.add(accepted.artifact_id)
+    board.set_context("published_surface", _published_titles_context(surface))
+    submission_state.accepted = None
+    submission_state.checked_clean = None
+    submission_state.escalation_fired = False
+    _reset_forecast_copy_state(deps)
+    submission_state.revisions_used += 1
+    deps.runtime.emit(
+        "revision",
+        "runner",
+        f"re-opened accepted forecast for revision {submission_state.revisions_used}",
+        artifact_id=accepted.artifact_id,
+        revisions_used=submission_state.revisions_used,
+    )
+    return True, "re-opening for one revision turn"
 
 
 async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> GraphRunResult:
@@ -239,7 +304,11 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "stop")
                 break
             if submission_state.accepted is not None:
-                break
+                reopen, reason = _should_continue_after_acceptance(deps, board)
+                if not reopen:
+                    break
+                logger.info("post-acceptance revision after wave %d: %s", board.wave, reason)
+                continue
             if submission_state.validation_failures > settings.agent_submit_retries:
                 logger.error("submission retries exhausted after %d failures", submission_state.validation_failures)
                 break
@@ -251,6 +320,11 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 logger.warning("budget within forecast reserve after wave %d; stopping waves", board.wave)
                 budget_exhausted = True
                 break
+
+        # Restore before the final-chance block reads accepted is None.
+        if submission_state.accepted is None and submission_state.last_accepted is not None:
+            logger.info("revision did not re-accept; publishing the prior accepted submission")
+            submission_state.accepted = submission_state.last_accepted
 
         if (
             submission_state.accepted is None
@@ -288,4 +362,5 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             budget_exhausted=budget_exhausted,
             waves=board.wave,
             validation_failures=submission_state.validation_failures,
+            revisions_used=submission_state.revisions_used,
         )

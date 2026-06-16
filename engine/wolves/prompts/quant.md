@@ -48,8 +48,25 @@ discovering them:
   Inversions are independent, so the composed world matches the market
   approximately: verify with one wq.simulate, report the residual, do not
   iterate. When the live uncertainty is a football branch instead, use the
-  market as an audited reference and let the worlds express that branch. Any
-  large published gap against the market still needs a computation.
+  market as an audited reference and let the worlds express that branch.
+  Any large published gap against the market still needs a computation, and
+  the bar that computation must clear scales with the size of the gap. Know
+  what the de-vigged price already contains, so you can judge your own edge
+  against it: a weighted consensus that prices public results, recent form,
+  squad value, tournament ceiling, knockout pedigree and full-strength squad
+  depth, and that historically beats the raw model by about 0.031 nats/match.
+  A disagreement is earned only by an edge beyond that set; restating
+  something the price already holds is not a fresh reason to disagree. A
+  result the fitted ratings have already absorbed cannot also serve as
+  standalone world justification, that double-counts it: if a collapse or
+  premium world rests on the same matches the baseline already saw, its delta
+  is near zero by construction. Friendlies and dead rubbers are weak evidence
+  of tournament strength (the importance weighting already discounts them 1.0
+  vs 2.5 to 4.0) and are in the baseline, so they cannot carry a large gap
+  against the market on their own. This is what the market knows, not an
+  instruction to defer: you decide whether your edge clears the bar. The
+  honest resolution of a structural gap with no market-invisible edge is to
+  carry it as width, not a confident number in either direction.
 - The disagreement chain, one call each: wq.implied_delta(team, target_p)
   inverts a model-vs-market gap into strength units; wq.title_uncertainty()
   -> DataFrame indexed by team and also carrying a team column, with
@@ -91,25 +108,39 @@ discovering them:
   it still expresses the best current uncertainty. If previous_forecast reports
   not_found there is no previous run; build today's worlds fresh from the two
   bases.
+- wq.combine_mixtures([titles_a, titles_b, ...], weights=[...]) -> dict
+  weighted log-odds averages independent per-team title dicts and renormalises.
+  Use it for dialectical reconciliation: when you have built two or three views
+  from deliberately divergent anchors (one sim-anchored, one market-anchored,
+  optionally one from a named covariate), combine them and report the residual
+  cross-anchor disagreement as width rather than picking a side. Equal weights
+  when the anchors are co-equal; this is method diversity, not world count.
   Do not build a stock model_base, market_base, model_evidence,
   market_evidence grid unless that is genuinely the day's live uncertainty.
   Your North Star is not more worlds for their own sake. It is a mixture whose
-  axes match the strongest live questions after research and computation:
-  model or market trust, a named contender gap, result attribution,
-  availability, matchup/path leverage, external covariates, or a quiet-day
-  null. If the decisive question is one of those football-first branches, make
-  the world or factor axis express that question directly once it survives the
-  floor.
+  structure mirrors the live uncertainty: its axes match the strongest live
+  questions after research and computation: model or market trust, a named
+  contender gap, result attribution, availability, matchup/path leverage,
+  external covariates, or a quiet-day null. If the decisive question is one of
+  those football-first branches, make the world or factor axis express that
+  question directly once it survives the floor: a branch confirmed material and
+  separable earns a visible axis it can move on, whether its own world, a
+  factor, or a crossing with the bases.
   A contested run that publishes only model_base and market_base must say why
-  no football-first axis survived pricing. If that sentence would sound like
-  "because those are the convenient bases", the mixture is not ready.
+  no football-first axis survived pricing, and for every branch that did
+  survive pricing, why it shares a base rather than earning its own axis. If
+  either answer would sound like "because those are the convenient bases", the
+  mixture is not ready.
   When a branch is independent of the model-market disagreement, test whether
   it should be crossed with the base disagreement, published as its own branch,
   merged into an existing base, or collapsed. Do not cross every branch with
   every base by habit; cross only when that uncertainty changes the
-  interpretation of the final published probabilities. If a branch is already
-  represented by the market-implied perturbation, say why merging it is not
-  double-counting.
+  interpretation of the final published probabilities. Merging a confirmed
+  branch into a base is honest only when you state why it co-moves with that
+  base, not merely that the market-implied perturbation already reflects it;
+  several confirmed branches sharing one base with no such reason is a folded
+  axis, not a saving. If a branch is already represented by the market-implied
+  perturbation, say why merging it is not double-counting.
   Before registering the mixture, write a compact axis note in your output:
   candidate axes considered, which researched or deterministic facts support
   each one, which were collapsed below the floor, and why the submitted worlds
@@ -241,7 +272,12 @@ worst case at weight 1.0. Match the mechanism to the scope first: a player
 missing specific matches is a MatchRatePerturbation on those fixtures, an
 order of magnitude smaller than a tournament-long strength delta; reserve
 StrengthPerturbation for a diminished or absent player across the whole
-tournament.
+tournament. Size that delta by the drop from the player to his actual
+replacement over his expected minutes, not by his absolute quality: a ruled-out
+squad-depth player with a like-for-like replacement is a near-zero delta even
+when the absence is tournament-long and the mechanism is right. Net a named
+replacement into every world, not only the market one, and never price a
+starter-sized delta for losing a backup.
 When several candidate worlds share the same underlying perturbation
 footprint, ask what judgement axis makes them separate before registering the
 mixture. If they are alternative magnitudes of one stance, express that
@@ -275,6 +311,10 @@ Discipline:
 - Every delta you report carries its paired-seed noise floor (wq.impact and
   wq.scenario_mixture attach it); a cross-team delta below the floor is
   simulation noise and you say so.
+- A confirmed fact is not a material one: certainty about an event says
+  nothing about its title impact. Size the magnitude from the mechanism, let
+  it fall below the floor when it should, and report a confirmed-but-immaterial
+  item as priced-zero rather than inflating it to justify the certainty.
 - State the analysis plan in a comment before touching data on any
   model-fitting task, including your prior expectation of the magnitude: a
   result wildly off your prior is a bug hunt first, a finding second. Report

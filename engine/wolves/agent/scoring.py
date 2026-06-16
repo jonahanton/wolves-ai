@@ -146,7 +146,8 @@ def score_yesterday(settings: Settings, *, as_of: str, run_id: str) -> str:
     if not scores:
         return ""
     summary = summarise_scores(ledger.scores(), window=settings.governor_window)
-    memory = RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path)
-    memory.append_lessons(summary)
+    if settings.graph_debrief_enabled:
+        memory = RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path)
+        memory.append_lessons(summary)
     logger.info("calibration: scored %d match(es) from %s", len(scores), previous.run.run_id)
     return summary

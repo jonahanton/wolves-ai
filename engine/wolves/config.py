@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -47,6 +48,8 @@ class Settings(BaseSettings):
     # Canned fixtures are display-only: a demo pass never records results or
     # publishes snapshots, so fake scores cannot leak into the forecast inputs.
     fixtures_demo: bool = False
+    # Serve Polymarket from the canned fixture so a live run needs no network for data.
+    polymarket_demo: bool = False
 
     data_dir: Path = REPO_ROOT / "data"
     focus_team: str = "england"
@@ -108,7 +111,8 @@ class Settings(BaseSettings):
     graph_research_request_limit: int = 32
     graph_quant_request_limit: int = 28
     graph_forecast_request_limit: int = 24
-    graph_critic_request_limit: int = 8
+    # A pre-mortem critic reads evidence, mixtures and the branch audit; 8 starved it.
+    graph_critic_request_limit: int = 16
     graph_research_tool_budget: int = 12
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
@@ -128,6 +132,9 @@ class Settings(BaseSettings):
     dispersion_floor_enabled: bool = True
     weight_dilution_min_combined: float = 0.25
     extremising_d: float = 1.0
+    # The prior extremising pushes away from.
+    extremising_anchor: Literal["baseline", "market", "blend"] = "baseline"
+    longshot_shade_alpha: float = 0.0
     scenario_lifecycle_enforcement: str = "soft"
     agent_evening_debrief: bool = False
 
@@ -139,6 +146,13 @@ class Settings(BaseSettings):
     agent_live_active_ttl_minutes: int = 180
     graph_forecast_reserve_usd: float = 1.30
     graph_forecast_reserve_llm_calls: int = 26
+
+    # Zero recovers the exact single-pass behaviour.
+    graph_max_revisions: int = 1
+    graph_revision_reserve_usd: float = 1.10
+    graph_premortem_enabled: bool = True
+    graph_premortem_on_escalation_only: bool = True
+    graph_debrief_enabled: bool = True
 
     @property
     def lessons_path(self) -> Path:

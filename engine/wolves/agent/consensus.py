@@ -5,7 +5,8 @@ adjustment PnL is negative, loudly recorded in the snapshot."""
 
 from __future__ import annotations
 
-import math
+from wolves.logodds import from_log_odds as _from_log_odds
+from wolves.logodds import to_log_odds as _log_odds
 
 
 def blend_log_odds(
@@ -28,17 +29,19 @@ def blend_log_odds(
     return blended
 
 
+def longshot_shade(titles: dict[str, float], *, alpha: float) -> dict[str, float]:
+    """Favourite-longshot correction: raise each probability to (1 + alpha) and renormalise; alpha=0 is the identity."""
+    if alpha == 0.0 or not titles:
+        return dict(titles)
+    powered = {team: max(p, 0.0) ** (1.0 + alpha) for team, p in titles.items()}
+    total = sum(powered.values())
+    if total <= 0:
+        return dict(titles)
+    return {team: p / total for team, p in powered.items()}
+
+
 def publish_scale(*, extremising_d: float, governor_scale: float, shrink_weight: float) -> float:
     """The effective d at publish time: extremising tempered by the governor."""
     if governor_scale >= 1.0:
         return extremising_d
     return extremising_d * shrink_weight
-
-
-def _log_odds(p: float) -> float:
-    clamped = min(max(p, 1e-9), 1.0 - 1e-9)
-    return math.log(clamped / (1.0 - clamped))
-
-
-def _from_log_odds(value: float) -> float:
-    return 1.0 / (1.0 + math.exp(-value))

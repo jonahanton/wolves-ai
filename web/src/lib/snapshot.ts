@@ -266,6 +266,12 @@ export interface ProvenanceOut {
   n_camps: number;
 }
 
+export interface RevisionOut {
+  revisions_used: number;
+  counterfactual_artifact_id: string;
+  revision_rationale: string;
+}
+
 export interface AgentBlock {
   narrative: NarrativeBlock;
   artifact_id: string;
@@ -288,6 +294,7 @@ export interface AgentBlock {
   provenance?: ProvenanceOut | null;
   branch_audit?: Record<string, unknown> | null;
   world_metadata?: Record<string, Record<string, unknown>>;
+  revision?: RevisionOut | null;
 }
 
 export interface ChampionBlock {

@@ -59,6 +59,9 @@ class ForecastSubmission(BaseModel):
     market_justification: str = ""
     change_justification: str = ""
     inconsistency_note: str = ""
+    # On a post-acceptance revision, why the forecast was revised or ratified,
+    # in at most two sentences; empty on a first-pass submission.
+    revision_rationale: str = ""
     market_gaps: list[MarketGap] = Field(default_factory=list)
     camps: list[Camp] = Field(default_factory=list)
     news_impacts: dict[str, str] = Field(default_factory=dict)

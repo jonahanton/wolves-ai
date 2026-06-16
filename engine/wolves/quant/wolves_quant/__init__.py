@@ -29,7 +29,7 @@ from wolves.quant.wolves_quant._insights import (
     path_difficulty,
     path_tree,
 )
-from wolves.quant.wolves_quant._mixture import Factor, Scenario, scenario_mixture
+from wolves.quant.wolves_quant._mixture import Factor, Scenario, combine_mixtures, scenario_mixture
 from wolves.quant.wolves_quant._sanitise import sanitise as _sanitise
 from wolves.quant.wolves_quant._sim import (
     baseline,
@@ -71,6 +71,7 @@ __all__ = [
     "audit_mixture",
     "baseline",
     "branch_audit",
+    "combine_mixtures",
     "factor_audit",
     "fixtures",
     "impact",

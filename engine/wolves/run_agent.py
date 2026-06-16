@@ -24,6 +24,7 @@ from wolves import ENGINE_VERSION
 from wolves.agent.article_cache import ArticleCache, CachedArticle
 from wolves.agent.attribution import decompose
 from wolves.agent.calibration import CalibrationLedger, total_spread_pnl
+from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps, SubmissionState
 from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.ledger import EvidenceLedger, LedgerEntry
@@ -104,6 +105,7 @@ from wolves.snapshot import (
     NewsItemOut,
     ProvenanceOut,
     QuantFindingOut,
+    RevisionOut,
     RunMeta,
     ScenarioWeightOut,
     Snapshot,
@@ -1054,6 +1056,7 @@ def _build_snapshot(
         provenance=provenance,
         branch_audit=branch_audit if isinstance(branch_audit, dict) else None,
         world_metadata=world_metadata if isinstance(world_metadata, dict) else {},
+        revision=_revision_block(result, submission, deps.submission.counterfactual),
     )
     snapshot = Snapshot(
         run=RunMeta(
@@ -1081,6 +1084,18 @@ def _build_snapshot(
         ),
     )
     return snapshot, sidecars
+
+
+def _revision_block(
+    result: GraphRunResult, submission: ForecastSubmission, counterfactual: ForecastSubmission | None
+) -> RevisionOut | None:
+    if result.revisions_used <= 0:
+        return None
+    return RevisionOut(
+        revisions_used=result.revisions_used,
+        counterfactual_artifact_id=counterfactual.artifact_id if counterfactual is not None else "",
+        revision_rationale=submission.revision_rationale,
+    )
 
 
 def _attribution_block(deps: AgentDeps, outputs) -> AttributionOut | None:
@@ -1176,7 +1191,9 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
         web = build_web(settings, runtime)
         odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
-        polymarket: PolymarketClient = GammaPolymarketClient()
+        polymarket: PolymarketClient = (
+            FakePolymarketClient() if settings.polymarket_demo else GammaPolymarketClient()
+        )
         fixtures: FixturesClient = build_fixtures_client(settings)
         logger.info(
             "LIVE run %s: master=%s, workers=%s, referee=%s, ceiling=$%.2f",

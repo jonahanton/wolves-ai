@@ -37,6 +37,17 @@ class MatchScore(BaseModel):
     log_loss: dict[str, float] = Field(default_factory=dict)
     adjustment_pnl: float | None = None
     spread_pnl: float | None = None
+    # Kept so the Murphy split can recompute over a window; absent on old rows.
+    model_probs: dict[str, float] = Field(default_factory=dict)
+
+
+class MurphyDecomposition(BaseModel):
+    reliability: float
+    resolution: float
+    uncertainty: float
+    # Binned reconstruction; equals raw mean Brier only when a bin's cells share a forecast value.
+    brier: float
+    n: int
 
 
 def brier_score(probs: dict[str, float], outcome: str) -> float:
@@ -101,6 +112,45 @@ def score_match(forecast: MatchForecast, outcome: str) -> MatchScore:
         log_loss=losses,
         adjustment_pnl=pnl,
         spread_pnl=spread_pnl(forecast.world_probs, outcome),
+        model_probs=forecast.model_probs,
+    )
+
+
+def reliability_resolution(scores: list[MatchScore], *, window: int = 20, bins: int = 10) -> MurphyDecomposition | None:
+    """Murphy three-term split of the model's Brier; None until enough cells carry probabilities."""
+    cells: list[tuple[float, float]] = []
+    for score in scores[-window:]:
+        if not score.model_probs:
+            continue
+        for outcome in OUTCOMES:
+            cells.append((score.model_probs.get(outcome, 0.0), 1.0 if outcome == score.outcome else 0.0))
+    if len(cells) < bins:
+        return None
+    n = len(cells)
+    base_rate = sum(obs for _, obs in cells) / n
+    buckets: list[list[tuple[float, float]]] = [[] for _ in range(bins)]
+    for forecast, obs in cells:
+        index = min(int(forecast * bins), bins - 1)
+        buckets[index].append((forecast, obs))
+    reliability = 0.0
+    resolution = 0.0
+    for bucket in buckets:
+        if not bucket:
+            continue
+        size = len(bucket)
+        mean_forecast = sum(f for f, _ in bucket) / size
+        mean_obs = sum(o for _, o in bucket) / size
+        reliability += size * (mean_forecast - mean_obs) ** 2
+        resolution += size * (mean_obs - base_rate) ** 2
+    reliability /= n
+    resolution /= n
+    uncertainty = base_rate * (1.0 - base_rate)
+    return MurphyDecomposition(
+        reliability=reliability,
+        resolution=resolution,
+        uncertainty=uncertainty,
+        brier=reliability - resolution + uncertainty,
+        n=n,
     )
 
 
@@ -145,6 +195,12 @@ def summarise_scores(scores: list[MatchScore], *, window: int = 20) -> str:
     spreads = [s.spread_pnl for s in recent if s.spread_pnl is not None]
     if spreads:
         parts.append(f"Spread P&L over {len(spreads)} matches: {sum(spreads):+.3f} RPS saved by hedging.")
+    murphy = reliability_resolution(scores, window=window)
+    if murphy is not None:
+        parts.append(
+            f"Calibration split over {murphy.n} match outcomes: reliability {murphy.reliability:.3f} "
+            f"(lower is better-calibrated), resolution {murphy.resolution:.3f} (higher is more decisive)."
+        )
     return " ".join(parts)
 
 
