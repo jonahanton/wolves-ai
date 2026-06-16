@@ -147,7 +147,6 @@ class Settings(BaseSettings):
     # Zero recovers the exact single-pass behaviour.
     graph_max_revisions: int = 1
     graph_revision_reserve_usd: float = 1.10
-    graph_revision_min_shift_pp: float = 0.3
     graph_premortem_enabled: bool = True
     graph_premortem_on_escalation_only: bool = True
     graph_debrief_enabled: bool = True
