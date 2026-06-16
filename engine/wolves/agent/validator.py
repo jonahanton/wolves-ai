@@ -689,8 +689,7 @@ def _check_market_gap_contract(
     seen: dict[str, int] = {}
     for gap in submission.market_gaps:
         seen[gap.team_id] = seen.get(gap.team_id, 0) + 1
-        # gap_pp is fully derived from the two validated components, so correct
-        # it in place rather than burn a re-forecast on a mistyped derived field.
+        # Derived field: correct in place rather than burn a re-forecast on a mistype.
         gap.gap_pp = round(abs((gap.market_prob - gap.model_prob) * 100), 2)
         if gap.floor_multiple is not None and gap.floor_multiple < 0:
             issues.append(
