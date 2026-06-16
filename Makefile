@@ -4,7 +4,7 @@ export
 
 .PHONY: setup venv lint format test precommit db/init release \
         app/up app/down app/restart app/logs \
-        demo/save demo/on demo/off \
+        demo/on demo/off \
         frontend/install frontend/dev frontend/build frontend/lint
 
 setup: venv frontend/install
@@ -52,24 +52,21 @@ app/restart:
 app/logs:
 	open http://localhost:$${DOZZLE_PORT:-9999} || true
 
-# Snapshot the current runs/live state as the reusable demo fixtures (gitignored).
-demo/save:
-	@mkdir -p runs/demo
-	@cp runs/live/state.json runs/live/results.json runs/demo/
-	@echo "Saved current live state to runs/demo/"
-
-# Load the demo fixtures and park the poller so it cannot overwrite them.
+# Back up the real live state, write the demo scenario, and park the poller.
 demo/on:
-	.venv/bin/python scripts/demo_fixtures.py
+	.venv/bin/python scripts/demo_fixtures.py on
+	@scripts/set_env.sh JOBS_ENABLED false
 	@set -a; [ -f .env.worktree ] && . ./.env.worktree; set +a; \
-	JOBS_ENABLED=false AWS_PROFILE=$${AWS_PROFILE:-default} docker compose up -d backend
+	AWS_PROFILE=$${AWS_PROFILE:-default} docker compose up -d --force-recreate backend
 	@echo "Demo fixtures live; poller parked. Run 'make demo/off' to restore real data."
 
-# Re-enable the poller; the next poll repopulates runs/live with real data.
+# Restore the real live state and re-enable the poller.
 demo/off:
+	.venv/bin/python scripts/demo_fixtures.py off
+	@scripts/set_env.sh JOBS_ENABLED true
 	@set -a; [ -f .env.worktree ] && . ./.env.worktree; set +a; \
-	JOBS_ENABLED=true AWS_PROFILE=$${AWS_PROFILE:-default} docker compose up -d backend
-	@echo "Poller re-enabled; real live data will repopulate on the next poll."
+	AWS_PROFILE=$${AWS_PROFILE:-default} docker compose up -d --force-recreate backend
+	@echo "Real live state restored; poller re-enabled."
 
 frontend/install:
 	cd web && npm install
