@@ -1,5 +1,5 @@
 import { type DistroPoint, gridX, samplesToCurve, wdlBoundarySpread } from "@/lib/distribution";
-import type { LiveFixture, LiveState } from "@/lib/live";
+import { type LiveFixture, type LiveState, liveIsFresh } from "@/lib/live";
 import type { PlayedResultRow } from "@/lib/results";
 import type { BracketSamples, MatchWdlDraws } from "@/lib/sidecars";
 import type { MatchProbs } from "@/lib/snapshot";
@@ -196,7 +196,9 @@ export function buildFixtureDays(input: {
   nowIso: string;
 }): { days: DayGroup[]; openIndex: number } {
   const liveByMatch = new Map<number, LiveFixture>();
-  for (const fixture of input.live?.fixtures ?? []) {
+  // A stale poll cannot be trusted to a live minute, so live rows fall back to the pre-game shape.
+  const fresh = liveIsFresh(input.live, Date.parse(input.nowIso));
+  for (const fixture of fresh ? (input.live?.fixtures ?? []) : []) {
     if (fixture.match !== null && fixture.status === "live") liveByMatch.set(fixture.match, fixture);
   }
   const resultByMatch = new Map(input.results.map((r) => [r.match, r]));

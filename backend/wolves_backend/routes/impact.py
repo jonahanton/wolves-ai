@@ -33,7 +33,6 @@ REACH_STAGES = ("r32", "r16", "qf", "sf", "final")
 
 
 def _match_state(fixture: LiveFixture) -> MatchState | None:
-    # The persisted live state carries no period; regulation handles stoppage minutes cleanly.
     if fixture.minute is None or fixture.home_goals is None or fixture.away_goals is None:
         return None
     return MatchState(
@@ -42,6 +41,7 @@ def _match_state(fixture: LiveFixture) -> MatchState | None:
         away_goals=fixture.away_goals,
         home_reds=fixture.home_reds,
         away_reds=fixture.away_reds,
+        period=fixture.period,
     )
 
 

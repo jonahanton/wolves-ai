@@ -69,6 +69,14 @@ export function formatKickoffTime(iso: string): string {
   });
 }
 
+export function formatKickoffTimeEastern(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: EASTERN,
+  });
+}
+
 export function formatUpdated(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
     day: "numeric",

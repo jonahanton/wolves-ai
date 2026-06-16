@@ -5,7 +5,7 @@ import { WdlBar } from "@/components/fixtures/wdl-bar";
 import { WdlCurves } from "@/components/fixtures/wdl-curves";
 import type { FixtureRow as Row } from "@/lib/fixtures";
 import { teamReachShifts } from "@/lib/fixtures-reach";
-import { formatKickoffTime, formatPctBare } from "@/lib/format";
+import { formatKickoffTimeEastern, formatPctBare } from "@/lib/format";
 import type { Impact } from "@/lib/impact";
 
 interface FixtureRowProps {
@@ -29,19 +29,22 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
   const [open, setOpen] = useState(false);
   const expandable = row.shape !== null || row.status === "live" || row.pairings !== null;
   const live = row.status === "live";
+  const completed = row.status === "completed";
+  const lead = row.pairings?.[0] ?? null;
   const score = row.homeGoals !== null && row.awayGoals !== null ? `${row.homeGoals}-${row.awayGoals}` : null;
 
   return (
-    <li className="border-b border-hairline/60 last:border-b-0">
+    <li className={`border-b border-hairline/60 last:border-b-0 ${completed ? "opacity-70" : ""}`}>
       <button
         type="button"
         onClick={() => expandable && setOpen((v) => !v)}
         aria-expanded={expandable ? open : undefined}
+        disabled={!expandable}
         className="grid w-full grid-cols-[3rem_2.6rem_minmax(0,1fr)_5.5rem] items-center gap-3 py-2.5 text-left"
       >
         <TeamCode code={row.homeCode} colour={row.colours.home} live={live} />
         <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : "text-cream-dim"}`}>
-          {live && row.minute !== null ? `${row.minute}'` : (score ?? formatKickoffTime(row.kickoff))}
+          {live && row.minute !== null ? `${row.minute}'` : (score ?? formatKickoffTimeEastern(row.kickoff))}
         </span>
         <span className="flex items-center gap-3">
           <TeamCode code={row.awayCode} colour={row.colours.away} live={live} />
@@ -49,11 +52,20 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
             <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />
           </span>
         </span>
-        <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
-          <span style={{ color: row.colours.home }}>{formatPctBare(row.bar.home)}</span>
-          {!row.knockout && <span>/{formatPctBare(row.bar.draw)}</span>}
-          <span style={{ color: row.colours.away }}>/{formatPctBare(row.bar.away)}</span>
-        </span>
+        {lead ? (
+          <span className="flex items-center justify-end gap-1.5 font-mono text-[11px] tabular-nums text-cream-faint">
+            <span className="truncate">
+              {lead.homeCode} v {lead.awayCode}
+            </span>
+            <span className="text-cream">{formatPctBare(lead.pPairing)}%</span>
+          </span>
+        ) : (
+          <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
+            <span style={{ color: row.colours.home }}>{formatPctBare(row.bar.home)}</span>
+            {!row.knockout && <span>/{formatPctBare(row.bar.draw)}</span>}
+            <span style={{ color: row.colours.away }}>/{formatPctBare(row.bar.away)}</span>
+          </span>
+        )}
       </button>
 
       {expandable && (
@@ -66,7 +78,10 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
                 ) : live ? (
                   <ReachStrip row={row} impact={impact} />
                 ) : row.shape ? (
-                  <WdlCurves shape={row.shape} colours={row.colours} />
+                  <>
+                    <Legend row={row} />
+                    <WdlCurves shape={row.shape} colours={row.colours} />
+                  </>
                 ) : null}
               </div>
             )}
@@ -77,18 +92,34 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
   );
 }
 
+function Legend({ row }: { row: Row }) {
+  return (
+    <div className="mb-1 flex items-center gap-3 font-mono text-[10.5px] tabular-nums text-cream-faint">
+      <span style={{ color: row.colours.home }}>{row.homeCode} win</span>
+      <span style={{ color: row.colours.away }}>{row.awayCode} win</span>
+      <span style={{ color: row.colours.draw }}>draw</span>
+    </div>
+  );
+}
+
 function Pairings({ row }: { row: Row }) {
   return (
     <div>
-      <p className="mb-2 font-display text-[12px] text-cream-faint">Likely pairings</p>
+      <div className="mb-2 grid grid-cols-[5.4rem_3rem_auto] items-baseline gap-2 font-mono text-[10.5px] text-cream-faint">
+        <span>likely pairing</span>
+        <span>chance</span>
+        <span>win split</span>
+      </div>
       <ul className="space-y-1.5">
         {(row.pairings ?? []).map((p) => (
-          <li key={`${p.homeId}|${p.awayId}`} className="grid grid-cols-[2.6rem_2.6rem_3rem_auto] items-baseline gap-2 font-display text-[12.5px]">
-            <span className="font-semibold" style={{ color: p.colours.home }}>{p.homeCode}</span>
-            <span className="font-semibold" style={{ color: p.colours.away }}>{p.awayCode}</span>
+          <li key={`${p.homeId}|${p.awayId}`} className="grid grid-cols-[5.4rem_3rem_auto] items-baseline gap-2 font-display text-[12.5px]">
+            <span className="flex gap-1.5">
+              <span className="font-semibold" style={{ color: p.colours.home }}>{p.homeCode}</span>
+              <span className="font-semibold" style={{ color: p.colours.away }}>{p.awayCode}</span>
+            </span>
             <span className="font-mono text-[12px] tabular-nums text-cream">{formatPctBare(p.pPairing)}%</span>
             <span className="font-mono text-[11px] tabular-nums text-cream-faint">
-              {formatPctBare(p.pHome)} / {formatPctBare(p.pAway)} W
+              {formatPctBare(p.pHome)} / {formatPctBare(p.pAway)}
             </span>
           </li>
         ))}
@@ -102,14 +133,18 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
     { id: row.homeId, code: row.homeCode },
     { id: row.awayId, code: row.awayCode },
   ].filter((s): s is { id: string; code: string } => s.id !== null);
-  const groups = sides.map((s) => ({ ...s, shifts: teamReachShifts(impact, s.id, s.code) })).filter((g) => g.shifts.length > 0);
+  const groups =
+    impact?.liveMode === "in_match_distribution"
+      ? sides.map((s) => ({ ...s, shifts: teamReachShifts(impact, s.id, s.code) })).filter((g) => g.shifts.length > 0)
+      : [];
+  const heading = row.minute !== null ? `Given the game state at ${row.minute}'` : "Given the game state";
 
   if (groups.length === 0) {
     return <p className="font-display text-[12px] text-cream-faint">Given the game state, no material shift in either team&apos;s run.</p>;
   }
   return (
     <div>
-      <p className="mb-2 font-display text-[12px] text-cream-faint">Given the game state at {row.minute}&apos;</p>
+      <p className="mb-2 font-display text-[12px] text-cream-faint">{heading}</p>
       <div className="space-y-2">
         {groups.map((g) => (
           <div key={g.id}>

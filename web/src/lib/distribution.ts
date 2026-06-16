@@ -72,8 +72,8 @@ const WDL_BINS = 24;
 // normalise to a density, then resample so every outcome shares the grid for morphing.
 export function samplesToCurve(samples: number[], grid: number[]): DistroPoint[] {
   if (samples.length === 0) return grid.map((x) => ({ x, y: 0 }));
-  const edges = Array.from({ length: WDL_BINS + 1 }, (_, i) => i / WDL_BINS);
-  const bins = bin<number, number>().domain([0, 1]).thresholds(edges)(samples);
+  const thresholds = Array.from({ length: WDL_BINS - 1 }, (_, i) => (i + 1) / WDL_BINS);
+  const bins = bin<number, number>().domain([0, 1]).thresholds(thresholds)(samples);
   const width = 1 / WDL_BINS;
   const points = bins.map((b) => ({
     x: ((b.x0 ?? 0) + (b.x1 ?? width)) / 2,

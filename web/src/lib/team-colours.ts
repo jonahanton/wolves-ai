@@ -140,10 +140,6 @@ export function chartColour(teamId: string): string {
   return teamColour(teamId).primary;
 }
 
-export function teamColours(teamId: string): { primary: string; secondary: string } {
-  return teamColour(teamId);
-}
-
 export function teamCode(name: string): string {
   return name
     .replace(/[^A-Za-z]/g, "")

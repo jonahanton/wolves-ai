@@ -49,9 +49,9 @@ export function WdlCurves({ shape, colours }: WdlCurvesProps) {
 
   const lanes = useMemo(
     () => [
-      { points: shape.home, colour: colours.home },
-      { points: shape.draw, colour: colours.draw },
-      { points: shape.away, colour: colours.away },
+      { id: "home", points: shape.home, colour: colours.home },
+      { id: "draw", points: shape.draw, colour: colours.draw },
+      { id: "away", points: shape.away, colour: colours.away },
     ],
     [shape, colours],
   );
@@ -69,7 +69,7 @@ export function WdlCurves({ shape, colours }: WdlCurvesProps) {
       <svg width={width} height={HEIGHT} className="block overflow-visible">
         {lanes.map((lane) => (
           <MorphPath
-            key={lane.colour}
+            key={lane.id}
             points={bloomed ? lane.points : flatten(lane.points)}
             x={x}
             y={y}
