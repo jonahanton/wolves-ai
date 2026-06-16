@@ -41,41 +41,51 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
 
   return (
     <li className={`border-b border-hairline/50 last:border-b-0 ${completed ? "opacity-70" : ""}`}>
-      <button
-        type="button"
-        onClick={() => expandable && setOpen((v) => !v)}
-        aria-expanded={expandable ? open : undefined}
-        disabled={!expandable}
-        className="grid w-full grid-cols-[2.9rem_2.6rem_minmax(0,1fr)_5.2rem] items-center gap-3 py-2.5 text-left"
-      >
-        <TeamCode code={tbc ? (row.slot?.home.label ?? "TBC") : row.homeCode} colour={row.colours.home} live={live} tbc={tbc} />
-        <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
-          {live ? (score ?? "-") : (score ?? formatKickoffTimeEastern(row.kickoff))}
-        </span>
-        <span className="flex items-center gap-3">
-          <TeamCode code={tbc ? (row.slot?.away.label ?? "TBC") : row.awayCode} colour={row.colours.away} live={live} tbc={tbc} />
-          <span className="min-w-0 flex-1">
-            {tbc ? (
-              <span className="block h-px w-full bg-hairline" />
-            ) : (
-              !completed && row.bar && <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />
-            )}
+      {tbc ? (
+        <button
+          type="button"
+          onClick={() => expandable && setOpen((v) => !v)}
+          aria-expanded={open}
+          className="grid w-full grid-cols-[2.9rem_2.6rem_minmax(0,1fr)_3.2rem] items-center gap-3 py-2.5 text-left"
+        >
+          <TeamCode code={row.slot?.home.label ?? "TBC"} colour={row.colours.home} tbc />
+          <span className="text-center font-mono text-[12px] tabular-nums text-cream-dim">
+            {formatKickoffTimeEastern(row.kickoff)}
           </span>
-        </span>
-        <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
-          {live ? (
-            <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
-          ) : completed ? null : tbc ? (
-            <span className="font-display text-[12px] font-semibold uppercase tracking-[0.06em] text-cream-dim">TBC</span>
-          ) : row.bar ? (
-            <>
-              <span style={{ color: row.colours.home }}>{formatPctBare(row.bar.home)}</span>
-              {!row.knockout && <span>/{formatPctBare(row.bar.draw)}</span>}
-              <span style={{ color: row.colours.away }}>/{formatPctBare(row.bar.away)}</span>
-            </>
-          ) : null}
-        </span>
-      </button>
+          <TeamCode code={row.slot?.away.label ?? "TBC"} colour={row.colours.away} tbc />
+          <span className="text-right font-display text-[13px] font-semibold uppercase tracking-[0.06em] text-cream-dim">TBC</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => expandable && setOpen((v) => !v)}
+          aria-expanded={expandable ? open : undefined}
+          disabled={!expandable}
+          className="grid w-full grid-cols-[2.9rem_2.6rem_minmax(0,1fr)_5.2rem] items-center gap-3 py-2.5 text-left"
+        >
+          <TeamCode code={row.homeCode} colour={row.colours.home} live={live} />
+          <span className={`text-center font-mono text-[12px] tabular-nums ${live ? "shimmer-red font-semibold" : completed ? "text-cream" : "text-cream-dim"}`}>
+            {live ? (score ?? "-") : (score ?? formatKickoffTimeEastern(row.kickoff))}
+          </span>
+          <span className="flex items-center gap-3">
+            <TeamCode code={row.awayCode} colour={row.colours.away} live={live} />
+            <span className="min-w-0 flex-1">
+              {!completed && row.bar && <WdlBar bar={row.bar} colours={row.colours} showDraw={!row.knockout} />}
+            </span>
+          </span>
+          <span className="flex items-center justify-end gap-1 font-mono text-[11px] tabular-nums text-cream-faint">
+            {live ? (
+              <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
+            ) : completed ? null : row.bar ? (
+              <>
+                <span style={{ color: row.colours.home }}>{formatPctBare(row.bar.home)}</span>
+                {!row.knockout && <span>/{formatPctBare(row.bar.draw)}</span>}
+                <span style={{ color: row.colours.away }}>/{formatPctBare(row.bar.away)}</span>
+              </>
+            ) : null}
+          </span>
+        </button>
+      )}
 
       {expandable && (
         <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
