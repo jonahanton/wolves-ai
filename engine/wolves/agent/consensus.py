@@ -30,7 +30,7 @@ def blend_log_odds(
 
 
 def longshot_shade(titles: dict[str, float], *, alpha: float) -> dict[str, float]:
-    """Favourite-longshot correction by a (1 + alpha) power in odds space; alpha=0 is the identity."""
+    """Favourite-longshot correction: raise each probability to (1 + alpha) and renormalise; alpha=0 is the identity."""
     if alpha == 0.0 or not titles:
         return dict(titles)
     powered = {team: max(p, 0.0) ** (1.0 + alpha) for team, p in titles.items()}
