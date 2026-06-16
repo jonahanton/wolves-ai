@@ -109,6 +109,24 @@ export function campCurves(cell: CellShape, weights: ScenarioWeightOut[]): CampC
     }));
 }
 
+export function campMeans(cell: CellShape, weights: ScenarioWeightOut[]): Record<string, number> {
+  const camp = campOfWorld(weights);
+  const numerator: Record<string, number> = {};
+  const denominator: Record<string, number> = {};
+
+  for (const [world, component] of Object.entries(cell.components)) {
+    const key = camp[world] ?? world;
+    numerator[key] = (numerator[key] ?? 0) + component.weight * component.mean;
+    denominator[key] = (denominator[key] ?? 0) + component.weight;
+  }
+
+  return Object.fromEntries(
+    Object.keys(numerator)
+      .filter((key) => (denominator[key] ?? 0) > 0)
+      .map((key) => [key, numerator[key] / denominator[key]]),
+  );
+}
+
 // Parameter draws behind each cell; the curve is the spread across these.
 export const SAMPLES_PER_CELL = 200;
 
@@ -175,4 +193,3 @@ export function humaniseKey(key: string): string {
   const cleaned = key.replace(/[_-]+/g, " ").trim();
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
-

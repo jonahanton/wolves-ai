@@ -12,8 +12,9 @@ Usage: STORAGE_MODE=local uv run --project engine python scripts/backfill_distri
 
 from __future__ import annotations
 
+import argparse
+from copy import deepcopy
 import json
-import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -26,16 +27,36 @@ CAMP_OF_WORLD = {
     "market_evidence": "market",
 }
 CAMPS = [
-    {"key": "model", "label": "Using fitted team ratings", "order": 0,
-     "summary": "One strength rating per team, fit to past scorelines with recent games weighted most."},
-    {"key": "market", "label": "Using market odds", "order": 1,
-     "summary": "The bookmaker consensus, with the margin stripped out."},
+    {
+        "key": "model",
+        "label": "Fitted simulation",
+        "order": 0,
+        "summary": "The time-decayed ratings fit to international results, with played tournament results in the overlay.",
+    },
+    {
+        "key": "market",
+        "label": "Using market odds",
+        "order": 1,
+        "summary": "De-vigged bookmaker consensus prices for leading contenders, useful where markets see information the fit misses.",
+    },
 ]
 CAMP_LABEL = {
-    "model_base": ("model", "Model, before today's news", "Our ratings with no news applied."),
-    "model_evidence": ("model", "Model, with today's news", "Our ratings once the confirmed injuries are priced in."),
-    "market_base": ("market", "Markets, before today's news", "The bookmakers' view, before today's news."),
-    "market_evidence": ("market", "Markets, with today's news", "The bookmakers' view once the confirmed injuries are priced in."),
+    "model_base": ("model", "Fitted model", "The fitted simulation before the confirmed 13 June availability news."),
+    "model_evidence": (
+        "model",
+        "Fitted model plus confirmed news",
+        "The fitted simulation after the confirmed 13 June availability news was priced.",
+    ),
+    "market_base": (
+        "market",
+        "Market consensus",
+        "De-vigged bookmaker consensus prices for leading contenders.",
+    ),
+    "market_evidence": (
+        "market",
+        "Market consensus plus confirmed news",
+        "The same market view after the confirmed 13 June availability news was priced.",
+    ),
 }
 
 NOISE_FLOOR_PP = 0.59
@@ -105,6 +126,55 @@ TEAM_STORIES = {
 }
 
 NUMERIC_TEAM_FIELDS = ("champion_prob", "elo", "rating", "value_eur_m")
+SNAPSHOT_FRAMING_PREFIXES = (
+    ("agent", "camps"),
+    ("agent", "provenance"),
+    ("distributions", "drivers"),
+    ("markets",),
+)
+SIDECAR_FRAMING_KEYS = {"component_mean", "our_call"}
+
+
+def _path_starts(path: tuple[object, ...], prefix: tuple[object, ...]) -> bool:
+    return path[: len(prefix)] == prefix
+
+
+def _numbers(value: object, path: tuple[object, ...] = ()) -> dict[tuple[object, ...], int | float]:
+    if isinstance(value, dict):
+        out: dict[tuple[object, ...], int | float] = {}
+        for key, item in value.items():
+            out.update(_numbers(item, (*path, key)))
+        return out
+    if isinstance(value, list):
+        out = {}
+        for index, item in enumerate(value):
+            out.update(_numbers(item, (*path, index)))
+        return out
+    if isinstance(value, bool):
+        return {}
+    if isinstance(value, int | float):
+        return {path: value}
+    return {}
+
+
+def _snapshot_numbers(snapshot: dict) -> dict[tuple[object, ...], int | float]:
+    return {
+        path: number
+        for path, number in _numbers(snapshot).items()
+        if not any(_path_starts(path, prefix) for prefix in SNAPSHOT_FRAMING_PREFIXES)
+    }
+
+
+def _sidecar_numbers(sidecar: dict) -> dict[tuple[object, ...], int | float]:
+    return {path: number for path, number in _numbers(sidecar).items() if path[-1:] not in SIDECAR_FRAMING_KEYS}
+
+
+def _assert_numbers_unchanged(before: dict[tuple[object, ...], int | float], after: dict, label: str) -> None:
+    current = _snapshot_numbers(after) if label == "snapshot" else _sidecar_numbers(after)
+    changed = [path for path, number in before.items() if current.get(path) != number]
+    if changed:
+        rendered = ", ".join(".".join(map(str, path)) for path in changed[:5])
+        raise SystemExit(f"backfill changed protected {label} number(s): {rendered}")
 
 
 def _numeric_fingerprint(snapshot: dict) -> dict:
@@ -130,6 +200,36 @@ def _camp_probs(components: dict) -> dict[str, float]:
         num[camp] = num.get(camp, 0.0) + c["weight"] * c["mean"]
         den[camp] = den.get(camp, 0.0) + c["weight"]
     return {camp: round(num[camp] / den[camp], 6) for camp in num if den[camp] > 0}
+
+
+def _reference_camps(reference: dict | None) -> list[dict]:
+    if reference is None:
+        return CAMPS
+    camps = ((reference.get("agent") or {}).get("camps") or [])
+    wanted = []
+    for key in ("model", "market"):
+        camp = next((c for c in camps if c.get("key") == key), None)
+        if camp is not None:
+            wanted.append({"key": key, "label": camp.get("label", ""), "summary": camp.get("summary", "")})
+    if len(wanted) != 2:
+        return CAMPS
+    return [{**camp, "order": index} for index, camp in enumerate(wanted)]
+
+
+def _reference_labels(reference: dict | None) -> dict[str, tuple[str, str, str]]:
+    if reference is None:
+        return CAMP_LABEL
+    labels = dict(CAMP_LABEL)
+    by_name = {w.get("name"): w for w in ((reference.get("agent") or {}).get("scenario_weights") or [])}
+    for world, fallback in CAMP_LABEL.items():
+        ref = by_name.get(world)
+        if ref is not None:
+            labels[world] = (
+                ref.get("camp") or fallback[0],
+                ref.get("label") or fallback[1],
+                ref.get("summary") or fallback[2],
+            )
+    return labels
 
 
 def _news_for(team: str, ledger: list[dict]) -> list[dict]:
@@ -181,21 +281,26 @@ def _build_drivers(snapshot: dict, sidecar: dict) -> dict:
     return drivers
 
 
-def backfill(snapshot_path: Path) -> None:
+def backfill(snapshot_path: Path, *, reference_path: Path | None = None) -> None:
     dist_path = snapshot_path.with_suffix(".distributions.json")
     snapshot = json.loads(snapshot_path.read_text())
     sidecar = json.loads(dist_path.read_text())
+    reference = json.loads(reference_path.read_text()) if reference_path else None
     before = _numeric_fingerprint(snapshot)
     before_sidecar = _sidecar_fingerprint(sidecar)
+    before_snapshot_numbers = _snapshot_numbers(snapshot)
+    before_sidecar_numbers = _sidecar_numbers(sidecar)
+    camps = _reference_camps(reference)
+    labels = _reference_labels(reference)
 
     agent = snapshot["agent"]
     for w in agent["scenario_weights"]:
-        camp, label, summary = CAMP_LABEL.get(w["name"], ("", "", ""))
+        camp, label, summary = labels.get(w["name"], ("", "", ""))
         w["camp"], w["label"], w["summary"] = camp, label, summary
     camp_weight: dict[str, float] = {}
     for w in agent["scenario_weights"]:
         camp_weight[w["camp"] or w["name"]] = camp_weight.get(w["camp"] or w["name"], 0.0) + w["weight"]
-    agent["camps"] = [{**c, "weight": round(camp_weight.get(c["key"], 0.0), 6)} for c in CAMPS]
+    agent["camps"] = [{**c, "weight": round(camp_weight.get(c["key"], 0.0), 6)} for c in camps]
     agent["narrative"]["team_stories"] = TEAM_STORIES
     agent["provenance"] = {
         "news_considered": len(agent["ledger_entries"]),
@@ -204,8 +309,10 @@ def backfill(snapshot_path: Path) -> None:
         "market_disagreements": len(MARKET_GAPS),
         "noise_floor_pp": NOISE_FLOOR_PP,
         "n_worlds": len(agent["worlds"]),
-        "n_camps": len(CAMPS),
+        "n_camps": len(camps),
     }
+    if reference and reference.get("markets"):
+        snapshot["markets"] = deepcopy(reference["markets"])
 
     champ = {t["team_id"]: t["champion_prob"] for t in snapshot["teams"]}
     for team, stages in sidecar["teams"].items():
@@ -220,16 +327,25 @@ def backfill(snapshot_path: Path) -> None:
         raise SystemExit("backfill changed a published number; aborting without writing")
     if _sidecar_fingerprint(sidecar) != before_sidecar:
         raise SystemExit("backfill changed a sidecar histogram; aborting without writing")
+    _assert_numbers_unchanged(before_snapshot_numbers, snapshot, "snapshot")
+    _assert_numbers_unchanged(before_sidecar_numbers, sidecar, "sidecar")
 
     snapshot_path.write_text(json.dumps(snapshot, indent=2) + "\n")
     dist_path.write_text(json.dumps(sidecar, indent=2) + "\n")
-    print(f"backfilled {snapshot_path.name}: {len(snapshot['distributions']['drivers'])} drivers, "
-          f"{len(TEAM_STORIES)} stories, {len(MARKET_GAPS)} market gaps; published numbers unchanged")
+    markets = "with markets" if snapshot.get("markets") else "without markets"
+    print(
+        f"backfilled {snapshot_path.name}: {len(snapshot['distributions']['drivers'])} drivers, "
+        f"{len(TEAM_STORIES)} stories, {len(MARKET_GAPS)} market gaps, {markets}; "
+        "published numbers unchanged"
+    )
 
 
 def main() -> None:
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SNAPSHOT
-    backfill(path)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("snapshot", nargs="?", type=Path, default=DEFAULT_SNAPSHOT)
+    parser.add_argument("--reference-snapshot", type=Path)
+    args = parser.parse_args()
+    backfill(args.snapshot, reference_path=args.reference_snapshot)
 
 
 if __name__ == "__main__":

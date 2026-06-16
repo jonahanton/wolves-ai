@@ -15,7 +15,7 @@ export default async function TeamsPage() {
     loadSnapshotIndex(),
     loadResults(),
   ]);
-  if (!result.ok) return <ErrorState error={result.error} context="Team forecasts" />;
+  if (!result.ok) return <ErrorState error={result.error} />;
   const snapshot = result.data;
 
   const index = orNull(indexResult)?.snapshots ?? [];

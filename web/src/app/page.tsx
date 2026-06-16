@@ -20,7 +20,7 @@ export default async function LandingPage() {
     loadSnapshotIndex(),
     loadResults(),
   ]);
-  if (!result.ok) return <ErrorState error={result.error} context="World Cup Superforecaster" />;
+  if (!result.ok) return <ErrorState error={result.error} />;
   const snapshot = result.data;
 
   // The page speaks for the agent's full forecast; live runs may be newer.
@@ -32,7 +32,9 @@ export default async function LandingPage() {
       : (orNull(await loadSnapshot(agentRef.runId)) ?? snapshot);
 
   const focusId = agentSnapshot.focus.team_id;
-  const names = Object.fromEntries(agentSnapshot.teams.map((t) => [t.team_id, t.name]));
+  const names = Object.fromEntries(
+    agentSnapshot.teams.map((t) => [t.team_id, t.name]),
+  );
 
   const fullBoard = titleBoard(agentSnapshot, agentSnapshot.teams.length);
   const board = fullBoard.slice(0, CHART_TEAM_COUNT);
@@ -60,7 +62,9 @@ export default async function LandingPage() {
     .map((c) => c.bin_edges[c.bin_edges.length - 1]);
   const xMax = cellUppers.length > 0 ? Math.max(...cellUppers) : 1;
   const weights = agentSnapshot.agent?.scenario_weights ?? [];
-  const camps = (agentSnapshot.agent?.camps ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const camps = (agentSnapshot.agent?.camps ?? [])
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const drivers = agentSnapshot.distributions?.drivers ?? {};
   const stories = agentSnapshot.agent?.narrative.team_stories ?? {};
 
@@ -70,7 +74,9 @@ export default async function LandingPage() {
     featured: teamId === leaderId,
     tier: topIds.has(teamId) ? "top" : "rest",
     colour: chartColour(teamId),
-    history: (orNull(histories[i])?.points ?? []).filter((p) => fullRunIds.has(p.runId)),
+    history: (orNull(histories[i])?.points ?? []).filter((p) =>
+      fullRunIds.has(p.runId),
+    ),
   }));
 
   return (
