@@ -43,6 +43,8 @@ export interface FixtureRow {
   awayId: string | null;
   homeCode: string;
   awayCode: string;
+  homeName: string;
+  awayName: string;
   homeGoals: number | null;
   awayGoals: number | null;
   minute: number | null;
@@ -157,6 +159,8 @@ function buildRow(
     awayId,
     homeCode: codeOf(homeId, names),
     awayCode: codeOf(awayId, names),
+    homeName: homeId ? (names[homeId] ?? homeId) : "TBC",
+    awayName: awayId ? (names[awayId] ?? awayId) : "TBC",
     homeGoals: live?.homeGoals ?? result?.homeGoals ?? null,
     awayGoals: live?.awayGoals ?? result?.awayGoals ?? null,
     minute: status === "live" ? (live?.minute ?? null) : null,

@@ -28,6 +28,9 @@ export default async function FixturesPage() {
   const runId = agentSnapshot.run.run_id;
   const [draws, impact] = await Promise.all([loadSidecar<MatchWdlDraws>(runId, "match-wdl-draws"), loadImpact()]);
   const teamNames = Object.fromEntries(agentSnapshot.teams.map((t) => [t.team_id, t.name]));
+  const reachProbs = Object.fromEntries(
+    agentSnapshot.teams.filter((t) => t.reach_probs).map((t) => [t.team_id, t.reach_probs ?? {}]),
+  );
 
   return (
     <main className="wrap py-[clamp(28px,5vh,56px)]">
@@ -39,6 +42,7 @@ export default async function FixturesPage() {
         initialLive={orNull(liveResult)}
         impact={orNull(impact)}
         teamNames={teamNames}
+        reachProbs={reachProbs}
       />
     </main>
   );

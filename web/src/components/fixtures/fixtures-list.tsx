@@ -18,9 +18,10 @@ interface FixturesListProps {
   initialLive: LiveState | null;
   impact: Impact | null;
   teamNames: Record<string, string>;
+  reachProbs: Record<string, Record<string, number>>;
 }
 
-export function FixturesList({ matches, slots, draws, results, initialLive, impact, teamNames }: FixturesListProps) {
+export function FixturesList({ matches, slots, draws, results, initialLive, impact, teamNames, reachProbs }: FixturesListProps) {
   const live = useLivePoll(initialLive);
   const { sections, openGroupDay, openStage } = useMemo(
     () => buildFixtures({ matches, slots, draws, results, live, teamNames, nowIso: new Date().toISOString() }),
@@ -36,6 +37,7 @@ export function FixturesList({ matches, slots, draws, results, initialLive, impa
           key={section.key}
           section={section}
           impact={impact}
+          reachProbs={reachProbs}
           open={openStageKey === section.key}
           onToggle={() => setOpenStageKey((current) => (current === section.key ? null : section.key))}
           openDay={openDay}
