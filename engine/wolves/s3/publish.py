@@ -59,6 +59,7 @@ class SnapshotPublisher:
         *,
         as_of: date,
         started: float,
+        cost: float = 0.0,
         sidecars: Mapping[str, BaseModel] | None = None,
     ) -> str:
         """Publish the snapshot everywhere configured; return the dated key."""
@@ -81,12 +82,15 @@ class SnapshotPublisher:
             s3_key=s3_key,
             status="completed",
             started=started,
+            cost=cost,
             kind=snapshot.run.kind,
         )
         return s3_key
 
-    def record_failure(self, *, run_id: str, created_at: str, started: float) -> None:
-        self._record(run_id=run_id, created_at=created_at, s3_key="", status="failed", started=started, kind="")
+    def record_failure(self, *, run_id: str, created_at: str, started: float, cost: float = 0.0) -> None:
+        self._record(
+            run_id=run_id, created_at=created_at, s3_key="", status="failed", started=started, cost=cost, kind=""
+        )
 
     def _record(
         self,
@@ -96,6 +100,7 @@ class SnapshotPublisher:
         s3_key: str,
         status: RunStatus,
         started: float,
+        cost: float,
         kind: str,
     ) -> None:
         if self._index is None:
@@ -105,7 +110,7 @@ class SnapshotPublisher:
             created_at=created_at,
             s3_key=s3_key,
             status=status,
-            cost=0.0,
+            cost=cost,
             duration_s=round(time.monotonic() - started, 3),
             kind=kind or "sim_only",
         )

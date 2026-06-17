@@ -1295,7 +1295,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
                 cost_usd=round(runtime.budget.cost_micros / 1e6, 4),
             )
         publisher.record_failure(
-            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+            run_id=run_id,
+            created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            started=started,
+            cost=round(runtime.budget.cost_micros / 1e6, 4),
         )
         runtime.shutdown()
         raise
@@ -1311,7 +1314,10 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
                 cost_usd=round(runtime.budget.cost_micros / 1e6, 4),
             )
         publisher.record_failure(
-            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+            run_id=run_id,
+            created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            started=started,
+            cost=round(runtime.budget.cost_micros / 1e6, 4),
         )
         runtime.shutdown()
         raise
@@ -1352,7 +1358,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         if state is not None:
             state.push(run_id=run_id)
         publisher.record_failure(
-            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started, cost=spent
         )
         if _should_publish_fallback(deps.submission):
             await _publish_fallback(
@@ -1391,7 +1397,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         if state is not None:
             state.push(run_id=run_id)
         publisher.record_failure(
-            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started
+            run_id=run_id, created_at=datetime.now(UTC).isoformat(timespec="seconds"), started=started, cost=spent
         )
         if _should_publish_fallback(deps.submission):
             await _publish_fallback(
@@ -1407,7 +1413,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         return 1
     snapshot, sidecars = built
     record_stream(settings, snapshot)
-    publisher.publish(snapshot, as_of=date.fromisoformat(as_of), started=started, sidecars=sidecars)
+    publisher.publish(snapshot, as_of=date.fromisoformat(as_of), started=started, cost=spent, sidecars=sidecars)
     if deps.forecaster is not None and deps.forecaster.is_fitted:
         FittedStateStore(ArtifactStore(settings)).publish(deps.forecaster.state, run_id=run_id)
     _commit_agent_state(deps)
