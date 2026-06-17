@@ -11,7 +11,7 @@ async def test_run_policy_returns_today_and_the_full_calendar(tmp_path):
         anonymous = await client.get("/admin/run-policy")
         response = await client.get("/admin/run-policy", headers=ADMIN_HEADERS)
 
-    assert anonymous.status_code == 403
+    assert anonymous.status_code == 401
     assert response.status_code == 200
     body = response.json()
     assert body["today"]["ceilingUsd"] > 0

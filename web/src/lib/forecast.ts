@@ -92,8 +92,8 @@ export function featuredMovers(
       ourProb,
       marketProb,
       gapPp,
-      summary: story.summary,
-      why: story.why,
+      summary: stripIds(story.summary),
+      why: stripIds(story.why),
     });
   }
   return movers;

@@ -121,6 +121,7 @@ class EngineService:
         self._semaphore = asyncio.Semaphore(MAX_CONCURRENT_SIMS)
         self._lock = threading.Lock()
         self._cache: OrderedDict[tuple[Any, ...], Any] = OrderedDict()
+        self._inflight: dict[tuple[Any, ...], asyncio.Future[Any]] = {}
         self._fit: _Fit | None = None
 
     @property
@@ -523,9 +524,23 @@ class EngineService:
             if key in self._cache:
                 self._cache.move_to_end(key)
                 return self._cache[key]
-        value = await self.run_blocking(compute)
+        # Coalesce concurrent identical requests: _inflight is touched only on the
+        # event loop, so the check-and-register below is atomic across coroutines.
+        existing = self._inflight.get(key)
+        if existing is not None:
+            return await existing
+        future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
+        self._inflight[key] = future
+        try:
+            value = await self.run_blocking(compute)
+        except BaseException as exc:
+            self._inflight.pop(key, None)
+            future.set_exception(exc)
+            raise
         with self._lock:
             self._cache[key] = value
             if len(self._cache) > SIM_CACHE_SIZE:
                 self._cache.popitem(last=False)
+        self._inflight.pop(key, None)
+        future.set_result(value)
         return value

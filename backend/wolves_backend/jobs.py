@@ -76,8 +76,13 @@ class LiveLoop:
             await fixtures.aclose()
 
     def _interval(self) -> float:
-        state = LiveStateStore(self._artifacts).load()
-        fast = near_kickoff(state, now=datetime.now(UTC), horizon=FAST_HORIZON)
+        try:
+            state = LiveStateStore(self._artifacts).load()
+            fast = near_kickoff(state, now=datetime.now(UTC), horizon=FAST_HORIZON)
+        except Exception:
+            # A transient read failure must not kill the loop; err slow until the next pass.
+            logger.warning("interval probe failed; backing off to the idle cadence", exc_info=True)
+            return self._settings.live_idle_interval_s
         return self._settings.live_poll_interval_s if fast else self._settings.live_idle_interval_s
 
 

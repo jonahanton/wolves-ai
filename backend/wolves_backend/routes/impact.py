@@ -110,7 +110,7 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
     live = await _live_state(deps)
     in_play = [f for f in live.fixtures if f.status == "live"] if live else []
     live_fresh = _live_is_fresh(live)
-    live_dists = _live_distributions(deps.engine.forecaster, in_play) if live_fresh else {}
+    live_dists = _live_distributions(deps.engine.forecaster, in_play) if live_fresh and deps.engine.ready else {}
     selected = _selected_teams(teams, agent_stages, in_play, snapshot["focus"]["team_id"])
     agent_results = _played(agent_result_set)
     current_results = _played(current_result_set)

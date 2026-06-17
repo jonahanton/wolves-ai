@@ -33,6 +33,7 @@ export function useLivePoll(initial: LivePayload): LivePayload {
         return;
       }
     };
+    void load();
     const id = window.setInterval(load, pollMs);
     return () => {
       controller.abort();

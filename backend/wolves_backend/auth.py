@@ -21,5 +21,12 @@ def is_admin(settings: Settings, request: Request) -> bool:
 
 
 def require_admin(request: Request) -> None:
-    if not is_admin(request.app.state.settings, request):
-        raise HTTPException(status_code=403, detail="forbidden")
+    settings = request.app.state.settings
+    if is_admin(settings, request):
+        return
+    scheme, _, token = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(
+            status_code=401, detail="authentication required", headers={"WWW-Authenticate": "Bearer"}
+        )
+    raise HTTPException(status_code=403, detail="forbidden")
