@@ -201,8 +201,8 @@ export function ForecastChart({
     const el = containerRef.current;
     if (!el) return;
     const observer = new ResizeObserver((entries) => {
-      const measured = entries[0].contentRect.width;
-      if (measured > 0) setWidth(measured);
+      const measured = Math.round(entries[0].contentRect.width);
+      if (measured > 0) setWidth((current) => (current === measured ? current : measured));
     });
     observer.observe(el);
     return () => observer.disconnect();

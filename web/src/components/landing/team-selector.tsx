@@ -60,7 +60,7 @@ export function TeamSelector({ segments, overflow, selectedTeamId, onSelect }: T
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             aria-label="More teams"
-            className="pb-1 font-display text-[clamp(13px,1.4vw,15px)] font-semibold tracking-[0.01em] text-cream-faint transition-colors hover:text-cream"
+            className="-my-2 py-2 font-display text-[clamp(13px,1.4vw,15px)] font-semibold tracking-[0.01em] text-cream-faint transition-colors hover:text-cream"
           >
             +{restOverflow.length}
           </button>
@@ -79,7 +79,7 @@ export function TeamSelector({ segments, overflow, selectedTeamId, onSelect }: T
                     onSelect(row.teamId);
                     setOpen(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded px-2 py-[3px] text-left font-display text-[12.5px] font-semibold text-cream-dim transition-colors hover:bg-cream/10 hover:text-cream"
+                  className="flex w-full items-center gap-2 rounded px-2 py-2 text-left font-display text-[12.5px] font-semibold text-cream-dim transition-colors hover:bg-cream/10 hover:text-cream"
                 >
                   <span className="h-1.5 w-1.5 shrink-0" style={{ backgroundColor: colour }} />
                   <span className="flex-1 truncate">{row.name}</span>
@@ -109,13 +109,15 @@ function Tab({ label, colour, selected, title, onClick }: TabProps) {
       onClick={onClick}
       aria-pressed={selected}
       title={title}
-      className="relative pb-1 font-display text-[clamp(13px,1.4vw,15px)] font-bold tracking-[0.02em] transition-opacity hover:opacity-100"
+      className="relative -my-2 py-2 font-display text-[clamp(13px,1.4vw,15px)] font-bold tracking-[0.02em] transition-opacity hover:opacity-100"
       style={{ color: colour, opacity: selected ? 1 : 0.55 }}
     >
-      {label}
-      {selected && (
-        <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full" style={{ backgroundColor: colour }} />
-      )}
+      <span className="relative pb-1">
+        {label}
+        {selected && (
+          <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full" style={{ backgroundColor: colour }} />
+        )}
+      </span>
     </button>
   );
 }

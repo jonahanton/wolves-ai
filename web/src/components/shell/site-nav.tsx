@@ -16,7 +16,7 @@ const TABS = [
 export function SiteNav() {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-20 flex min-h-11 items-center bg-night/30 py-1 backdrop-blur-md sm:py-0">
+    <header className="sticky top-0 z-20 flex min-h-11 items-center bg-night/90 py-1 sm:py-0">
       <div className="wrap flex w-full items-center justify-between">
         <div className="flex items-baseline gap-2.5">
           <Link

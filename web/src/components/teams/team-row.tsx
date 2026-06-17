@@ -87,7 +87,7 @@ export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
         <div className="overflow-hidden" inert={!open}>
           {everOpened && (
             <div className="pb-6 pt-1">
-              <div className="mb-4 flex flex-wrap items-center gap-x-[clamp(14px,2vw,26px)] gap-y-1.5 border-b border-hairline pb-2.5">
+              <div className="mb-4 flex flex-wrap items-center gap-x-[clamp(14px,2vw,26px)] gap-y-4 border-b border-hairline pb-2.5">
                 {views.map((v) => {
                   const active = v.key === view;
                   return (
@@ -96,16 +96,18 @@ export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
                       type="button"
                       onClick={() => setView(v.key)}
                       aria-pressed={active}
-                      className="relative pb-1 text-left font-display text-[14px] font-semibold tracking-[-0.01em] text-cream transition-opacity hover:opacity-100"
+                      className="relative -my-2 py-2 text-left font-display text-[14px] font-semibold tracking-[-0.01em] text-cream transition-opacity hover:opacity-100"
                       style={{ opacity: active ? 1 : 0.4 }}
                     >
-                      {v.label}
-                      {active && (
-                        <span
-                          className="absolute inset-x-0 bottom-0 h-[2px] rounded-full"
-                          style={{ backgroundColor: colour }}
-                        />
-                      )}
+                      <span className="relative pb-1">
+                        {v.label}
+                        {active && (
+                          <span
+                            className="absolute inset-x-0 bottom-0 h-[2px] rounded-full"
+                            style={{ backgroundColor: colour }}
+                          />
+                        )}
+                      </span>
                     </button>
                   );
                 })}

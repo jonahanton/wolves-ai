@@ -34,7 +34,7 @@ export function PastResults({ sections, impact }: PastResultsProps) {
       <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
         <div className="overflow-hidden" inert={!open}>
           {everOpened && (
-            <div className="past-compact pl-3">
+            <div className="pl-3 opacity-90">
               {sections.map((section) => (
                 <StageSection
                   key={section.key}

@@ -103,7 +103,7 @@ export function TeamBoard({
           type="button"
           onClick={() => setShowAll((v) => !v)}
           aria-expanded={showAll}
-          className="mt-3 font-display text-[13px] font-semibold text-cream-faint transition-colors hover:text-cream"
+          className="mt-3 py-1.5 font-display text-[13px] font-semibold text-cream-faint transition-colors hover:text-cream"
         >
           {showAll ? "Show fewer" : `Show all ${ranked.length} teams`}
         </button>

@@ -44,7 +44,7 @@ export function ReadingList({ sources }: ReadingListProps) {
             type="button"
             onClick={() => setShowAll((v) => !v)}
             aria-expanded={showAll}
-            className="mt-1.5 px-2 font-display text-[13px] font-semibold text-cream-dim transition-colors hover:text-cream"
+            className="mt-1.5 px-2 py-1.5 font-display text-[13px] font-semibold text-cream-dim transition-colors hover:text-cream"
           >
             {showAll ? "Show fewer" : `Show ${rest.length} more ${rest.length === 1 ? "source" : "sources"}`}
           </button>
@@ -56,14 +56,16 @@ export function ReadingList({ sources }: ReadingListProps) {
 
 function SourceRow({ source, rank }: { source: ReadingItem; rank: number }) {
   return (
-    <li className="rounded-sm px-2 py-1 transition-colors hover:bg-cream/5">
+    <li className="rounded-sm px-2 py-1.5 transition-colors hover:bg-cream/5">
       <a href={source.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-baseline gap-2">
         <span className="shrink-0 font-mono text-[11px] tabular-nums text-cream-faint">{rank}.</span>
         <span className="min-w-0 flex-1 truncate font-display text-[13px] font-medium text-cream">{source.title}</span>
         {source.cited && (
           <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.06em] text-cream-faint">cited</span>
         )}
-        <span className="shrink-0 font-mono text-[10.5px] text-cream-faint">{source.hostname}</span>
+        <span className="hidden max-w-[35%] shrink-0 truncate font-mono text-[10.5px] text-cream-faint sm:inline">
+          {source.hostname}
+        </span>
         <ExternalLink size={11} className="shrink-0 text-cream-faint" aria-hidden />
       </a>
     </li>
