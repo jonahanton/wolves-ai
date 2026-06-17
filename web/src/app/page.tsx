@@ -3,6 +3,7 @@ import { ErrorState } from "@/components/shell/error-state";
 import { FestivalBand } from "@/components/walls/festival-band";
 import { orNull } from "@/lib/api";
 import { titleBoard } from "@/lib/derive";
+import { cleanStories } from "@/lib/forecast";
 import type { ChartTeamInput } from "@/lib/forecast-series";
 import { formatRunStampEastern } from "@/lib/format";
 import { loadFullRunIds } from "@/lib/full-runs";
@@ -68,7 +69,7 @@ export default async function LandingPage() {
     .slice()
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const drivers = agentSnapshot.distributions?.drivers ?? {};
-  const stories = agentSnapshot.agent?.narrative.team_stories ?? {};
+  const stories = cleanStories(agentSnapshot.agent?.narrative.team_stories ?? {});
 
   const chartTeams: ChartTeamInput[] = allIds.map((teamId, i) => ({
     teamId,

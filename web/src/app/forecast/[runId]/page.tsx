@@ -4,6 +4,7 @@ import { FestivalBand } from "@/components/walls/festival-band";
 import { orNull } from "@/lib/api";
 import { titleBoard } from "@/lib/derive";
 import {
+  cleanStories,
   cleanWorkings,
   featuredMovers,
   readingList,
@@ -50,7 +51,7 @@ export default async function ForecastRunPage({ params }: PageProps) {
   const camps = (agent.camps ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const weights = agent.scenario_weights ?? [];
   const drivers = snapshot.distributions?.drivers ?? {};
-  const stories = agent.narrative.team_stories ?? {};
+  const stories = cleanStories(agent.narrative.team_stories ?? {});
 
   const championProbs = Object.fromEntries(
     snapshot.teams.filter((t) => t.champion_prob !== undefined).map((t) => [t.team_id, t.champion_prob ?? 0]),

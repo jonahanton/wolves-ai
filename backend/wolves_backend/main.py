@@ -92,7 +92,9 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
 
     @app.exception_handler(HTTPException)
     async def http_error(_request: Request, exc: HTTPException) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content={"error": str(exc.detail)})
+        return JSONResponse(
+            status_code=exc.status_code, content={"error": str(exc.detail)}, headers=exc.headers or None
+        )
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:

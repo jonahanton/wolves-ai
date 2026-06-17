@@ -1,6 +1,6 @@
 import { type BoardRow, titleBoard } from "@/lib/derive";
 import type { RunRecord } from "@/lib/runs";
-import type { AgentBlock, MarketsBlock, MatchProbs, Snapshot } from "@/lib/snapshot";
+import type { AgentBlock, MarketsBlock, MatchProbs, Snapshot, TeamStoryOut } from "@/lib/snapshot";
 
 const STAGE_ORDER = ["group", "r32", "r16", "qf", "sf", "third_place", "final"] as const;
 const STAGE_LABEL: Record<string, string> = {
@@ -179,4 +179,13 @@ export function stripIds(text: string): string {
     .replace(/\b\w+_(camp|collapse|base|world)\b/g, "this scenario")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+export function cleanStories(stories: Record<string, TeamStoryOut>): Record<string, TeamStoryOut> {
+  return Object.fromEntries(
+    Object.entries(stories).map(([team, story]) => [
+      team,
+      { summary: stripIds(story.summary), why: stripIds(story.why) },
+    ]),
+  );
 }
