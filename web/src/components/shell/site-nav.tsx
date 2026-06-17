@@ -10,11 +10,13 @@ export function SiteNav() {
         <div className="flex items-baseline gap-2.5">
           <Link
             href="/"
-            className="font-display text-[15px] font-semibold tracking-[-0.01em] text-cream transition-colors hover:text-cream-dim"
+            className="whitespace-nowrap font-display text-[15px] font-semibold tracking-[-0.01em] text-cream transition-colors hover:text-cream-dim"
           >
             WWC26 Superforecaster
           </Link>
-          <EtClock />
+          <span className="hidden sm:flex">
+            <EtClock />
+          </span>
         </div>
         <nav className="flex items-center gap-5">
           <Link

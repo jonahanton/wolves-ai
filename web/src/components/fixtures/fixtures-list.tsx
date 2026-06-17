@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PastResults } from "@/components/fixtures/past-results";
 import { StageSection } from "@/components/fixtures/stage-section";
 import { useLivePoll } from "@/hooks/use-live-poll";
 import { buildFixtures } from "@/lib/fixtures";
@@ -22,7 +23,7 @@ interface FixturesListProps {
 
 export function FixturesList({ matches, slots, draws, results, initialLive, initialImpact, teamNames }: FixturesListProps) {
   const { live, impact } = useLivePoll({ live: initialLive, impact: initialImpact });
-  const { sections, openGroupDay, openStage } = useMemo(
+  const { sections, pastSections, openGroupDay, openStage } = useMemo(
     () => buildFixtures({ matches, slots, draws, results, live, teamNames, nowIso: new Date().toISOString() }),
     [matches, slots, draws, results, live, teamNames],
   );
@@ -31,6 +32,7 @@ export function FixturesList({ matches, slots, draws, results, initialLive, init
 
   return (
     <div className="mx-auto max-w-[680px] px-1">
+      {pastSections.length > 0 && <PastResults sections={pastSections} impact={impact} />}
       {sections.map((section) => (
         <StageSection
           key={section.key}

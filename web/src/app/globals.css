@@ -124,6 +124,11 @@
   }
 }
 
+/* Archive rows read as secondary: uniformly smaller and tighter than live fixtures. */
+@utility past-compact {
+  zoom: 0.78;
+}
+
 @utility statement {
   font-weight: 300;
   letter-spacing: -0.02em;

@@ -88,7 +88,7 @@ export function LandingForecast(props: LandingForecastProps) {
           </h1>
           <div className="mt-[clamp(6px,1vh,10px)] flex items-center justify-between gap-4 border-t border-hairline pt-[clamp(4px,0.7vh,7px)]">
             <span className="font-display text-[12px] font-medium tracking-[0.01em] text-cream-faint">
-              Accurate as of last full run {runLabel} ET (NYC)
+              Last run {runLabel} ET
             </span>
             <TeamSelector
               segments={board}

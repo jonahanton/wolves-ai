@@ -14,19 +14,28 @@ interface StageSectionProps {
   onToggle: () => void;
   openDay: string | null;
   onToggleDay: (dayKey: string) => void;
+  muted?: boolean;
 }
 
-export function StageSection({ section, impact, open, onToggle, openDay, onToggleDay }: StageSectionProps) {
+export function StageSection({ section, impact, open, onToggle, openDay, onToggleDay, muted = false }: StageSectionProps) {
   const [everOpened, setEverOpened] = useState(false);
   if (open && !everOpened) setEverOpened(true);
   return (
-    <section className="mt-8 first:mt-0">
+    <section className={muted ? "mt-3 first:mt-0" : "mt-8 first:mt-0"}>
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-2.5 py-2 text-left">
-        <h2 className="font-display text-[15px] font-bold tracking-[-0.01em] text-cream">{section.label}</h2>
-        <span className="ml-1 h-px flex-1 bg-hairline" />
+        <h2
+          className={
+            muted
+              ? "font-display text-[13px] font-semibold tracking-[-0.01em] text-cream-dim"
+              : "font-display text-[15px] font-bold tracking-[-0.01em] text-cream"
+          }
+        >
+          {section.label}
+        </h2>
+        <span className={`ml-1 h-px flex-1 ${muted ? "" : "bg-hairline"}`} />
         <ChevronDown
-          size={16}
-          className="shrink-0 text-cream-dim transition-transform duration-300 motion-reduce:transition-none"
+          size={muted ? 14 : 16}
+          className="shrink-0 text-cream-faint transition-transform duration-300 motion-reduce:transition-none"
           style={{ transform: open ? "rotate(180deg)" : "none" }}
         />
       </button>

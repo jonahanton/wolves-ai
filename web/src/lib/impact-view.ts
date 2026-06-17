@@ -68,7 +68,7 @@ export function compactLiveDigest(live: LiveState | null, impact: Impact | null)
         ? [{ kind: "shimmer", text: `${liveFixtures.length} live games` }]
         : [{ kind: "shimmer", text: liveScoreText(liveFixtures[0], names) }];
     if (count > 0) {
-      tokens.push({ kind: "text", text: ` + ${count} result${count === 1 ? "" : "s"} since last forecast${at})` });
+      tokens.push({ kind: "text", text: ` + ${count} since last forecast` });
     }
     return { tone: "live", tokens };
   }
@@ -229,7 +229,7 @@ function timeLabel(value: string): string {
   });
 }
 
-function dateTimeLabel(value: string): string {
+export function dateTimeLabel(value: string): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "2-digit",

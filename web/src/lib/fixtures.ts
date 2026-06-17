@@ -171,6 +171,31 @@ function buildRow(
   };
 }
 
+// A played match that has dropped out of the forward-looking forecast feed: render
+// it as its result alone, with no bar, shape or expand.
+function resultRow(result: PlayedResultRow, names: Record<string, string>): FixtureRow {
+  return {
+    match: result.match,
+    stage: result.stage,
+    kickoff: result.date,
+    dayKey: dayKey(result.date),
+    dayLabel: dayLabel(result.date),
+    status: "completed",
+    knockout: result.stage !== "group",
+    homeId: result.homeId,
+    awayId: result.awayId,
+    homeCode: codeOf(result.homeId, names),
+    awayCode: codeOf(result.awayId, names),
+    homeGoals: result.homeGoals,
+    awayGoals: result.awayGoals,
+    minute: null,
+    bar: null,
+    shape: null,
+    colours: resolveWdlColours(result.homeId, result.awayId),
+    slot: null,
+  };
+}
+
 function groupDays(rows: FixtureRow[], todayKey: string): DayGroup[] {
   const byDay = new Map<string, DayGroup>();
   for (const row of rows) {
@@ -191,38 +216,7 @@ function openGroupDayKey(days: DayGroup[], todayKey: string): string | null {
   return days.length > 0 ? days[days.length - 1].dayKey : null;
 }
 
-export function buildFixtures(input: {
-  matches: MatchProbs[];
-  slots: Slot[];
-  draws: MatchWdlDraws | null;
-  results: PlayedResultRow[];
-  live: LiveState | null;
-  teamNames: Record<string, string>;
-  nowIso: string;
-}): { sections: StageSection[]; openGroupDay: string | null; openStage: string | null } {
-  const liveByMatch = new Map<number, LiveFixture>();
-  // A stale poll cannot be trusted to a live minute, so live rows fall back to the pre-game shape.
-  const fresh = liveIsFresh(input.live, Date.parse(input.nowIso));
-  for (const fixture of fresh ? (input.live?.fixtures ?? []) : []) {
-    if (fixture.match !== null && fixture.status === "live") liveByMatch.set(fixture.match, fixture);
-  }
-  const resultByMatch = new Map(input.results.map((r) => [r.match, r]));
-  const slotByMatch = new Map(input.slots.map((s) => [s.match, s]));
-  const todayKey = dayKey(input.nowIso);
-
-  const byStage = new Map<string, FixtureRow[]>();
-  for (const match of input.matches) {
-    const row = buildRow(
-      match,
-      liveByMatch.get(match.match) ?? null,
-      resultByMatch.get(match.match) ?? null,
-      slotByMatch.get(match.match) ?? null,
-      input.draws,
-      input.teamNames,
-    );
-    (byStage.get(match.stage) ?? byStage.set(match.stage, []).get(match.stage)!).push(row);
-  }
-
+function buildSections(byStage: Map<string, FixtureRow[]>, todayKey: string): { sections: StageSection[]; openGroupDay: string | null } {
   const sections: StageSection[] = [];
   let openGroupDay: string | null = null;
   for (const key of STAGE_ORDER) {
@@ -237,7 +231,72 @@ export function buildFixtures(input: {
       sections.push({ key, label: STAGE_LABEL[key], layout: "flat", days: [], rows });
     }
   }
-  return { sections, openGroupDay, openStage: openStageKey(sections) };
+  return { sections, openGroupDay };
+}
+
+export interface FixturesView {
+  sections: StageSection[];
+  pastSections: StageSection[];
+  openGroupDay: string | null;
+  openStage: string | null;
+  pastOpenGroupDay: string | null;
+  pastOpenStage: string | null;
+}
+
+export function buildFixtures(input: {
+  matches: MatchProbs[];
+  slots: Slot[];
+  draws: MatchWdlDraws | null;
+  results: PlayedResultRow[];
+  live: LiveState | null;
+  teamNames: Record<string, string>;
+  nowIso: string;
+}): FixturesView {
+  const liveByMatch = new Map<number, LiveFixture>();
+  // A stale poll cannot be trusted to a live minute, so live rows fall back to the pre-game shape.
+  const fresh = liveIsFresh(input.live, Date.parse(input.nowIso));
+  for (const fixture of fresh ? (input.live?.fixtures ?? []) : []) {
+    if (fixture.match !== null && fixture.status === "live") liveByMatch.set(fixture.match, fixture);
+  }
+  const resultByMatch = new Map(input.results.map((r) => [r.match, r]));
+  const slotByMatch = new Map(input.slots.map((s) => [s.match, s]));
+  const todayKey = dayKey(input.nowIso);
+
+  const presentByStage = new Map<string, FixtureRow[]>();
+  const pastByStage = new Map<string, FixtureRow[]>();
+  // A finished match on an earlier day is history; everything today or later stays in focus.
+  const place = (row: FixtureRow) => {
+    const target = row.status === "completed" && row.dayKey < todayKey ? pastByStage : presentByStage;
+    (target.get(row.stage) ?? target.set(row.stage, []).get(row.stage)!).push(row);
+  };
+  const forecastMatches = new Set(input.matches.map((m) => m.match));
+  for (const match of input.matches) {
+    place(
+      buildRow(
+        match,
+        liveByMatch.get(match.match) ?? null,
+        resultByMatch.get(match.match) ?? null,
+        slotByMatch.get(match.match) ?? null,
+        input.draws,
+        input.teamNames,
+      ),
+    );
+  }
+  // Played matches drop out of the forecast feed once settled; surface their results too.
+  for (const result of input.results) {
+    if (!forecastMatches.has(result.match)) place(resultRow(result, input.teamNames));
+  }
+
+  const present = buildSections(presentByStage, todayKey);
+  const past = buildSections(pastByStage, todayKey);
+  return {
+    sections: present.sections,
+    pastSections: past.sections,
+    openGroupDay: present.openGroupDay,
+    openStage: openStageKey(present.sections),
+    pastOpenGroupDay: past.openGroupDay,
+    pastOpenStage: openStageKey(past.sections),
+  };
 }
 
 // The live stage if any game is in play, else the earliest stage with an unplayed

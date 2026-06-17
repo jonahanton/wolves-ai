@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Impact } from "@/lib/impact";
 import {
   compactLiveDigest,
+  dateTimeLabel,
   type DigestToken,
   panelTimeline,
   type TimelineEntry,
@@ -101,6 +102,15 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
   const liveCount = (payload.live?.fixtures ?? []).filter((fixture) => fixture.status === "live").length;
   const pollMs = liveCount > 0 ? 30_000 : 180_000;
 
+  const [nowEt, setNowEt] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () =>
+      setNowEt(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" }));
+    tick();
+    const id = window.setInterval(tick, 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -136,15 +146,21 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
                 className="max-h-[70dvh] overflow-y-auto px-5 pb-3.5 pt-3 shadow-[0_18px_44px_oklch(0_0_0/0.24)] backdrop-blur-md"
                 style={{ backgroundColor: LIP_FILL }}
               >
+                <div className="mb-2.5 flex items-center justify-between gap-3 border-b border-hairline pb-2 font-mono text-[10.5px] tabular-nums text-cream-faint">
+                  {payload.impact && <span>Last forecast {dateTimeLabel(payload.impact.agentCreatedAt)} ET</span>}
+                  {nowEt && <span>Now {nowEt} ET</span>}
+                </div>
                 {timeline.length === 0 && movers.length === 0 ? (
                   <p className="font-display text-[12px] text-cream-faint">No changes since last forecast</p>
                 ) : (
-                  <div className="flex flex-wrap gap-x-4 gap-y-3 sm:flex-nowrap">
+                  <div className="flex flex-col gap-x-4 gap-y-3 sm:flex-row">
                     {timeline.length > 0 && (
                       <div className="min-w-0 flex-1">
                         <h2 className="font-display text-[12.5px] font-semibold text-cream">
                           Since last forecast{" "}
-                          <span className="font-mono text-[10px] font-medium text-cream-dim">KO times ET</span>
+                          <span className="whitespace-nowrap font-mono text-[10px] font-medium text-cream-dim">
+                            KO times ET
+                          </span>
                         </h2>
                         <div className="mt-2 space-y-1">
                           {timeline.map((entry, index) => (
@@ -199,11 +215,11 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
             data-open={open}
-            className="group relative z-20 -mt-px mx-auto flex h-6 w-full items-center justify-center gap-3 px-8 text-center outline-none motion-reduce:transition-none"
+            className="group relative z-20 -mt-px mx-auto flex min-h-6 w-full items-center justify-center gap-3 px-8 py-1 text-center outline-none motion-reduce:transition-none"
           >
             <span
               aria-hidden
-              className="absolute inset-x-0 top-0 -z-10 flex h-6 transition-transform duration-[220ms] ease-out group-hover:translate-y-0.5 group-data-[open=true]:translate-y-0 motion-reduce:transform-none"
+              className="absolute inset-0 -z-10 flex transition-transform duration-[220ms] ease-out group-hover:translate-y-0.5 group-data-[open=true]:translate-y-0 motion-reduce:transform-none"
             >
               <svg
                 viewBox={`0 0 ${LIP_CAP_W} 24`}
@@ -223,7 +239,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
                 <path d={LIP_CAP_R} fill={LIP_FILL} />
               </svg>
             </span>
-            <span className="min-w-0 truncate font-display text-[11.5px] font-semibold text-cream-dim transition-transform duration-[220ms] ease-out group-hover:translate-y-0.5 group-data-[open=true]:translate-y-0 motion-reduce:transform-none">
+            <span className="line-clamp-2 min-w-0 font-display text-[11.5px] font-semibold leading-tight text-cream-dim transition-transform duration-[220ms] ease-out group-hover:translate-y-0.5 group-data-[open=true]:translate-y-0 motion-reduce:transform-none">
               <DigestTokens tokens={digest.tokens} />
             </span>
             <ChevronDown

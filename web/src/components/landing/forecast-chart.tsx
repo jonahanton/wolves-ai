@@ -265,6 +265,16 @@ export function ForecastChart({
       .attr("y2", baseY + 7)
       .attr("stroke", TICK_MARK)
       .attr("stroke-width", 2);
+    // Thin labels so adjacent dates never overlap.
+    const MIN_LABEL_GAP = 44;
+    let lastLabelX = Number.NEGATIVE_INFINITY;
+    const showLabel = new Set<number>();
+    for (const t of runTimes) {
+      if (x(t) - lastLabelX >= MIN_LABEL_GAP) {
+        showLabel.add(t);
+        lastLabelX = x(t);
+      }
+    }
     xAxis
       .select<SVGTextElement>(".tick-label")
       .attr("text-anchor", "middle")
@@ -274,7 +284,7 @@ export function ForecastChart({
       .attr("font-weight", 600)
       .attr("letter-spacing", "0.01em")
       .attr("fill", AXIS_TEXT)
-      .text((d) => formatTick(d));
+      .text((d) => (showLabel.has(d) ? formatTick(d) : ""));
 
     const baseline = svg.select<SVGGElement>(".baseline");
     baseline
