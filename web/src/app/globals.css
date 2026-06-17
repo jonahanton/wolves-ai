@@ -79,6 +79,20 @@
   animation: shimmer 2.6s ease-in-out infinite;
 }
 
+@utility shimmer-cream {
+  background: linear-gradient(
+    90deg,
+    oklch(0.965 0.008 95 / 0.35) 0%,
+    oklch(0.965 0.008 95) 50%,
+    oklch(0.965 0.008 95 / 0.35) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .shimmer-red {
     animation: none;
@@ -86,6 +100,14 @@
     -webkit-background-clip: unset;
     background-clip: unset;
     color: var(--color-red);
+  }
+
+  .shimmer-cream {
+    animation: none;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    color: var(--color-cream);
   }
 }
 

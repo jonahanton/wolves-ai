@@ -1,5 +1,6 @@
 import { ShieldHalf, Ticket } from "lucide-react";
 import Link from "next/link";
+import { CrystalBallIcon } from "@/components/shell/crystal-ball-icon";
 import { EtClock } from "@/components/shell/et-clock";
 
 export function SiteNav() {
@@ -16,6 +17,14 @@ export function SiteNav() {
           <EtClock />
         </div>
         <nav className="flex items-center gap-5">
+          <Link
+            href="/forecast"
+            aria-label="Forecasts"
+            className="flex items-center gap-1.5 font-display text-[13px] font-semibold tracking-[-0.01em] text-cream-faint transition-colors hover:text-cream"
+          >
+            <CrystalBallIcon size={15} className="shrink-0" />
+            <span className="hidden sm:inline">Forecasts</span>
+          </Link>
           <Link
             href="/teams"
             aria-label="Teams"
