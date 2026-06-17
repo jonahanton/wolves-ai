@@ -148,10 +148,19 @@ resource "aws_secretsmanager_secret" "frontend_key" {
   description = "Shared secret the frontend sends as X-Wolves-Key. Value managed manually, not by terraform."
 }
 
+resource "aws_secretsmanager_secret" "tunnel_token" {
+  count       = var.enable_tunnel ? 1 : 0
+  name        = "${var.project}-backend-tunnel-token"
+  description = "Cloudflare Tunnel token for the cloudflared sidecar. Value managed manually, not by terraform."
+}
+
 data "aws_iam_policy_document" "execution_secrets" {
   statement {
-    actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.admin_token.arn, aws_secretsmanager_secret.frontend_key.arn]
+    actions = ["secretsmanager:GetSecretValue"]
+    resources = concat(
+      [aws_secretsmanager_secret.admin_token.arn, aws_secretsmanager_secret.frontend_key.arn],
+      aws_secretsmanager_secret.tunnel_token[*].arn,
+    )
   }
 }
 
@@ -161,18 +170,20 @@ resource "aws_iam_role_policy" "execution_secrets" {
   policy = data.aws_iam_policy_document.execution_secrets.json
 }
 
-# No ALB in front of this service: it is a single public task whose admin
-# surface denies by default in-app, so ingress on the app port is acceptable.
+# Tunnelled: sidecar reaches the app over loopback, so the public port stays closed.
 resource "aws_security_group" "backend" {
   name        = "${var.project}-backend"
-  description = "Backend API ingress on the app port, egress anywhere"
+  description = "Backend API egress anywhere; app-port ingress only when not tunnelled"
   vpc_id      = var.vpc_id
 
-  ingress {
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  dynamic "ingress" {
+    for_each = var.enable_tunnel ? [] : [1]
+    content {
+      from_port   = 8080
+      to_port     = 8080
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
 
   egress {
@@ -197,7 +208,7 @@ resource "aws_ecs_task_definition" "backend" {
     cpu_architecture        = "ARM64"
   }
 
-  container_definitions = jsonencode([
+  container_definitions = jsonencode(concat([
     {
       name      = "backend"
       image     = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
@@ -257,7 +268,25 @@ resource "aws_ecs_task_definition" "backend" {
         }
       }
     }
-  ])
+    ],
+    var.enable_tunnel ? [
+      {
+        name      = "cloudflared"
+        image     = var.cloudflared_image
+        essential = true
+        command   = ["tunnel", "--no-autoupdate", "run"]
+        secrets   = [{ name = "TUNNEL_TOKEN", valueFrom = aws_secretsmanager_secret.tunnel_token[0].arn }]
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            awslogs-group         = aws_cloudwatch_log_group.backend.name
+            awslogs-region        = var.region
+            awslogs-stream-prefix = "tunnel"
+          }
+        }
+      }
+    ] : []
+  ))
 }
 
 resource "aws_ecs_service" "backend" {

@@ -134,3 +134,14 @@ variable "run_policy" {
 variable "log_retention_days" {
   type = number
 }
+
+variable "enable_tunnel" {
+  description = "Run a cloudflared sidecar over an outbound tunnel and close the public app port."
+  type        = bool
+  default     = false
+}
+
+variable "cloudflared_image" {
+  type    = string
+  default = "cloudflare/cloudflared:2025.6.1"
+}

@@ -159,3 +159,9 @@ variable "bucket" {
   type        = string
   default     = "wolves-superforecaster-prod"
 }
+
+variable "enable_tunnel" {
+  description = "Front the backend with a cloudflared sidecar over an outbound tunnel and close the public app port."
+  type        = bool
+  default     = false
+}

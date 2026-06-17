@@ -172,6 +172,7 @@ module "backend_api" {
   log_retention_days            = var.log_retention_days
   live_data_secret_arns         = module.engine.live_data_secret_arns
   run_policy                    = var.run_policy
+  enable_tunnel                 = var.enable_tunnel
   # Constructed, not referenced: a module reference here would cycle through alerting.
   alerts_topic_arn = "arn:aws:sns:${var.region}:${data.aws_caller_identity.current.account_id}:${var.project}-alerts"
 }
