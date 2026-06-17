@@ -132,6 +132,11 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
     async def engine_not_ready(_request: Request, exc: EngineNotReadyError) -> JSONResponse:
         return JSONResponse(status_code=503, content={"error": str(exc)})
 
+    @app.exception_handler(Exception)
+    async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled error on %s", request.url.path)
+        return JSONResponse(status_code=500, content={"error": "internal server error"})
+
     app.include_router(health_router)
     app.include_router(simulate_router)
     app.include_router(results_router)

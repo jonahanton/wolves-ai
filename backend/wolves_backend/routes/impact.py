@@ -101,17 +101,22 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
     body = await deps.storage.read(agent_ref.key) if agent_ref else None
     if body is None:
         raise HTTPException(status_code=404, detail="no agent forecast published")
-    snapshot = json.loads(body)
+    try:
+        snapshot = json.loads(body)
+        run = snapshot["run"]
+        created_at = run["created_at"]
+        focus_team = snapshot["focus"]["team_id"]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=502, detail="published agent forecast is malformed") from exc
     agent_stages = _agent_stages(snapshot)
-    run = snapshot["run"]
-    as_of = run.get("as_of") or run["created_at"][:10]
+    as_of = run.get("as_of") or created_at[:10]
     current_result_set = await deps.engine.result_set()
     agent_result_set = _agent_result_set(snapshot, current_result_set)
     live = await _live_state(deps)
     in_play = [f for f in live.fixtures if f.status == "live"] if live else []
     live_fresh = _live_is_fresh(live)
     live_dists = _live_distributions(deps.engine.forecaster, in_play) if live_fresh and deps.engine.ready else {}
-    selected = _selected_teams(teams, agent_stages, in_play, snapshot["focus"]["team_id"])
+    selected = _selected_teams(teams, agent_stages, in_play, focus_team)
     agent_results = _played(agent_result_set)
     current_results = _played(current_result_set)
     legs: dict[str, Leg] = {

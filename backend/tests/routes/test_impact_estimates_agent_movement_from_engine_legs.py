@@ -127,6 +127,19 @@ async def test_impact_requires_a_published_agent_forecast(tmp_path):
     assert response.status_code == 404
 
 
+async def test_impact_rejects_a_malformed_agent_snapshot(tmp_path):
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    path = tmp_path / "snapshots" / "2026" / "06" / "11" / "agent-20260611-133152.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"teams": [], "focus": {}}), encoding="utf-8")
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        response = await client.get("/impact")
+    assert response.status_code == 502
+    assert response.json() == {"error": "published agent forecast is malformed"}
+
+
 async def test_then_leg_simulates_under_the_agent_runs_own_fitted_state(tmp_path):
     from dataclasses import replace
 
