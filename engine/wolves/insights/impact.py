@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 STAGES = ("r32", "r16", "qf", "sf", "final", "champion")
 EXIT_STAGES = ("groups", "r32", "r16", "qf", "sf", "final", "champion")
 PROB_FLOOR = 1e-4
-DISPLAY_FLOOR_PP = 0.5
+DISPLAY_FLOOR_PP = 0.2
 
 
 def _logit(p: float) -> float:

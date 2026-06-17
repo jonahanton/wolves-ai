@@ -33,7 +33,7 @@ def test_components_split_sequentially_and_sum_to_the_estimate():
     assert champion["after_results"] > champion["agent"]
     assert champion["from_results_pp"] > 0
     assert champion["from_ingame_pp"] > champion["from_results_pp"]
-    assert champion["display_floor_pp"] == 0.5
+    assert champion["display_floor_pp"] == 0.2
     total = champion["agent"] + (champion["from_results_pp"] + champion["from_ingame_pp"]) / 100
     assert champion["estimated"] == pytest.approx(total, abs=0.011)
     assert set(impacts) == {"r32", "champion"}
