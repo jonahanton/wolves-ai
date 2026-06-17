@@ -6,6 +6,7 @@ World Cup 2026 forecasting app.
 
 - `make app/up` / `make app/down` to start/stop the stack. Never run `docker compose` directly.
 - `make lint`, `make format`, `make test`, `make frontend/lint`.
+- S3 dev bucket: `wolves-superforecaster-dev`. `runs/` holds raw agent working data (events, artifacts, ledger) — the app never reads these. `snapshots/` holds the published sim outputs (probability distributions, bracket samples, etc.) that the backend serves and the frontend displays — anything left here will appear in the run picker; `latest.json` always points to the current live snapshot. Retire unwanted snapshots to `snapshots-backup/` and run dirs to `runs-backup/`.
 
 ## Git
 
