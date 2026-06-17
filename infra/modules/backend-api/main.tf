@@ -70,7 +70,7 @@ data "aws_iam_policy_document" "backend_task" {
   }
 
   statement {
-    actions   = ["dynamodb:Query", "dynamodb:PutItem"]
+    actions   = ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:PutItem", "dynamodb:DeleteItem"]
     resources = [var.dynamo_table_arn]
   }
 
