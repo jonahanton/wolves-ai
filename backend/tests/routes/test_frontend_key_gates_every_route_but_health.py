@@ -39,3 +39,9 @@ async def test_unset_key_leaves_gate_open():
     async with client_for(build_test_app()) as client:
         response = await client.get("/runs")
     assert response.status_code == 200
+
+
+async def test_openapi_schema_is_hidden_outside_local():
+    async with client_for(build_test_app(environment="production", frontend_key=FRONTEND_KEY)) as client:
+        response = await client.get("/openapi.json", headers=KEY_HEADERS)
+    assert response.status_code == 404

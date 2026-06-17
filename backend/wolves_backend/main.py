@@ -67,7 +67,15 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app(settings: Settings | None = None, *, deps: Deps | None = None) -> FastAPI:
     settings = settings or get_settings()
-    app = FastAPI(title="Wolves forecaster API", version="0.1.0", lifespan=_lifespan)
+    expose_docs = settings.environment == "local"
+    app = FastAPI(
+        title="Wolves forecaster API",
+        version="0.1.0",
+        lifespan=_lifespan,
+        docs_url="/docs" if expose_docs else None,
+        redoc_url="/redoc" if expose_docs else None,
+        openapi_url="/openapi.json" if expose_docs else None,
+    )
     app.state.settings = settings
     app.state.deps = deps or build_deps(settings)
 

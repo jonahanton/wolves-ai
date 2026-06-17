@@ -17,7 +17,7 @@ def has_frontend_key(settings: Settings, request: Request) -> bool:
     if not settings.frontend_key:
         return True
     presented = request.headers.get(FRONTEND_KEY_HEADER, "")
-    return bool(presented) and secrets.compare_digest(presented.encode(), settings.frontend_key.encode())
+    return secrets.compare_digest(presented.encode(), settings.frontend_key.encode())
 
 
 def is_admin(settings: Settings, request: Request) -> bool:
