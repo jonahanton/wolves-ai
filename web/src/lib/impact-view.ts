@@ -229,6 +229,13 @@ function timeLabel(value: string): string {
   });
 }
 
+export function nextDailyRunIso(now: Date, utcHour: number): string {
+  const next = new Date(now);
+  next.setUTCHours(utcHour, 0, 0, 0);
+  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString();
+}
+
 export function dateTimeLabel(value: string): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",

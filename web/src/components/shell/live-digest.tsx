@@ -7,6 +7,7 @@ import {
   compactLiveDigest,
   dateTimeLabel,
   type DigestToken,
+  nextDailyRunIso,
   panelTimeline,
   type TimelineEntry,
   topTitleMovers,
@@ -28,6 +29,7 @@ function signed(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
 }
 
+const DAILY_RUN_UTC_HOUR = 11;
 const LIP_FILL = "oklch(0.17 0.025 248 / 0.985)";
 const LIP_CAP_W = 28;
 const LIP_CAP_L = "M0 0 C0 15 7 24 18 24 L28 24 L28 0 Z";
@@ -103,9 +105,13 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
   const pollMs = liveCount > 0 ? 30_000 : 180_000;
 
   const [nowEt, setNowEt] = useState<string | null>(null);
+  const [nextRun, setNextRun] = useState<string | null>(null);
   useEffect(() => {
-    const tick = () =>
-      setNowEt(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" }));
+    const tick = () => {
+      const now = new Date();
+      setNowEt(now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" }));
+      setNextRun(dateTimeLabel(nextDailyRunIso(now, DAILY_RUN_UTC_HOUR)));
+    };
     tick();
     const id = window.setInterval(tick, 15_000);
     return () => window.clearInterval(id);
@@ -146,9 +152,10 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
                 className="max-h-[70dvh] overflow-y-auto px-5 pb-3.5 pt-3 shadow-[0_18px_44px_oklch(0_0_0/0.24)] backdrop-blur-md"
                 style={{ backgroundColor: LIP_FILL }}
               >
-                <div className="mb-2.5 flex items-center justify-between gap-3 border-b border-hairline pb-2 font-mono text-[11.5px] tabular-nums text-cream-faint">
-                  {payload.impact && <span>Last forecast {dateTimeLabel(payload.impact.agentCreatedAt)} ET</span>}
-                  {nowEt && <span>Now {nowEt} ET</span>}
+                <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-hairline pb-2 font-mono text-[11.5px] tabular-nums text-cream-faint">
+                  {payload.impact && <span>Last {dateTimeLabel(payload.impact.agentCreatedAt)} ET</span>}
+                  {nextRun && <span>Next {nextRun} ET</span>}
+                  {nowEt && <span className="ml-auto">Now {nowEt} ET</span>}
                 </div>
                 {timeline.length === 0 && movers.length === 0 ? (
                   <p className="font-display text-[12px] text-cream-faint">No changes since last forecast</p>
