@@ -18,7 +18,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from wolves_backend.access_log import access_log_line
-from wolves_backend.auth import is_admin
+from wolves_backend.auth import FRONTEND_KEY_HEADER, has_frontend_key, is_admin
 from wolves_backend.clients.alerts import Alerts
 from wolves_backend.config import Settings, get_settings
 from wolves_backend.deps import Deps, build_deps
@@ -70,6 +70,18 @@ def create_app(settings: Settings | None = None, *, deps: Deps | None = None) ->
     app = FastAPI(title="Wolves forecaster API", version="0.1.0", lifespan=_lifespan)
     app.state.settings = settings
     app.state.deps = deps or build_deps(settings)
+
+    @app.middleware("http")
+    async def require_frontend_key(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        if request.method != "OPTIONS" and request.url.path != "/healthz" and not has_frontend_key(settings, request):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "authentication required"},
+                headers={"WWW-Authenticate": FRONTEND_KEY_HEADER},
+            )
+        return await call_next(request)
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:

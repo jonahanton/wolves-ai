@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     ecs_security_group: str = ""
 
     admin_token: str = ""
+    frontend_key: str = ""
     run_history_limit: int = 50
     jobs_enabled: bool = True
     engine_refresh_interval_s: float = 300.0

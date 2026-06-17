@@ -133,11 +133,13 @@ def build_test_app(
     engine: EngineService | None = None,
     environment: str = "local",
     admin_token: str = ADMIN_TOKEN,
+    frontend_key: str = "",
 ) -> Any:
     settings = Settings(
         _env_file=None,
         environment=environment,
         admin_token=admin_token,
+        frontend_key=frontend_key,
         bucket="test-bucket" if s3 is not None else "",
         storage_dir=storage_dir or Path("/nonexistent"),
         ecs_agent_task_definition=AGENT_FAMILY,

@@ -8,6 +8,17 @@ from fastapi import HTTPException, Request
 if TYPE_CHECKING:
     from wolves_backend.config import Settings
 
+FRONTEND_KEY_HEADER = "X-Wolves-Key"
+
+
+def has_frontend_key(settings: Settings, request: Request) -> bool:
+    """True when the shared frontend key matches, or no key is configured. An
+    empty configured key leaves the gate open, the safe default for local dev."""
+    if not settings.frontend_key:
+        return True
+    presented = request.headers.get(FRONTEND_KEY_HEADER, "")
+    return bool(presented) and secrets.compare_digest(presented.encode(), settings.frontend_key.encode())
+
 
 def is_admin(settings: Settings, request: Request) -> bool:
     """True when a bearer token matching ADMIN_TOKEN was presented. An empty
