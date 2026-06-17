@@ -165,6 +165,9 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
   const meanBar = bars[meanRoundIndex];
   const modeIndex = bars.indexOf(mode);
   const showMarkers = !settled && width > 0;
+  // Adjacent mean and mode captions collide on one line; stack the mean caption
+  // a row higher so the pair stays legible without running off the chart edge.
+  const stackMarkers = showMarkers && modeIndex !== meanRoundIndex && Math.abs(modeIndex - meanRoundIndex) === 1;
 
   return (
     <div ref={ref} className="relative">
@@ -221,6 +224,8 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
           const tag = isMode && isMean ? "Mean · Mode" : isMode ? "Mode" : isMean ? "Mean" : "";
           const bracket = isMode && b.p > 0 ? `${b.label}, ${pct(b.p)}` : b.label;
           const caption = tag ? `${tag} (${bracket})` : "";
+          const captionAnchor = cx < 70 ? "start" : cx > width - 70 ? "end" : "middle";
+          const captionY = y(b.p) - (stackMarkers && isMean ? 32 : 20);
           const showPct = b.p > 0 && !isMode && (isSettled || b.key === "champion");
           return (
             <g key={b.key}>
@@ -240,8 +245,8 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
               {caption && (
                 <text
                   x={cx}
-                  y={y(b.p) - 20}
-                  textAnchor={cx < 70 ? "start" : cx > width - 70 ? "end" : "middle"}
+                  y={captionY}
+                  textAnchor={captionAnchor}
                   fontFamily="var(--font-mono)"
                   fontSize={12}
                   fontWeight={700}

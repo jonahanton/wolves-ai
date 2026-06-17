@@ -69,9 +69,9 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
           onClick={() => expandable && setOpen((v) => !v)}
           aria-expanded={expandable ? open : undefined}
           disabled={!expandable}
-          className="flex w-full items-center gap-3 py-2.5 text-left"
+          className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 py-2.5 text-left"
         >
-          <span className="grid w-[9.5rem] shrink-0 grid-cols-[1fr_3.2rem_1fr] items-baseline gap-2">
+          <span className="order-1 grid w-[9.5rem] shrink-0 grid-cols-[1fr_3.2rem_1fr] items-baseline gap-2">
             <span className="text-left">
               <TeamCode code={row.homeCode} teamId={row.homeId} live={live} />
             </span>
@@ -82,21 +82,23 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
               <TeamCode code={row.awayCode} teamId={row.awayId} live={live} />
             </span>
           </span>
-          <span className="ml-auto flex items-baseline gap-4 font-mono text-[13.5px] tabular-nums">
-            {live ? (
-              <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
-            ) : completed ? null : row.bar ? (
-              <>
-                <Outcome label={row.homeCode} pct={row.bar.home} />
-                {!row.knockout && <Outcome label="Draw" pct={row.bar.draw} />}
-                <Outcome label={row.awayCode} pct={row.bar.away} />
-              </>
-            ) : null}
-          </span>
+          {!completed && (live || row.bar) && (
+            <span className="order-3 flex w-full items-baseline justify-between font-mono text-[13.5px] tabular-nums sm:order-2 sm:ml-auto sm:w-auto sm:justify-start sm:gap-4">
+              {live ? (
+                <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
+              ) : row.bar ? (
+                <>
+                  <Outcome label={row.homeCode} pct={row.bar.home} />
+                  {!row.knockout && <Outcome label="Draw" pct={row.bar.draw} />}
+                  <Outcome label={row.awayCode} pct={row.bar.away} />
+                </>
+              ) : null}
+            </span>
+          )}
           {expandable && (
             <ChevronRight
               size={14}
-              className="shrink-0 text-cream-faint transition-transform duration-300 motion-reduce:transition-none"
+              className="order-2 ml-auto shrink-0 text-cream-faint transition-transform duration-300 motion-reduce:transition-none sm:order-3 sm:ml-0"
               style={{ transform: open ? "rotate(90deg)" : "none" }}
             />
           )}
