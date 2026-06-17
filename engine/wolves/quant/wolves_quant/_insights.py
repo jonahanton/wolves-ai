@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from wolves.forecast import Perturbation
+from wolves.quant.wolves_quant._sim import _checked_tournament_teams
 from wolves.quant.wolves_quant._state import SESSION, SandboxContextError, context, forecaster
 
 if TYPE_CHECKING:
@@ -23,7 +24,19 @@ def market_gaps(*, n_sims: int | None = None, seed: int = 0) -> pd.DataFrame:
 
     from wolves.insights.market_gaps import market_gaps as _gaps
 
-    table = _gaps(forecaster(), _archive_dir(), n_sims=n_sims or context().default_n_sims, seed=seed)
+    current = context().current_outrights or {}
+    current_legs = current.get("legs", {})
+    table = _gaps(
+        forecaster(),
+        _archive_dir(),
+        current_market=current.get("consensus"),
+        current_polymarket=current_legs.get("polymarket"),
+        current_as_of=current.get("fetched_at"),
+        current_prices_updated_oldest=current.get("prices_updated_oldest"),
+        current_prices_updated_newest=current.get("prices_updated_newest"),
+        n_sims=n_sims or context().default_n_sims,
+        seed=seed,
+    )
     SESSION.usage.queries += 1
     return pd.DataFrame([g.model_dump() for g in table.gaps])
 
@@ -43,6 +56,7 @@ def model_explain(team: str) -> dict[str, Any]:
     """Why the model rates a team: weighted record, strongest match influences, Elo trajectory."""
     from wolves.insights.explain import model_explain as _explain
 
+    _checked_tournament_teams([team])
     SESSION.usage.queries += 1
     return _explain(forecaster(), team).model_dump(mode="json")
 
@@ -64,7 +78,9 @@ def path_difficulty(
     fc = forecaster()
     strength = dict(zip(list(fc.state.teams), [float(x) for x in fc.state.strengths], strict=True))
     rows: dict[str, dict[str, float]] = {}
-    for team in teams or sorted(strength, key=strength.get, reverse=True)[:12]:
+    tournament = _checked_tournament_teams(teams)
+    ranked = sorted(tournament, key=lambda team: strength.get(team, 0.0), reverse=True)
+    for team in ranked[:12] if teams is None else tournament:
         tree = team_path_tree(fc, team, n_sims=n_sims or context().default_n_sims * 3, seed=seed)
         SESSION.usage.sims += 1
         index = weight = 0.0
@@ -82,7 +98,9 @@ def path_difficulty(
             index += stage.p_play * (exp_s / mass)
             weight += stage.p_play
         rows[team] = {"difficulty": round(index / max(weight, 1e-9), 3), **per_stage}
-    return pd.DataFrame(rows).T.sort_values("difficulty", ascending=False)
+    frame = pd.DataFrame(rows).T
+    frame.index.name = "team"
+    return frame.sort_values("difficulty", ascending=False).reset_index().set_index("team", drop=False)
 
 
 def path_tree(
@@ -96,6 +114,7 @@ def path_tree(
     """One team's knockout route: qualification split, per-stage advance probabilities, likely opponents."""
     from wolves.insights.path_tree import team_path_tree
 
+    _checked_tournament_teams([team])
     SESSION.usage.sims += 1
     tree = team_path_tree(
         forecaster(),

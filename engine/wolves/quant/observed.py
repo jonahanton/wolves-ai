@@ -18,10 +18,7 @@ class ObservedQuant:
         return QuantWorkspace(self._quant_root, node_id)
 
     def write_context(self, workspace: QuantWorkspace, context: SandboxContext) -> None:
-        """Ship the sandbox context once per node; later calls keep the frozen one."""
-        path = workspace.inputs / "context.json"
-        if path.exists():
-            return
+        """Refresh the sandbox context before each script."""
         workspace.write("context.json", context.model_dump_json(indent=1), in_inputs=True)
 
     def write_analysis(self, *, actor: str, workspace: QuantWorkspace, code: str, filename: str) -> WorkspaceArtifact:
@@ -65,6 +62,9 @@ class ObservedQuant:
                 }
             )
             status = "ok" if result.ok else "FAIL"
+            failure_tails = (
+                {"stdout_tail": result.stdout[-1500:], "stderr_tail": result.stderr[-1500:]} if not result.ok else {}
+            )
             rec.note(
                 summary=f"exec {script} -> {status} ({result.duration_seconds}s, {len(result.output_files)} outputs)",
                 exit_code=result.exit_code,
@@ -73,5 +73,6 @@ class ObservedQuant:
                 output_files=[o.dataset_id for o in result.output_files],
                 package_versions=result.package_versions,
                 error=result.error,
+                **failure_tails,
             )
             return result

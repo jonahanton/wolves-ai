@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from wolves.forecast import StrengthPerturbation
 from wolves.quant.wolves_quant import _mixture
@@ -24,7 +25,7 @@ def _fake_sim(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """World probabilities become the sum of named effects, so the lattice
     arithmetic is checkable without a fitted model."""
 
-    def fake_simulate(perturbations=(), *, n_sims=None, seed=0):
+    def fake_simulate(perturbations=(), *, latent_effects=(), n_sims=None, seed=0):
         return {"england": round(sum(EFFECTS[p.reason] for p in perturbations), 6)}
 
     monkeypatch.setattr(_mixture, "simulate", fake_simulate)
@@ -85,3 +86,64 @@ def test_weight_and_size_errors():
 
     with pytest.raises(ValueError):
         scenario_mixture(None)
+
+
+def test_scenario_and_factor_reject_unknown_fields():
+    with pytest.raises(ValidationError):
+        Scenario(name="base", weight=1.0, label="not accepted")
+
+    with pytest.raises(ValidationError):
+        Factor(name="axis", variants=[], rationale="not accepted")
+
+
+def test_scenario_mixture_return_shape_has_no_teams_table():
+    out = scenario_mixture(scenarios=[_variant("plays", 1.0)], name="m_shape")
+
+    assert {"mixture", "conditionals", "marginals", "worlds", "weights", "baseline", "noise_floor_pp"} <= out.keys()
+    assert "teams" not in out
+
+
+def test_scenario_mixture_persists_optional_branch_audit_and_world_metadata(tmp_path: Path):
+    branch_audit = {
+        "verdict": "Saka availability priced, heat collapsed.",
+        "checks": [
+            {
+                "key": "saka-fitness",
+                "status": "priced",
+                "hypothesis": "Saka is not fully fit.",
+                "summary": "Fitness branch survives the floor.",
+                "teams": ["england"],
+                "world_names": ["plays"],
+            }
+        ],
+    }
+    world_metadata = {
+        "plays": {
+            "label": "Saka starts",
+            "summary": "England keep their first-choice right side.",
+            "camp": "fit",
+            "branch_keys": ["saka-fitness"],
+        }
+    }
+
+    out = scenario_mixture(
+        scenarios=[_variant("plays", 1.0)],
+        name="m_branch",
+        branch_audit=branch_audit,
+        world_metadata=world_metadata,
+    )
+
+    assert out["branch_audit"]["checks"][0]["key"] == "saka-fitness"
+    assert out["world_metadata"]["plays"]["camp"] == "fit"
+    persisted = json.loads((tmp_path / "outputs" / "m_branch.json").read_text(encoding="utf-8"))
+    assert persisted["branch_audit"] == out["branch_audit"]
+    assert persisted["world_metadata"] == out["world_metadata"]
+
+
+def test_world_metadata_rejects_unknown_world():
+    with pytest.raises(ValueError, match="unknown world"):
+        scenario_mixture(
+            scenarios=[_variant("plays", 1.0)],
+            name="m_bad_metadata",
+            world_metadata={"misses": {"label": "Missing"}},
+        )

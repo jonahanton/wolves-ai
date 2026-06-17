@@ -1,59 +1,82 @@
 import type { Metadata, Viewport } from "next";
-import { Funnel_Display, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
-import { TabBar } from "@/components/shell/tab-bar";
-import { ThemeProvider, themeInitScript } from "@/components/theme-provider";
+import { LiveDigest } from "@/components/shell/live-digest";
+import { SiteNav } from "@/components/shell/site-nav";
+import { orNull } from "@/lib/api";
+import { loadImpact } from "@/lib/impact";
+import { loadLiveState } from "@/lib/live";
 import "./globals.css";
 
-// Switzer and Funnel Display both carry uniform-width digits, which the global
-// tabular-nums rule depends on; swap fonts only for faces that keep that true.
-const sans = localFont({
-  src: "../fonts/Switzer-Variable.woff2",
-  variable: "--font-sans",
-  weight: "100 900",
+const albert = localFont({
+  src: [
+    { path: "../fonts/albert-sans-300.woff2", weight: "300" },
+    { path: "../fonts/albert-sans-400.woff2", weight: "400" },
+    { path: "../fonts/albert-sans-500.woff2", weight: "500" },
+    { path: "../fonts/albert-sans-600.woff2", weight: "600" },
+  ],
+  variable: "--font-albert",
   display: "swap",
 });
 
-const display = Funnel_Display({
-  variable: "--font-display",
-  subsets: ["latin"],
+const plexMono = localFont({
+  src: [
+    { path: "../fonts/ibm-plex-mono-400.woff2", weight: "400" },
+    { path: "../fonts/ibm-plex-mono-500.woff2", weight: "500" },
+  ],
+  variable: "--font-plex-mono",
+  display: "swap",
 });
 
-const mono = Geist_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
+const fraunces = localFont({
+  src: [
+    {
+      path: "../fonts/fraunces-latin.woff2",
+      weight: "340 600",
+      style: "normal",
+    },
+  ],
+  variable: "--font-fraunces",
+  display: "swap",
+});
+
+const hanken = localFont({
+  src: [
+    {
+      path: "../fonts/hanken-grotesk-latin.woff2",
+      weight: "400 800",
+      style: "normal",
+    },
+  ],
+  variable: "--font-hanken",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "The Wolves' World Cup Superforecaster",
-  description: "Forecasting WC26 knockout fixtures, during the groups",
+  title: "WWC26",
+  description: "Wolves World Cup 2026 Superforecaster",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#1c1a17",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
+  const [live, impact] = await Promise.all([loadLiveState(), loadImpact()]);
+
   return (
     <html
-      lang="en"
-      className={`${sans.variable} ${display.variable} ${mono.variable} h-full antialiased`}
-      suppressHydrationWarning
+      lang="en-GB"
+      className={`${albert.variable} ${plexMono.variable} ${fraunces.variable} ${hanken.variable}`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
-      <body className="min-h-full flex flex-col">
-        <ThemeProvider>
-          <div className="flex flex-1 flex-col pb-24">{children}</div>
-          <TabBar />
-        </ThemeProvider>
+      <body>
+        <SiteNav />
+        <LiveDigest initialLive={orNull(live)} initialImpact={orNull(impact)} />
+        <main>{children}</main>
       </body>
     </html>
   );

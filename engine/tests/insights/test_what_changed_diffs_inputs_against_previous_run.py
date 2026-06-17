@@ -29,7 +29,7 @@ def test_diff_reports_moves_expiries_and_new_sources(tmp_path: Path):
         source_url="https://reuters.com/a",
         status="probable",
         mechanism="lineup",
-        expiry="2026-06-09",
+        expiry="2026-06-09T23:59:59Z",
     )
     memory = SourceMemory(tmp_path / "sources_seen.jsonl")
     memory.record("https://example.com/new", run_id="agent-d2", disposition="fetched")

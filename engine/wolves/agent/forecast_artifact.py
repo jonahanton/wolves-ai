@@ -10,19 +10,21 @@ single story to tell."""
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field
 
-from wolves.forecast import Forecaster, Perturbation, ScorelinePerturbation
+from wolves.forecast import Forecaster, Perturbation
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import PlayedResult
-
-_PERTURBATION = TypeAdapter[Perturbation](Perturbation)
+from wolves.sim.latent import LatentEffect
+from wolves.sim.mc import SimResult
+from wolves.sim.perturbations import parse_perturbation, spec_for
 
 
 class PublishedWorld(BaseModel):
     name: str
     weight: float = Field(ge=0.0, le=1.0)
     perturbations: list[Perturbation] = Field(default_factory=list)
+    latent_effects: list[LatentEffect] = Field(default_factory=list)
 
 
 class ForecastArtifactError(Exception):
@@ -31,12 +33,11 @@ class ForecastArtifactError(Exception):
 
 
 def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
-    """Parse a mixture artifact's world configurations; a plain simulation
-    artifact (no worlds block) publishes as one unperturbed world."""
+    """Parse a mixture artifact's world configurations."""
     weights: dict[str, float] = payload.get("weights") or {}
     worlds_block: dict[str, dict] = payload.get("worlds") or {}
     if not worlds_block:
-        return [PublishedWorld(name="baseline", weight=1.0)]
+        raise ForecastArtifactError("computed forecast artifacts must carry world configurations")
     worlds: list[PublishedWorld] = []
     for name, weight in weights.items():
         spec = worlds_block.get(name)
@@ -47,10 +48,13 @@ def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
                 f"world {name!r} carries precomputed probabilities; only simulator-built worlds publish "
                 "the full distribution surface"
             )
-        perturbations = [_PERTURBATION.validate_python(p) for p in spec.get("perturbations", [])]
-        if any(isinstance(p, ScorelinePerturbation) for p in perturbations):
-            raise ForecastArtifactError(f"world {name!r} pins a scoreline; what-if instruments never publish")
-        worlds.append(PublishedWorld(name=name, weight=weight, perturbations=perturbations))
+        perturbations = [parse_perturbation(p) for p in spec.get("perturbations", [])]
+        unpublishable = [p for p in perturbations if not spec_for(p).publishes]
+        if unpublishable:
+            kinds = ", ".join(sorted({type(p).name for p in unpublishable}))
+            raise ForecastArtifactError(f"world {name!r} carries what-if instruments that never publish: {kinds}")
+        latent = [LatentEffect.model_validate(e) for e in spec.get("latent_effects", [])]
+        worlds.append(PublishedWorld(name=name, weight=weight, perturbations=perturbations, latent_effects=latent))
     for name in worlds_block:
         if name not in weights:
             raise ForecastArtifactError(f"world {name!r} has a configuration but no weight")
@@ -60,6 +64,28 @@ def worlds_from_payload(payload: dict) -> list[PublishedWorld]:
     return worlds
 
 
+def simulate_worlds(
+    forecaster: Forecaster,
+    worlds: list[PublishedWorld],
+    *,
+    n_sims: int,
+    seed: int,
+    extra_results: dict[int, PlayedResult] | None = None,
+) -> dict[str, SimResult]:
+    """Simulate each world once with common random numbers, keeping the raw results."""
+    results = forecaster.played_results(extra_results=extra_results)
+    return {
+        w.name: forecaster.simulate(
+            n_sims=n_sims,
+            seed=seed,
+            perturbations=tuple(w.perturbations),
+            latent_effects=tuple(w.latent_effects),
+            results=results,
+        )
+        for w in worlds
+    }
+
+
 def mixed_outputs(
     forecaster: Forecaster,
     worlds: list[PublishedWorld],
@@ -67,13 +93,16 @@ def mixed_outputs(
     n_sims: int,
     seed: int,
     extra_results: dict[int, PlayedResult] | None = None,
+    per_world_results: dict[str, SimResult] | None = None,
 ) -> SimOutputs:
-    """Simulate each world with common random numbers and mix the published
-    probabilities by weight."""
+    """Mix the published probabilities by world weight; provided results are reused."""
     modal = max(worlds, key=lambda w: w.weight)
+    per_world_results = per_world_results or simulate_worlds(
+        forecaster, worlds, n_sims=n_sims, seed=seed, extra_results=extra_results
+    )
     per_world = {
         w.name: forecaster.sim_outputs(
-            n_sims=n_sims, seed=seed, perturbations=tuple(w.perturbations), extra_results=extra_results
+            n_sims=n_sims, seed=seed, extra_results=extra_results, result=per_world_results[w.name]
         )
         for w in worlds
     }
@@ -106,17 +135,17 @@ def mixed_outputs(
     return mixed
 
 
-def govern_outputs(outputs: SimOutputs, anchor: SimOutputs, *, d: float) -> None:
-    """Shrink the published probabilities towards the deterministic anchor in
-    log-odds. Stage-by-stage blending of two monotone reach chains stays
-    monotone at the magnitudes the governor produces; the governor block in
-    the snapshot makes the shrink loud either way."""
+def govern_outputs(
+    outputs: SimOutputs, anchor: SimOutputs, *, d: float, title_anchor: dict[str, float] | None = None
+) -> None:
+    """Shrink published probabilities towards the anchor in log-odds. title_anchor
+    overrides the title channel only; reach chains keep the sim anchor."""
     from wolves.agent.consensus import blend_log_odds
 
     if d == 1.0:
         return
     titles = {t.team_id: t.champion_prob for t in outputs.teams}
-    anchor_titles = {t.team_id: t.champion_prob for t in anchor.teams}
+    anchor_titles = title_anchor or {t.team_id: t.champion_prob for t in anchor.teams}
     governed = blend_log_odds(titles, anchor_titles, d=d, renormalise=True)
     anchor_teams = {t.team_id: t for t in anchor.teams}
     for team in outputs.teams:

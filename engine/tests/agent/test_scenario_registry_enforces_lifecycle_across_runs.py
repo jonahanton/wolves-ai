@@ -31,3 +31,22 @@ def test_lifecycle_survives_reload_and_tracks_unresolved(tmp_path: Path):
 
     with pytest.raises(UnknownScenarioError):
         final.update("scn-999", run_id="agent-d2", status="collapsed", weight=0.0, reason="x")
+
+
+def test_deferred_scenario_writes_commit_or_roll_back(tmp_path: Path):
+    path = tmp_path / "agent-state" / "scenarios.jsonl"
+    registry = ScenarioRegistry(path, defer_writes=True)
+
+    opened = registry.open(name="saka_misses_group", run_id="agent-d1", weight=0.33, reason="fitness doubt")
+    assert opened.scenario_id == "scn-001"
+    assert not path.exists()
+
+    registry.rollback()
+    assert registry.open_scenarios() == []
+    assert not path.exists()
+
+    registry.open(name="saka_misses_group", run_id="agent-d2", weight=0.2, reason="new doubt")
+    registry.commit()
+
+    reloaded = ScenarioRegistry(path)
+    assert [s.scenario_id for s in reloaded.open_scenarios()] == ["scn-001"]

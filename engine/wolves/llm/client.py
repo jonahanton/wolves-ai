@@ -58,7 +58,7 @@ class LLMClient(ABC):
         schema_name: str,
         system: str | None = None,
         max_tokens: int = 900,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> LLMResponse: ...
 
     @abstractmethod
@@ -69,7 +69,7 @@ class LLMClient(ABC):
         tools: list[dict[str, Any]],
         system: str | None = None,
         max_tokens: int = 2000,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> ToolTurn:
         """Run ONE assistant turn over a multi-turn message list with multiple
         tools offered under ``tool_choice: auto`` (model may call a tool or stop)."""

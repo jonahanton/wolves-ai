@@ -4,12 +4,17 @@ time as a second Poisson draw at reduced intensity, shootouts exactly 50/50."""
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from wolves.data.teams import registry_team_key
 from wolves.models.contracts import FittedState, UnknownModelTeamError
 from wolves.sim.format import FormatData
 from wolves.sim.venues import altitude_bonus_table, host_at_home_table
+
+if TYPE_CHECKING:
+    from wolves.sim.latent import LatentEffect
 
 ET_INTENSITY = 1.0 / 3.0
 PARAMETER_DRAWS = 200
@@ -21,15 +26,24 @@ ALTITUDE_STRENGTH_PER_ELO = 0.0017
 class PoissonMatchEngine:
     """Plugs a fitted one-strength Poisson state into the tournament MC."""
 
-    def __init__(self, fmt: FormatData, state: FittedState, *, parameter_draws: int = PARAMETER_DRAWS) -> None:
+    def __init__(
+        self,
+        fmt: FormatData,
+        state: FittedState,
+        *,
+        parameter_draws: int = PARAMETER_DRAWS,
+        latent_effects: tuple[LatentEffect, ...] = (),
+    ) -> None:
         self._state = state
         self.parameter_draws = parameter_draws
+        self._latent_effects = latent_effects
         state_index = {team: i for i, team in enumerate(state.teams)}
         keys = [registry_team_key(team.id) for team in fmt.teams]
         for team, key in zip(fmt.teams, keys, strict=True):
             if key not in state_index:
                 raise UnknownModelTeamError(team.id, state.model_id)
         self._param_idx = np.array([state_index[key] for key in keys], dtype=np.intp)
+        self._state_index = state_index
 
         self._at_home = host_at_home_table(fmt)
         self._altitude = altitude_bonus_table(fmt)
@@ -47,6 +61,11 @@ class PoissonMatchEngine:
             draws = rng.multivariate_normal(mean, state.covariance, size=self.parameter_draws, method="svd")
         else:
             draws = np.tile(mean, (self.parameter_draws, 1))
+        # Latents ride the same draws off the same rng; the covariance is untouched.
+        for effect in self._latent_effects:
+            realisation = effect.prior.sample(rng, self.parameter_draws)
+            for col, weight in effect.columns(self._state_index, intercept_col=n_params - 2, home_adv_col=n_params - 1):
+                draws[:, col] += weight * realisation
         world_draw = np.arange(n_sims) % self.parameter_draws
         params = draws[world_draw]
         self._strengths = params[:, : n_params - 2][:, self._param_idx].T

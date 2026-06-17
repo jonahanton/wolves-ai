@@ -56,9 +56,7 @@ def _games_day_policy(settings: Settings, fmt: FormatData, big: frozenset[str], 
     playing = {m.home for m in group_games} | {m.away for m in group_games}
     big_playing = tuple(sorted(playing & big))
     # Semis and final are exempt: their single game is the whole stake.
-    single_knockout = (
-        len(knockout_games) + len(group_games) == 1 and not knockout_stages & {"sf", "final"}
-    )
+    single_knockout = len(knockout_games) + len(group_games) == 1 and not knockout_stages & {"sf", "final"}
 
     if knockout_stages & _LATE_STAGES:
         phase: Phase = "qf_final"
@@ -105,7 +103,7 @@ def _first_group_date(fmt: FormatData) -> date:
     return date.fromisoformat(min(m.date[:10] for m in fmt.group_matches))
 
 
-def _calendar_dates(fmt: FormatData) -> list[date]:
+def calendar_dates(fmt: FormatData) -> list[date]:
     stamps = sorted({m.date[:10] for m in fmt.group_matches} | {m.date[:10] for m in fmt.knockout})
     first = date.fromisoformat(stamps[0])
     last = date.fromisoformat(stamps[-1]) + timedelta(days=1)
@@ -118,7 +116,7 @@ def main() -> None:
     settings = Settings()
     fmt = load_format(settings.data_dir)
     print(f"{'date':<12}{'games':>6}{'phase':>11}{'ceiling':>9}  big teams playing")
-    for on in _calendar_dates(fmt):
+    for on in calendar_dates(fmt):
         policy = day_policy(settings, fmt, on=on)
         games = len(_group_games_on(fmt, on)) + sum(1 for m in fmt.knockout if m.date[:10] == on.isoformat())
         print(

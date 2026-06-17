@@ -37,6 +37,7 @@ def build_graph_deps(
         runs_root=tmp_path,
         storage_mode="local",
         n_sims=300,
+        graph_referee_enabled=False,
     )
     runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=caps or Caps(), runs_root=tmp_path)
     return AgentDeps(

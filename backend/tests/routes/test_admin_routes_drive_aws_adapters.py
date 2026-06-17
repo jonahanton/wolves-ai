@@ -50,7 +50,6 @@ async def test_run_now_returns_task_arn_with_202():
             ["wolves.run_agent", "--live", "--confirm-spend"],
             [{"name": "AGENT_RUN_CEILING_USD", "value": "3.50"}],
         ),
-        ({"mode": "live"}, ["wolves.live", "--loop", "--interval", "60"], None),
     ],
 )
 async def test_run_now_mode_sets_command_and_environment(body, command, environment):
@@ -66,7 +65,7 @@ async def test_run_now_mode_sets_command_and_environment(body, command, environm
 async def test_run_now_rejects_ceiling_on_non_agent_modes():
     ecs = FakeEcsClient(task_arn=TASK_ARN)
     async with client_for(build_test_app(ecs=ecs), headers=ADMIN_HEADERS) as client:
-        response = await client.post("/admin/run-now", json={"mode": "live", "ceilingUsd": 3.5})
+        response = await client.post("/admin/run-now", json={"mode": "daily", "ceilingUsd": 3.5})
     assert response.status_code == 400
     assert ecs.run_calls == []
 

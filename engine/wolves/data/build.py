@@ -16,11 +16,19 @@ from pydantic import BaseModel
 
 from wolves import ENGINE_VERSION
 from wolves.config import Settings
-from wolves.data.contracts import DatasetManifest, MatchOddsRecord, MatchRecord, ShootoutRecord, TeamRecord
+from wolves.data.contracts import (
+    DatasetManifest,
+    MatchOddsRecord,
+    MatchRecord,
+    ShootoutRecord,
+    SquadPlayerRecord,
+    TeamRecord,
+)
 from wolves.data.sources import elo_history, football_data, market_closes, martj42
 from wolves.data.sources.elo_history import EloHistoryRecord
 from wolves.data.sources.market_closes import ClosingOddsRecord, OutrightCloseRecord
 from wolves.data.sources.registry import build_team_dimension
+from wolves.data.sources.squad_players import latest_players_file, load_squad_players
 from wolves.data.store import DatasetStore, dataset_filename, dataset_id_from_hashes
 from wolves.observability.logging import configure_cli_logging
 from wolves.s3.artifacts import ArtifactStore
@@ -106,12 +114,14 @@ async def build_dataset(settings: Settings, *, out_dir: Path) -> DatasetManifest
     matches = martj42.parse_results(results_text)
     shootouts = martj42.parse_shootouts(shootouts_text)
     match_odds = football_data.parse_workbook(workbook)
-    elo_tsv = latest_elo_tsv(settings.data_dir / "ratings")
+    ratings_dir = settings.data_dir / "ratings"
+    elo_tsv = latest_elo_tsv(ratings_dir)
     teams = build_team_dimension(settings.data_dir, elo_tsv=elo_tsv, matches=matches)
     closes_dir = settings.data_dir / "odds"
     ArtifactStore(settings).sync_down(prefix=ODDS_CLOSE.prefix, into=closes_dir)
     closes, outright_closes = market_closes.load_closes(closes_dir)
-    elo_years = elo_history.load_elo_history(settings.data_dir / "ratings")
+    elo_years = elo_history.load_elo_history(ratings_dir)
+    squad_players = load_squad_players(ratings_dir)
 
     manifest = write_dataset(
         out_dir,
@@ -123,12 +133,14 @@ async def build_dataset(settings: Settings, *, out_dir: Path) -> DatasetManifest
             "market_closes": _frame(closes, ClosingOddsRecord),
             "outright_closes": _frame(outright_closes, OutrightCloseRecord),
             "elo_history": _frame(elo_years, EloHistoryRecord),
+            "squad_players": _frame(squad_players, SquadPlayerRecord),
         },
         hashes={
             "martj42_results": _sha256(results_text),
             "martj42_shootouts": _sha256(shootouts_text),
             "football_data_internationals": _sha256(workbook),
             "elo_snapshot": _sha256(elo_tsv.read_bytes()),
+            "squad_players": _sha256(latest_players_file(ratings_dir).read_bytes()),
             "market_closes": _dir_sha256(closes_dir),
         },
     )

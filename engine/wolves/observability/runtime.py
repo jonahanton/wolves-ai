@@ -226,10 +226,15 @@ class ObservedRuntime:
         self.budget.quant_executions += 1
 
     def add_cost(self, micros: int, *, reservation: int = 0) -> None:
-        self._in_flight_micros = max(0, self._in_flight_micros - reservation)
+        self.release_reservation(reservation)
         self.budget.cost_micros += micros
         self._settled_cost_micros += micros
         self._settled_calls += 1
+
+    def release_reservation(self, reservation: int) -> None:
+        """Return a reservation that will never settle: a failed or cancelled
+        call must not hold its estimated cost against the ceiling forever."""
+        self._in_flight_micros = max(0, self._in_flight_micros - reservation)
 
     def _call_estimate_micros(self) -> int:
         if self._settled_calls == 0:

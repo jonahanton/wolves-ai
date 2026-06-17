@@ -42,3 +42,17 @@ def test_query_filters_by_team_status_and_freshness(tmp_path: Path):
     assert {e.claim for e in ledger.query(status="rumour")} == {"other"}
     fresh = ledger.query(team_id="england", fresh_on=date(2026, 6, 10))
     assert [e.claim for e in fresh] == ["fresh"]
+
+
+def test_query_freshness_accepts_timestamp_expiries(tmp_path: Path):
+    ledger = EvidenceLedger(tmp_path / "ledger.jsonl")
+    ledger.append(
+        claim="kickoff-linked",
+        source_url="https://a",
+        status="confirmed",
+        mechanism="m",
+        expiry="2026-06-17T21:00:00Z",
+    )
+
+    fresh = ledger.query(fresh_on=date(2026, 6, 17))
+    assert [e.claim for e in fresh] == ["kickoff-linked"]

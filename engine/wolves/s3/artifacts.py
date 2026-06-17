@@ -88,7 +88,7 @@ class ArtifactStore:
         if self._s3 is not None:
             body = self._s3.get_bytes(key)
             if body is not None:
-                if self.mode == "both":
+                if self.mode in ("both", "s3"):
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(body)
                 return body
@@ -130,15 +130,17 @@ class ArtifactStore:
             logger.info("synced %d object(s) under %s to s3://%s", uploaded, prefix, self.bucket)
         return uploaded
 
-    def sync_down(self, *, prefix: str, suffix: str = "", into: Path | None = None) -> int:
+    def sync_down(self, *, prefix: str, suffix: str = "", contains: str = "", into: Path | None = None) -> int:
         """Download bucket objects missing locally; returns the new-file count.
 
         Destinations mirror the key under the local root, or under `into`
         (relative to the prefix) for trees consumed outside the mirror."""
-        if self._s3 is None or self.mode == "s3":
+        if self._s3 is None:
             return 0
         downloaded = 0
         for key in self._s3.list_keys(prefix=prefix):
+            if contains and contains not in key:
+                continue
             if suffix and not key.endswith(suffix):
                 continue
             destination = self.local_path(key) if into is None else into / key.removeprefix(prefix)

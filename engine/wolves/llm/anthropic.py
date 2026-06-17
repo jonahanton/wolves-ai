@@ -49,12 +49,11 @@ class AnthropicClient(LLMClient):
         schema_name: str,
         system: str | None = None,
         max_tokens: int = 900,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> LLMResponse:
         kwargs: dict[str, Any] = {
             "model": self.model,
             "max_tokens": max_tokens,
-            "temperature": temperature,
             "messages": [{"role": "user", "content": user}],
             "tools": [
                 {
@@ -65,6 +64,8 @@ class AnthropicClient(LLMClient):
             ],
             "tool_choice": {"type": "tool", "name": schema_name},
         }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
         if system:
             kwargs["system"] = system
 
@@ -107,16 +108,17 @@ class AnthropicClient(LLMClient):
         tools: list[dict[str, Any]],
         system: str | None = None,
         max_tokens: int = 2000,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> ToolTurn:
         kwargs: dict[str, Any] = {
             "model": self.model,
             "max_tokens": max_tokens,
-            "temperature": temperature,
             "messages": messages,
             "tools": tools,
             "tool_choice": {"type": "auto"},
         }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
         if system:
             kwargs["system"] = system
 

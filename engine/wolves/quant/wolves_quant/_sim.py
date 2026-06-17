@@ -1,16 +1,53 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
-from wolves.forecast import Perturbation
+from wolves.forecast import Perturbation, StrengthPerturbation
 from wolves.quant.wolves_quant._state import SESSION, context, forecaster
 
 if TYPE_CHECKING:
     import pandas as pd
 
+    from wolves.sim.latent import LatentEffect
+
+_MANAGED_LOAD_RE = re.compile(
+    r"\b(load[- ]managed|load[- ]management|managed[- ]load|minutes?[- ](?:managed|limited|restriction))\b",
+    re.IGNORECASE,
+)
+
+
+def _validate_quant_perturbations(perturbations: tuple[Perturbation, ...]) -> None:
+    for perturbation in perturbations:
+        if isinstance(perturbation, StrengthPerturbation) and _MANAGED_LOAD_RE.search(perturbation.reason):
+            raise ValueError(
+                "managed-load availability cannot be priced as a full-tournament StrengthPerturbation "
+                "inside the quant workbench; use a match-specific MatchRatePerturbation, or leave it "
+                "unpriced when the evidence ceiling is zero or below the noise floor"
+            )
+
 
 def _n_sims(n_sims: int | None) -> int:
     return n_sims or context().default_n_sims
+
+
+def _tournament_team_ids() -> list[str]:
+    return [team.id for team in forecaster().fmt.teams]
+
+
+def _checked_tournament_teams(teams: list[str] | None) -> list[str]:
+    allowed = _tournament_team_ids()
+    if teams is None:
+        return allowed
+    bad = sorted(set(teams) - set(allowed))
+    if bad:
+        from wolves.quant.wolves_quant._state import SandboxContextError
+
+        raise SandboxContextError(
+            f"tournament team(s) {', '.join(bad)}",
+            f"use ids from wq.teams(); valid ids include {', '.join(allowed[:8])}",
+        )
+    return teams
 
 
 def baseline(*, n_sims: int | None = None, seed: int = 0) -> dict[str, float]:
@@ -26,12 +63,17 @@ def baseline(*, n_sims: int | None = None, seed: int = 0) -> dict[str, float]:
 def simulate(
     perturbations: tuple[Perturbation, ...] | list[Perturbation] = (),
     *,
+    latent_effects: tuple[LatentEffect, ...] | list[LatentEffect] = (),
     n_sims: int | None = None,
     seed: int = 0,
 ) -> dict[str, float]:
     """Title probabilities under perturbations, common random numbers by seed."""
+    perturbations = tuple(perturbations)
+    _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
-    return forecaster().title_probs(n_sims=_n_sims(n_sims), seed=seed, perturbations=tuple(perturbations))
+    return forecaster().title_probs(
+        n_sims=_n_sims(n_sims), seed=seed, perturbations=perturbations, latent_effects=tuple(latent_effects)
+    )
 
 
 def reach(
@@ -44,8 +86,10 @@ def reach(
     r32 to champion), common random numbers by seed."""
     import pandas as pd
 
+    perturbations = tuple(perturbations)
+    _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
-    outputs = forecaster().sim_outputs(n_sims=_n_sims(n_sims), seed=seed, perturbations=tuple(perturbations))
+    outputs = forecaster().sim_outputs(n_sims=_n_sims(n_sims), seed=seed, perturbations=perturbations)
     return pd.DataFrame({t.team_id: t.reach_probs for t in outputs.teams}).T
 
 
@@ -64,13 +108,17 @@ def impact(
     n_sims: int | None = None,
     seed: int = 0,
     movers: int = 10,
+    include_teams: list[str] | None = None,
 ) -> dict[str, Any]:
     """Per-team pp title deltas for one perturbation, with the paired-seed
     noise floor attached so sub-floor deltas read as the fiction they are."""
+    included = _checked_tournament_teams(include_teams)
     base = baseline(n_sims=n_sims, seed=seed)
     moved = simulate((perturbation,), n_sims=n_sims, seed=seed)
     deltas = {t: round((moved.get(t, 0.0) - p) * 100, 3) for t, p in base.items()}
     top = dict(sorted(deltas.items(), key=lambda kv: abs(kv[1]), reverse=True)[:movers])
+    for team in included:
+        top[team] = deltas[team]
     return {"deltas_pp": top, "noise_floor_pp": noise_floor(n_sims=n_sims, seed=seed)}
 
 
@@ -85,8 +133,11 @@ def match_probs(
     """W/D/L for one fixture; pass the match id to bind match-keyed
     perturbations (without it they would be silently ignored, so the
     facade refuses instead)."""
+    _checked_tournament_teams([home, away])
+    perturbations = tuple(perturbations)
+    _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
-    return forecaster().match_probs(home, away, neutral=neutral, perturbations=tuple(perturbations), match=match)
+    return forecaster().match_probs(home, away, neutral=neutral, perturbations=perturbations, match=match)
 
 
 def score_grid(
@@ -100,8 +151,11 @@ def score_grid(
     """Full scoreline grid for one fixture as a DataFrame (rows home goals)."""
     import pandas as pd
 
+    _checked_tournament_teams([home, away])
+    perturbations = tuple(perturbations)
+    _validate_quant_perturbations(perturbations)
     SESSION.usage.sims += 1
-    grid = forecaster().score_grid(home, away, neutral=neutral, perturbations=tuple(perturbations), match=match)
+    grid = forecaster().score_grid(home, away, neutral=neutral, perturbations=perturbations, match=match)
     return pd.DataFrame(grid.grid)
 
 
@@ -120,6 +174,7 @@ def implied_delta(
     argue about (bisection, common random numbers)."""
     from wolves.forecast import StrengthPerturbation
 
+    _checked_tournament_teams([team])
     for _ in range(iterations):
         mid = (lo + hi) / 2
         pert = StrengthPerturbation(team=team, delta=mid, reason="implied delta inversion")
@@ -146,8 +201,9 @@ def title_uncertainty(
 
     state = forecaster().state
     all_teams = list(state.teams)
+    row_teams = _checked_tournament_teams(teams)
     draws = posterior_draws(n_draws, seed=seed)
-    rows: dict[str, list[float]] = {t: [] for t in (teams or all_teams)}
+    rows: dict[str, list[float]] = {t: [] for t in row_teams}
     for k in range(n_draws):
         perts = tuple(
             StrengthPerturbation(team=t, delta=float(draws.iloc[k][t] - state.strengths[i]), reason="posterior draw")
@@ -165,7 +221,8 @@ def title_uncertainty(
             "p90": {t: float(np.percentile(v, 90)) for t, v in rows.items()},
         }
     )
-    return frame.sort_values("mean", ascending=False)
+    frame.index.name = "team"
+    return frame.sort_values("mean", ascending=False).reset_index().set_index("team", drop=False)
 
 
 def update_from_result(
@@ -189,6 +246,7 @@ def update_from_result(
 
     from wolves.forecast import StrengthPerturbation
 
+    _checked_tournament_teams([team, opponent])
     state = forecaster().state
     idx = list(state.teams).index(team)
     prior_sd = float(np.sqrt(state.covariance[idx, idx])) if state.covariance is not None else 0.12

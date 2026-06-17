@@ -61,6 +61,11 @@ SNAPSHOT_LATEST = ArtifactSpec(
     mutable=True,
     description="Full copy of the most recently published snapshot.",
 )
+SNAPSHOT_SIDECAR = ArtifactSpec(
+    name="snapshot-sidecar",
+    pattern="snapshots/{date}/{run_id}.{dataset}.json",
+    description="One auxiliary dataset published beside a snapshot, immutable per run; date is YYYY/MM/DD.",
+)
 RUN_JOURNAL = ArtifactSpec(
     name="run-journal",
     pattern="runs/{run_id}/journal.md",
@@ -112,6 +117,22 @@ CHAMPION = ArtifactSpec(
     pattern="models/champion.json",
     mutable=True,
     description="The gate-promoted model record that produces published numbers.",
+)
+FITTED_STATE = ArtifactSpec(
+    name="fitted-state",
+    pattern="models/fitted/{run_id}.json",
+    description="Serialised FittedState behind one published run; the backend boots from this.",
+)
+FITTED_LATEST = ArtifactSpec(
+    name="fitted-latest",
+    pattern="models/fitted/latest.json",
+    mutable=True,
+    description="Pointer to the most recently published fitted state.",
+)
+IMPLIED_REACH = ArtifactSpec(
+    name="implied-reach",
+    pattern="odds-archive/{date}/{time}.implied.json",
+    description="Market-implied reach probabilities inverted from one outright capture.",
 )
 ODDS_SNAPSHOT = ArtifactSpec(
     name="odds-snapshot",
@@ -186,6 +207,11 @@ RELEVANCE_FEEDBACK = ArtifactSpec(
     mutable=True,
     description="Relevance scores joined with eventual ledger citation, for tier calibration.",
 )
+SQUAD_PLAYERS = ArtifactSpec(
+    name="squad-players",
+    pattern="ratings/squad-players/{date}.json",
+    description="Per-player Transfermarkt squad valuations pulled on date; provenance of the squad-value totals.",
+)
 CALIBRATION = ArtifactSpec(
     name="calibration",
     pattern="agent-state/calibration.jsonl",
@@ -197,6 +223,7 @@ CALIBRATION = ArtifactSpec(
 LAYOUT: tuple[ArtifactSpec, ...] = (
     SNAPSHOT,
     SNAPSHOT_LATEST,
+    SNAPSHOT_SIDECAR,
     RUN_JOURNAL,
     RUN_ARTIFACT,
     RUN_ARTIFACT_INDEX,
@@ -206,6 +233,9 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     DATASET_MANIFEST,
     DATASET_LATEST,
     CHAMPION,
+    FITTED_STATE,
+    FITTED_LATEST,
+    IMPLIED_REACH,
     ODDS_SNAPSHOT,
     ODDS_SERIES_POINT,
     ODDS_CLOSE,
@@ -218,6 +248,7 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     ARTICLE,
     RELEVANCE_MEMORY,
     RELEVANCE_FEEDBACK,
+    SQUAD_PLAYERS,
     CALIBRATION,
 )
 

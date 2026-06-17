@@ -1,7 +1,6 @@
 """End-to-end offline proof of the graph: a scripted master plans a research
 wave then a forecast node; the validator rejects an invalid submission inside
-the node's own run, the valid resubmission by artifact reference passes, and
-the run state (ledger, lessons, journal, events) all lands."""
+the node's own run, and the valid resubmission by artifact reference passes."""
 
 from __future__ import annotations
 
@@ -10,17 +9,28 @@ from pathlib import Path
 
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps, build_run_store
+from wolves.config import Settings
 from wolves.graph.contracts import ForecastOutput, GraphPatch, LedgerEvidence, NodePatch, ResearchOutput
 from wolves.graph.fakes import scripted_model
 from wolves.graph.runner import GraphModels, run_graph
 from wolves.observability import EventLog
 
+SCENARIO_WEIGHTS = [
+    {"name": "plays", "weight": 0.6, "rationale": "Keeper plays after training in full."},
+    {"name": "out", "weight": 0.4, "rationale": "Keeper absence still carries some squad risk."},
+]
+
 INVALID = build_submission(
+    artifact_id="mixture-999",
     narrative=build_submission().narrative.model_copy(
-        update={"focus_story": "England cruise — nothing to worry about.", "slot_rationales": {"73": "only one"}}
-    )
+        update={"headline": "England cruise \u2014 nothing to worry about."}
+    ),
+    scenario_weights=SCENARIO_WEIGHTS,
 )
-VALID = build_submission(market_justification="Confirmed keeper news the books have not priced.")
+VALID = build_submission(
+    market_justification="Confirmed keeper news the books have not priced.",
+    scenario_weights=SCENARIO_WEIGHTS,
+)
 
 RESEARCH = scripted_model(
     [
@@ -34,7 +44,7 @@ RESEARCH = scripted_model(
                     quote="trained in full",
                     status="confirmed",
                     mechanism="keeper returns to the XI",
-                    proposed_delta=15.0,
+                    proposed_delta=0.15,
                     team_id="england",
                 )
             ],
@@ -71,7 +81,15 @@ def _forecast_wave(prompt: str) -> GraphPatch:
 
 
 async def test_full_graph_run(tmp_path: Path):
-    deps = build_graph_deps(tmp_path, run_id="e2e-run")
+    settings = Settings(
+        _env_file=None,
+        runs_root=tmp_path,
+        storage_mode="local",
+        n_sims=300,
+        graph_referee_enabled=False,
+        graph_premortem_enabled=False,
+    )
+    deps = build_graph_deps(tmp_path, run_id="e2e-run", settings=settings)
     deps.artifacts = build_run_store(tmp_path, run_id="e2e-run")
     deps.artifacts.add(
         kind="mixture",
@@ -113,6 +131,8 @@ async def test_full_graph_run(tmp_path: Path):
     assert result.submission.artifact_id == "mixture-001"
 
     assert deps.ledger.get("led-0001") is not None
+    assert not deps.settings.lessons_path.exists()
+    deps.memory.commit_staged_lessons()
     assert "Anchor on odds" in deps.settings.lessons_path.read_text()
     assert (tmp_path / "runs" / "e2e-run" / "journal.md").exists()
 

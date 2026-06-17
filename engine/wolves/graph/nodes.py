@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import dataclasses
+import logging
+from collections.abc import Coroutine
+from datetime import UTC, date, datetime, time
+from typing import Any
 
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
@@ -14,6 +19,8 @@ from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
 from wolves.graph.observed_model import CACHE_SETTINGS, ObservedModel
 from wolves.toolkit._budget_gate import BudgetGate
 
+logger = logging.getLogger(__name__)
+
 _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
     "research": "evidence",
     "quant": "quant",
@@ -22,7 +29,7 @@ _ARTIFACT_KINDS: dict[NodeKind, ArtifactKind] = {
 }
 
 
-def _kickoff(brief: Brief, store: RunArtifactStore, *, tool_budget: int, retrievals: str = "") -> str:
+def _kickoff(brief: Brief, store: RunArtifactStore, *, settings: Settings, retrievals: str = "") -> str:
     # References only: payloads stay out of the kickoff so an arbitrarily
     # large dossier cannot blow the node's context; read_artifact pulls them.
     parts = [f"Objective: {brief.objective}", "", brief.brief]
@@ -36,29 +43,85 @@ def _kickoff(brief: Brief, store: RunArtifactStore, *, tool_budget: int, retriev
         parts.append("")
         parts.append(retrievals)
     parts.append("")
-    parts.append(
-        f"Budget: {tool_budget} budgeted tool calls for this node; think, todo_write, read_artifact "
-        "and run_python are free and do not count. Pace your external calls accordingly."
+    tool_budget = _tool_budget(brief.kind, settings)
+    free_clause = "read_artifact is free and does not count"
+    budget_line = (
+        f"Budget: {tool_budget} budgeted tool calls for this node; {free_clause}. Pace your external calls accordingly."
     )
+    if brief.kind == "quant":
+        budget_line += (
+            f" run_python is capped at {settings.graph_quant_python_call_limit} scripts for this node, "
+            "including failed scripts."
+        )
+    parts.append(budget_line)
     return "\n".join(parts)
 
 
 def _retrievals_digest(deps: AgentDeps) -> str:
     """What recent runs already fetched and judged, so a research node spends
     its searches on what is genuinely uncovered."""
-    if deps.articles is None:
-        return ""
-    cached = deps.articles.recent(max_age_hours=deps.settings.article_cache_max_age_hours)
-    if not cached:
-        return ""
-    lines = ["Already retrieved by recent runs (web_fetch serves these from cache; search for what is NOT here):"]
-    for article in cached:
-        prior = deps.relevance_memory.latest(article.final_url) if deps.relevance_memory is not None else None
-        judged = f"; judged {prior.score:.2f}: {prior.reason[:80]}" if prior is not None else ""
-        lines.append(
-            f"- {article.title or article.final_url} ({article.final_url}, {article.age_hours():.0f}h ago{judged})"
+    parts: list[str] = []
+    cached = (
+        deps.articles.recent(
+            max_age_hours=deps.settings.article_cache_max_age_hours,
+            as_of=deps.as_of,
+            current_run_id=deps.runtime.run_id,
         )
-    return "\n".join(lines)
+        if deps.articles
+        else []
+    )
+    now = _retrieval_clock(deps.as_of)
+    if cached:
+        lines = ["Already fetched by recent runs (web_fetch serves these from cache; search for what is NOT here):"]
+        for article in cached:
+            prior = (
+                deps.relevance_memory.latest(
+                    article.final_url, as_of=deps.as_of, current_run_id=deps.runtime.run_id
+                )
+                if deps.relevance_memory is not None
+                else None
+            )
+            judged = f"; judged {prior.score:.2f}: {prior.reason[:80]}" if prior is not None else ""
+            age = max(0.0, article.age_hours(now=now))
+            lines.append(
+                f"- {article.title or article.final_url} "
+                f"({article.final_url}, {age:.0f}h ago{judged})"
+            )
+        parts.append("\n".join(lines))
+    ranked = (
+        deps.relevance_memory.recent(limit=10, as_of=deps.as_of, current_run_id=deps.runtime.run_id)
+        if deps.relevance_memory is not None
+        else []
+    )
+    unfetched = [
+        source
+        for source in ranked
+        if deps.source_memory is None
+        or (seen := deps.source_memory.seen(source.url, as_of=deps.as_of, current_run_id=deps.runtime.run_id)) is None
+        or seen.disposition != "fetched"
+    ]
+    if unfetched:
+        lines = ["Recently ranked but not fetched (reuse the judgement unless the brief needs a fresh read):"]
+        for source in unfetched[:8]:
+            lines.append(
+                f"- {source.score:.2f} {source.url} ranked {source.ranked_at} for "
+                f"{source.sub_question[:70]}: {source.reason[:90]}"
+            )
+        parts.append("\n".join(lines))
+    if not parts:
+        return ""
+    return "\n\n".join(parts)
+
+
+def _retrieval_clock(as_of: str | None) -> datetime:
+    now = datetime.now(UTC)
+    if not as_of:
+        return now
+    try:
+        latest = datetime.combine(date.fromisoformat(as_of), time.max, tzinfo=UTC)
+    except ValueError:
+        return now
+    return min(latest, now)
 
 
 def _request_limit(kind: NodeKind, settings: Settings) -> int:
@@ -92,6 +155,33 @@ def _timeout(kind: NodeKind, settings: Settings) -> int:
     }[kind]
 
 
+async def _bounded(run: Coroutine[Any, Any, Any], *, brief: Brief, deps: AgentDeps, settings: Settings) -> Any:
+    """Wall-clock the node run. A forecast node that times out mid-steelman
+    (escalation fired, acceptance pending) is demonstrably one round from
+    done, so it gets one bounded grace window instead of dying short; the
+    shield keeps the first timeout from cancelling the underlying run."""
+    timeout = _timeout(brief.kind, settings)
+    if brief.kind != "forecast" or settings.graph_forecast_grace_s <= 0:
+        return await asyncio.wait_for(run, timeout=timeout)
+    task = asyncio.ensure_future(run)
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), timeout=timeout)
+    except TimeoutError:
+        if not (deps.submission.escalation_fired and deps.submission.accepted is None):
+            raise
+        logger.warning(
+            "forecast node %s timed out mid-steelman; granting %ds grace",
+            brief.node_id,
+            settings.graph_forecast_grace_s,
+        )
+        return await asyncio.wait_for(task, timeout=settings.graph_forecast_grace_s)
+    finally:
+        if not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+
 async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStore, model: Model) -> NodeOutcome:
     """Run one worker node to a typed artifact. Total: every failure, including
     CapExceeded surfacing in whatever shape pydantic-ai wraps it, degrades to a
@@ -111,17 +201,27 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         model = ObservedModel(model.wrapped, runtime=deps.runtime, actor=brief.node_id, hold_back_micros=hold_back)
     try:
         retrievals = _retrievals_digest(node_deps) if brief.kind == "research" else ""
-        result = await asyncio.wait_for(
+        result = await _bounded(
             node_agent(brief.kind).run(
-                _kickoff(brief, store, tool_budget=_tool_budget(brief.kind, settings), retrievals=retrievals),
+                _kickoff(brief, store, settings=settings, retrievals=retrievals),
                 deps=node_deps,
                 model=model,
                 model_settings=CACHE_SETTINGS,
                 usage_limits=UsageLimits(request_limit=_request_limit(brief.kind, settings)),
             ),
-            timeout=_timeout(brief.kind, settings),
+            brief=brief,
+            deps=node_deps,
+            settings=settings,
         )
     except Exception as exc:
+        body = getattr(exc, "body", None)
+        deps.runtime.emit(
+            "node_error",
+            brief.node_id,
+            f"{brief.kind} node failed: {type(exc).__name__}",
+            error=str(exc)[:2000],
+            **({"body": str(body)[:4000]} if body else {}),
+        )
         return NodeOutcome(node_id=brief.node_id, kind=brief.kind, ok=False, error=f"{type(exc).__name__}: {exc}")
     output = result.output
     workspace_prefix: str | None = None

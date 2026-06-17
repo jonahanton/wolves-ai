@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import re
+from datetime import date  # noqa: TC003  pydantic resolves field annotations at runtime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StringConstraints, field_validator, model_validator
 from pydantic.alias_generators import to_camel
+
+# TC001: pydantic resolves field annotations at runtime.
+from wolves.live_state import LiveForecast  # noqa: TC001
 
 TASK_ARN_PATTERN = r"^arn:aws:ecs:[a-z0-9-]+:\d{12}:task/[A-Za-z0-9_-]+/[a-f0-9]+$"
 
@@ -69,6 +73,8 @@ class TeamHistoryPoint(WireModel):
     as_of: str
     champion_prob: float
     reach_probs: dict[str, float]
+    market_prob: float | None = None
+    blend_prob: float | None = None
 
 
 class TeamHistory(WireModel):
@@ -102,7 +108,7 @@ class ScheduleUpdate(WireModel):
 
 class RunNowRequest(WireModel):
     force: StrictBool = False
-    mode: Literal["daily", "agent", "live"] = "daily"
+    mode: Literal["daily", "agent"] = "daily"
     ceiling_usd: float | None = Field(default=None, ge=0.01, le=8.0)
 
     @model_validator(mode="after")
@@ -134,54 +140,155 @@ class StopResult(WireModel):
     stopped: str
 
 
+class PinIn(WireModel):
+    match: int = Field(ge=1, le=104)
+    home_goals: int = Field(ge=0, le=9)
+    away_goals: int = Field(ge=0, le=9)
+
+
+class SimulateRequest(WireModel):
+    pins: list[PinIn] = Field(default_factory=list, max_length=8)
+    n_sims: int = Field(default=10_000, ge=1_000, le=20_000)
+    seed: int = Field(default=0, ge=0, le=2**31 - 1)
+    results_until: date | None = None
+
+
+class EngineBlock(WireModel):
+    fitted_run_id: str
+    model_id: str
+    as_of: str
+    n_sims: int
+    seed: int
+
+
+class SimulateResponse(WireModel):
+    engine: EngineBlock
+    baseline: dict[str, dict[str, float]]
+    pinned: dict[str, dict[str, float]]
+
+
+class MatchGrid(WireModel):
+    match: int
+    stage: str
+    home_id: str
+    away_id: str
+    grid: list[list[float]]
+    p_home: float
+    p_draw: float
+    p_away: float
+    fitted_run_id: str
+
+
+class PlayedResultOut(WireModel):
+    match: int
+    date: str
+    stage: str
+    home_id: str | None
+    away_id: str | None
+    home_goals: int
+    away_goals: int
+    winner: str | None
+
+
+class ResultsOut(WireModel):
+    results: list[PlayedResultOut]
+
+
+class DayPolicyOut(WireModel):
+    date: str
+    phase: str
+    ceiling_usd: float
+    big_teams: list[str]
+
+
+class RunPolicy(WireModel):
+    today: DayPolicyOut
+    calendar: list[DayPolicyOut]
+
+
+class StageImpact(WireModel):
+    agent: float
+    after_results: float
+    estimated: float
+    from_results_pp: float
+    from_ingame_pp: float
+    display_floor_pp: float
+
+
+class TeamImpact(WireModel):
+    title: StageImpact
+    reach: dict[Literal["r32", "r16", "qf", "sf", "final"], StageImpact]
+    exit: dict[Literal["groups", "r32", "r16", "qf", "sf", "final", "champion"], StageImpact]
+
+
+class ImpactFixture(WireModel):
+    match: int | None
+    home_id: str | None
+    away_id: str | None
+    home_name: str
+    away_name: str
+    home_goals: int | None
+    away_goals: int | None
+    minute: int | None
+    status: str
+    p_home: float | None
+    p_draw: float | None
+    p_away: float | None
+
+
+class ImpactResult(WireModel):
+    match: int
+    home_id: str | None
+    away_id: str | None
+    home_goals: int
+    away_goals: int
+    winner: str | None = None
+    source_fixture_id: int | None = None
+    fetched_at: str | None = None
+    kind: Literal["new", "corrected"]
+
+
+class Impact(WireModel):
+    agent_run_id: str
+    agent_as_of: str
+    agent_created_at: str
+    then_basis: str
+    now_basis: str
+    current_fit_run_id: str
+    current_fit_as_of: str
+    dataset_id: str
+    agent_result_set_digest: str
+    current_result_set_digest: str
+    live_mode: Literal["score_hold", "in_match_distribution", "none"]
+    n_sims: int
+    seed: int
+    parameter_uncertainty: bool
+    generated_at: str
+    results_since_agent: list[ImpactResult]
+    fixtures: list[ImpactFixture]
+    teams: dict[str, TeamImpact]
+
+
 class Health(BaseModel):
     status: Literal["ok"]
     uptime_s: float
 
 
-class LiveForecast(BaseModel):
-    source: Literal["pre_match", "in_match", "settled"]
-    p_home: float
-    p_away: float
-    p_draw: float | None = None
-    modal_score: str | None = None
-
-
-class LiveFixture(BaseModel):
+class LiveHistoryFixture(BaseModel):
     external_id: int
     match: int | None
     status: Literal["scheduled", "live", "finished", "abandoned"]
-    kickoff: str
-    city: str | None = None
     minute: int | None = None
-    home_id: str | None = None
-    away_id: str | None = None
-    home_name: str
-    away_name: str
     home_goals: int | None = None
     away_goals: int | None = None
-    home_reds: int = 0
-    away_reds: int = 0
     forecast: LiveForecast | None = None
-    message: str | None = None
 
 
-class ScheduleDrift(BaseModel):
-    match: int
-    scheduled_kickoff: str
-    provider_kickoff: str
-
-
-class LiveState(BaseModel):
-    schema_version: int
-    generated_at: str
+class LiveHistoryPoint(BaseModel):
     fetched_at: str
-    stale_after: str
-    source: str
-    poll_status: Literal["ok", "failed"]
-    message: str | None = None
-    live_match_count: int
-    fixtures: list[LiveFixture]
-    title_probs: dict[str, float]
-    title_deltas_pp: dict[str, float]
-    schedule_drift: list[ScheduleDrift] = Field(default_factory=list)
+    fixtures: list[LiveHistoryFixture]
+
+
+class LiveHistory(BaseModel):
+    date: str
+    points: list[LiveHistoryPoint]

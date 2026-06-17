@@ -39,9 +39,11 @@ class ScenarioRegistry:
     open worlds cannot silently vanish, their collapse or survival is part of
     today's argument."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, defer_writes: bool = False) -> None:
         self.path = path
+        self.defer_writes = defer_writes
         self._events: list[ScenarioEvent] = []
+        self._staged: list[ScenarioEvent] = []
         if self.path.exists():
             for line in self.path.read_text(encoding="utf-8").splitlines():
                 if line.strip():
@@ -109,10 +111,32 @@ class ScenarioRegistry:
         return [s for s in self.open_scenarios() if all(e.run_id != run_id for e in s.history)]
 
     def _append(self, event: ScenarioEvent) -> None:
+        self._events.append(event)
+        if self.defer_writes:
+            self._staged.append(event)
+            return
+        self._write(event)
+
+    def commit(self) -> None:
+        if not self._staged:
+            return
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("a", encoding="utf-8") as handle:
+            for event in self._staged:
+                handle.write(event.model_dump_json() + "\n")
+        self._staged.clear()
+
+    def rollback(self) -> None:
+        if not self._staged:
+            return
+        staged_ids = {id(event) for event in self._staged}
+        self._events = [event for event in self._events if id(event) not in staged_ids]
+        self._staged.clear()
+
+    def _write(self, event: ScenarioEvent) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(event.model_dump_json() + "\n")
-        self._events.append(event)
 
 
 def _now() -> str:

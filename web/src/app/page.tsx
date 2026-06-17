@@ -1,35 +1,106 @@
-import { DailyStory } from "@/components/today/daily-story";
-import { EvidenceFeed } from "@/components/today/evidence-feed";
-import { FinishSummary } from "@/components/today/finish-summary";
-import { MarketsCard } from "@/components/today/markets-card";
-import { NextFixtureCard } from "@/components/today/next-fixture-card";
-import { RunHeader } from "@/components/today/run-header";
-import { TodayBoard } from "@/components/today/today-board";
-import { focusStory, ledgerEntries } from "@/lib/agent-fields";
-import { summariseSnapshot } from "@/lib/derive";
-import { buildMarketsView } from "@/lib/markets";
-import { loadLatestSnapshot } from "@/lib/load-snapshot";
-import { nextEnglandFixture } from "@/lib/schedule";
-import { teamNames } from "@/lib/snapshot";
+import { LandingForecast } from "@/components/landing/landing-forecast";
+import { ErrorState } from "@/components/shell/error-state";
+import { FestivalBand } from "@/components/walls/festival-band";
+import { orNull } from "@/lib/api";
+import { titleBoard } from "@/lib/derive";
+import type { ChartTeamInput } from "@/lib/forecast-series";
+import { formatRunStampEastern } from "@/lib/format";
+import { loadFullRunIds } from "@/lib/full-runs";
+import { impactForAgent, loadImpact } from "@/lib/impact";
+import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
+import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
+import { loadDistributions } from "@/lib/sidecars";
+import { chartColour } from "@/lib/team-colours";
 
-export const dynamic = "force-dynamic";
+const CHART_TEAM_COUNT = 7;
 
-export default async function TodayPage() {
-  const snapshot = await loadLatestSnapshot();
-  const names = teamNames(snapshot);
-  const fixture = nextEnglandFixture(new Date());
-  const focusName = names.get(snapshot.focus.team_id) ?? snapshot.focus.team_id;
-  const mood = (snapshot.focus.finish_probs.win_group ?? 0) >= 0.5 ? "happy" : "neutral";
+export default async function LandingPage() {
+  const [result, indexResult] = await Promise.all([
+    loadLatestSnapshot(),
+    loadSnapshotIndex(),
+  ]);
+  if (!result.ok) return <ErrorState error={result.error} />;
+  const snapshot = result.data;
+
+  // The page speaks for the agent's full forecast; live runs may be newer.
+  const index = orNull(indexResult)?.snapshots ?? [];
+  const agentRef = index.find((ref) => ref.kind === "agent");
+  const agentSnapshot =
+    snapshot.run.kind === "agent" || !agentRef
+      ? snapshot
+      : (orNull(await loadSnapshot(agentRef.runId)) ?? snapshot);
+
+  const focusId = agentSnapshot.focus.team_id;
+  const names = Object.fromEntries(
+    agentSnapshot.teams.map((t) => [t.team_id, t.name]),
+  );
+
+  const fullBoard = titleBoard(agentSnapshot, agentSnapshot.teams.length);
+  const board = fullBoard.slice(0, CHART_TEAM_COUNT);
+  const leaderId = board[0]?.teamId ?? focusId;
+  const topIds = new Set([...board.map((row) => row.teamId), focusId]);
+  const allIds = agentSnapshot.teams
+    .filter((t) => t.champion_prob !== undefined)
+    .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
+    .map((t) => t.team_id);
+
+  const impactIds = [...topIds];
+  const [fullRunIds, distributions, impactResult, ...histories] = await Promise.all([
+    loadFullRunIds(index),
+    loadDistributions(agentSnapshot.run.run_id),
+    loadImpact(impactIds),
+    ...allIds.map((teamId) => loadTeamHistory(teamId)),
+  ] as const);
+  const impact = impactForAgent(orNull(impactResult), agentSnapshot.run.run_id);
+
+  const sidecar = orNull(distributions);
+  const championCells = Object.fromEntries(
+    Object.entries(sidecar?.teams ?? {})
+      .map(([teamId, stages]) => [teamId, stages.champion] as const)
+      .filter(([, cell]) => cell !== undefined),
+  );
+  const cellUppers = Object.values(championCells)
+    .filter((c) => c.bin_edges.length > 0)
+    .map((c) => c.bin_edges[c.bin_edges.length - 1]);
+  const xMax = cellUppers.length > 0 ? Math.max(...cellUppers) : 1;
+  const weights = agentSnapshot.agent?.scenario_weights ?? [];
+  const camps = (agentSnapshot.agent?.camps ?? [])
+    .slice()
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const drivers = agentSnapshot.distributions?.drivers ?? {};
+  const stories = agentSnapshot.agent?.narrative.team_stories ?? {};
+
+  const chartTeams: ChartTeamInput[] = allIds.map((teamId, i) => ({
+    teamId,
+    name: names[teamId] ?? teamId,
+    featured: teamId === leaderId,
+    tier: topIds.has(teamId) ? "top" : "rest",
+    colour: chartColour(teamId),
+    history: (orNull(histories[i])?.points ?? []).filter((p) =>
+      fullRunIds.has(p.runId),
+    ),
+  }));
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-6 p-4">
-      <RunHeader run={snapshot.run} mood={mood} />
-      <TodayBoard summary={summariseSnapshot(snapshot)} heroProb={snapshot.focus.reach_probs.r32 ?? 0} />
-      {fixture && <NextFixtureCard fixture={fixture} names={names} />}
-      <FinishSummary focus={snapshot.focus} name={focusName} />
-      <MarketsCard view={buildMarketsView(snapshot, names)} />
-      <DailyStory story={focusStory(snapshot)} />
-      <EvidenceFeed entries={ledgerEntries(snapshot)} />
-    </main>
+    <>
+      <LandingForecast
+        runLabel={formatRunStampEastern(agentSnapshot.run.created_at)}
+        teams={chartTeams}
+        names={names}
+        leaderId={leaderId}
+        board={board}
+        fullBoard={fullBoard}
+        championCells={championCells}
+        xMax={xMax}
+        weights={weights}
+        camps={camps}
+        drivers={drivers}
+        stories={stories}
+        impact={impact}
+      />
+      <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">
+        <FestivalBand family="euros" tag="Euros 2024 · the Wolves" />
+      </div>
+    </>
   );
 }

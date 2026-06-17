@@ -15,8 +15,11 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from wolves.forecast import Perturbation
+from wolves.logodds import from_log_odds, to_log_odds
+from wolves.quant.wolves_quant._audit import BranchAudit, FactorAudit
 from wolves.quant.wolves_quant._sim import baseline, noise_floor, simulate
 from wolves.quant.wolves_quant._state import SESSION, context
+from wolves.sim.latent import LatentEffect
 
 ENUMERATION_LIMIT = 24
 
@@ -24,18 +27,19 @@ ENUMERATION_LIMIT = 24
 class Scenario(BaseModel):
     """One named causal world: a sim configuration or a precomputed distribution."""
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = {"arbitrary_types_allowed": True, "extra": "forbid"}
 
     name: str
     weight: float
     perturbations: list[Perturbation] = Field(default_factory=list)
+    latent_effects: list[LatentEffect] = Field(default_factory=list)
     probs: dict[str, float] | None = None
 
 
 class Factor(BaseModel):
     """One independent uncertainty source with weighted variants."""
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = {"arbitrary_types_allowed": True, "extra": "forbid"}
 
     name: str
     variants: list[Scenario]
@@ -62,6 +66,9 @@ def scenario_mixture(
     n_sims: int | None = None,
     seed: int = 0,
     name: str = "mixture",
+    factor_audit: dict[str, Any] | None = None,
+    branch_audit: dict[str, Any] | None = None,
+    world_metadata: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Integrate a scenario mixture and persist it as a submit-ready artifact.
 
@@ -95,6 +102,11 @@ def scenario_mixture(
         "worlds": {
             key: {
                 "perturbations": [p.model_dump(mode="json") for s in parts for p in s.perturbations],
+                **(
+                    {"latent_effects": [e.model_dump(mode="json") for s in parts for e in s.latent_effects]}
+                    if any(s.latent_effects for s in parts)
+                    else {}
+                ),
                 **({"probs": parts[0].probs} if parts[0].probs is not None else {}),
             }
             for key, _, parts in worlds
@@ -107,11 +119,46 @@ def scenario_mixture(
         "n_sims": n_sims,
         "seed": seed,
     }
+    if factor_audit is not None:
+        result["factor_audit"] = FactorAudit.model_validate(factor_audit).model_dump(mode="json")
+    if branch_audit is not None:
+        result["branch_audit"] = BranchAudit.model_validate(branch_audit).model_dump(mode="json")
+    if world_metadata is not None:
+        result["world_metadata"] = _world_metadata(world_metadata, set(result["weights"]))
     out = SESSION.root / "outputs" / f"{name}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=1), encoding="utf-8")
     result["artifact_file"] = str(out.relative_to(SESSION.root))
     return result
+
+
+def combine_mixtures(
+    mixtures: list[dict[str, float]], weights: list[float] | None = None
+) -> dict[str, float]:
+    """Weighted log-odds average of independent per-team title dicts, renormalised; equal weights when none given."""
+    if not mixtures:
+        raise ValueError("combine_mixtures needs at least one mixture")
+    if weights is None:
+        weights = [1.0] * len(mixtures)
+    if len(weights) != len(mixtures):
+        raise ValueError(f"{len(weights)} weights for {len(mixtures)} mixtures")
+    total_weight = sum(weights)
+    if total_weight <= 0:
+        raise ValueError("combine_mixtures weights must sum to a positive value")
+    teams = {team for mixture in mixtures for team in mixture}
+    combined: dict[str, float] = {}
+    for team in teams:
+        present = [(m[team], w) for m, w in zip(mixtures, weights, strict=True) if team in m]
+        mass = sum(w for _, w in present)
+        if mass <= 0:
+            combined[team] = 0.0
+            continue
+        log_odds = sum(w * to_log_odds(p) for p, w in present)
+        combined[team] = from_log_odds(log_odds / mass)
+    norm = sum(combined.values())
+    if norm > 0:
+        combined = {team: p / norm for team, p in combined.items()}
+    return combined
 
 
 def _factor_blocks(
@@ -125,6 +172,26 @@ def _factor_blocks(
         return [Factor(name="scenario", variants=flat)]
     assert factors is not None
     return [f if isinstance(f, Factor) else Factor.model_validate(f) for f in factors]
+
+
+def _world_metadata(metadata: dict[str, dict[str, Any]], worlds: set[str]) -> dict[str, dict[str, Any]]:
+    unknown = sorted(set(metadata) - worlds)
+    if unknown:
+        raise ValueError(f"world_metadata names unknown world(s): {', '.join(unknown)}")
+    cleaned: dict[str, dict[str, Any]] = {}
+    for world, values in metadata.items():
+        if not isinstance(values, dict):
+            raise ValueError(f"world_metadata for {world!r} must be an object")
+        branch_keys = values.get("branch_keys") or []
+        if not isinstance(branch_keys, list) or any(not isinstance(key, str) for key in branch_keys):
+            raise ValueError(f"world_metadata for {world!r} has invalid branch_keys")
+        cleaned[world] = {
+            "label": str(values.get("label") or "").strip(),
+            "summary": str(values.get("summary") or "").strip(),
+            "camp": str(values.get("camp") or "").strip(),
+            "branch_keys": branch_keys,
+        }
+    return cleaned
 
 
 def _worlds(blocks: list[Factor], joint: dict[str, float] | None) -> list[tuple[str, float, tuple[Scenario, ...]]]:
@@ -154,7 +221,8 @@ def _world_probs(parts: tuple[Scenario, ...], *, n_sims: int | None, seed: int) 
             raise ValueError("precomputed probs only combine in a flat scenario list, not a factor product")
         return fixed[0]
     perturbations: list[Perturbation] = [p for s in parts for p in s.perturbations]
-    return simulate(perturbations, n_sims=n_sims, seed=seed)
+    latent: list[LatentEffect] = [e for s in parts for e in s.latent_effects]
+    return simulate(perturbations, latent_effects=latent, n_sims=n_sims, seed=seed)
 
 
 def _marginals(

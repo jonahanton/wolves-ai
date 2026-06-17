@@ -4,24 +4,25 @@ on:
   pull_request:
 
 jobs:
-  engine:
+  python:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: engine
     steps:
       - uses: actions/checkout@v5
 
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          cache-dependency-glob: engine/pyproject.toml
+          cache-dependency-glob: uv.lock
 
-      - run: uv venv && uv pip install -e ".[dev]"
+      - run: uv sync --frozen --all-packages --all-extras
 
-      - run: .venv/bin/ruff check .
+      - run: cd engine && ../.venv/bin/ruff check .
 
-      - run: .venv/bin/pytest tests/ -q
+      - run: cd backend && ../.venv/bin/ruff check .
+
+      - run: cd engine && ../.venv/bin/pytest tests/ -q
+
+      - run: cd backend && ../.venv/bin/pytest tests/ -q
 
   web:
     runs-on: ubuntu-latest

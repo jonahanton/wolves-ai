@@ -13,6 +13,16 @@ export function formatPctBare(prob: number): string {
   return `${pct}`;
 }
 
+
+export function formatPct1(prob: number): string {
+  return `${(prob * 100).toFixed(1)}%`;
+}
+
+export function formatPctFine(prob: number): string {
+  if (prob > 0 && prob < 0.001) return "<0.1%";
+  return formatPct1(prob);
+}
+
 export function frequencyFrame(prob: number): string | null {
   if (prob <= 0) return null;
   if (prob < 0.01) return "under 1 in 100 sims";
@@ -29,6 +39,7 @@ export function formatDeltaPts(deltaPts: number): string {
 }
 
 const LONDON = "Europe/London";
+const EASTERN = "America/New_York";
 
 export function formatMatchDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -58,6 +69,14 @@ export function formatKickoffTime(iso: string): string {
   });
 }
 
+export function formatKickoffTimeEastern(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: EASTERN,
+  });
+}
+
 export function formatUpdated(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
     day: "numeric",
@@ -66,4 +85,11 @@ export function formatUpdated(iso: string): string {
     minute: "2-digit",
     timeZone: LONDON,
   });
+}
+
+export function formatRunStampEastern(iso: string): string {
+  const date = new Date(iso);
+  const day = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: EASTERN });
+  const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: EASTERN });
+  return `${day} ${time}`;
 }

@@ -10,6 +10,7 @@ from wolves.s3.layout import (
     ARTICLE,
     CALIBRATION,
     LESSONS,
+    RELEVANCE_FEEDBACK,
     RELEVANCE_MEMORY,
     RUN_ARTIFACT_INDEX,
     RUN_JOURNAL,
@@ -34,9 +35,13 @@ class AgentStateStore:
         """Hydrate local agent state; return the file count (0 on cold start)."""
         # Mutable pointers refresh through get(), which treats the bucket as
         # authoritative; sync_down would keep a stale local copy.
-        mutable = (LESSONS, CALIBRATION, SCENARIOS, SOURCES_SEEN, RELEVANCE_MEMORY)
+        mutable = (LESSONS, CALIBRATION, SCENARIOS, SOURCES_SEEN, RELEVANCE_MEMORY, RELEVANCE_FEEDBACK)
         pulled = sum(1 for spec in mutable if self._artifacts.get(spec) is not None)
         pulled += self._artifacts.sync_down(prefix=RUN_JOURNAL.prefix)
+        pulled += self._artifacts.sync_down(prefix="runs/", suffix="/artifacts/index.json")
+        pulled += self._artifacts.sync_down(prefix="runs/", suffix="/events.jsonl")
+        pulled += self._artifacts.sync_down(prefix="runs/", suffix="/ledger.jsonl")
+        pulled += self._artifacts.sync_down(prefix="runs/", contains="/workspace/")
         pulled += self._artifacts.sync_down(prefix=ARTICLE.prefix)
         # Yesterday's snapshots feed calibration scoring and live overrides.
         pulled += self._artifacts.sync_down(prefix=SNAPSHOT.prefix)
@@ -52,6 +57,7 @@ class AgentStateStore:
             (SCENARIOS, {}),
             (SOURCES_SEEN, {}),
             (RELEVANCE_MEMORY, {}),
+            (RELEVANCE_FEEDBACK, {}),
             (RUN_JOURNAL, {"run_id": run_id}),
             (RUN_ARTIFACT_INDEX, {"run_id": run_id}),
         ):

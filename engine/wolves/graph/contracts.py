@@ -52,16 +52,42 @@ class LedgerEvidence(EvidenceItem):
     retrieval_id: str | None = None
 
 
+class CandidateBranch(BaseModel):
+    """A research hypothesis for quant to price, collapse or reject."""
+
+    branch_id: str = Field(min_length=1)
+    teams: list[str] = Field(default_factory=list)
+    hypothesis: str = Field(min_length=1)
+    support: str = Field(min_length=1)
+    collapse_condition: str = Field(min_length=1)
+    source_ids: list[str] = Field(default_factory=list)
+    evidence_indices: list[int] = Field(default_factory=list)
+    confidence: Literal["low", "medium", "high"] = "low"
+    suggested_quant_question: str = Field(min_length=1)
+
+
 class ResearchOutput(BaseModel):
     summary: str
     evidence: list[LedgerEvidence] = Field(default_factory=list)
     signals: list[str] = Field(default_factory=list)
+    candidate_branches: list[CandidateBranch] = Field(default_factory=list)
+
+
+class PricedItem(BaseModel):
+    """One ledger item's signed title delta in pp, materiality and exclusion reason."""
+
+    ledger_id: str
+    signed_delta_pp: float | None = None
+    material: bool = False
+    excluded_reason: str | None = None
+    noise_floor_pp: float | None = None
 
 
 class QuantOutput(BaseModel):
     summary: str
     findings: list[str] = Field(default_factory=list)
     headline_value: float | None = None
+    priced_items: list[PricedItem] = Field(default_factory=list)
 
 
 class ForecastOutput(BaseModel):
@@ -73,6 +99,10 @@ class ForecastOutput(BaseModel):
 class CritiqueOutput(BaseModel):
     summary: str
     challenges: list[str] = Field(default_factory=list)
+    # implied_shift_pp is advisory triage only; the gate reads the priced shift.
+    tail_branches: list[CandidateBranch] = Field(default_factory=list)
+    revision_recommendation: str = ""
+    implied_shift_pp: float | None = None
 
 
 class NodeOutcome(BaseModel):

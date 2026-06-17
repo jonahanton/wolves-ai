@@ -8,7 +8,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
-uv.lock
 
 # Node
 node_modules/
@@ -21,7 +20,7 @@ out/
 .claude/
 
 # Run artefacts
-runs/
+/runs/
 
 # Purchased odds snapshots: local + S3 only, never git
 data/odds/

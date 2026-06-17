@@ -9,6 +9,10 @@ from wolves.agent.contracts import LedgerStatus
 from wolves.agent.sources import source_tier
 
 
+def _expiry_date(value: str) -> date:
+    return date.fromisoformat(value.split("T", 1)[0])
+
+
 class LedgerEntry(BaseModel):
     id: str
     claim: str
@@ -87,7 +91,7 @@ class EvidenceLedger:
         if status is not None:
             out = [e for e in out if e.status == status]
         if fresh_on is not None:
-            out = [e for e in out if e.expiry is None or date.fromisoformat(e.expiry) >= fresh_on]
+            out = [e for e in out if e.expiry is None or _expiry_date(e.expiry) >= fresh_on]
         return list(out)
 
     def all(self) -> list[LedgerEntry]:

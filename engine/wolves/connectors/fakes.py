@@ -53,6 +53,7 @@ class FakeSearchClient(SearchClient):
         self._results = results or {}
         self._default_hits = default_hits if default_hits is not None else _default_hits(provider)
         self.calls: list[str] = []
+        self.end_published_dates: list[str | None] = []
 
     async def search(
         self,
@@ -66,6 +67,7 @@ class FakeSearchClient(SearchClient):
         domains: list[str] | None = None,
     ) -> SearchResult:
         self.calls.append(query)
+        self.end_published_dates.append(end_published_date)
         hits = self._results.get(query, self._default_hits)[:count]
         return SearchResult(
             provider=self.provider,

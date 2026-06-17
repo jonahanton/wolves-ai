@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -20,7 +21,14 @@ async def _default_after_result(spec: ToolSpec, args: Any, ctx: RunContext[Any],
     return result.model_dump_json()
 
 
-def _emit_tool_call(deps: Any, tool: str, result: ToolResult) -> None:
+def _args_summary(args: Any | None) -> str | None:
+    if args is None:
+        return None
+    value = args.model_dump(mode="json") if hasattr(args, "model_dump") else args
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)[:500]
+
+
+def _emit_tool_call(deps: Any, tool: str, result: ToolResult, *, args: Any | None = None) -> None:
     """One uniform event per tool call; run audits census from these."""
     runtime = getattr(deps, "runtime", None)
     actor = getattr(deps, "actor", "unknown")
@@ -29,7 +37,9 @@ def _emit_tool_call(deps: Any, tool: str, result: ToolResult) -> None:
     message = f"{tool} {'ok' if result.ok else 'error'}"
     if not result.ok and result.error is not None:
         message += f": {result.error.message[:80]}"
-    runtime.emit("tool_call", actor, message, tool=tool, ok=result.ok)
+    summary = _args_summary(args)
+    extra = {"args_summary": summary} if summary is not None else {}
+    runtime.emit("tool_call", actor, message, tool=tool, ok=result.ok, **extra)
 
 
 def build_toolset(
@@ -69,7 +79,7 @@ def _build_tool(
             result = ToolResult(
                 ok=False, payload=None, error=ToolError(type="invalid_arguments", message=str(exc)[:500])
             )
-            _emit_tool_call(ctx.deps, spec.name, result)
+            _emit_tool_call(ctx.deps, spec.name, result, args=kwargs)
             return await after_result(spec, None, ctx, result)
         if before_invoke is not None:
             short_circuit = await before_invoke(spec, args, ctx)
@@ -84,7 +94,7 @@ def _build_tool(
             result = ToolResult(
                 ok=False, payload=None, error=ToolError(type=type(exc).__name__, message=str(exc)[:500])
             )
-        _emit_tool_call(ctx.deps, spec.name, result)
+        _emit_tool_call(ctx.deps, spec.name, result, args=args)
         return await after_result(spec, args, ctx, result)
 
     tool = Tool.from_schema(

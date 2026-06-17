@@ -26,6 +26,7 @@ class RunMemory:
         self.run_id = run_id
         self.lessons_path = lessons_path
         self.journal_path = run_dir(runs_root, run_id) / _JOURNAL_NAME
+        self._staged_lessons: list[Lesson] = []
 
     def read_lessons(self) -> str:
         """The most recent lessons formatted for a prompt, newest last."""
@@ -38,8 +39,29 @@ class RunMemory:
     def append_lessons(self, text: str, *, scope: str = "general") -> None:
         if not text.strip():
             return
+        self._write_lesson(self._lesson(text, scope=scope))
+
+    def stage_lessons(self, text: str, *, scope: str = "general") -> None:
+        if text.strip():
+            self._staged_lessons.append(self._lesson(text, scope=scope))
+
+    def commit_staged_lessons(self) -> None:
+        if not self._staged_lessons:
+            return
         self.lessons_path.parent.mkdir(parents=True, exist_ok=True)
-        lesson = Lesson(date=datetime.now(UTC).strftime("%Y-%m-%d"), run_id=self.run_id, scope=scope, text=text.strip())
+        with self.lessons_path.open("a", encoding="utf-8") as handle:
+            for lesson in self._staged_lessons:
+                handle.write(lesson.model_dump_json() + "\n")
+        self._staged_lessons.clear()
+
+    def clear_staged_lessons(self) -> None:
+        self._staged_lessons.clear()
+
+    def _lesson(self, text: str, *, scope: str) -> Lesson:
+        return Lesson(date=datetime.now(UTC).strftime("%Y-%m-%d"), run_id=self.run_id, scope=scope, text=text.strip())
+
+    def _write_lesson(self, lesson: Lesson) -> None:
+        self.lessons_path.parent.mkdir(parents=True, exist_ok=True)
         with self.lessons_path.open("a", encoding="utf-8") as handle:
             handle.write(lesson.model_dump_json() + "\n")
 

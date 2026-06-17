@@ -1,453 +1,173 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@theme {
+  /* wiping the defaults keeps every colour on the night tokens */
+  --color-*: initial;
+  --color-night: oklch(0.215 0.022 255);
+  --color-night-2: oklch(0.255 0.024 255);
+  --color-cream: oklch(0.965 0.008 95);
+  --color-cream-dim: oklch(0.965 0.008 95 / 0.68);
+  --color-cream-faint: oklch(0.965 0.008 95 / 0.42);
+  --color-hairline: oklch(0.965 0.008 95 / 0.14);
+  --color-gold: oklch(0.8 0.15 62);
+  --color-red: oklch(0.69 0.19 25);
+  --color-green: oklch(0.8 0.11 150);
+  --color-slate: oklch(0.6 0.06 250);
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --font-sans: var(--font-albert);
+  --font-mono: var(--font-hanken);
+  --font-serif: var(--font-fraunces);
+  --font-display: var(--font-hanken);
+  --font-mono--font-feature-settings: "tnum";
 
-  --color-gold: var(--gold);
-  --color-gold-foreground: var(--gold-foreground);
-
-  --color-heat: var(--heat);
-  --color-delta-up: var(--delta-up);
-  --color-delta-up-bg: var(--delta-up-bg);
-  --color-delta-down: var(--delta-down);
-  --color-delta-down-bg: var(--delta-down-bg);
-
-  --color-state-working: var(--state-working);
-  --color-state-working-bg: var(--state-working-bg);
-  --color-state-complete: var(--state-complete);
-  --color-state-complete-bg: var(--state-complete-bg);
-  --color-state-error: var(--state-error);
-  --color-state-error-bg: var(--state-error-bg);
-
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-  --font-display: var(--font-display);
-
-  /* Anti-slop gate: nothing in the app exceeds a 12px radius. */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: 0.75rem;
-  --radius-2xl: 0.75rem;
-}
-
-:root {
-  --background: oklch(0.985 0.002 90);
-  --foreground: oklch(0.16 0.005 90);
-
-  --border: oklch(0.91 0.003 90);
-  --border-strong: oklch(0.78 0.003 90);
-
-  --primary: oklch(0.2 0.01 90);
-  --primary-foreground: oklch(0.99 0 0);
-
-  --gold: oklch(0.72 0.13 85);
-  --gold-foreground: oklch(0.2 0.02 85);
-
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.005 90);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.005 90);
-  --secondary: oklch(0.955 0.003 90);
-  --secondary-foreground: oklch(0.2 0.005 90);
-  --muted: oklch(0.955 0.003 90);
-  --muted-foreground: oklch(0.45 0.005 90);
-  --accent: oklch(0.955 0.003 90);
-  --accent-foreground: oklch(0.2 0.005 90);
-  --destructive: oklch(0.577 0.245 27.325);
-  --input: oklch(0.91 0.003 90);
-  --ring: oklch(0.72 0.13 85);
-
-  --state-working: oklch(0.55 0.15 250);
-  --state-working-bg: oklch(0.95 0.02 250);
-  --state-complete: oklch(0.55 0.15 155);
-  --state-complete-bg: oklch(0.95 0.02 155);
-  --state-error: oklch(0.55 0.18 25);
-  --state-error-bg: oklch(0.96 0.02 25);
-
-  --heat: oklch(0.55 0.1 250);
-  --delta-up: oklch(0.52 0.09 155);
-  --delta-up-bg: oklch(0.52 0.09 155 / 12%);
-  --delta-down: oklch(0.52 0.1 25);
-  --delta-down-bg: oklch(0.52 0.1 25 / 12%);
-
-  --card-shadow: 0 1px 3px oklch(0 0 0 / 10%);
-
-  --radius: 0.625rem;
-
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Dark elevation is four luminance steps (base, card, nested, overlay); depth comes
-   from surfaces getting lighter, never from shadows. Hairlines are alpha white and
-   the text ramp tops out off-white, never #FFF. */
-.dark {
-  --background: #0b0b0d;
-  --foreground: #ececef;
-
-  --border: rgb(255 255 255 / 8%);
-  --border-strong: rgb(255 255 255 / 16%);
-
-  --primary: #ececef;
-  --primary-foreground: #0b0b0d;
-
-  --gold: oklch(0.78 0.13 85);
-  --gold-foreground: oklch(0.17 0.02 85);
-
-  --card: #141417;
-  --card-foreground: #ececef;
-  --popover: #26262c;
-  --popover-foreground: #ececef;
-  --secondary: #1c1c21;
-  --secondary-foreground: #ececef;
-  --muted: #1c1c21;
-  --muted-foreground: rgb(236 236 239 / 60%);
-  --accent: #1c1c21;
-  --accent-foreground: #ececef;
-  --destructive: oklch(0.68 0.15 22);
-  --input: rgb(255 255 255 / 14%);
-  --ring: oklch(0.78 0.13 85);
-
-  --state-working: oklch(0.68 0.1 250);
-  --state-working-bg: oklch(0.29 0.025 250);
-  --state-complete: oklch(0.69 0.11 155);
-  --state-complete-bg: oklch(0.29 0.025 155);
-  --state-error: oklch(0.69 0.13 25);
-  --state-error-bg: oklch(0.29 0.025 25);
-
-  --heat: oklch(0.7 0.1 250);
-  --delta-up: oklch(0.72 0.09 155);
-  --delta-up-bg: oklch(0.72 0.09 155 / 14%);
-  --delta-down: oklch(0.7 0.1 25);
-  --delta-down-bg: oklch(0.7 0.1 25 / 14%);
-
-  --card-shadow: none;
+  --radius-*: initial;
+  --radius-pill: 99px;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-night text-cream font-sans antialiased;
+    font-size: 17px;
+    line-height: 1.5;
   }
-  html {
-    @apply font-sans;
-    font-variant-numeric: tabular-nums;
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0.16;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-}
 
-.sticker {
-  position: relative;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-strong);
-  background: var(--card);
-  box-shadow: var(--card-shadow);
-}
-
-.sticker::before {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  border: 1px dashed color-mix(in oklch, var(--border-strong) 70%, transparent);
-  border-radius: calc(var(--radius-lg) - 4px);
-  pointer-events: none;
-}
-
-@keyframes foil-sweep {
-  from {
-    background-position: 160% 0;
+  ::selection {
+    background: oklch(0.8 0.13 78 / 0.3);
   }
-  to {
-    background-position: -60% 0;
+
+  :focus-visible {
+    outline: 1.5px solid var(--color-gold);
+    outline-offset: 3px;
+  }
+
+  svg {
+    display: block;
   }
 }
 
-/* The foil gradient is the single sanctioned gradient. It sits still everywhere;
-   only .foil-once (the Today hero, first visit per session) plays the sweep. */
-.foil,
-.foil-once {
-  position: relative;
-  overflow: hidden;
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
-.foil::after,
-.foil-once::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: linear-gradient(
-    115deg,
-    transparent 42%,
-    color-mix(in oklch, var(--gold) 7%, transparent) 47%,
-    color-mix(in oklch, var(--gold) 13%, transparent) 50%,
-    color-mix(in oklch, var(--gold) 7%, transparent) 53%,
-    transparent 58%
+@utility shimmer-red {
+  background: linear-gradient(
+    90deg,
+    oklch(0.69 0.19 25 / 0.4) 0%,
+    oklch(0.74 0.2 25) 50%,
+    oklch(0.69 0.19 25 / 0.4) 100%
   );
-  background-size: 300% 100%;
-  background-repeat: no-repeat;
-  background-position: 30% 0;
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.6s ease-in-out infinite;
 }
 
-.foil-once::after {
-  animation: foil-sweep 1.3s var(--ease-out) 0.4s both;
-}
-
-/* Wolf mascot: one canonical wolf, action variants scoped by .v-* classes on the svg.
-   Every part animation resolves through --wolf-anim so reduced motion can switch the
-   whole character off in one declaration; the idle layer keeps it alive everywhere else. */
-
-.wolf {
-  overflow: visible;
-}
-
-.wolf .wolf-ear,
-.wolf .wolf-head,
-.wolf .wolf-eyes,
-.wolf .wolf-tail,
-.wolf .wolf-all,
-.wolf .wolf-ball,
-.wolf .wolf-howl-marks path {
-  transform-box: fill-box;
-}
-
-.wolf .wolf-head {
-  transform-origin: 50% 90%;
-  animation: var(--wolf-anim, wolf-idle-head 3.4s ease-in-out infinite);
-}
-.wolf .wolf-eyes {
-  transform-origin: center;
-  animation: var(--wolf-anim, wolf-idle-blink 4.8s ease-in-out infinite);
-}
-.wolf .wolf-ear-l {
-  transform-origin: 60% 95%;
-  animation: var(--wolf-anim, wolf-idle-ear 7s ease-in-out infinite);
-}
-.wolf .wolf-ear-r {
-  transform-origin: 40% 95%;
-  animation: var(--wolf-anim, wolf-idle-ear 9s ease-in-out infinite 3.5s);
-}
-.wolf .wolf-tail {
-  transform-origin: 10% 90%;
-  animation: var(--wolf-anim, wolf-idle-tail 3.2s ease-in-out infinite alternate);
-}
-
-@keyframes wolf-idle-head {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-0.7px);
-  }
-}
-@keyframes wolf-idle-blink {
-  0%,
-  92%,
-  96%,
-  100% {
-    transform: scaleY(1);
-  }
-  94% {
-    transform: scaleY(0.08);
-  }
-}
-@keyframes wolf-idle-ear {
-  0%,
-  90%,
-  100% {
-    transform: rotate(0deg);
-  }
-  93% {
-    transform: rotate(-9deg);
-  }
-  96% {
-    transform: rotate(4deg);
-  }
-}
-@keyframes wolf-idle-tail {
-  from {
-    transform: rotate(-6deg);
-  }
-  to {
-    transform: rotate(10deg);
-  }
-}
-
-.v-juggle .wolf-ball {
-  transform-origin: 50% 100%;
-  animation: var(--wolf-anim, wolf-juggle-ball 0.9s cubic-bezier(0.34, 0.18, 0.66, 0.85) infinite);
-}
-.v-juggle .wolf-head {
-  animation: var(--wolf-anim, wolf-juggle-head 0.9s ease-in-out infinite);
-}
-.v-juggle .wolf-all {
-  transform-origin: 50% 100%;
-  animation: var(--wolf-anim, wolf-juggle-bounce 0.9s ease-in-out infinite);
-}
-
-@keyframes wolf-juggle-ball {
-  0%,
-  100% {
-    transform: translateY(0) scale(1, 0.92);
-  }
-  45% {
-    transform: translateY(-22px) scale(1, 1);
-  }
-}
-@keyframes wolf-juggle-head {
-  0%,
-  100% {
-    transform: rotate(7deg);
-  }
-  45% {
-    transform: rotate(-3deg);
-  }
-}
-@keyframes wolf-juggle-bounce {
-  0%,
-  100% {
-    transform: scaleY(0.985);
-  }
-  45% {
-    transform: scaleY(1);
-  }
-}
-
-.v-howl .wolf-head {
-  animation: var(--wolf-anim, wolf-howl-head 3.6s ease-in-out infinite);
-}
-.v-howl .wolf-tail {
-  animation: var(--wolf-anim, wolf-howl-tail 0.6s ease-in-out infinite alternate);
-}
-.v-howl .wolf-howl-marks path {
-  opacity: 0;
-  color: var(--gold);
-}
-.v-howl .wolf-howl-1 {
-  animation: var(--wolf-anim, wolf-howl-mark 3.6s ease-in-out infinite);
-}
-.v-howl .wolf-howl-2 {
-  animation: var(--wolf-anim, wolf-howl-mark 3.6s ease-in-out infinite 0.25s);
-}
-
-@keyframes wolf-howl-head {
-  0%,
-  20%,
-  80%,
-  100% {
-    transform: rotate(0deg);
-  }
-  35%,
-  65% {
-    transform: rotate(-13deg) translateY(-1.5px);
-  }
-}
-@keyframes wolf-howl-tail {
-  from {
-    transform: rotate(-8deg);
-  }
-  to {
-    transform: rotate(14deg);
-  }
-}
-@keyframes wolf-howl-mark {
-  0%,
-  25%,
-  75%,
-  100% {
-    opacity: 0;
-  }
-  40%,
-  60% {
-    opacity: 1;
-  }
-}
-
-.v-pace .wolf-all {
-  animation: var(--wolf-anim, wolf-pace-shuffle 2.4s ease-in-out infinite);
-}
-.v-pace .wolf-head {
-  animation: var(--wolf-anim, wolf-pace-glance 2.4s ease-in-out infinite);
-}
-.v-pace .wolf-tail {
-  animation: var(--wolf-anim, wolf-pace-tail 0.5s ease-in-out infinite alternate);
-}
-
-@keyframes wolf-pace-shuffle {
-  0%,
-  100% {
-    transform: translateX(-3.5px);
-  }
-  50% {
-    transform: translateX(3.5px);
-  }
-}
-@keyframes wolf-pace-glance {
-  0%,
-  100% {
-    transform: rotate(-5deg);
-  }
-  50% {
-    transform: rotate(5deg);
-  }
-}
-@keyframes wolf-pace-tail {
-  from {
-    transform: rotate(-4deg);
-  }
-  to {
-    transform: rotate(6deg);
-  }
+@utility shimmer-cream {
+  background: linear-gradient(
+    90deg,
+    oklch(0.965 0.008 95 / 0.35) 0%,
+    oklch(0.965 0.008 95) 50%,
+    oklch(0.965 0.008 95 / 0.35) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wolf {
-    --wolf-anim: none;
-  }
-  .foil-once::after {
+  .shimmer-red {
     animation: none;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    color: var(--color-red);
+  }
+
+  .shimmer-cream {
+    animation: none;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    color: var(--color-cream);
   }
 }
 
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+@utility wrap {
+  max-width: 1140px;
+  margin-inline: auto;
+  padding-inline: clamp(20px, 4vw, 44px);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+@utility statement {
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.03;
+  font-size: clamp(34px, 5.6vw, 64px);
+  text-wrap: balance;
 }
+
+@utility statement-hero {
+  font-size: clamp(40px, 7.6vw, 84px);
+}
+
+@utility chart-title {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 130, "SOFT" 0, "WONK" 0;
+  font-weight: 430;
+  font-size: clamp(28px, 1.4rem + 2.4vw, 48px);
+  line-height: 1.04;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+
+@utility hero-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(24px, 0.9rem + 2.2vw, 42px);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+@utility kicker {
+  font-family: var(--font-plex-mono);
+  font-size: 12.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+@utility lede {
+  font-size: clamp(16px, 2vw, 19px);
+  color: var(--color-cream-dim);
+  max-width: 54ch;
+  font-weight: 300;
+}
+

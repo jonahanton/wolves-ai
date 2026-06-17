@@ -161,6 +161,8 @@ def artifact(artifact_id: str) -> dict[str, Any]:
         raise SandboxContextError(f"artifact {artifact_id!r}", f"known ids: {known}")
     SESSION.usage.artifact_reads += 1
     payload: dict[str, Any] = json.loads(Path(record.payload_path).read_text(encoding="utf-8"))
+    if {"id", "kind", "payload"} <= payload.keys() and isinstance(payload["payload"], dict):
+        return payload["payload"]
     return payload
 
 

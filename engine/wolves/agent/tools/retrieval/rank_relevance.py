@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.relevance_memory import RankedSource
@@ -22,6 +22,16 @@ class Candidate(BaseModel):
 class RankRelevanceArgs(BaseModel):
     sub_question: str
     candidates: list[Candidate] = Field(min_length=1, max_length=24)
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_search_payload(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        candidates = data.get("candidates")
+        if isinstance(candidates, dict) and isinstance(candidates.get("hits"), list):
+            return {**data, "candidates": candidates["hits"]}
+        return data
 
 
 class _Ranking(BaseModel):
@@ -58,9 +68,18 @@ async def _rank_relevance(args: RankRelevanceArgs, deps: AgentDeps) -> ToolResul
     memory = deps.source_memory
     seen: dict[str, str | None] = {}
     for c in args.candidates:
-        record = memory.seen(c.url) if memory is not None else None
+        record = (
+            memory.seen(c.url, as_of=deps.as_of, current_run_id=deps.runtime.run_id) if memory is not None else None
+        )
         seen[c.url] = record.last_seen_run if record is not None else None
-    priors = {c.url: deps.relevance_memory.latest(c.url) for c in args.candidates} if deps.relevance_memory else {}
+    priors = (
+        {
+            c.url: deps.relevance_memory.latest(c.url, as_of=deps.as_of, current_run_id=deps.runtime.run_id)
+            for c in args.candidates
+        }
+        if deps.relevance_memory
+        else {}
+    )
     user = f"Sub-question: {args.sub_question}\nAs of: {deps.as_of}\n\nCandidates:\n\n" + "\n\n".join(
         _candidate_block(c, seen.get(c.url), priors.get(c.url)) for c in args.candidates
     )
@@ -108,14 +127,16 @@ async def _rank_relevance(args: RankRelevanceArgs, deps: AgentDeps) -> ToolResul
                 reason=by_url[c.url].reason,
                 run_id=deps.runtime.run_id,
             )
+    retrieval_id = None
     if deps.artifacts is not None:
-        deps.artifacts.add(
+        artifact = deps.artifacts.add(
             kind="retrieval",
             created_by=deps.actor,
             summary=f"ranked {len(rankings)} candidates for: {args.sub_question[:70]}",
             payload={"sub_question": args.sub_question, "rankings": rankings},
         )
-    return ToolResult(payload={"rankings": rankings})
+        retrieval_id = artifact.id
+    return ToolResult(payload={"rankings": rankings, "retrieval_id": retrieval_id})
 
 
 SPEC = ToolSpec(
@@ -124,6 +145,7 @@ SPEC = ToolSpec(
         "Rank search candidates against your sub-question in one batched call: each gets a "
         "holistic 0-1 score with a one-line reason, its source tier, whether a previous run "
         "already saw it and any prior ranking with its timestamp, so judgements are not redone. "
+        "You may pass candidates directly from web_search's hits payload. "
         "The default research move is broad search, rank, fetch the top few; "
         "you stay free to overrule a ranking with your own stated reason. Costs no fetch budget."
     ),

@@ -142,6 +142,11 @@ async def run_analysis(
         raise FileNotFoundError(f"no {script} at {script_path}")
 
     code = script_path.read_bytes()
+    before_outputs = {
+        art.filename: art.content_hash
+        for art in workspace.list_outputs()
+        if not art.filename.split("/")[-1].startswith("_")
+    }
     timeout = timeout_seconds or caps.max_quant_runtime_seconds
     runner_path = workspace.dir / "_runner.py"
     runner_path.write_text(
@@ -210,6 +215,7 @@ async def run_analysis(
         for art in workspace.list_outputs()
         # Underscore files are host archives (stdout, usage), not analysis outputs.
         if not art.filename.split("/")[-1].startswith("_")
+        and before_outputs.get(art.filename) != art.content_hash
     ]
     output_bytes = sum(o.byte_count for o in outputs)
     over_bytes = output_bytes > caps.max_quant_bytes

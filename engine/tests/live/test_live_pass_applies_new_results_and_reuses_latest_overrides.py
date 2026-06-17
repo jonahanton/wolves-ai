@@ -26,9 +26,9 @@ def _finished_match_one() -> MatchFixture:
 
 
 def _write_agent_snapshot(settings: Settings) -> None:
-    base = generate_snapshot(settings, n_sims=100, seed=3, run_id="agent-20260611-090000")
+    base, _ = generate_snapshot(settings, n_sims=100, seed=3, run_id="agent-20260611-090000")
     agent = AgentBlock(
-        narrative=NarrativeBlock(focus_story="Settled camp.", travel_memo="East coast if they win the group."),
+        narrative=NarrativeBlock(headline="Settled camp."),
         worlds=[
             WorldOut(
                 name="keeper_fit",

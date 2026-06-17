@@ -44,6 +44,13 @@ class SnapshotSource:
         _, year, month, day = match.groups()
         return await self._storage.read(f"snapshots/{year}/{month}/{day}/{run_id}.json")
 
+    async def read_sidecar(self, run_id: str, dataset: str) -> str | None:
+        match = RUN_ID_PATTERN.fullmatch(run_id)
+        if match is None:
+            return None
+        _, year, month, day = match.groups()
+        return await self._storage.read(f"snapshots/{year}/{month}/{day}/{run_id}.{dataset}.json")
+
     async def read_latest(self) -> str | None:
         return await self._storage.read(LATEST_KEY)
 

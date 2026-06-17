@@ -75,7 +75,7 @@ class ScriptedLLM(LLMClient):
         schema_name: str,
         system: str | None = None,
         max_tokens: int = 900,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> LLMResponse:
         if not self._structured:
             raise ScriptExhaustedError("structured")
@@ -96,7 +96,7 @@ class ScriptedLLM(LLMClient):
         tools: list[dict[str, Any]],
         system: str | None = None,
         max_tokens: int = 2000,
-        temperature: float = 0.0,
+        temperature: float | None = None,
     ) -> ToolTurn:
         if not self._turns:
             raise ScriptExhaustedError("tool turn")

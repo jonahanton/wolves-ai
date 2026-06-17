@@ -10,7 +10,7 @@ from wolves.toolkit.result import ToolResult
 
 
 class ThinkArgs(BaseModel):
-    thought: str
+    thought: str = ""
 
 
 async def _think(args: ThinkArgs, deps: AgentDeps) -> ToolResult[Any]:

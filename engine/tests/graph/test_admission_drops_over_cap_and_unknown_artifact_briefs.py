@@ -53,3 +53,135 @@ def test_admission_respects_remaining_node_budget(tmp_path: Path):
 
     assert [b.node_id for b in admit(plan, board=board, settings=settings)[0]] == ["research-1"]
     deps.runtime.shutdown()
+
+
+def test_admission_drops_quant_briefs_that_apply_played_results_with_update_from_result(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(
+        ops=[
+            NodePatch(
+                node_id="quant-refit",
+                kind="quant",
+                objective="refit results",
+                brief="Use update_from_result for USA 4-1 Paraguay and Brazil 1-1 Morocco from the played ledger.",
+            )
+        ]
+    )
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert admitted == []
+    assert dropped == [
+        "quant-refit: update_from_result is for separately justified posterior strength updates, "
+        "not applying played results"
+    ]
+    deps.runtime.shutdown()
+
+
+def test_admission_allows_update_from_result_warning(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(
+        ops=[
+            NodePatch(
+                node_id="quant-mixture",
+                kind="quant",
+                objective="build mixture",
+                brief="Settled results are already conditioned; do not re-apply them with update_from_result.",
+            )
+        ]
+    )
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert [op.node_id for op in admitted] == ["quant-mixture"]
+    assert dropped == []
+    deps.runtime.shutdown()
+
+
+def test_admission_drops_generic_dataset_gap_mining(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(
+        ops=[
+            NodePatch(
+                node_id="quant-gaps",
+                kind="quant",
+                objective="Mine France and England model-vs-market gaps against the dataset",
+                brief="Mine the 49k-match dataset for the market gap and decide whether the model is wrong.",
+            )
+        ]
+    )
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert admitted == []
+    assert dropped == ["quant-gaps: generic dataset mining for market gaps is too broad; name the mechanism to test"]
+    deps.runtime.shutdown()
+
+
+def test_admission_allows_named_dataset_gap_mechanism(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(
+        ops=[
+            NodePatch(
+                node_id="quant-gaps",
+                kind="quant",
+                objective="Test friendly-heavy market gap mechanism",
+                brief=(
+                    "Mine the dataset for whether England's model-vs-market gap is caused by a "
+                    "friendly-heavy record."
+                ),
+            )
+        ]
+    )
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert [op.node_id for op in admitted] == ["quant-gaps"]
+    assert dropped == []
+    deps.runtime.shutdown()
+
+
+def test_admission_allows_explicit_market_inversion(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(
+        ops=[
+            NodePatch(
+                node_id="quant-invert",
+                kind="quant",
+                objective="Price England and France model-vs-market gaps",
+                brief=(
+                    "For England and France, invert the market implied strength delta and test it against "
+                    "the noise floor. Avoid generic dataset mining."
+                ),
+            )
+        ]
+    )
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert [op.node_id for op in admitted] == ["quant-invert"]
+    assert dropped == []
+    deps.runtime.shutdown()
+
+
+def test_admission_drops_patch_when_focus_team_drifts(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    plan = GraphPatch(ops=[_brief("quant-germany", kind="quant")], reason="The focus team is Germany today.")
+
+    admitted, dropped = admit(plan, board=board, settings=deps.settings)
+
+    assert admitted == []
+    assert dropped == ["patch: focus team drifted to germany; focus team is england"]
+    deps.runtime.shutdown()

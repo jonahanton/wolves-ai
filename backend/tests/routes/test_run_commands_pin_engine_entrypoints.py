@@ -7,5 +7,4 @@ def test_run_commands_match_the_workflow_and_ecs_override_contract():
     assert RUN_COMMANDS == {
         "daily": ["wolves.run"],
         "agent": ["wolves.run_agent", "--live", "--confirm-spend"],
-        "live": ["wolves.live", "--loop", "--interval", "60"],
     }

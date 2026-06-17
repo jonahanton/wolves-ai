@@ -9,7 +9,7 @@ from wolves.agent.deps import AgentDeps
 from wolves.quant.context import build_sandbox_context
 from wolves.quant.inputs import prepare_inputs
 from wolves.toolkit.core import ToolSpec
-from wolves.toolkit.result import ToolResult
+from wolves.toolkit.result import ToolError, ToolResult
 
 _RESULT_CAP_CHARS = 8_000
 _STDOUT_CAP_CHARS = 2_000
@@ -19,7 +19,26 @@ class RunPythonArgs(BaseModel):
     code: str
 
 
+def _python_budget_refusal(deps: AgentDeps) -> ToolResult[Any] | None:
+    limit = deps.settings.graph_quant_python_call_limit
+    if limit <= 0 or deps.python_calls < limit:
+        return None
+    return ToolResult(
+        ok=False,
+        payload={"limit": limit, "used": deps.python_calls},
+        error=ToolError(
+            type="python_budget_exhausted",
+            message=(
+                f"run_python limit reached after {deps.python_calls} script(s). "
+                "Synthesise a quant output from the completed scripts and direct tools."
+            ),
+        ),
+    )
+
+
 async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
+    if refusal := _python_budget_refusal(deps):
+        return refusal
     deps.python_calls += 1
     workspace = deps.quant.workspace(deps.actor)
     context = build_sandbox_context(deps)
@@ -28,7 +47,16 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
     script = workspace.next_analysis_name()
     deps.quant.write_analysis(actor=deps.actor, workspace=workspace, code=args.code, filename=script)
     result = await deps.quant.execute(actor=deps.actor, workspace=workspace, script=script)
-    _register_mixtures(deps, workspace_dir=workspace.dir.name, files=[o.filename for o in result.output_files])
+    clean_missing_result = result.no_result and result.exit_code == 0 and not result.timed_out
+    registered = (
+        _register_mixtures(
+            deps,
+            workspace_dir=workspace.dir.name,
+            files=[o.filename for o in result.output_files],
+        )
+        if result.ok or clean_missing_result
+        else []
+    )
     result_text = json.dumps(result.result_value, ensure_ascii=False, default=str)
     return ToolResult(
         ok=result.ok,
@@ -41,24 +69,29 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
             "timed_out": result.timed_out,
             "usage": result.usage,
             "output_files": [o.filename for o in result.output_files],
+            "registered_artifact_ids": registered,
+            **(
+                {"recovery_hint": "valid mixture outputs were registered despite the missing result"}
+                if registered
+                else {}
+            ),
             **({"error": result.error} if result.error else {}),
         },
     )
 
 
-def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str]) -> None:
+def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str]) -> list[str]:
     """Mixture artifacts computed in the sandbox become run artifacts the
     forecast node can cite and submit by reference."""
     store = deps.artifacts
     if store is None:
-        return
-    registered = {r.summary.split(":", 1)[0] for r in store.all() if r.kind == "mixture"}
+        return []
+    artifact_ids: list[str] = []
+    registered = {r.summary.split(":", 1)[0]: r.id for r in store.all() if r.kind == "mixture"}
     for filename in files:
         if not filename.endswith(".json"):
             continue
         marker = f"{workspace_dir}/{filename}"
-        if marker in registered:
-            continue
         workspace = deps.quant.workspace(deps.actor)
         try:
             payload = json.loads((workspace.outputs / filename).read_text(encoding="utf-8"))
@@ -66,15 +99,23 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
             continue
         # Mixture artifacts are recognised by shape, not filename, so any
         # scenario_mixture(name=...) output registers.
-        if not (isinstance(payload, dict) and {"mixture", "conditionals", "weights"} <= payload.keys()):
+        if not (isinstance(payload, dict) and {"mixture", "conditionals", "weights", "worlds"} <= payload.keys()):
             continue
-        store.add(
+        if marker in registered:
+            artifact = store.get(registered[marker])
+            if artifact is not None and artifact.payload != payload:
+                store.amend_payload(artifact.id, payload)
+                artifact_ids.append(artifact.id)
+            continue
+        artifact = store.add(
             kind="mixture",
             created_by=deps.actor,
             summary=f"{marker}: {_describe_mixture(payload)}",
             payload=payload,
             workspace_prefix=f"runs/{store.run_id}/workspace/quant/{workspace_dir}",
         )
+        artifact_ids.append(artifact.id)
+    return artifact_ids
 
 
 def _describe_mixture(payload: dict) -> str:
@@ -103,10 +144,30 @@ SPEC = ToolSpec(
         "for the model's own diagnostics, wq.artifact/artifact_path to open prior nodes' work), "
         "pd (pandas) and np (numpy); scipy, statsmodels, sklearn, emcee, polars, duckdb and "
         "matplotlib are importable. "
+        "Exact common shapes: wq.teams() columns are team, name, group, strength; wq.fixtures() "
+        "columns are match, stage, group, date, city, home, away; wq.market_gaps() columns are "
+        "team, model_p_title, market_p_title, polymarket_p_title, blend_p_title, gap_pp, "
+        "polymarket_gap_pp, legs_disagree_pp; wq.mixture_spread(...) returns a dict whose teams "
+        "value is a DataFrame indexed by team and also carrying a team column; "
+        "wq.title_uncertainty() and wq.path_difficulty() also return DataFrames indexed by team and "
+        "also carrying a team column. Build mixtures with "
+        "wq.Scenario(...) or dicts and wq.scenario_mixture(..., name='...'); there is no wq.scenario "
+        "helper, no label= argument, and scenario_mixture returns mixture/conditionals/worlds/weights, "
+        "not a teams table. wq.update_from_result(...) returns a dict with posterior_mean_delta, "
+        "posterior_sd and prior_sd, not a scalar. "
+        "For submit-ready mixtures, build a factor audit with wq.factor_audit(checks=[...], verdict=...) "
+        "and pass factor_audit=audit to wq.scenario_mixture; checked negative findings are valid, "
+        "missing marks work the forecast should not publish without. Optional branch audits use "
+        "wq.branch_audit(checks=[{key,status,hypothesis,summary,teams,ledger_ids,artifacts,world_names}], "
+        "verdict=...) and pass branch_audit=... plus world_metadata={world:{label,summary,camp,branch_keys}} "
+        "to wq.scenario_mixture when research branches were priced, collapsed or rejected. "
         "End every script by assigning the finding to `result` "
         "(JSON-safe; a bare expression or print() does not count). Deltas from wq.impact carry a "
-        "paired-seed noise floor: treat anything below it as simulation noise. This tool is free: "
-        "it never consumes your tool budget, so computing beats guessing."
+        "paired-seed noise floor; pass include_teams=[...] when you need a named team even if it is "
+        "not a top mover. Treat anything below the floor as simulation noise. This tool is capped "
+        "per node, including failed scripts, so compute in compact scripts and publish from the "
+        "material already gathered once the cap is near. If a script writes a valid mixture JSON "
+        "under outputs/, registered_artifact_ids returns the artifact ids to cite or submit."
     ),
     args_model=RunPythonArgs,
     fn=_run_python,

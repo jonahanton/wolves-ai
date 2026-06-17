@@ -20,6 +20,7 @@ def test_keys_resolve_and_stay_under_their_prefix():
         "run_id": "run-1",
         "time": "120000",
         "dataset_id": "abc",
+        "dataset": "bracket-samples",
         "tournament": "wc2022",
         "snapshot": "outrights",
         "artifact_id": "quant-001",

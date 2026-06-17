@@ -11,7 +11,7 @@ services:
       - DYNAMO_ENDPOINT=http://db:8000
     volumes:
       - ..:/app
-      - /app/engine/.venv
+      - /app/.venv
     networks:
       - app-network
     restart: "no"

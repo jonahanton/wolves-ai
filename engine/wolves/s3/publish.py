@@ -8,11 +8,16 @@ from typing import TYPE_CHECKING
 
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.index import RunIndex, RunIndexUnavailableError
+from wolves.s3.layout import SNAPSHOT_SIDECAR
 from wolves.s3.records import RunRecord, RunStatus
 from wolves.s3.snapshots import SnapshotStore
+from wolves.sidecars import SIDECAR_NAMES, UnknownSidecarError
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import date
+
+    from pydantic import BaseModel
 
     from wolves.config import Settings
     from wolves.snapshot import Snapshot
@@ -48,10 +53,28 @@ class SnapshotPublisher:
             logger.warning("run index unreachable; proceeding as enabled")
             return True
 
-    def publish(self, snapshot: Snapshot, *, as_of: date, started: float) -> str:
+    def publish(
+        self,
+        snapshot: Snapshot,
+        *,
+        as_of: date,
+        started: float,
+        sidecars: Mapping[str, BaseModel] | None = None,
+    ) -> str:
         """Publish the snapshot everywhere configured; return the dated key."""
-        store = SnapshotStore(ArtifactStore(self._settings))
+        artifacts = ArtifactStore(self._settings)
+        store = SnapshotStore(artifacts)
         s3_key = store.put_snapshot(snapshot, as_of=as_of)
+        for name, payload in (sidecars or {}).items():
+            if name not in SIDECAR_NAMES:
+                raise UnknownSidecarError(name)
+            artifacts.put(
+                SNAPSHOT_SIDECAR,
+                payload.model_dump_json(),
+                date=f"{as_of:%Y/%m/%d}",
+                run_id=snapshot.run.run_id,
+                dataset=name,
+            )
         self._record(
             run_id=snapshot.run.run_id,
             created_at=snapshot.run.created_at,

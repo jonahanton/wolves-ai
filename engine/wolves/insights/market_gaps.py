@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from wolves.forecast import Forecaster
 from wolves.markets.blend import blend_probabilities
 from wolves.markets.series import load_series
+from wolves.sim.format import PlayedResult
 
 TOP_GAPS = 20
 
@@ -41,14 +42,26 @@ def _pp(a: float, b: float | None) -> float | None:
     return round((a - b) * 100.0, 2) if b is not None else None
 
 
-def market_gaps(forecaster: Forecaster, archive_dir: Path, *, n_sims: int = 50_000, seed: int = 0) -> MarketGaps:
-    model = forecaster.title_probs(n_sims=n_sims, seed=seed)
+def market_gaps(
+    forecaster: Forecaster,
+    archive_dir: Path,
+    *,
+    results: dict[int, PlayedResult] | None = None,
+    current_market: dict[str, float] | None = None,
+    current_polymarket: dict[str, float] | None = None,
+    current_as_of: str | None = None,
+    current_prices_updated_oldest: str | None = None,
+    current_prices_updated_newest: str | None = None,
+    n_sims: int = 50_000,
+    seed: int = 0,
+) -> MarketGaps:
+    model = forecaster.title_probs(n_sims=n_sims, seed=seed, results=results)
     series = load_series(archive_dir)
     # A capture failure can leave a snapshot with an empty bookmaker leg;
     # the gap table reads the newest snapshot that actually has prices.
     latest = next((p for p in reversed(series) if p.outright_bookmakers), None)
-    market = latest.outright_bookmakers if latest else {}
-    polymarket = latest.outright_polymarket if latest else {}
+    market = current_market or (latest.outright_bookmakers if latest else {})
+    polymarket = current_polymarket or (latest.outright_polymarket if latest else {})
     weight = forecaster.champion.blend_weight
     blend = blend_probabilities(model, market, model_weight=weight) if market else {}
 
@@ -67,9 +80,9 @@ def market_gaps(forecaster: Forecaster, archive_dir: Path, *, n_sims: int = 50_0
     ]
     gaps.sort(key=lambda g: -max(abs(g.gap_pp or 0.0), abs(g.polymarket_gap_pp or 0.0)))
     return MarketGaps(
-        as_of=latest.captured_at if latest else "no market snapshots held",
+        as_of=current_as_of or (latest.captured_at if latest else "no market snapshots held"),
         model_weight=weight,
         gaps=gaps[:TOP_GAPS],
-        prices_updated_oldest=latest.outright_updated_oldest if latest else None,
-        prices_updated_newest=latest.outright_updated_newest if latest else None,
+        prices_updated_oldest=current_prices_updated_oldest or (latest.outright_updated_oldest if latest else None),
+        prices_updated_newest=current_prices_updated_newest or (latest.outright_updated_newest if latest else None),
     )

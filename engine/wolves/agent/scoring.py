@@ -9,7 +9,14 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from wolves.agent.calibration import CalibrationLedger, MatchForecast, MatchScore, score_match, summarise_scores
+from wolves.agent.calibration import (
+    CalibrationLedger,
+    MatchForecast,
+    MatchScore,
+    WorldProbs,
+    score_match,
+    summarise_scores,
+)
 from wolves.agent.memory import RunMemory
 from wolves.config import Settings
 from wolves.sim.format import PlayedResult, load_results
@@ -18,14 +25,12 @@ from wolves.snapshot import MatchProbs, Snapshot, run_day
 logger = logging.getLogger(__name__)
 
 
-def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapshot | None, Snapshot | None]:
-    """Return (latest snapshot, latest sim-only snapshot) created before the date."""
-    latest: Snapshot | None = None
-    baseline: Snapshot | None = None
+def _snapshots_before(snapshot_dir: Path, *, before: date) -> list[Snapshot]:
     if not snapshot_dir.exists():
-        return None, None
+        return []
+    snapshots: list[Snapshot] = []
     for path in snapshot_dir.rglob("*.json"):
-        if path.name == "latest.json":
+        if path.name == "latest.json" or path.name.count(".") > 1:
             continue
         try:
             snapshot = Snapshot.model_validate_json(path.read_text(encoding="utf-8"))
@@ -34,11 +39,32 @@ def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapsh
             continue
         if date.fromisoformat(run_day(snapshot.run)) >= before:
             continue
-        if latest is None or snapshot.run.created_at > latest.run.created_at:
+        snapshots.append(snapshot)
+    return snapshots
+
+
+def latest_snapshot_by_kind(snapshot_dir: Path, *, before: date, kind: str) -> Snapshot | None:
+    """Latest snapshot of one kind before the run date."""
+    matches = [snapshot for snapshot in _snapshots_before(snapshot_dir, before=before) if snapshot.run.kind == kind]
+    return max(matches, key=_snapshot_sort_key, default=None)
+
+
+def load_previous_snapshots(snapshot_dir: Path, *, before: date) -> tuple[Snapshot | None, Snapshot | None]:
+    """Return (latest snapshot, latest sim-only snapshot) created before the date."""
+    latest: Snapshot | None = None
+    baseline: Snapshot | None = None
+    for snapshot in _snapshots_before(snapshot_dir, before=before):
+        if latest is None or _snapshot_sort_key(snapshot) > _snapshot_sort_key(latest):
             latest = snapshot
-        if snapshot.run.kind == "sim_only" and (baseline is None or snapshot.run.created_at > baseline.run.created_at):
+        if snapshot.run.kind == "sim_only" and (
+            baseline is None or _snapshot_sort_key(snapshot) > _snapshot_sort_key(baseline)
+        ):
             baseline = snapshot
     return latest, baseline
+
+
+def _snapshot_sort_key(snapshot: Snapshot) -> tuple[date, str]:
+    return date.fromisoformat(run_day(snapshot.run)), snapshot.run.created_at
 
 
 def _outcome(result: PlayedResult) -> str:
@@ -72,12 +98,19 @@ def score_resolved_matches(
                 if isinstance(team, str):
                     adjusted_teams.add(team)
 
+    worlds = previous.agent.worlds if previous.agent is not None else []
+
     scores: list[MatchScore] = []
     for entry in previous.matches:
         result = results.get(entry.match)
         if entry.p_draw is None or result is None or str(entry.match) in already:
             continue
         frozen = baseline_entries.get(entry.match)
+        per_world = [
+            WorldProbs(weight=world.weight, probs=world.match_probs[str(entry.match)])
+            for world in worlds
+            if str(entry.match) in world.match_probs
+        ]
         forecast = MatchForecast(
             match_id=str(entry.match),
             date=entry.date,
@@ -86,6 +119,7 @@ def score_resolved_matches(
             model_probs=_probs(entry),
             frozen_sim_probs=_probs(frozen) if frozen else None,
             adjusted=bool({entry.home_id, entry.away_id} & adjusted_teams),
+            world_probs=per_world,
         )
         score = score_match(forecast, _outcome(result))
         ledger.append(score)
@@ -96,7 +130,10 @@ def score_resolved_matches(
 def score_yesterday(settings: Settings, *, as_of: str, run_id: str) -> str:
     """Score forecasts that resolved since the previous run and record the
     scorecard as a lesson; return the summary (empty when nothing scored)."""
-    previous, baseline = load_previous_snapshots(settings.runs_root / "snapshots", before=date.fromisoformat(as_of))
+    snapshot_dir = settings.runs_root / "snapshots"
+    previous = latest_snapshot_by_kind(snapshot_dir, before=date.fromisoformat(as_of), kind="agent")
+    latest, baseline = load_previous_snapshots(snapshot_dir, before=date.fromisoformat(as_of))
+    previous = previous or latest
     if previous is None:
         return ""
     ledger = CalibrationLedger(settings.calibration_path)
@@ -109,7 +146,8 @@ def score_yesterday(settings: Settings, *, as_of: str, run_id: str) -> str:
     if not scores:
         return ""
     summary = summarise_scores(ledger.scores(), window=settings.governor_window)
-    memory = RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path)
-    memory.append_lessons(summary)
+    if settings.graph_debrief_enabled:
+        memory = RunMemory(runs_root=settings.runs_root, run_id=run_id, lessons_path=settings.lessons_path)
+        memory.append_lessons(summary)
     logger.info("calibration: scored %d match(es) from %s", len(scores), previous.run.run_id)
     return summary

@@ -5,7 +5,7 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field, ValidationError
 
-from wolves.clients.api_football import MatchFixture, MatchStatus
+from wolves.clients.api_football import MatchFixture, MatchPeriod, MatchStatus
 from wolves.data.contracts import MatchRecord
 from wolves.models.contracts import FittedState, ScorelineDistribution
 from wolves.models.inmatch import MatchState
@@ -38,6 +38,7 @@ class LiveFixture(BaseModel):
     kickoff: str
     city: str | None = None
     minute: int | None = None
+    period: MatchPeriod = "regulation"
     home_id: str | None = None
     away_id: str | None = None
     home_name: str
@@ -75,25 +76,21 @@ class LiveForecaster(Protocol):
     fmt: FormatData
 
     @property
-    def is_fitted(self) -> bool:
-        ...
+    def is_fitted(self) -> bool: ...
 
-    def fit(self, *, as_of: date | None = None, extra_results: list[MatchRecord] | None = None) -> FittedState:
-        ...
+    def fit(self, *, as_of: date | None = None, extra_results: list[MatchRecord] | None = None) -> FittedState: ...
 
-    def match_probs(self, home: str, away: str, *, neutral: bool = True, match: int | None = None) -> dict[str, float]:
-        ...
+    def match_probs(
+        self, home: str, away: str, *, neutral: bool = True, match: int | None = None
+    ) -> dict[str, float]: ...
 
     def score_grid(
         self, home: str, away: str, *, neutral: bool = True, match: int | None = None
-    ) -> ScorelineDistribution:
-        ...
+    ) -> ScorelineDistribution: ...
 
-    def live_match(self, home: str, away: str, state: MatchState, *, knockout: bool) -> dict[str, float]:
-        ...
+    def live_match(self, home: str, away: str, state: MatchState, *, knockout: bool) -> dict[str, float]: ...
 
-    def live_distribution(self, home: str, away: str, state: MatchState) -> ScorelineDistribution:
-        ...
+    def live_distribution(self, home: str, away: str, state: MatchState) -> ScorelineDistribution: ...
 
     def title_probs(
         self,
@@ -102,8 +99,7 @@ class LiveForecaster(Protocol):
         seed: int = 0,
         results: dict[int, PlayedResult] | None = None,
         live_distributions: dict[int, ScorelineDistribution] | None = None,
-    ) -> dict[str, float]:
-        ...
+    ) -> dict[str, float]: ...
 
 
 class LiveStateStore:
@@ -228,6 +224,7 @@ def _fixture_state(
         kickoff=fixture.kickoff.isoformat(),
         city=fixture.city,
         minute=fixture.elapsed if fixture.status == "live" else None,
+        period=fixture.period,
         home_id=resolved.home_id if resolved else None,
         away_id=resolved.away_id if resolved else None,
         home_name=home_name,

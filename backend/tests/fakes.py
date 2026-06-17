@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 from botocore.exceptions import ClientError
 
+from wolves.config import Settings as EngineSettings
 from wolves_backend.clients.bucket import Bucket
 from wolves_backend.clients.engine_tasks import EngineTasks
 from wolves_backend.clients.run_index import RunIndex
@@ -16,6 +17,7 @@ from wolves_backend.clients.run_schedule import RunSchedule
 from wolves_backend.config import Settings
 from wolves_backend.deps import Deps
 from wolves_backend.main import create_app
+from wolves_backend.sim import EngineService
 from wolves_backend.snapshots import SnapshotSource
 from wolves_backend.storage import Storage
 
@@ -23,7 +25,7 @@ ADMIN_TOKEN = "test-admin-token"
 ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 DAILY_FAMILY = "wolves-engine-daily"
-ARCHIVE_FAMILY = "wolves-engine-archive"
+AGENT_FAMILY = "wolves-engine-agent"
 
 
 class FakeBody:
@@ -114,9 +116,7 @@ class FakeEcsClient:
 
     def list_tasks(self, **kwargs: Any) -> dict[str, Any]:
         self.list_calls.append(kwargs)
-        arns = [
-            task["taskArn"] for task in self.active_tasks if task.get("family", DAILY_FAMILY) == kwargs["family"]
-        ]
+        arns = [task["taskArn"] for task in self.active_tasks if task.get("family", DAILY_FAMILY) == kwargs["family"]]
         return {"taskArns": arns}
 
     def describe_tasks(self, **kwargs: Any) -> dict[str, Any]:
@@ -130,6 +130,7 @@ def build_test_app(
     dynamo: FakeDynamoTable | None = None,
     scheduler: FakeSchedulerClient | None = None,
     ecs: FakeEcsClient | None = None,
+    engine: EngineService | None = None,
     environment: str = "local",
     admin_token: str = ADMIN_TOKEN,
 ) -> Any:
@@ -139,7 +140,7 @@ def build_test_app(
         admin_token=admin_token,
         bucket="test-bucket" if s3 is not None else "",
         storage_dir=storage_dir or Path("/nonexistent"),
-        ecs_archive_task_definition=ARCHIVE_FAMILY,
+        ecs_agent_task_definition=AGENT_FAMILY,
         ecs_subnets="subnet-1,subnet-2",
         ecs_security_group="sg-1",
         ecs_cluster_arn="arn:aws:ecs:eu-west-2:000000000000:cluster/wolves",
@@ -156,18 +157,52 @@ def build_test_app(
         engine_tasks=EngineTasks(
             cluster_arn=settings.ecs_cluster_arn,
             task_definition=settings.ecs_task_definition,
-            extra_task_families=(
-                settings.ecs_archive_task_definition,
-                settings.ecs_agent_task_definition,
-                settings.ecs_live_task_definition,
-            ),
+            extra_task_families=(settings.ecs_agent_task_definition,),
             subnets=settings.subnet_ids,
             security_group=settings.ecs_security_group,
             region="eu-west-2",
             client=ecs or FakeEcsClient(task_arn="arn:aws:ecs:eu-west-2:000000000000:task/wolves/abc123"),
         ),
+        engine=engine or unbooted_engine(settings.storage_dir),
     )
     return create_app(settings, deps=deps)
+
+
+def engine_settings(runs_root: Path) -> EngineSettings:
+    return EngineSettings(
+        _env_file=None, storage_mode="local", runs_root=runs_root, dynamo_endpoint="", n_sims=2000, publish_n_sims=2000
+    )
+
+
+def unbooted_engine(runs_root: Path) -> EngineService:
+    return EngineService(engine_settings(runs_root))
+
+
+def published_engine(runs_root: Path) -> EngineService:
+    """An EngineService whose runs root holds a published synthetic fitted state."""
+    from datetime import date
+
+    import numpy as np
+
+    from wolves.data.teams import registry_team_key
+    from wolves.models.contracts import FittedState
+    from wolves.s3.artifacts import ArtifactStore
+    from wolves.s3.fitted import FittedStateStore
+    from wolves.sim.format import load_format
+
+    settings = engine_settings(runs_root)
+    teams = tuple(registry_team_key(t.id) for t in load_format(settings.data_dir).teams)
+    state = FittedState(
+        model_id="poisson-decay",
+        version="test",
+        dataset_id="test-dataset",
+        as_of=date(2026, 6, 12),
+        teams=teams,
+        strengths=np.linspace(0.5, -0.5, len(teams)),
+        globals_={"intercept": 0.1, "home_adv": 0.2, "rho": 0.05, "half_life_days": 1000.0},
+    )
+    FittedStateStore(ArtifactStore(settings)).publish(state, run_id="run-test")
+    return EngineService(settings)
 
 
 def client_for(app: Any, *, headers: dict[str, str] | None = None) -> httpx.AsyncClient:

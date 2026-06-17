@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+import json
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -9,12 +11,21 @@ from pydantic_ai.models import Model
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
-from wolves.agent.dossier import build_dossier
+from wolves.agent.dossier import build_dossier, previous_agent_anchor
+from wolves.agent.publish_surface import PublishSurface, publish_surface
+from wolves.agent.tools.submission.submit_forecast import _submit_forecast
+from wolves.config import Settings
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import NodeKind, NodeOutcome, NodePatch
 from wolves.graph.master import admit, plan_wave
 from wolves.graph.nodes import execute_brief
+from wolves.graph.research_coverage import (
+    add_research_coverage_receipt,
+    research_coverage_brief,
+    research_coverage_hint,
+    should_seed_research,
+)
 from wolves.observability.runtime import CapExceeded, ObservedRuntime
 from wolves.s3.artifacts import ArtifactStore
 
@@ -46,6 +57,7 @@ class GraphRunResult:
     budget_exhausted: bool = False
     waves: int = 0
     validation_failures: int = 0
+    revisions_used: int = 0
 
 
 def _kickoff(deps: AgentDeps, as_of: str) -> str:
@@ -53,7 +65,8 @@ def _kickoff(deps: AgentDeps, as_of: str) -> str:
     journal = (deps.memory.read_latest_journal() or "").strip() or "(none)"
     dossier = build_dossier(deps).strip() or "(no deterministic dossier this run)"
     return (
-        f"Today is {as_of}. Produce today's forecast.\n\nDossier:\n{dossier}\n\n"
+        f"Today is {as_of}. Focus team: {deps.settings.focus_team}. Produce today's forecast.\n\n"
+        f"Dossier:\n{dossier}\n\n"
         f"Lessons:\n{lessons}\n\nLatest journal:\n{journal}"
     )
 
@@ -90,20 +103,158 @@ async def _execute_wave(
     return list(await asyncio.gather(*(run_one(op) for op in ops)))
 
 
+async def _submit_clean_preview(deps: AgentDeps) -> None:
+    checked = deps.submission.checked_clean
+    if checked is None or deps.submission.accepted is not None:
+        return
+    tool_deps = dataclasses.replace(deps, actor="runner-auto-submit")
+    result = await _submit_forecast(checked, tool_deps)
+    deps.runtime.emit(
+        "tool_call",
+        "runner-auto-submit",
+        f"submit_forecast {'ok' if result.ok else 'error'}",
+        tool="submit_forecast",
+        ok=result.ok,
+    )
+
+
+def _can_seed_research(settings: Settings) -> bool:
+    return (
+        settings.graph_max_waves > 0
+        and settings.graph_max_nodes > 0
+        and settings.graph_max_research_nodes > 0
+        and settings.graph_max_wave_workers > 0
+    )
+
+
+def _seeded_research_model(models: GraphModels, hint_level: str) -> Model:
+    if hint_level == "standard_suggested":
+        return models.nodes["quant"]
+    return models.nodes["research"]
+
+
+def _reset_forecast_copy_state(deps: AgentDeps) -> None:
+    deps.submission.copy_repair_required = False
+    deps.submission.copy_issue_signature = None
+    deps.submission.copy_issue_repeats = 0
+    deps.submission.copy_repair_blocked = False
+    deps.submission.publication_blocked = False
+
+
+def _published_titles_context(surface: PublishSurface, *, top_n: int = 8) -> str:
+    """Compact top-N title JSON for the master; set_context stores str only."""
+    ranked = sorted(surface.published_titles.items(), key=lambda kv: (-kv[1], kv[0]))
+    top = [{"team": team, "pct": round(p * 100, 1)} for team, p in ranked[:top_n]]
+    return json.dumps(top, ensure_ascii=False)
+
+
+def _has_fresh_premortem(deps: AgentDeps) -> bool:
+    """True when a critique artifact exists and the accepted mixture is unreviewed."""
+    store = deps.artifacts
+    accepted = deps.submission.accepted
+    if store is None or accepted is None:
+        return False
+    fingerprint = accepted.artifact_id
+    if fingerprint in deps.submission.premortem_seen:
+        return False
+    return any(record.kind == "critique" for record in store.all())
+
+
+def _should_continue_after_acceptance(deps: AgentDeps, board: Blackboard) -> tuple[bool, str]:
+    """Re-open an accepted submission once for revision; clears checked_clean so the stale mixture cannot re-submit."""
+    settings = deps.settings
+    submission_state = deps.submission
+    accepted = submission_state.accepted
+    if accepted is None:
+        return False, "no accepted submission"
+    if settings.graph_max_revisions <= 0:
+        return False, "revisions disabled"
+    if submission_state.revisions_used >= settings.graph_max_revisions:
+        return False, "revision budget spent"
+    if _budget_at_caps(
+        deps.runtime,
+        reserve_micros=int(settings.graph_revision_reserve_usd * 1_000_000),
+        reserve_calls=settings.graph_forecast_reserve_llm_calls,
+    ):
+        return False, "budget within revision reserve"
+    if not _has_fresh_premortem(deps):
+        return False, "no fresh pre-mortem to review"
+    surface = publish_surface(deps, accepted.artifact_id)
+    if surface is None:
+        return False, "published surface unavailable"
+
+    if submission_state.counterfactual is None:
+        submission_state.counterfactual = accepted
+    submission_state.last_accepted = accepted
+    submission_state.premortem_seen.add(accepted.artifact_id)
+    board.set_context("published_surface", _published_titles_context(surface))
+    submission_state.accepted = None
+    submission_state.checked_clean = None
+    submission_state.escalation_fired = False
+    _reset_forecast_copy_state(deps)
+    submission_state.revisions_used += 1
+    deps.runtime.emit(
+        "revision",
+        "runner",
+        f"re-opened accepted forecast for revision {submission_state.revisions_used}",
+        artifact_id=accepted.artifact_id,
+        revisions_used=submission_state.revisions_used,
+    )
+    return True, "re-opening for one revision turn"
+
+
 async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> GraphRunResult:
     """The wave loop: plan, admit, execute, merge, until acceptance or caps."""
     store = deps.artifacts or RunArtifactStore(ArtifactStore(deps.settings), run_id=deps.runtime.run_id)
     deps.artifacts = store
-    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime, source_memory=deps.source_memory)
+    continuity_anchor = previous_agent_anchor(deps, top_n=6)
+    coverage_hint = research_coverage_hint(deps, as_of=as_of)
+    board = Blackboard(
+        artifacts=store,
+        ledger=deps.ledger,
+        runtime=deps.runtime,
+        source_memory=deps.source_memory,
+        run_context={
+            "focus_team": deps.settings.focus_team,
+            "research_coverage_hint": coverage_hint.digest(),
+            **({"continuity_anchor": continuity_anchor} if continuity_anchor else {}),
+        },
+    )
     settings = deps.settings
     submission_state = deps.submission
     budget_exhausted = False
 
     with deps.runtime.run_trace(title=f"forecast {as_of}"):
+        if _can_seed_research(settings) and should_seed_research(coverage_hint):
+            op = NodePatch(
+                node_id="coverage-research",
+                kind="research",
+                objective="Advisory coverage scan",
+                brief=research_coverage_brief(coverage_hint, as_of=as_of),
+            )
+            outcome = await execute_brief(
+                op,
+                deps=deps,
+                store=store,
+                model=_seeded_research_model(models, coverage_hint.level),
+            )
+            board.merge([op], [outcome], advance_wave=False)
+            receipt_id = add_research_coverage_receipt(store, hint=coverage_hint, outcome=outcome)
+            board.set_context("research_coverage_receipt", receipt_id)
+        else:
+            receipt_id = add_research_coverage_receipt(store, hint=coverage_hint)
+            board.set_context("research_coverage_receipt", receipt_id)
         for wave in range(settings.graph_max_waves):
-            prompt = board.summary() if wave else f"{_kickoff(deps, as_of)}\n\nBlackboard:\n{board.summary()}"
+            board_summary = board.summary()
+            prompt = board_summary if wave else f"{_kickoff(deps, as_of)}\n\nBlackboard:\n{board_summary}"
             try:
-                patch = await plan_wave(prompt, model=models.master)
+                patch = await plan_wave(
+                    prompt,
+                    board_summary=board_summary,
+                    model=models.master,
+                    settings=settings,
+                    runtime=deps.runtime,
+                )
             except Exception as exc:
                 if not _cap_exceeded(exc):
                     raise
@@ -130,14 +281,34 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 # blackboard, so give the master another planning turn.
                 logger.warning("wave %d fully dropped at admission; re-planning", board.wave)
                 continue
+            if any(op.kind == "forecast" for op in ops):
+                _reset_forecast_copy_state(deps)
+            had_referee_replan = submission_state.referee_replan_required
             outcomes = await _execute_wave(ops, deps=deps, store=store, models=models)
             board.merge(ops, outcomes)
+            await _submit_clean_preview(deps)
+            if submission_state.publication_blocked and not submission_state.referee_replan_required:
+                logger.info("publication blocked after wave %d", board.wave)
+                break
+            if submission_state.referee_replan_required:
+                follow_up_ran = had_referee_replan and any(
+                    outcome.ok and outcome.kind in {"research", "quant"} for outcome in outcomes
+                )
+                if follow_up_ran:
+                    submission_state.referee_replan_required = False
+                else:
+                    logger.info("referee requested master replanning after wave %d", board.wave)
+                    continue
             if patch.stop:
                 # A stop patch may carry final ops; they run before the end.
                 logger.info("master stopped after wave %d: %s", board.wave, patch.reason or "stop")
                 break
             if submission_state.accepted is not None:
-                break
+                reopen, reason = _should_continue_after_acceptance(deps, board)
+                if not reopen:
+                    break
+                logger.info("post-acceptance revision after wave %d: %s", board.wave, reason)
+                continue
             if submission_state.validation_failures > settings.agent_submit_retries:
                 logger.error("submission retries exhausted after %d failures", submission_state.validation_failures)
                 break
@@ -150,10 +321,23 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 budget_exhausted = True
                 break
 
-        retries_left = submission_state.validation_failures <= settings.agent_submit_retries
-        if submission_state.accepted is None and retries_left and not _budget_at_caps(deps.runtime):
-            # The reserve held back above funds this last forecast even when the
-            # wave loop stopped for budget; a cap mid-submit degrades, not raises.
+        # Restore before the final-chance block reads accepted is None.
+        if submission_state.accepted is None and submission_state.last_accepted is not None:
+            logger.info("revision did not re-accept; publishing the prior accepted submission")
+            submission_state.accepted = submission_state.last_accepted
+
+        if (
+            submission_state.accepted is None
+            and not submission_state.publication_blocked
+            and not submission_state.referee_replan_required
+            and board.branch_follow_up_reason(settings) is None
+            and not _budget_at_caps(deps.runtime)
+        ):
+            # The final chance runs regardless of spent retries: a run that
+            # burned its hard resubmissions still beats the deterministic
+            # fallback. The reserve held back above funds this last forecast
+            # even when the wave loop stopped for budget; a cap mid-submit
+            # degrades, not raises.
             op = NodePatch(
                 node_id="runner-demand-submit",
                 kind="forecast",
@@ -162,6 +346,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 input_artifact_ids=[a.id for a in store.all()],
             )
             try:
+                _reset_forecast_copy_state(deps)
                 outcome = await execute_brief(op, deps=deps, store=store, model=models.nodes["forecast"])
             except Exception as exc:
                 if not _cap_exceeded(exc):
@@ -169,6 +354,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 logger.warning("demand-submit stopped by cap: %s", exc)
             else:
                 board.merge([op], [outcome])
+                await _submit_clean_preview(deps)
 
         return GraphRunResult(
             submission=submission_state.accepted,
@@ -176,4 +362,5 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             budget_exhausted=budget_exhausted,
             waves=board.wave,
             validation_failures=submission_state.validation_failures,
+            revisions_used=submission_state.revisions_used,
         )

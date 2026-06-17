@@ -131,16 +131,37 @@ export interface MatchProbs {
   modal_score?: string | null;
 }
 
+export interface ResultSetEntry {
+  match: number;
+  home_id?: string | null;
+  away_id?: string | null;
+  home_goals: number;
+  away_goals: number;
+  winner?: string | null;
+  source_fixture_id?: number | null;
+  fetched_at?: string | null;
+}
+
+export interface ResultSetBlock {
+  digest: string;
+  results: ResultSetEntry[];
+}
+
+export interface TeamStoryOut {
+  summary: string;
+  why: string;
+}
+
 export interface NarrativeBlock {
-  focus_story: string;
-  slot_rationales: Record<string, string>;
-  travel_memo: string;
+  headline?: string;
+  team_stories?: Record<string, TeamStoryOut>;
 }
 
 export interface LedgerEntryOut {
   id: string;
   claim: string;
   source_url: string;
+  title: string | null;
   status: string;
   mechanism: string;
   proposed_delta: number;
@@ -153,19 +174,57 @@ export interface LedgerEntryOut {
   created_at: string;
 }
 
+export interface SourceRelevanceOut {
+  url: string;
+  title?: string;
+  hostname?: string;
+  tier?: number | null;
+  score?: number | null;
+  reason?: string;
+  sub_question?: string;
+  ranked?: boolean;
+  cited?: boolean;
+  fetched?: boolean;
+  seen_in_run?: string | null;
+  retrieval_id?: string | null;
+  created_by?: string;
+}
+
 export interface ScenarioWeightOut {
   name: string;
   weight: number;
   scenario_id: string | null;
   ledger_ids: string[];
   rationale?: string;
+  camp?: string;
+  label?: string;
+  summary?: string;
+}
+
+export interface CampOut {
+  key: string;
+  label?: string;
+  summary?: string;
+  weight?: number;
+  order?: number;
+}
+
+export interface MarketGapOut {
+  team_id: string;
+  model_prob: number;
+  market_prob: number;
+  gap_pp: number;
+  floor_multiple: number | null;
+  direction: string;
 }
 
 export interface WorldOut {
   name: string;
   weight: number;
   perturbations: Record<string, unknown>[];
+  latent_effects: Record<string, unknown>[];
   title_probs?: Record<string, number>;
+  match_probs?: Record<string, Record<string, number>>;
 }
 
 export interface QuantFindingOut {
@@ -192,22 +251,50 @@ export interface CalibrationSummary {
   log_loss: Record<string, number>;
   adjustment_pnl: number | null;
   governor_scale: number;
+  spread_pnl?: number | null;
+  band_coverage?: number | null;
+  movement_ratio?: number | null;
+}
+
+export interface ProvenanceOut {
+  news_considered: number;
+  news_material: number;
+  news_excluded: number;
+  market_disagreements: number;
+  noise_floor_pp: number;
+  n_worlds: number;
+  n_camps: number;
+}
+
+export interface RevisionOut {
+  revisions_used: number;
+  counterfactual_artifact_id: string;
+  revision_rationale: string;
 }
 
 export interface AgentBlock {
   narrative: NarrativeBlock;
   artifact_id: string;
   ledger_entries: LedgerEntryOut[];
+  sources?: SourceRelevanceOut[];
   scenario_weights: ScenarioWeightOut[];
+  camps?: CampOut[];
   worlds: WorldOut[];
   quant_findings?: QuantFindingOut[];
   escalations: string[];
+  market_gaps?: MarketGapOut[];
   market_justification: string;
   change_justification: string;
   inconsistency_note: string;
+  news_impacts?: Record<string, string>;
+  copy_guard_version?: number | null;
   attribution: AttributionOut | null;
   governor: GovernorOut | null;
   calibration: CalibrationSummary | null;
+  provenance?: ProvenanceOut | null;
+  branch_audit?: Record<string, unknown> | null;
+  world_metadata?: Record<string, Record<string, unknown>>;
+  revision?: RevisionOut | null;
 }
 
 export interface ChampionBlock {
@@ -223,6 +310,45 @@ export interface TeamInterval {
   team_id: string;
   lo: number;
   hi: number;
+}
+
+export interface TeamDistributions {
+  quantiles: Record<string, number[]>;
+  settled: Record<string, number>;
+}
+
+export interface NewsItemOut {
+  ledger_id: string;
+  claim: string;
+  mechanism: string;
+  source_url: string;
+  title: string | null;
+  hostname: string;
+  status: string;
+  signed_delta_pp: number | null;
+  material: boolean;
+  excluded_reason: string | null;
+  impact: string | null;
+}
+
+export interface TeamDriver {
+  camp_probs: Record<string, number>;
+  market_gap: MarketGapOut | null;
+  news: NewsItemOut[];
+  has_story: boolean;
+  higher_camp: string | null;
+  spread_pp: number;
+  noise_floor_pp: number;
+}
+
+export interface DistributionsBlock {
+  quantile_levels: number[];
+  provenance: string;
+  n_worlds: number;
+  width_floored: boolean;
+  sidecar: string;
+  teams: Record<string, TeamDistributions>;
+  drivers?: Record<string, TeamDriver>;
 }
 
 export interface MarketsBlock {
@@ -244,6 +370,8 @@ export interface Snapshot {
   champion?: ChampionBlock | null;
   intervals?: TeamInterval[];
   markets?: MarketsBlock | null;
+  distributions?: DistributionsBlock | null;
+  result_set?: ResultSetBlock;
 }
 
 export function teamNames(snapshot: Snapshot): Map<string, string> {

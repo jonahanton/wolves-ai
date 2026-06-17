@@ -11,6 +11,7 @@ from wolves_backend.deps import Deps, get_deps
 from wolves_backend.models import (
     ActiveRuns,
     RunNowRequest,
+    RunPolicy,
     RunStarted,
     ScheduleState,
     ScheduleUpdate,
@@ -23,10 +24,10 @@ router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 
 DepsDep = Annotated[Deps, Depends(get_deps)]
 
+# The live loop runs in-process now; an ECS live task would double-poll the provider.
 RUN_COMMANDS = {
     "daily": ["wolves.run"],
     "agent": ["wolves.run_agent", "--live", "--confirm-spend"],
-    "live": ["wolves.live", "--loop", "--interval", "60"],
 }
 
 
@@ -48,6 +49,11 @@ async def update_schedule(update: ScheduleUpdate, request: Request, deps: DepsDe
     )
     await _audit(deps, request, action="schedule-update", payload=update.model_dump(by_alias=True))
     return state
+
+
+@router.get("/run-policy")
+async def run_policy(deps: DepsDep) -> RunPolicy:
+    return RunPolicy.model_validate(await deps.engine.run_policy())
 
 
 @router.get("/runs/active")

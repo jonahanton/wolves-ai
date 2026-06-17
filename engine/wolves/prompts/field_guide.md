@@ -12,6 +12,14 @@ stale anchor. England in the examples is simply the team the method was
 demonstrated on; every method applies unchanged to any team. The only
 low-altitude rules are in the statistical honesty section.
 
+A good mixture is not the one with the most worlds. It is the one whose axes
+match the strongest live questions after evidence and computation have met.
+Sometimes that is model trust against market trust. Sometimes it is a named
+contender gap, an availability branch, a result-attribution question, a path
+edge, a matchup read, a covariate disagreement or a quiet-day null. The field
+guide gives instruments for testing those branches; it is not permission to
+publish a stock template.
+
 ## Where your numbers come from
 
 Every probability you touch is produced by one deterministic pipeline with
@@ -39,20 +47,24 @@ fit (strengths see last night's games); the attribution report separates
 the two channels. In live mode an in-match hazard model fitted to World Cup
 goal timings drives minute-by-minute probabilities.
 
-On agent runs the submitted mixture publishes as the headline, unblended.
-You work from two bases of equal standing: this model, and the market
-consensus (a weighted log-odds blend of de-vigged bookmaker outrights and
-Polymarket), which historically beats the raw model by about 0.031 nats per
-match. The day's mixture carries both as worlds; the market base is built
-by inverting prices into implied strengths (wq.implied_delta) so its world
-simulates a coherent full distribution. A large gap between the bases is a
-finding that demands work, never a residual the harness will smooth away.
-Reconcile it inside the mixture, in either direction. The snapshot still records the
-market and a reference blend for transparency, and a calibration governor
-can shrink published moves towards the deterministic anchor when the
-adjustment track record turns negative. Deterministic (non-agent) runs do
-publish a fixed convex blend with the market; that is their guard against
-having no reasoning layer, not yours.
+On agent runs the submitted mixture is the agent's forecast surface. A
+calibration governor can shrink final published probabilities towards the
+deterministic anchor when the adjustment track record turns negative;
+check_forecast previews that final surface. You work from two reference views
+of equal standing: this model, and the market consensus (a weighted log-odds
+blend of de-vigged bookmaker outrights and Polymarket), which historically
+beats the raw model by about 0.031 nats per match. They are references, not
+mandatory worlds. A model-base and market-base split is correct only when
+trust in those instruments is the day's live uncertainty. If the live
+uncertainty is a named market gap, result-attribution question, availability
+branch, path edge, matchup read or covariate disagreement, make the worlds
+express that football question directly. The market base is available by
+inverting prices into implied strengths (wq.implied_delta), but a large gap
+between the bases is a finding that demands work, never a hidden market leg
+the harness will add. Reconcile it inside the mixture, in either direction.
+The snapshot still records the market and a reference blend for transparency.
+Deterministic (non-agent) runs do publish a fixed convex blend with the
+market; that is their guard against having no reasoning layer, not yours.
 
 ## Methods, each with an example output
 
@@ -80,15 +92,36 @@ in availability analysis. The second most consequential is certainty:
 across plays-diminished and misses-matches worlds (managed load sits near
 -0.03 strength, a true tournament-ending loss near -0.10), never the worst
 case at weight 1.0. Reserve certainty weighting for a confirmed ruling-out.
+These magnitudes are for a regular starter; size by the drop to the actual
+replacement, so a squad-depth player ruled out for a like-for-like deputy sits
+near -0.01 or below the floor even when the ruling-out is confirmed.
 
 ### Scenario mixtures and factor lattices
 
-Method: express a story as a factor with weighted variants, compose factors
-into a lattice with wq.scenario_mixture, and read three things from the
-output: the mixture headline, the per-factor marginals (the attribution AND
-the noise check), and the noise floor. Ride magnitude uncertainty as
+Method: list the plausible axes first, then choose the smallest world shape
+that preserves the real uncertainty. Candidate axes can include reference
+trust (model vs market), a named contender gap, an availability branch,
+result attribution, matchup/path leverage, external covariates, or a true
+quiet day. Express a story as a factor with weighted variants, compose
+factors into a lattice with wq.scenario_mixture, and read four things from
+the output: the mixture headline, the per-factor marginals (the attribution
+AND the noise check), the noise floor, and the implied spread against the
+parameter floor (wq.mixture_spread). Ride magnitude uncertainty as
 Normal(mean, sd) deltas or MC draws; where the response is locally linear the
 mean magnitude is adequate and the draw sd is the cheap materiality test.
+The magnitude distribution is the first and largest cheap source of honest
+width: on the fitted model a single france world (weight 0.3, mean +0.10)
+lifts vs_floor from 1.40 at a point delta to 1.46 at sd 0.04 and 1.66 at sd
+0.10, monotone throughout. A flat list of single-team stories captures each
+team's width on its own; the lattice adds width to a team only when several
+stories bear on THAT team, and then integrates their joint honestly: two
+opposing france stories (up +0.12, down -0.10) gave flat vs_floor 1.84 but
+lattice 1.62, because the joint "both" world partially cancels. So choose the
+lattice for co-occurring or interacting stories, the flat list with
+distribution deltas for independent single-team stories, and never reach for
+the lattice as a width device. When three or more continuous drivers are
+jointly live the lattice truncates at the world cap and under-disperses;
+express those as continuous latent effects, which ride one set of draws.
 The same factor structure applies all tournament; scope each scenario to
 the fixtures actually remaining, never to games already played.
 Example output: a three-world fitness morning (0.55/0.33/0.12) gave
@@ -98,6 +131,33 @@ vs 7.19; the heat marginals (6.67 vs 6.69) sat inside the paired-seed floor,
 so the artifact said heat does not move the headline, and an MC heat
 magnitude Normal(-0.15, 0.05) over 20 draws moved the answer by 0.07pp with
 draw sd 0.04pp: immaterial.
+
+### The axis audit and mixture spread read
+
+Method: before registering a mixture on a contested day, write the axis audit
+in the result: which axes you considered, which evidence or computation made
+each live, which axes were collapsed, merged or rejected, and why the
+surviving worlds are the right branches. Then read the band those worlds
+imply against the parameter-noise floor with wq.mixture_spread; the same read
+is available on the forecast node as the mixture_spread quick-look and in the
+spread section of check_forecast. Example output:
+wq.mixture_spread(scenarios=worlds) gave Spain mean 0.138, band [10.4, 16.7],
+width 6.3pp against a 5.1pp floor, vs_floor 1.24, with world means model_base
+0.186 / market_base 0.160 / spain_injury 0.071 and the note "spain band 6.3pp
+is 1.24x the parameter floor and overlaps yesterday's 7.9 to 14.6". Reading
+vs_floor: below ~1.05 with contested evidence on the ledger, a believed
+branch is missing from the mixture; comfortably above, submit.
+
+### Two instruments for two unknowns
+
+Method: pick the uncertainty instrument from the kind of unknown. Magnitude
+unknown (how big is the knock) rides inside one world as a delta
+distribution; regime unknown (does he play at all) is discrete worlds with
+weights matching the reporting. Example output: a knock of uncertain size
+priced as DeltaDistribution(mean=-0.10, sd=0.03) inside the injury world,
+while "60/40 he starts" priced as two worlds at 0.60/0.40; collapsing the
+regime split into one averaged delta understated the published band and
+flagged mixture_underdispersed.
 
 ### Implied-delta inversion (what is the market pricing?)
 
@@ -159,11 +219,21 @@ wq.title_uncertainty asks whether the gap sits outside the model's own
 parameter uncertainty (inside [p10, p90] is noise, outside is structural
 disagreement worth a world); a posterior reconciliation (conjugate, or emcee
 on a hand-written log-posterior with the market as a noisy logit observation)
-produces the DeltaDistribution to publish. Example output: France model 8.5
+produces the DeltaDistribution to publish. For the width the resulting
+mixture implies, wq.mixture_spread is the instrument, not title_uncertainty.
+Example output: France model 8.5
 vs market 15.6 inverted to +0.147; the gap sat outside France's own 80%
 parameter CI [4.9, 10.9] while Spain's and Brazil's gaps sat inside theirs
 (no action); the emcee posterior gave delta +0.126 (80% CI +0.076..+0.177),
 title 14.8%, published as DeltaDistribution(mean=0.126, sd=0.039).
+The reconciliation is the instrument that weighs the model against a market
+already pricing public results, form, squad value, ceiling and pedigree; the
+example lands near the market because no market-invisible edge offsets the
+gap, not because reconciliation defers by rule. Find such an edge and the
+posterior moves away from the market instead. Weighting a collapse world back
+down toward the raw model on results the baseline already absorbed is the
+double-count this method exists to prevent: the collapse delta is near zero
+by construction, so it cannot carry weight as a distinct down-stance.
 
 ### The score-test misrating hunt
 
@@ -232,6 +302,31 @@ sim path (what does this fixture outcome do to the bracket), while
 update_from_result moves the fitted strength (what does this result say
 about the team); mid-tournament analyses usually need both, never summed.
 
+### The conditional vocabulary (matchup, stage and knockout-outcome bets)
+
+Method: when a belief is local to a pairing or a round rather than the whole
+tournament, reach for the conditional types instead of laundering it into a
+flat strength shift. OpponentConditionalStrength(team, opponents, delta) shifts
+a side's goal rate only when it meets named opponents (a matchup read: a team
+that struggles against a low block); StageConditionalStrength(team, stage,
+delta) shifts it only in one knockout round (a side that raises its level once
+elimination football starts; stage is r32/r16/qf/sf/final); KnockoutOutcome(
+team, opponent, p_advance, stage) bets the resolved advance directly should the
+pairing occur, the honest answer to "back France over Spain at 55% if they
+meet". All three are scoreable against the baseline (they move per-match and
+title probabilities the ledger already tracks) and publish; size deltas on the
+same scale as a strength shift (0.1 is a clear edge, beyond 0.3 implies a
+different team). Example output (13 Jun, dataset 5323afd41ba9, 30k CRN sims):
+KnockoutOutcome(Spain over Argentina, p_advance=0.95) moved Spain title 18.1 to
+22.9pp and Argentina 9.8 to 6.3; OpponentConditionalStrength(Spain +0.8 vs
+Argentina) moved Spain to 22.1 and Argentina to 6.6 (a strong matchup edge
+priced through the lambdas rather than the resolved outcome);
+StageConditionalStrength(Spain +0.8 in the final) moved Spain to 25.9, all of it
+landing in the one round it touches. Prefer KnockoutOutcome when the belief is
+about who advances and OpponentConditionalStrength when it is about how the
+match is played; a confederation-wide correlated move is a multi-team
+LatentEffect, not a perturbation.
+
 ### News-shock scale (example outputs, recompute to use)
 
 Backup keeper in (-0.03 strength) = -1.09pp. Star striker out (-0.12) =
@@ -253,7 +348,10 @@ compose and overrule with stated reasons.
   fitness split (plays / misses group / plays diminished) with
   Bayesian-derived weights. Cross-check by inverting the market move: if the
   market re-priced -0.10 and the mechanism says group-games-only, one of you
-  is wrong, and that disagreement IS the finding.
+  is wrong, and that disagreement IS the finding. A confirmed availability
+  item is priced or explicitly nulled with its noise floor, never waved
+  through as "already in the model": the refit cannot see a single-fixture
+  absence at all.
 - LINEUP / ROTATION. Predicted XI strength, never vibes; rotation is real
   only as named players (backup keeper -0.03 = -1.09pp anchors the scale).
   Rumours justify nothing; a tier-1 leaked XI is a scenario, a tier-3 guess
@@ -335,6 +433,12 @@ Decline briefs built on these; the citation is the finding:
 - All-time great absent: 5 to 10pp win probability, ~0.15 to 0.25 goals
   (weak: market-revealed, not peer-reviewed; label as a prior).
 - Normal starter absent: an order of magnitude less (weak).
+- Value-share bridge for tournament-long absence: when player values are
+  available, a player who is share s of squad value shifts log(value) by
+  log(1-s); times the fitted value-prior slope (regress teams.elo on log squad_value_eur_m in wq)
+  times the 0.45 blend weight gives an Elo-point ceiling for the absence
+  world. A principled anchor beside the managed/out magnitudes (moderate:
+  arithmetic on the engine's own prior).
 - Shootouts 50/50; at most ~55/45 on extreme squad-value gaps (strong null).
 - Outright market vs Elo at match level: market better by 0.031 nats per
   match (95% CI 0.001 to 0.062, n=230): weight it meaningfully, never defer

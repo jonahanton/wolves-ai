@@ -123,6 +123,22 @@ class MatchProbs(BaseModel):
     modal_score: str | None = None
 
 
+class ResultSetEntry(BaseModel):
+    match: int
+    home_id: str | None = None
+    away_id: str | None = None
+    home_goals: int
+    away_goals: int
+    winner: str | None = None
+    source_fixture_id: int | None = None
+    fetched_at: str | None = None
+
+
+class ResultSetBlock(BaseModel):
+    digest: str = ""
+    results: list[ResultSetEntry] = Field(default_factory=list)
+
+
 class RunMeta(BaseModel):
     run_id: str
     created_at: str
@@ -138,16 +154,23 @@ def run_day(meta: RunMeta) -> str:
     return meta.as_of or meta.created_at[:10]
 
 
+class TeamStoryOut(BaseModel):
+    summary: str
+    why: str
+
+
 class NarrativeBlock(BaseModel):
-    focus_story: str
-    slot_rationales: dict[str, str] = Field(default_factory=dict)
-    travel_memo: str
+    headline: str = ""
+    team_stories: dict[str, TeamStoryOut] = Field(default_factory=dict)
 
 
 class LedgerEntryOut(BaseModel):
     id: str
     claim: str
     source_url: str
+    # Joined from the article cache at snapshot build so the frontend can
+    # name sources without exposing internal ledger machinery.
+    title: str | None = None
     status: str
     mechanism: str
     proposed_delta: float = 0.0
@@ -160,12 +183,52 @@ class LedgerEntryOut(BaseModel):
     created_at: str
 
 
+class SourceRelevanceOut(BaseModel):
+    """One source the agent ranked, fetched or cited during the run."""
+
+    url: str
+    title: str = ""
+    hostname: str = ""
+    tier: int | None = None
+    score: float | None = None
+    reason: str = ""
+    sub_question: str = ""
+    ranked: bool = False
+    cited: bool = False
+    fetched: bool = False
+    seen_in_run: str | None = None
+    retrieval_id: str | None = None
+    created_by: str = ""
+
+
 class ScenarioWeightOut(BaseModel):
     name: str
     weight: float
     scenario_id: str | None = None
     ledger_ids: list[str] = Field(default_factory=list)
     rationale: str = ""
+    camp: str = ""
+    label: str = ""
+    summary: str = ""
+
+
+class CampOut(BaseModel):
+    key: str
+    label: str = ""
+    summary: str = ""
+    weight: float = 0.0
+    order: int = 0
+
+
+class MarketGapOut(BaseModel):
+    """A published per-team market stance; direction is the sign of the gap."""
+
+    team_id: str
+    model_prob: float
+    market_prob: float
+    gap_pp: float
+    floor_multiple: float | None = None
+    direction: str
 
 
 class WorldOut(BaseModel):
@@ -175,7 +238,10 @@ class WorldOut(BaseModel):
     name: str
     weight: float
     perturbations: list[dict] = Field(default_factory=list)
+    latent_effects: list[dict] = Field(default_factory=list)
     title_probs: dict[str, float] = Field(default_factory=dict)
+    # Match id -> {home, draw, away}; the surface the spread P&L is scored on.
+    match_probs: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
 class QuantFindingOut(BaseModel):
@@ -204,6 +270,27 @@ class CalibrationSummary(BaseModel):
     log_loss: dict[str, float] = Field(default_factory=dict)
     adjustment_pnl: float | None = None
     governor_scale: float = 1.0
+    spread_pnl: float | None = None
+    band_coverage: float | None = None
+    movement_ratio: float | None = None
+
+
+class ProvenanceOut(BaseModel):
+    news_considered: int = 0
+    news_material: int = 0
+    news_excluded: int = 0
+    market_disagreements: int = 0
+    noise_floor_pp: float = 0.0
+    n_worlds: int = 1
+    n_camps: int = 1
+
+
+class RevisionOut(BaseModel):
+    """Post-acceptance revision trace for later counterfactual scoring."""
+
+    revisions_used: int = 0
+    counterfactual_artifact_id: str = ""
+    revision_rationale: str = ""
 
 
 class AgentBlock(BaseModel):
@@ -212,16 +299,25 @@ class AgentBlock(BaseModel):
     narrative: NarrativeBlock
     artifact_id: str = ""
     ledger_entries: list[LedgerEntryOut] = Field(default_factory=list)
+    sources: list[SourceRelevanceOut] = Field(default_factory=list)
     scenario_weights: list[ScenarioWeightOut] = Field(default_factory=list)
+    camps: list[CampOut] = Field(default_factory=list)
     worlds: list[WorldOut] = Field(default_factory=list)
     quant_findings: list[QuantFindingOut] = Field(default_factory=list)
     escalations: list[str] = Field(default_factory=list)
+    market_gaps: list[MarketGapOut] = Field(default_factory=list)
     market_justification: str = ""
     change_justification: str = ""
     inconsistency_note: str = ""
+    news_impacts: dict[str, str] = Field(default_factory=dict)
+    copy_guard_version: int | None = None
     attribution: AttributionOut | None = None
     governor: GovernorOut | None = None
     calibration: CalibrationSummary | None = None
+    provenance: ProvenanceOut | None = None
+    branch_audit: dict[str, object] | None = None
+    world_metadata: dict[str, dict[str, object]] = Field(default_factory=dict)
+    revision: RevisionOut | None = None
 
 
 class ChampionBlock(BaseModel):
@@ -240,6 +336,58 @@ class TeamInterval(BaseModel):
     team_id: str
     lo: float
     hi: float
+
+
+class TeamDistributions(BaseModel):
+    """Per-stage epistemic spread for one team: open cells carry the quantile
+    vector, settled cells carry the outcome as a flag, never both."""
+
+    quantiles: dict[str, list[float]] = Field(default_factory=dict)
+    settled: dict[str, int] = Field(default_factory=dict)
+
+
+class NewsItemOut(BaseModel):
+    """One sourced news item joined to its price; impact is the agent's why."""
+
+    ledger_id: str
+    claim: str
+    mechanism: str
+    source_url: str
+    title: str | None = None
+    hostname: str = ""
+    status: str = ""
+    signed_delta_pp: float | None = None
+    material: bool = False
+    excluded_reason: str | None = None
+    impact: str | None = None
+
+
+class TeamDriver(BaseModel):
+    """Per-camp chances, any market stance, sourced news and disagreement shape for one team."""
+
+    camp_probs: dict[str, float] = Field(default_factory=dict)
+    market_gap: MarketGapOut | None = None
+    news: list[NewsItemOut] = Field(default_factory=list)
+    has_story: bool = False
+    higher_camp: str | None = None
+    spread_pp: float = 0.0
+    noise_floor_pp: float = 0.0
+
+
+class DistributionsBlock(BaseModel):
+    """Confidence in each published number: weighted (world x parameter-draw)
+    quantiles per team per stage. The headline stays the mean; this block is
+    epistemic dispersion ("how settled the number is"), never the aleatory
+    outcome range ("the tournament could still go any way"), which is a
+    separate named quantity."""
+
+    quantile_levels: list[float] = Field(default_factory=list)
+    provenance: str = "parameters_only"
+    n_worlds: int = 1
+    width_floored: bool = False
+    sidecar: str = ""
+    teams: dict[str, TeamDistributions] = Field(default_factory=dict)
+    drivers: dict[str, TeamDriver] = Field(default_factory=dict)
 
 
 class MarketsBlock(BaseModel):
@@ -281,3 +429,5 @@ class Snapshot(BaseModel):
     champion: ChampionBlock | None = None
     intervals: list[TeamInterval] = Field(default_factory=list)
     markets: MarketsBlock | None = None
+    distributions: DistributionsBlock | None = None
+    result_set: ResultSetBlock = Field(default_factory=ResultSetBlock)

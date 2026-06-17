@@ -11,7 +11,7 @@ import numpy as np
 
 from wolves.data.teams import registry_team_key
 from wolves.models.contracts import FittedState
-from wolves.sim.format import FormatData
+from wolves.sim.format import FormatData, PlayedResult
 from wolves.sim.mc import run_tournament
 from wolves.sim.model_engine import PoissonMatchEngine
 
@@ -31,10 +31,17 @@ class OutrightCoverageError(Exception):
         super().__init__(f"market outright has no probability for team(s) {missing}")
 
 
-def title_probabilities(fmt: FormatData, state: FittedState, *, seed: int, n_sims: int) -> dict[str, float]:
+def title_probabilities(
+    fmt: FormatData,
+    state: FittedState,
+    *,
+    seed: int,
+    n_sims: int,
+    results: dict[int, PlayedResult] | None = None,
+) -> dict[str, float]:
     """Simulated championship probability per app team id, without parameter noise."""
     engine = PoissonMatchEngine(fmt, replace(state, covariance=None))
-    result = run_tournament(fmt, engine, n_sims=n_sims, seed=seed)
+    result = run_tournament(fmt, engine, n_sims=n_sims, seed=seed, results=results)
     winners = result.ko_winner[max(result.ko_winner)]
     return {team.id: float((winners == i).mean()) for i, team in enumerate(fmt.teams)}
 
@@ -47,6 +54,7 @@ def strengths_matching_outright(
     seed: int,
     n_sims: int = 20_000,
     iterations: int = ITERATIONS,
+    results: dict[int, PlayedResult] | None = None,
 ) -> tuple[FittedState, dict[str, float]]:
     """Return (adjusted state, per-team strength offsets) whose simulated
     outright reproduces the market's."""
@@ -62,7 +70,7 @@ def strengths_matching_outright(
     adjusted = state
     offsets = np.zeros(len(fmt.teams))
     for iteration in range(iterations):
-        sim = title_probabilities(fmt, adjusted, seed=seed, n_sims=n_sims)
+        sim = title_probabilities(fmt, adjusted, seed=seed, n_sims=n_sims, results=results)
         sim_probs = np.maximum(np.array([sim[t.id] for t in fmt.teams]), PROB_FLOOR)
         gap = np.log(target) - np.log(sim_probs)
         if float(np.abs(gap).max()) < TOLERANCE:
