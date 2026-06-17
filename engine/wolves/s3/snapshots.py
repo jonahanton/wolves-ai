@@ -19,6 +19,15 @@ def snapshot_key(as_of: date, run_id: str) -> str:
     return SNAPSHOT.key(date=f"{as_of:%Y/%m/%d}", run_id=run_id)
 
 
+# A thin sim_only snapshot must never displace a richer agent or live one;
+# agent and live share a tier so a live refit still supersedes on recency.
+_LATEST_RANK = {"sim_only": 0, "live": 1, "agent": 1}
+
+
+def _latest_rank(kind: str) -> int:
+    return _LATEST_RANK.get(kind, 1)
+
+
 class SnapshotStore:
     def __init__(self, artifacts: ArtifactStore) -> None:
         self._artifacts = artifacts
@@ -32,9 +41,7 @@ class SnapshotStore:
         return key
 
     def _newer_than_latest(self, snapshot: Snapshot) -> bool:
-        # Concurrent daily and live runs race on the pointer; the older
-        # snapshot must not win. A narrow read-then-write window remains,
-        # acceptable at this run cadence.
+        # Narrow read-then-write window on the pointer, acceptable at this cadence.
         current = self._artifacts.get(SNAPSHOT_LATEST)
         if current is None:
             return True
@@ -42,4 +49,8 @@ class SnapshotStore:
             existing = Snapshot.model_validate_json(current)
         except ValidationError:
             return True
+        rank = _latest_rank(snapshot.run.kind)
+        existing_rank = _latest_rank(existing.run.kind)
+        if rank != existing_rank:
+            return rank > existing_rank
         return snapshot.run.created_at >= existing.run.created_at
