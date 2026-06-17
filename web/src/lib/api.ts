@@ -2,6 +2,8 @@ const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 
 const TIMEOUT_MS = 8000;
 
+const authHeaders: HeadersInit = process.env.BACKEND_KEY ? { "X-Wolves-Key": process.env.BACKEND_KEY } : {};
+
 export type ApiErrorCategory = "offline" | "not_found" | "forbidden" | "upstream";
 
 export interface ApiError {
@@ -21,6 +23,7 @@ export async function backendGet<T>(path: string): Promise<ApiResult<T>> {
   try {
     const response = await fetch(new URL(path, BACKEND_URL), {
       cache: "no-store",
+      headers: authHeaders,
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok) {
@@ -36,6 +39,7 @@ export async function backendGetText(path: string): Promise<ApiResult<string>> {
   try {
     const response = await fetch(new URL(path, BACKEND_URL), {
       cache: "no-store",
+      headers: authHeaders,
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok) {

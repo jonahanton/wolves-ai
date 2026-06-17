@@ -143,17 +143,22 @@ resource "aws_secretsmanager_secret" "admin_token" {
   description = "Bearer token for the backend admin API. Value managed manually, not by terraform."
 }
 
-data "aws_iam_policy_document" "execution_admin_token" {
+resource "aws_secretsmanager_secret" "frontend_key" {
+  name        = "${var.project}-backend-frontend-key"
+  description = "Shared secret the frontend sends as X-Wolves-Key. Value managed manually, not by terraform."
+}
+
+data "aws_iam_policy_document" "execution_secrets" {
   statement {
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.admin_token.arn]
+    resources = [aws_secretsmanager_secret.admin_token.arn, aws_secretsmanager_secret.frontend_key.arn]
   }
 }
 
-resource "aws_iam_role_policy" "execution_admin_token" {
-  name   = "backend-admin-token"
+resource "aws_iam_role_policy" "execution_secrets" {
+  name   = "backend-secrets"
   role   = var.task_execution_role_name
-  policy = data.aws_iam_policy_document.execution_admin_token.json
+  policy = data.aws_iam_policy_document.execution_secrets.json
 }
 
 # No ALB in front of this service: it is a single public task whose admin
@@ -228,7 +233,10 @@ resource "aws_ecs_task_definition" "backend" {
         { name = "LIVE_IDLE_GRACE_HOURS", value = tostring(var.run_policy.live_idle_grace_hours) },
       ]
       secrets = concat(
-        [{ name = "ADMIN_TOKEN", valueFrom = aws_secretsmanager_secret.admin_token.arn }],
+        [
+          { name = "ADMIN_TOKEN", valueFrom = aws_secretsmanager_secret.admin_token.arn },
+          { name = "FRONTEND_KEY", valueFrom = aws_secretsmanager_secret.frontend_key.arn },
+        ],
         [for name, arn in var.live_data_secret_arns : { name = name, valueFrom = arn }],
       )
       # SIGTERM grace covers a live pass finishing its atomic writes.
