@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { LiveDigest } from "@/components/shell/live-digest";
+import { RouteProgress } from "@/components/shell/route-progress";
 import { SiteNav } from "@/components/shell/site-nav";
 import { orNull } from "@/lib/api";
 import { loadImpact } from "@/lib/impact";
@@ -74,6 +75,7 @@ export default async function RootLayout({
       className={`${albert.variable} ${plexMono.variable} ${fraunces.variable} ${hanken.variable}`}
     >
       <body>
+        <RouteProgress />
         <SiteNav />
         <LiveDigest initialLive={orNull(live)} initialImpact={orNull(impact)} />
         <main>{children}</main>

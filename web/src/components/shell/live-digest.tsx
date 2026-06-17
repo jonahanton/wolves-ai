@@ -68,7 +68,7 @@ function TimelineRow({ entry }: { entry: TimelineEntry }) {
   const homeStyle = live ? undefined : teamStyle(entry.homeId);
   const awayStyle = live ? undefined : teamStyle(entry.awayId);
   return (
-    <div className={`${TIMELINE_COLS} font-display text-[12px] leading-tight`}>
+    <div className={`${TIMELINE_COLS} font-display text-[13px] leading-tight`}>
       <span className="mr-1.5 whitespace-nowrap font-mono text-[10px] text-cream-faint tabular-nums">
         {entry.time}
       </span>
@@ -146,7 +146,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
                 className="max-h-[70dvh] overflow-y-auto px-5 pb-3.5 pt-3 shadow-[0_18px_44px_oklch(0_0_0/0.24)] backdrop-blur-md"
                 style={{ backgroundColor: LIP_FILL }}
               >
-                <div className="mb-2.5 flex items-center justify-between gap-3 border-b border-hairline pb-2 font-mono text-[10.5px] tabular-nums text-cream-faint">
+                <div className="mb-2.5 flex items-center justify-between gap-3 border-b border-hairline pb-2 font-mono text-[11.5px] tabular-nums text-cream-faint">
                   {payload.impact && <span>Last forecast {dateTimeLabel(payload.impact.agentCreatedAt)} ET</span>}
                   {nowEt && <span>Now {nowEt} ET</span>}
                 </div>
@@ -156,7 +156,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
                   <div className="flex flex-col gap-x-4 gap-y-3 sm:flex-row">
                     {timeline.length > 0 && (
                       <div className="min-w-0 flex-1">
-                        <h2 className="font-display text-[12.5px] font-semibold text-cream">
+                        <h2 className="font-display text-[13.5px] font-semibold text-cream">
                           Since last forecast{" "}
                           <span className="whitespace-nowrap font-mono text-[10px] font-medium text-cream-dim">
                             KO times ET
@@ -172,14 +172,14 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
 
                     {movers.length > 0 && (
                       <div className="min-w-0 flex-1">
-                        <h2 className="font-display text-[12.5px] font-semibold text-cream">
+                        <h2 className="font-display text-[13.5px] font-semibold text-cream">
                           Estimated WC winner shift
                         </h2>
                         <div className="mt-2 space-y-1">
                           {movers.map((mover, index) => (
                             <div
                               key={mover.teamId}
-                              className="grid grid-cols-[0.9rem_2rem_auto_3rem] items-baseline gap-x-1.5 font-display text-[12px] leading-tight"
+                              className="grid grid-cols-[0.9rem_2rem_auto_3rem] items-baseline gap-x-1.5 font-display text-[13px] leading-tight"
                             >
                               <span className="font-mono text-[11px] font-semibold text-cream-faint tabular-nums">
                                 {index + 1}.
@@ -239,7 +239,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
                 <path d={LIP_CAP_R} fill={LIP_FILL} />
               </svg>
             </span>
-            <span className="line-clamp-2 min-w-0 font-display text-[11.5px] font-semibold leading-tight text-cream-dim transition-transform duration-[220ms] ease-out group-hover:translate-y-0.5 group-data-[open=true]:translate-y-0 motion-reduce:transform-none">
+            <span className="line-clamp-2 min-w-0 font-display text-[13px] font-semibold leading-tight text-cream-dim transition-transform duration-[220ms] ease-out group-hover:translate-y-0.5 group-data-[open=true]:translate-y-0 motion-reduce:transform-none">
               <DigestTokens tokens={digest.tokens} />
             </span>
             <ChevronDown

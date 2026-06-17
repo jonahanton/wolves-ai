@@ -1,16 +1,27 @@
+"use client";
+
 import { ShieldHalf, Ticket } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { CrystalBallIcon } from "@/components/shell/crystal-ball-icon";
 import { EtClock } from "@/components/shell/et-clock";
+import { NavLink } from "@/components/shell/nav-link";
+
+const TABS = [
+  { href: "/forecast", label: "Forecasts", Icon: CrystalBallIcon },
+  { href: "/teams", label: "Teams", Icon: ShieldHalf },
+  { href: "/fixtures", label: "Fixtures", Icon: Ticket },
+];
 
 export function SiteNav() {
+  const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-20 flex h-10 items-center bg-night/30 backdrop-blur-md">
+    <header className="sticky top-0 z-20 flex min-h-11 items-center bg-night/30 py-1 backdrop-blur-md sm:py-0">
       <div className="wrap flex w-full items-center justify-between">
         <div className="flex items-baseline gap-2.5">
           <Link
             href="/"
-            className="whitespace-nowrap font-display text-[15px] font-semibold tracking-[-0.01em] text-cream transition-colors hover:text-cream-dim"
+            className="whitespace-nowrap font-display text-[14px] font-semibold tracking-[-0.01em] text-cream transition-colors hover:text-cream-dim sm:text-[16px]"
           >
             WWC26 Superforecaster
           </Link>
@@ -18,31 +29,26 @@ export function SiteNav() {
             <EtClock />
           </span>
         </div>
-        <nav className="flex items-center gap-5">
-          <Link
-            href="/forecast"
-            aria-label="Forecasts"
-            className="flex items-center gap-1.5 font-display text-[13px] font-semibold tracking-[-0.01em] text-cream-faint transition-colors hover:text-cream"
-          >
-            <CrystalBallIcon size={15} className="shrink-0" />
-            <span className="hidden sm:inline">Forecasts</span>
-          </Link>
-          <Link
-            href="/teams"
-            aria-label="Teams"
-            className="flex items-center gap-1.5 font-display text-[13px] font-semibold tracking-[-0.01em] text-cream-faint transition-colors hover:text-cream"
-          >
-            <ShieldHalf size={15} className="shrink-0" />
-            <span className="hidden sm:inline">Teams</span>
-          </Link>
-          <Link
-            href="/fixtures"
-            aria-label="Fixtures"
-            className="flex items-center gap-1.5 font-display text-[13px] font-semibold tracking-[-0.01em] text-cream-faint transition-colors hover:text-cream"
-          >
-            <Ticket size={15} className="shrink-0" />
-            <span className="hidden sm:inline">Fixtures</span>
-          </Link>
+        <nav className="flex items-center gap-3.5 sm:gap-5">
+          {TABS.map(({ href, label, Icon }) => {
+            const active = pathname === href || pathname.startsWith(`${href}/`);
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
+                className={`font-display font-semibold tracking-[-0.01em] transition-colors ${
+                  active ? "text-cream" : "text-cream-faint hover:text-cream"
+                }`}
+              >
+                <NavLink active={active}>
+                  <Icon size={16} className="shrink-0" />
+                  <span className="text-[10px] sm:text-[14px]">{label}</span>
+                </NavLink>
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </header>
