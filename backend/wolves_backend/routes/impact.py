@@ -125,7 +125,7 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
         "live": Leg(results=current_results, live_distributions=live_dists or None),
     }
 
-    n_sims = deps.engine.settings.n_sims
+    n_sims = deps.engine.settings.impact_n_sims
     seed = 0
     result = await deps.engine.reach_legs(legs, n_sims=n_sims, seed=seed)
     then, now, live_reach = result["legs"]["then"], result["legs"]["now"], result["legs"]["live"]

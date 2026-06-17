@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     data_dir: Path = REPO_ROOT / "data"
     focus_team: str = "england"
     n_sims: int = 10_000
+    # The live impact path differences two reach sims, so its Monte-Carlo error
+    # is wider than a single run's; held high enough that a one-goal swing clears
+    # the noise floor rather than reading as a spurious negative move.
+    impact_n_sims: int = 50_000
 
     aws_region: str = "eu-west-2"
     dynamo_endpoint: str = ""

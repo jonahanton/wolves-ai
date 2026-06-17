@@ -28,6 +28,12 @@ def shifted(base: float, leg_from: float, leg_to: float) -> float:
     return _sigmoid(_logit(base) + _logit(leg_to) - _logit(leg_from))
 
 
+def _floored(value: float, base: float) -> float:
+    """Collapse a sub-floor move back to its base so Monte-Carlo jitter below
+    the reportable resolution never surfaces as a spurious shift."""
+    return base if abs(value - base) * 100.0 < DISPLAY_FLOOR_PP else value
+
+
 def stage_impacts(
     agent: Mapping[str, float],
     then: Mapping[str, float],
@@ -40,8 +46,8 @@ def stage_impacts(
         published = agent.get(stage)
         if published is None:
             continue
-        p_results = shifted(published, then[stage], now[stage])
-        p_est = shifted(p_results, now[stage], held[stage])
+        p_results = _floored(shifted(published, then[stage], now[stage]), published)
+        p_est = _floored(shifted(p_results, now[stage], held[stage]), p_results)
         impacts[stage] = {
             "agent": round(published, 4),
             "after_results": round(p_results, 4),
