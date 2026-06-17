@@ -17,6 +17,7 @@ COPY backend/wolves_backend/__init__.py backend/wolves_backend/
 RUN uv sync --frozen --package wolves --extra dev
 
 COPY engine/ engine/
+COPY data/ data/
 
 ENV PATH="/app/.venv/bin:$PATH"
 

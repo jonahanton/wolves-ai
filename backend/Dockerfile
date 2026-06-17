@@ -18,6 +18,7 @@ RUN uv sync --frozen --package wolves-backend --extra dev
 
 COPY engine/ engine/
 COPY backend/ backend/
+COPY data/ data/
 
 ENV PATH="/app/.venv/bin:$PATH"
 
