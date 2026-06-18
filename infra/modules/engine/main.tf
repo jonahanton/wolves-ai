@@ -57,6 +57,9 @@ locals {
     ANTHROPIC_API_KEY = "Anthropic API key for live agent runs"
     API_FOOTBALL_KEY  = "API-Football key for live fixture polling"
     ODDS_API_KEY      = "The Odds API key for market data ingestion"
+    LOGFIRE_TOKEN     = "Pydantic Logfire write token for agent-run tracing"
+    BRAVE_API_KEY     = "Brave Search API key for agent web research"
+    EXA_API_KEY       = "Exa search API key for agent web research"
   }
 
   engine_environment = [
