@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 REACH_STAGES = ("r32", "r16", "qf", "sf", "final")
-REPLAY_STRIDE_MIN = 9
+# A fine grid so the replay curve drifts smoothly rather than stepping; goals add their own keyframes.
+REPLAY_STRIDE_MIN = 3
 
 
 class NoAgentForecastError(Exception):
@@ -230,8 +231,7 @@ async def _signal_history(deps: Deps, live: LiveState | None) -> dict[int, list[
     each keyframe, so the curve tracks how the pace actually built up."""
     if live is None:
         return {}
-    # History partitions by the poll's date, which can differ from kickoff for a
-    # late-night match polled past midnight, so cover both.
+    # Poll date can differ from kickoff date for a match spanning midnight; cover both.
     dates = {fixture.kickoff[:10] for fixture in live.fixtures if fixture.status == "live"}
     dates.add(live.generated_at[:10])
     states = [state for day in sorted(dates) for state in await day_states(deps.storage, day)]

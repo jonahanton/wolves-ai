@@ -238,6 +238,50 @@ async def test_replay_keyframes_evolve_with_the_recorded_shot_history(tmp_path):
     assert evolved > base + 0.02
 
 
+async def test_replay_tolerates_pre_deploy_history_without_stat_fields(tmp_path):
+    """History points written before this feature carry no stat fields. They must
+    parse, contribute no signal, and leave the early keyframes on the pre-match
+    anchor rather than 500 the report."""
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    (tmp_path / "live").mkdir()
+    (tmp_path / "live" / "state.json").write_text(
+        json.dumps(live_state(fmt, home_goals=0, minute=70)), encoding="utf-8"
+    )
+    opener = fmt.group_matches[0]
+    legacy = {
+        "schema_version": 1,
+        "generated_at": "2026-06-12T14:30:00+00:00",
+        "fetched_at": "2026-06-12T14:30:00+00:00",
+        "stale_after": "2026-06-12T14:32:00+00:00",
+        "fixtures": [
+            {
+                "external_id": 1,
+                "match": opener.match,
+                "status": "live",
+                "kickoff": "2026-06-12T14:00:00+00:00",
+                "minute": 30,
+                "home_id": opener.home,
+                "away_id": opener.away,
+                "home_name": opener.home,
+                "away_name": opener.away,
+                "home_goals": 0,
+                "away_goals": 0,
+            }
+        ],
+    }
+    ArtifactStore(engine.settings).put_text("live/history/2026-06-12/143000.json", json.dumps(legacy))
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        response = await client.get("/impact")
+    assert response.status_code == 200
+    keyframes = response.json()["fixtures"][0]["wdlKeyframes"]
+    assert len(keyframes) > 1
+
+
 async def test_impact_requires_a_published_agent_forecast(tmp_path):
     engine = published_engine(tmp_path)
     await engine.boot()
