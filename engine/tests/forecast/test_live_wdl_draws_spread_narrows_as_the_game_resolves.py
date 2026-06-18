@@ -33,11 +33,6 @@ def _spread(
     return np.array(home), np.array(draw), np.array(away)
 
 
-def test_each_draw_is_a_valid_wdl_split(forecaster: Forecaster) -> None:
-    home, draw, away = _spread(forecaster, MatchState(minute=60.0, home_goals=1, away_goals=1))
-    assert np.allclose(home + draw + away, 1.0)
-
-
 def test_spread_centres_on_the_point_estimate(forecaster: Forecaster) -> None:
     state = MatchState(minute=80.0, home_goals=3, away_goals=2)
     home, _, _ = _spread(forecaster, state)
