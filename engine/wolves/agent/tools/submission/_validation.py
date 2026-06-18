@@ -5,12 +5,25 @@ market anchors resolve once per run, cached on the shared SubmissionState."""
 
 from __future__ import annotations
 
+from contextlib import suppress
+from functools import lru_cache
+from pathlib import Path
 from typing import TypedDict
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps, ValidatorAnchors
 from wolves.agent.publish_surface import publish_surface
 from wolves.agent.validator import ValidationReport, validate_submission
+from wolves.data.sources.squad_players import (
+    SquadPlayersFileMissingError,
+    load_squad_players,
+)
+from wolves.data.sources.squad_players import (
+    roster_name_tokens as transfermarkt_name_tokens,
+)
+from wolves.data.sources.squad_rosters import SquadRostersFileMissingError
+from wolves.data.sources.squad_rosters import roster_name_tokens as authoritative_name_tokens
+from wolves.data.teams import team_key
 
 _BASELINE_SIMS = 50_000
 _BASE_WORLDS = {"baseline", "model_base", "market_base"}
@@ -333,6 +346,30 @@ def _focus_vs_floor(spread: dict | None, focus_team: str) -> float | None:
     return row["vs_floor"] if row else None
 
 
+@lru_cache(maxsize=4)
+def _roster_tokens(data_dir: Path) -> frozenset[str]:
+    """Union of the authoritative rosters and the Transfermarkt pull: a name
+    on either list is accepted, so the guard only fires on names absent from
+    both. Maximises leniency while still catching a pure invention."""
+    ratings = data_dir / "ratings"
+    tokens: frozenset[str] = frozenset()
+    with suppress(SquadRostersFileMissingError):
+        tokens |= authoritative_name_tokens(ratings)
+    with suppress(SquadPlayersFileMissingError):
+        tokens |= transfermarkt_name_tokens(load_squad_players(ratings))
+    return tokens
+
+
+@lru_cache(maxsize=4)
+def _team_tokens(data_dir: Path) -> frozenset[str]:
+    from wolves.sim.format import load_format
+
+    tokens: set[str] = set()
+    for team in load_format(data_dir).teams:
+        tokens |= {part for part in team_key(team.name).split("-") if len(part) > 1}
+    return frozenset(tokens)
+
+
 def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationReport:
     anchors = _anchors(deps)
     spread = spread_section(deps, args.artifact_id)
@@ -348,4 +385,6 @@ def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationRe
         published_titles=preview["titles"],
         focus_vs_floor=_focus_vs_floor(spread, deps.settings.focus_team),
         revisions_used=deps.submission.revisions_used,
+        roster_tokens=_roster_tokens(deps.settings.data_dir),
+        team_tokens=_team_tokens(deps.settings.data_dir),
     )

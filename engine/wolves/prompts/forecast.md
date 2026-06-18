@@ -240,7 +240,10 @@ Submission rules (the validator enforces these):
   public language. Keep the summary caption simpler: if it states a title
   percentage, it must be the team's published preview number only.
   Name the specific event behind any move, the actual injury, suspension or
-  return, not a vague gesture at it. Plain newspaper English, not football-desk
+  return, not a vague gesture at it. Name an individual player only when he is
+  in that team's squad and the point genuinely turns on him; a left-behind or
+  unconfirmed player is named only with a cited source, never asserted as a
+  squad member. Plain newspaper English, not football-desk
   cliche: avoid "passed his medical", "managing his return", "premium", "split
   the difference" and the like. Use the same internal-machinery ban as the
   headline, but do not dumb down a real technical point.

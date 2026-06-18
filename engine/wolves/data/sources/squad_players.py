@@ -7,6 +7,7 @@ drift apart."""
 from __future__ import annotations
 
 import json
+import unicodedata
 from datetime import date
 from pathlib import Path
 
@@ -47,6 +48,20 @@ def load_squad_players(ratings_dir: Path) -> list[SquadPlayerRecord]:
         )
         for player in payload["players"]
     ]
+
+
+def _name_tokens(name: str) -> set[str]:
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    return {part for part in ascii_name.lower().replace("-", " ").split() if len(part) > 1}
+
+
+def roster_name_tokens(records: list[SquadPlayerRecord]) -> frozenset[str]:
+    """Every accent-stripped, lowercased name token across all squads, so a
+    surname in published copy can be cross-checked against the rosters."""
+    tokens: set[str] = set()
+    for record in records:
+        tokens |= _name_tokens(record.name)
+    return frozenset(tokens)
 
 
 def team_totals(records: list[SquadPlayerRecord]) -> dict[str, float]:
