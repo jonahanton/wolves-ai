@@ -20,8 +20,7 @@ interface LiveStatsStripProps {
   awayShotsOn: number | null;
 }
 
-// Both sides must be present and not jointly zero, else the bar would show a
-// self-contradicting 50/50 split on a stat that has not really started yet.
+// A jointly-zero stat has no signal yet, so skip it rather than show a 50/50 bar.
 function pair(home: number | null, away: number | null): [number, number] | null {
   return home === null || away === null || home + away === 0 ? null : [home, away];
 }
@@ -59,16 +58,16 @@ function StatBar({ row, colours }: { row: StatRow; colours: RowColours }) {
   const total = row.home + row.away;
   const homePct = total > 0 ? (row.home / total) * 100 : 50;
   return (
-    <div className="space-y-1">
-      <p className="text-center font-display text-[10.5px] uppercase tracking-[0.06em] text-cream-faint">{row.label}</p>
-      <div className="grid grid-cols-[2rem_1fr_2rem] items-center gap-2.5">
-        <span className="text-right font-mono text-[12.5px] tabular-nums text-cream-dim">{row.homeText}</span>
-        <span className="flex h-[6px] overflow-hidden rounded-full bg-night-2">
-          <span style={{ width: `${homePct}%`, backgroundColor: colours.home, opacity: 0.8 }} />
-          <span style={{ width: `${100 - homePct}%`, backgroundColor: colours.away, opacity: 0.8 }} />
+    <div className="flex flex-col items-center gap-0.5">
+      <span className="font-display text-[9px] uppercase tracking-[0.07em] text-cream-faint">{row.label}</span>
+      <span className="grid w-[64%] grid-cols-[1.4rem_1fr_1.4rem] items-center gap-2">
+        <span className="text-right font-mono text-[11px] tabular-nums text-cream-faint">{row.homeText}</span>
+        <span className="flex h-[5px] overflow-hidden rounded-full bg-night-2">
+          <span style={{ width: `${homePct}%`, backgroundColor: colours.home, opacity: 0.7 }} />
+          <span style={{ width: `${100 - homePct}%`, backgroundColor: colours.away, opacity: 0.7 }} />
         </span>
-        <span className="font-mono text-[12.5px] tabular-nums text-cream-dim">{row.awayText}</span>
-      </div>
+        <span className="font-mono text-[11px] tabular-nums text-cream-faint">{row.awayText}</span>
+      </span>
     </div>
   );
 }
@@ -77,13 +76,10 @@ export function LiveStatsStrip(props: LiveStatsStripProps) {
   const rows = buildRows(props);
   if (rows.length === 0) return null;
   return (
-    <div>
-      <div className="space-y-2.5">
-        {rows.map((row) => (
-          <StatBar key={row.label} row={row} colours={props.colours} />
-        ))}
-      </div>
-      <p className="mt-3.5 font-display text-[11.5px] text-cream-faint">Shots and possession nudge the live forecast.</p>
+    <div className="space-y-2">
+      {rows.map((row) => (
+        <StatBar key={row.label} row={row} colours={props.colours} />
+      ))}
     </div>
   );
 }

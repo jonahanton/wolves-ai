@@ -268,36 +268,25 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
   if (impact === null) return <LiveDetailLoader />;
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between gap-3">
-        {frame && (
-          <p className="flex items-baseline gap-1.5 font-display text-[13px] text-cream-faint">
-            <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>
-            <span className="font-mono font-semibold tabular-nums text-cream-dim">
-              {frame.homeGoals}-{frame.awayGoals}
+      {frame && (
+        <p className="flex items-baseline gap-1.5 font-display text-[13px] text-cream-faint">
+          <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>
+          <span className="font-mono font-semibold tabular-nums text-cream-dim">
+            {frame.homeGoals}-{frame.awayGoals}
+          </span>
+          <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
+          <span className="ml-0.5 font-mono font-semibold tabular-nums text-cream-dim">{minute}&apos;</span>
+          {beatCode && (
+            <span
+              key={`${index}-${beatCode}`}
+              className="ml-1 animate-[goal-flash_1500ms_ease-out_forwards] font-display text-[11px] font-bold uppercase tracking-[0.08em]"
+              style={{ color: chartColour(beatId ?? "") }}
+            >
+              Goal {beatCode}
             </span>
-            <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
-            <span className="ml-0.5 font-mono font-semibold tabular-nums text-cream-dim">{minute}&apos;</span>
-            {beatCode && (
-              <span
-                key={`${index}-${beatCode}`}
-                className="ml-1 animate-[goal-flash_1500ms_ease-out_forwards] font-display text-[11px] font-bold uppercase tracking-[0.08em]"
-                style={{ color: chartColour(beatId ?? "") }}
-              >
-                Goal {beatCode}
-              </span>
-            )}
-          </p>
-        )}
-        {canReplay && (
-          <button
-            type="button"
-            onClick={play}
-            className="shrink-0 rounded-full border border-hairline/70 px-3 py-1 font-display text-[11.5px] font-bold tracking-[0.01em] text-cream-dim transition-colors hover:border-cream/50 hover:text-cream"
-          >
-            Replay from kick-off
-          </button>
-        )}
-      </div>
+          )}
+        </p>
+      )}
       {fixture && (
         <LiveStatsStrip
           homeCode={row.homeCode}
@@ -310,6 +299,17 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           homeShotsOn={fixture.homeShotsOn}
           awayShotsOn={fixture.awayShotsOn}
         />
+      )}
+      {canReplay && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={play}
+            className="shrink-0 rounded-full border border-hairline/70 px-3 py-1 font-display text-[11.5px] font-bold tracking-[0.01em] text-cream-dim transition-colors hover:border-cream/50 hover:text-cream"
+          >
+            Replay from kick-off
+          </button>
+        </div>
       )}
       {frame && (
         <WdlCurves
