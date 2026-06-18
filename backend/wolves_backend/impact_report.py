@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 REACH_STAGES = ("r32", "r16", "qf", "sf", "final")
-# A fine grid so the replay curve drifts smoothly rather than stepping; goals add their own keyframes.
-REPLAY_STRIDE_MIN = 3
+# One keyframe a minute so the curve and stat bars move every minute of the replay.
+REPLAY_STRIDE_MIN = 1
 
 
 class NoAgentForecastError(Exception):

@@ -62,7 +62,7 @@ function StatBar({ row, colours, morphMs }: { row: StatRow; colours: RowColours;
   const transition = morphMs ? `width ${morphMs}ms cubic-bezier(0.65, 0, 0.35, 1)` : undefined;
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <span className="font-display text-[9px] uppercase tracking-[0.07em] text-cream-faint">{row.label}</span>
+      <span className="font-display text-[10px] tracking-[0.02em] text-cream-faint">{row.label}</span>
       <span className="grid w-[64%] grid-cols-[1.4rem_1fr_1.4rem] items-center gap-2">
         <span className="text-right font-mono text-[11px] tabular-nums text-cream-faint">{row.homeText}</span>
         <span className="flex h-[5px] overflow-hidden rounded-full bg-night-2">

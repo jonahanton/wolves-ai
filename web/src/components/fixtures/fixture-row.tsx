@@ -347,23 +347,25 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
   }
   return (
     <div>
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {groups.map((g) => (
-          <div key={g.id} className="space-y-1">
-            {g.shifts.map((shift, i) => {
-              const up = shift.toPct >= shift.fromPct;
-              return (
-                <div key={shift.stageLabel} className="grid grid-cols-[2.8rem_5.5rem_auto] items-baseline gap-2 font-display text-[13.5px] leading-tight">
-                  <span className="font-semibold" style={{ color: i === 0 ? chartColour(g.id) : undefined }}>{i === 0 ? g.code : ""}</span>
-                  <span className="text-cream-dim">{shift.stageLabel}</span>
-                  <span className="font-mono text-[12.5px] tabular-nums text-cream-faint">
-                    {shift.fromPct.toFixed(0)}%
-                    <span className="mx-1 font-semibold text-cream-dim">{up ? "↑" : "↓"}</span>
-                    <span className="font-semibold text-cream">{shift.toPct.toFixed(0)}%</span>
-                  </span>
-                </div>
-              );
-            })}
+          <div key={g.id} className="grid grid-cols-[3rem_1fr] gap-x-3">
+            <span className="pt-px font-display text-[13.5px] font-semibold" style={{ color: chartColour(g.id) }}>{g.code}</span>
+            <div className="space-y-1.5">
+              {g.shifts.map((shift) => {
+                const up = shift.toPct >= shift.fromPct;
+                return (
+                  <div key={shift.stageLabel} className="flex items-center justify-between gap-3 font-display text-[13px] leading-none">
+                    <span className="text-cream-dim">{shift.stageLabel}</span>
+                    <span className="flex items-center gap-1.5 font-mono text-[12.5px] tabular-nums">
+                      <span className="text-cream-faint">{shift.fromPct.toFixed(0)}%</span>
+                      <span className="text-[10px] leading-none text-cream-dim">{up ? "↑" : "↓"}</span>
+                      <span className="font-semibold text-cream">{shift.toPct.toFixed(0)}%</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>

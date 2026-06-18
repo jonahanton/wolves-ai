@@ -13,6 +13,7 @@ poller cannot overwrite the scenario while it is live.
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import sys
 from datetime import UTC, datetime, timedelta
@@ -41,15 +42,39 @@ FINISHED: dict[int, tuple[int, int]] = {
 # One in-play game for the score-hold leg: match -> (home_goals, away_goals, minute).
 LIVE_GAME: tuple[int, int, int, int] = (22, 1, 0, 63)  # England 1-0 Croatia, 63'
 
-# Synthetic poll history for the live game, so a replay shows the bars build with
-# the curve. minute -> (home_shots_on, away_shots_on, home_total, away_total, home_poss).
-LIVE_HISTORY: list[tuple[int, int, int, int, int, float]] = [
-    (10, 1, 0, 2, 1, 0.52),
-    (24, 2, 1, 5, 3, 0.55),
-    (38, 3, 1, 8, 3, 0.57),
-    (52, 5, 2, 11, 4, 0.58),
-    (63, 6, 2, 13, 5, 0.58),
-]
+# Cumulative shot minutes for the live game: every minute a tally ticks up, the
+# bars build in realistic jumps. minute -> (home_shots_on, away_shots_on, home_total, away_total).
+_SHOT_EVENTS: dict[int, tuple[int, int, int, int]] = {
+    4: (0, 0, 1, 0),
+    9: (1, 0, 2, 1),
+    16: (1, 1, 3, 2),
+    23: (2, 1, 5, 3),
+    31: (2, 1, 6, 4),
+    38: (3, 1, 8, 4),
+    45: (3, 2, 9, 5),
+    52: (5, 2, 11, 5),
+    58: (5, 2, 12, 5),
+    63: (6, 2, 13, 5),
+}
+
+
+def _live_history() -> list[tuple[int, int, int, int, int, float]]:
+    """A per-minute poll series so a replay moves the bars every minute, with
+    possession wandering markedly the way a real feed does."""
+    minute_target = LIVE_GAME[3]
+    series = []
+    hso = aso = hts = ats = 0
+    for minute in range(1, minute_target + 1):
+        if minute in _SHOT_EVENTS:
+            hso, aso, hts, ats = _SHOT_EVENTS[minute]
+        # Possession wanders between roughly 40% and 70%, settling above half.
+        swing = 0.55 + 0.12 * math.sin(minute / 6.0) + 0.04 * math.sin(minute / 2.3)
+        home_poss = round(min(0.72, max(0.38, swing)), 2)
+        series.append((minute, hso, aso, hts, ats, home_poss))
+    return series
+
+
+LIVE_HISTORY: list[tuple[int, int, int, int, int, float]] = _live_history()
 
 
 def _winner(home_goals: int, away_goals: int) -> str | None:
