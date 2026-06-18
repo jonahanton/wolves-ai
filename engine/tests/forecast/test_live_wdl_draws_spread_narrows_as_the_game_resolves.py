@@ -74,3 +74,15 @@ def test_live_shot_dominance_moves_the_per_draw_spread(forecaster: Forecaster) -
     )
     assert np.array(blended_home).mean() > base_home.mean() + 0.05
     assert np.array(blended_home).mean() > np.array(blended_away).mean()
+
+
+def test_replay_blends_only_the_live_minute_not_earlier_keyframes(forecaster: Forecaster) -> None:
+    """A replay's earlier keyframes keep their pure pre-match anchor; only the
+    latest state carries the current live signal."""
+    early = MatchState(minute=20.0, home_goals=0, away_goals=0)
+    now = MatchState(minute=75.0, home_goals=0, away_goals=0)
+    signals = LiveSignals(home_shots_on=9, away_shots_on=1)
+    base = forecaster.live_wdl_draws_at(HOME, AWAY, [early, now], knockout=False, draws=128)
+    blended = forecaster.live_wdl_draws_at(HOME, AWAY, [early, now], knockout=False, draws=128, signals=signals)
+    assert blended[0] == base[0]
+    assert np.mean(blended[1][0]) > np.mean(base[1][0])

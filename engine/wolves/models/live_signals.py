@@ -35,9 +35,7 @@ class LiveSignals:
 
 @dataclass(frozen=True)
 class BlendParams:
-    # 90-minute halflife keeps the blend a gentle nudge: even at full time live
-    # signals carry only ~half the weight, so the noisy early-match shot-rate
-    # estimate never takes over from the pre-match anchor.
+    # A 90-minute halflife caps live weight near half at full time, so a noisy early shot rate never dominates.
     halflife_minutes: float = 90.0
     conversion_prior: float = 0.30
     multiplier_cap: float = 2.0
