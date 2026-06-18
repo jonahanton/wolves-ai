@@ -16,6 +16,7 @@ from wolves_backend.clients.run_index import RunIndex
 from wolves_backend.clients.run_schedule import RunSchedule
 from wolves_backend.config import Settings
 from wolves_backend.deps import Deps
+from wolves_backend.impact_report import ImpactService
 from wolves_backend.main import create_app
 from wolves_backend.sim import EngineService
 from wolves_backend.snapshots import SnapshotSource
@@ -166,6 +167,7 @@ def build_test_app(
             client=ecs or FakeEcsClient(task_arn="arn:aws:ecs:eu-west-2:000000000000:task/wolves/abc123"),
         ),
         engine=engine or unbooted_engine(settings.storage_dir),
+        impact=ImpactService(),
     )
     return create_app(settings, deps=deps)
 

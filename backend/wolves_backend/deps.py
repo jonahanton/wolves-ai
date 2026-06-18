@@ -12,6 +12,7 @@ from wolves_backend.clients.bucket import Bucket
 from wolves_backend.clients.engine_tasks import EngineTasks
 from wolves_backend.clients.run_index import RunIndex
 from wolves_backend.clients.run_schedule import RunSchedule
+from wolves_backend.impact_report import ImpactService
 from wolves_backend.sim import EngineService
 from wolves_backend.snapshots import SnapshotSource
 from wolves_backend.storage import Storage
@@ -28,6 +29,7 @@ class Deps:
     schedule: RunSchedule
     engine_tasks: EngineTasks
     engine: EngineService
+    impact: ImpactService
 
 
 def build_deps(settings: Settings) -> Deps:
@@ -51,6 +53,7 @@ def build_deps(settings: Settings) -> Deps:
             region=settings.aws_region,
         ),
         engine=EngineService(EngineSettings()),
+        impact=ImpactService(),
     )
 
 

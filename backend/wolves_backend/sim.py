@@ -125,6 +125,10 @@ class EngineService:
         self._fit: _Fit | None = None
 
     @property
+    def artifacts(self) -> ArtifactStore:
+        return self._artifacts
+
+    @property
     def ready(self) -> bool:
         return self._fit is not None
 

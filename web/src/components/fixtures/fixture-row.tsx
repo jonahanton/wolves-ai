@@ -2,6 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LiveDetailLoader } from "@/components/fixtures/live-detail-loader";
 import { WdlCurves } from "@/components/fixtures/wdl-curves";
 import { type FixtureRow as Row, liveWdlFrames, type WdlFrame } from "@/lib/fixtures";
 import { teamReachShifts } from "@/lib/fixtures-reach";
@@ -263,6 +264,7 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
   const canReplay = frames.length >= 2;
   const beatCode = beat === "home" ? row.homeCode : beat === "away" ? row.awayCode : null;
   const beatId = beat === "home" ? row.homeId : beat === "away" ? row.awayId : null;
+  if (impact === null) return <LiveDetailLoader />;
   return (
     <div className="space-y-4">
       <div className="flex items-baseline justify-between gap-3">
@@ -307,7 +309,7 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           showDraw={!row.knockout}
         />
       )}
-      <div className="border-t border-hairline/60 pt-4">
+      <div className={frame ? "border-t border-hairline/60 pt-4" : undefined}>
         <ReachStrip row={row} impact={impact} />
       </div>
     </div>

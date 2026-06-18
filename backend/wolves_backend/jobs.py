@@ -14,10 +14,12 @@ from wolves.forecast import Forecaster
 from wolves.live import build_fixtures_client, live_pass, near_kickoff
 from wolves.live_state import LiveStateStore
 from wolves.s3.artifacts import ArtifactStore
+from wolves_backend.impact_report import NoAgentForecastError
 
 if TYPE_CHECKING:
     from wolves.config import Settings as EngineSettings
     from wolves_backend.clients.alerts import Alerts
+    from wolves_backend.deps import Deps
     from wolves_backend.sim import EngineService
 
 logger = logging.getLogger(__name__)
@@ -39,10 +41,11 @@ def next_archive_time(now: datetime, *, hours: tuple[int, ...]) -> datetime:
 class LiveLoop:
     """The wolves.live cadence, in-process: fast near kickoffs, slow when idle."""
 
-    def __init__(self, *, engine: EngineService, alerts: Alerts) -> None:
-        self._engine = engine
+    def __init__(self, *, deps: Deps, alerts: Alerts) -> None:
+        self._deps = deps
+        self._engine = deps.engine
         self._alerts = alerts
-        self._settings: EngineSettings = engine.settings
+        self._settings: EngineSettings = deps.engine.settings
         self._artifacts = ArtifactStore(self._settings)
         self._forecaster: Forecaster | None = None
 
@@ -58,7 +61,19 @@ class LiveLoop:
                 # A result landed: refit next pass, and let routes pick up the new artifact.
                 self._forecaster = None
                 await self._engine.refresh()
+            # The overlay drifts with the match clock, so impact rebuilds every pass.
+            await self._refresh_impact()
             await asyncio.sleep(await asyncio.to_thread(self._interval))
+
+    async def _refresh_impact(self) -> None:
+        if not self._engine.ready:
+            return
+        try:
+            await self._deps.impact.refresh(self._deps)
+        except NoAgentForecastError:
+            logger.info("no agent forecast yet; impact refresh skipped")
+        except Exception:
+            logger.exception("impact refresh failed; serving the previous report")
 
     def _pass(self) -> bool:
         # live_pass mixes async polling with inline numpy; a worker-thread loop keeps it off the API's.

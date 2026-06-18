@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Suspense } from "react";
 import { LiveDigestSection } from "@/components/shell/live-digest-section";
+import { LiveDigestSkeleton } from "@/components/shell/live-digest-skeleton";
 import { RouteProgress } from "@/components/shell/route-progress";
 import { SiteNav } from "@/components/shell/site-nav";
 import "./globals.css";
@@ -92,7 +93,7 @@ export default function RootLayout({
         <RouteProgress />
         <div className="sticky top-0 z-30 bg-night/90">
           <SiteNav />
-          <Suspense fallback={<div className="h-9" />}>
+          <Suspense fallback={<LiveDigestSkeleton />}>
             <LiveDigestSection />
           </Suspense>
         </div>
