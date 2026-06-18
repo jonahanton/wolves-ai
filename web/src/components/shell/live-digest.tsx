@@ -5,14 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { Impact } from "@/lib/impact";
 import {
   compactLiveDigest,
-  DAILY_RUN_UTC_HOUR,
   dateTimeLabel,
   type DigestToken,
-  nextDailyRunIso,
   panelTimeline,
   type TimelineEntry,
   topTitleMovers,
 } from "@/lib/impact-view";
+import { nextAgentRunIso } from "@/lib/run-schedule";
 import type { LiveState } from "@/lib/live";
 import { chartColour } from "@/lib/team-colours";
 
@@ -110,7 +109,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
     const tick = () => {
       const now = new Date();
       setNowEt(now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" }));
-      setNextRun(dateTimeLabel(nextDailyRunIso(now, DAILY_RUN_UTC_HOUR)));
+      setNextRun(dateTimeLabel(nextAgentRunIso(now)));
     };
     tick();
     const id = window.setInterval(tick, 15_000);

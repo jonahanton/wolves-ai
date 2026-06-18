@@ -10,7 +10,8 @@ import type { BoardRow } from "@/lib/derive";
 import { formatRunStampEastern } from "@/lib/format";
 import { assembleChartData, type ChartImpactPoint, type ChartTeamInput, type FixtureResultView } from "@/lib/forecast-series";
 import type { Impact } from "@/lib/impact";
-import { DAILY_RUN_UTC_HOUR, nextDailyRunIso, resultLabel } from "@/lib/impact-view";
+import { resultLabel } from "@/lib/impact-view";
+import { nextAgentRunIso } from "@/lib/run-schedule";
 import type {
   CampOut,
   ScenarioWeightOut,
@@ -50,7 +51,7 @@ export function LandingForecast(props: LandingForecastProps) {
   const [selectedTeamId, setSelectedTeamId] = useState(leaderId);
   const [nextRun, setNextRun] = useState<string | null>(null);
   useEffect(() => {
-    const tick = () => setNextRun(formatRunStampEastern(nextDailyRunIso(new Date(), DAILY_RUN_UTC_HOUR)));
+    const tick = () => setNextRun(formatRunStampEastern(nextAgentRunIso(new Date())));
     tick();
     const id = window.setInterval(tick, 60_000);
     return () => window.clearInterval(id);
