@@ -135,9 +135,8 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
   }, [pollMs]);
 
   return (
-    <section aria-label="Live results digest" className="pointer-events-none relative z-10 h-9">
-      <div className="absolute inset-x-0 top-0 flex justify-center px-4">
-        <div className="pointer-events-auto w-[min(500px,calc(100vw_-_32px))]">
+    <section aria-label="Live results digest" className="relative z-10 flex justify-center px-4">
+        <div className="w-[min(500px,calc(100vw_-_32px))]">
           <div
             className="grid origin-top transition-[grid-template-rows,opacity,transform] duration-[360ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
             style={{
@@ -255,7 +254,6 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
             />
           </button>
         </div>
-      </div>
     </section>
   );
 }

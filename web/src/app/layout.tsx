@@ -72,10 +72,12 @@ export default function RootLayout({
     >
       <body>
         <RouteProgress />
-        <SiteNav />
-        <Suspense fallback={<div className="h-9" />}>
-          <LiveDigestSection />
-        </Suspense>
+        <div className="sticky top-0 z-30 bg-night/90">
+          <SiteNav />
+          <Suspense fallback={<div className="h-9" />}>
+            <LiveDigestSection />
+          </Suspense>
+        </div>
         <main>{children}</main>
       </body>
     </html>
