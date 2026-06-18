@@ -136,7 +136,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
   }, [pollMs]);
 
   return (
-    <section aria-label="Live results digest" className="pointer-events-none sticky top-10 z-10">
+    <section aria-label="Live results digest" className="pointer-events-none relative z-0 h-9">
       <div className="absolute inset-x-0 top-0 flex justify-center px-4">
         <div className="pointer-events-auto w-[min(500px,calc(100vw_-_32px))]">
           <div
@@ -149,7 +149,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
           >
             <div className="overflow-hidden">
               <div
-                className="max-h-[70dvh] overflow-y-auto px-5 pb-3.5 pt-3 shadow-[0_18px_44px_oklch(0_0_0/0.24)] backdrop-blur-md"
+                className="max-h-[70dvh] overflow-y-auto px-5 pb-3.5 pt-3 shadow-[0_18px_44px_oklch(0_0_0/0.24)]"
                 style={{ backgroundColor: LIP_FILL }}
               >
                 <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-hairline pb-2 font-mono text-[11.5px] tabular-nums text-cream-faint">
