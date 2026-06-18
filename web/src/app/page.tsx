@@ -45,13 +45,15 @@ export default async function LandingPage() {
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
     .map((t) => t.team_id);
 
-  const [fullRunIds, distributions, impactResult, historiesResult] = await Promise.all([
+  const [fullRunIds, distributions, historiesResult] = await Promise.all([
     loadFullRunIds(index),
     loadDistributions(agentSnapshot.run.run_id),
-    loadAgentImpact(),
     loadTeamHistories(allIds),
   ] as const);
-  const impact = impactForAgent(orNull(impactResult), agentSnapshot.run.run_id);
+  // Streamed off the critical path; the impact sim is the slow leg.
+  const impactPromise = loadAgentImpact()
+    .then((result) => impactForAgent(orNull(result), agentSnapshot.run.run_id))
+    .catch(() => null);
   const historyByTeam = new Map((orNull(historiesResult)?.histories ?? []).map((h) => [h.teamId, h]));
 
   const sidecar = orNull(distributions);
@@ -95,7 +97,7 @@ export default async function LandingPage() {
         camps={camps}
         drivers={drivers}
         stories={stories}
-        impact={impact}
+        impactPromise={impactPromise}
       />
       <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">
         <FestivalBand family="euros" tag="Euros 2024 · the Wolves" />

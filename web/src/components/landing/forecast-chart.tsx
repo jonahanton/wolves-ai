@@ -102,6 +102,7 @@ export function ForecastChart({
   const svgRef = useRef<SVGSVGElement>(null);
   const scaffoldedRef = useRef(false);
   const introRef = useRef(false);
+  const estimateShownRef = useRef(false);
   const [intro, setIntro] = useState(false);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<HoverState | null>(null);
@@ -303,9 +304,10 @@ export function ForecastChart({
       .selectAll<SVGGElement, { t: number; label: string }>("g.tick")
       .data(data.results, (d) => `${d.t}-${d.label}`)
       .join((enter) => {
-        const g = enter.append("g").attr("class", "tick");
+        const g = enter.append("g").attr("class", "tick").attr("opacity", 0);
         g.append("line");
         g.append("title");
+        g.transition().duration(DURATION).attr("opacity", 1);
         return g;
       });
     resultTicks.attr("transform", (d) => `translate(${liveX(d.t)},0)`);
@@ -485,7 +487,9 @@ export function ForecastChart({
       const up = selectedLegs.net > 0;
       const head = 4.2;
       const tip = up ? y1 + head : y1 - head;
-      const g = estimateLayer.append("g").attr("opacity", playIntro ? 0 : 1);
+      const fadeEstimate = playIntro || !estimateShownRef.current;
+      estimateShownRef.current = true;
+      const g = estimateLayer.append("g").attr("opacity", fadeEstimate ? 0 : 1);
       g.append("line")
         .attr("x1", x(selectedLast.t))
         .attr("y1", y0)
@@ -515,9 +519,9 @@ export function ForecastChart({
         .attr("font-weight", 700)
         .attr("fill", colour)
         .text(`${up ? "+" : ""}${selectedLegs.net.toFixed(1)}pp`);
-      if (playIntro)
+      if (fadeEstimate)
         g.transition()
-          .delay(DRAW_MS * 0.6)
+          .delay(playIntro ? DRAW_MS * 0.6 : 0)
           .duration(220)
           .ease(easeCubicOut)
           .attr("opacity", 1);

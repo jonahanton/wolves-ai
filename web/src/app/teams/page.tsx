@@ -34,7 +34,10 @@ export default async function TeamsPage() {
   );
   const board = titleBoard(agentSnapshot, agentSnapshot.teams.length);
   const impactIds = board.slice(0, 12).map((row) => row.teamId);
-  const impact = impactForAgent(orNull(await loadImpact(impactIds)), agentSnapshot.run.run_id);
+  // Streamed off the critical path; the impact sim is the slow leg.
+  const impactPromise = loadImpact(impactIds)
+    .then((result) => impactForAgent(orNull(result), agentSnapshot.run.run_id))
+    .catch(() => null);
 
   return (
     <>
@@ -46,7 +49,7 @@ export default async function TeamsPage() {
           reachProbs={reachProbs}
           rounds={pairing?.rounds ?? {}}
           results={orNull(resultsResult)?.results ?? []}
-          impact={impact}
+          impactPromise={impactPromise}
         />
       </main>
       <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">

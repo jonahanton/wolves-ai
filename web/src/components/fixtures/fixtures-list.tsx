@@ -5,7 +5,6 @@ import { PastResults } from "@/components/fixtures/past-results";
 import { StageSection } from "@/components/fixtures/stage-section";
 import { useLivePoll } from "@/hooks/use-live-poll";
 import { buildFixtures } from "@/lib/fixtures";
-import type { Impact } from "@/lib/impact";
 import type { LiveState } from "@/lib/live";
 import type { PlayedResultRow } from "@/lib/results";
 import type { MatchWdlDraws } from "@/lib/sidecars";
@@ -17,12 +16,11 @@ interface FixturesListProps {
   draws: MatchWdlDraws | null;
   results: PlayedResultRow[];
   initialLive: LiveState | null;
-  initialImpact: Impact | null;
   teamNames: Record<string, string>;
 }
 
-export function FixturesList({ matches, slots, draws, results, initialLive, initialImpact, teamNames }: FixturesListProps) {
-  const { live, impact } = useLivePoll({ live: initialLive, impact: initialImpact });
+export function FixturesList({ matches, slots, draws, results, initialLive, teamNames }: FixturesListProps) {
+  const { live, impact } = useLivePoll({ live: initialLive, impact: null });
   const { sections, pastSections, openGroupDay, openStage } = useMemo(
     () => buildFixtures({ matches, slots, draws, results, live, teamNames, nowIso: new Date().toISOString() }),
     [matches, slots, draws, results, live, teamNames],

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useResolved } from "@/hooks/use-resolved";
 import { ChampionStat } from "@/components/landing/champion-stat";
 import { EpistemicDistribution } from "@/components/landing/epistemic-distribution";
 import { ForecastChart } from "@/components/landing/forecast-chart";
@@ -34,7 +35,7 @@ interface LandingForecastProps {
   camps: CampOut[];
   drivers: Record<string, TeamDriver>;
   stories: Record<string, TeamStoryOut>;
-  impact: Impact | null;
+  impactPromise: Promise<Impact | null>;
 }
 
 export function LandingForecast(props: LandingForecastProps) {
@@ -47,8 +48,9 @@ export function LandingForecast(props: LandingForecastProps) {
     fullBoard,
     championCells,
   } = props;
-  const { xMax, weights, camps, drivers, stories, impact } = props;
+  const { xMax, weights, camps, drivers, stories, impactPromise } = props;
   const [selectedTeamId, setSelectedTeamId] = useState(leaderId);
+  const impact = useResolved(impactPromise, null);
   const [nextRun, setNextRun] = useState<string | null>(null);
   useEffect(() => {
     const tick = () => setNextRun(formatRunStampEastern(nextAgentRunIso(new Date())));
