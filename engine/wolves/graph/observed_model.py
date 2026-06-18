@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+import logging
+import random
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
+import anthropic
 from pydantic_ai import RunContext
 from pydantic_ai.messages import ModelMessage, ModelResponse
 from pydantic_ai.models import Model, ModelRequestParameters, StreamedResponse
@@ -14,10 +19,43 @@ from pydantic_ai.settings import ModelSettings
 from wolves.llm.pricing import cost_micros
 from wolves.observability.runtime import ObservedRuntime
 
+logger = logging.getLogger(__name__)
+
 # Automatic prompt caching: the server moves the breakpoint forward as an
 # agent's history grows, so multi-turn nodes pay cache-read rates for their
 # replayed prefix. Non-Anthropic models ignore the extra key.
 CACHE_SETTINGS = AnthropicModelSettings(anthropic_cache="5m")
+
+_RETRYABLE_STATUS = frozenset({408, 409, 429, 500, 502, 503, 529})
+
+
+def _is_transient(exc: BaseException) -> bool:
+    if isinstance(exc, anthropic.APITimeoutError | anthropic.APIConnectionError | TimeoutError):
+        return True
+    if isinstance(exc, anthropic.APIStatusError):
+        return exc.status_code in _RETRYABLE_STATUS
+    return False
+
+
+@dataclass(frozen=True, kw_only=True)
+class RetryPolicy:
+    """Bounded backoff for a single graph LLM request."""
+
+    max_retries: int = 2
+    base_delay_s: float = 1.0
+    max_delay_s: float = 20.0
+
+
+DEFAULT_RETRY = RetryPolicy()
+
+
+class TransientLLMError(Exception):
+    """A graph LLM request still failing transiently after its retries."""
+
+    def __init__(self, model: str, attempts: int) -> None:
+        super().__init__(f"{model} failed transiently after {attempts} attempts")
+        self.model = model
+        self.attempts = attempts
 
 
 def _usage_dict(usage: Any) -> dict[str, int]:
@@ -54,14 +92,57 @@ class ObservedModel(WrapperModel):
     straight through would silently zero the ceiling."""
 
     def __init__(
-        self, wrapped: Model, *, runtime: ObservedRuntime, actor: str = "graph", hold_back_micros: int = 0
+        self,
+        wrapped: Model,
+        *,
+        runtime: ObservedRuntime,
+        actor: str = "graph",
+        hold_back_micros: int = 0,
+        retry: RetryPolicy = DEFAULT_RETRY,
     ) -> None:
         super().__init__(wrapped)
         self._runtime = runtime
         self._actor = actor
         self._hold_back_micros = hold_back_micros
+        self._retry = retry
+
+    @property
+    def retry(self) -> RetryPolicy:
+        return self._retry
 
     async def request(
+        self,
+        messages: list[ModelMessage],
+        model_settings: ModelSettings | None,
+        model_request_parameters: ModelRequestParameters,
+    ) -> ModelResponse:
+        for attempt in range(self._retry.max_retries + 1):
+            try:
+                return await self._request_once(messages, model_settings, model_request_parameters)
+            except asyncio.CancelledError:
+                # A cancel means a deadline or shutdown owns the task; never fight it.
+                raise
+            except BaseException as exc:
+                if not _is_transient(exc):
+                    raise
+                if attempt == self._retry.max_retries:
+                    raise TransientLLMError(self.model_name, attempt + 1) from exc
+                delay = min(
+                    self._retry.base_delay_s * 2**attempt + random.uniform(0, 1),
+                    self._retry.max_delay_s,
+                )
+                logger.warning(
+                    "%s transient LLM error, retry %d/%d in %.1fs: %s",
+                    self.model_name,
+                    attempt + 1,
+                    self._retry.max_retries,
+                    delay,
+                    exc,
+                )
+                await asyncio.sleep(delay)
+        raise AssertionError("unreachable")
+
+    async def _request_once(
         self,
         messages: list[ModelMessage],
         model_settings: ModelSettings | None,
