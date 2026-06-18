@@ -68,7 +68,7 @@ class ValidationReport(BaseModel):
 
 
 UNDERDISPERSED_VS_FLOOR = 1.05
-COPY_GUARD_VERSION = 3
+COPY_GUARD_VERSION = 4
 
 
 def validate_submission(
@@ -83,6 +83,8 @@ def validate_submission(
     published_titles: dict[str, float] | None = None,
     focus_vs_floor: float | None = None,
     revisions_used: int = 0,
+    roster_tokens: frozenset[str] | None = None,
+    team_tokens: frozenset[str] | None = None,
 ) -> ValidationReport:
     """Provenance (computed artifact, no pinned scorelines, weights cohere),
     citation discipline on weights, Paleka coherence on the artifact's own
@@ -160,6 +162,7 @@ def validate_submission(
     issues += _check_british_english(submission)
     issues += _check_headline(submission, titles)
     issues += _check_public_copy_claims(submission)
+    issues += _check_roster_names(submission, roster_tokens, team_tokens)
     issues += _check_mixture_dispersion(submission, ledger, focus_vs_floor)
     issues += _check_revision_rationale(submission, revisions_used)
     issues += _check_news_impacts(submission, artifacts)
@@ -1026,3 +1029,51 @@ def _check_british_english(submission: ForecastSubmission) -> list[ValidationIss
     if found:
         return [_copy_issue("american_spelling", f"use British English; replace: {', '.join(found)}")]
     return []
+
+
+_NAME_TOKEN = "[A-Z][\\w'\u2019.-]*[a-z]"
+_NAME_LIST_SEP = r"(?:\s*/\s*|\s*,\s+|\s+&\s+|\s+and\s+)"
+_NAME_LIST = re.compile(rf"{_NAME_TOKEN}(?:{_NAME_LIST_SEP}{_NAME_TOKEN})+")
+
+
+def _copy_tokens(name: str) -> set[str]:
+    ascii_name = name.encode("ascii", "ignore").decode("ascii")
+    return {part for part in ascii_name.lower().replace("-", " ").split() if len(part) > 1}
+
+
+def _check_roster_names(
+    submission: ForecastSubmission,
+    roster_tokens: frozenset[str] | None,
+    team_tokens: frozenset[str] | None,
+) -> list[ValidationIssue]:
+    """Flag a name that sits in a player list beside a confirmed squad member
+    but is not itself on any roster. A lone mention (a left-behind player, a
+    fresh call-up the pull predates) has no squad anchor and never fires."""
+    if not roster_tokens:
+        return []
+    teams = team_tokens or frozenset()
+    public = f"{submission.narrative.headline} {submission.market_justification}"
+    for story in submission.narrative.team_stories.values():
+        public += f" {story.summary} {story.why}"
+    unknown: list[str] = []
+    seen: set[str] = set()
+    for match in _NAME_LIST.finditer(public):
+        names = [name for name in re.split(_NAME_LIST_SEP, match.group(0)) if name]
+        listed = [(name, _copy_tokens(name)) for name in names]
+        candidates = [(name, toks) for name, toks in listed if toks and not (toks <= teams)]
+        anchored = any(toks & roster_tokens for _, toks in candidates)
+        if not anchored:
+            continue
+        for name, toks in candidates:
+            if not (toks & roster_tokens) and name not in seen:
+                seen.add(name)
+                unknown.append(name)
+    if not unknown:
+        return []
+    return [
+        _copy_issue(
+            "roster_name_unverified",
+            f"named in a squad list but on no roster: {', '.join(unknown)}; cite only players in the squad data, "
+            "or drop the name if it is a left-behind or unconfirmed call-up",
+        )
+    ]
