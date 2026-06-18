@@ -1,4 +1,4 @@
-import { CrystalBallIcon } from "@/components/shell/crystal-ball-icon";
+import { WolfIcon } from "@/components/shell/wolf-icon";
 
 interface ForecastLoaderProps {
   label?: string;
@@ -11,11 +11,7 @@ export function ForecastLoader({ label = "Howling..." }: ForecastLoaderProps) {
       role="status"
       aria-live="polite"
     >
-      <CrystalBallIcon
-        size={40}
-        className="text-white"
-        ballClassName="spin-y motion-reduce:animate-none"
-      />
+      <WolfIcon size={40} className="text-white" headClassName="howl motion-reduce:animate-none" />
       <span className="font-display text-[20px]">{label}</span>
     </div>
   );
