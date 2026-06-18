@@ -266,24 +266,49 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
   if (impact === null) return <LiveDetailLoader />;
   return (
     <div className="space-y-4">
-      {frame && (
-        <p className="flex items-baseline gap-1.5 font-display text-[13px] text-cream-faint">
-          <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>
-          <span className="font-mono font-semibold tabular-nums text-cream-dim">
-            {frame.homeGoals}-{frame.awayGoals}
-          </span>
-          <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
-          <span className="ml-0.5 font-mono font-semibold tabular-nums text-cream-dim">{minute}&apos;</span>
-          {beatCode && (
-            <span
-              key={`${index}-${beatCode}`}
-              className="ml-1 animate-[goal-flash_1500ms_ease-out_forwards] font-display text-[11px] font-bold uppercase tracking-[0.08em]"
-              style={{ color: chartColour(beatId ?? "") }}
-            >
-              Goal {beatCode}
+      <div className="flex items-start justify-between gap-3">
+        {frame && (
+          <p className="flex items-baseline gap-2 font-display text-[16px] text-cream-faint">
+            <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>
+            <span className="font-mono text-[18px] font-semibold tabular-nums text-cream">
+              {frame.homeGoals}-{frame.awayGoals}
             </span>
-          )}
-        </p>
+            <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
+            {beatCode && (
+              <span
+                key={`${index}-${beatCode}`}
+                className="ml-1 animate-[goal-flash_1500ms_ease-out_forwards] font-display text-[11px] font-bold uppercase tracking-[0.08em]"
+                style={{ color: chartColour(beatId ?? "") }}
+              >
+                Goal {beatCode}
+              </span>
+            )}
+          </p>
+        )}
+        {canReplay && (
+          <div className="flex flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={play}
+              className="shrink-0 rounded-full border border-hairline/70 px-3 py-1 font-display text-[11.5px] font-bold tracking-[0.01em] text-cream-dim transition-colors hover:border-cream/50 hover:text-cream"
+            >
+              Replay from kick-off
+            </button>
+            <span className="font-mono text-[22px] font-semibold leading-none tabular-nums text-cream-dim">{minute}&apos;</span>
+          </div>
+        )}
+      </div>
+      {frame && (
+        <WdlCurves
+          shape={frame.shape}
+          playing={playing}
+          animate={animate}
+          morphMs={morphMs}
+          colours={row.colours}
+          homeCode={row.homeCode}
+          awayCode={row.awayCode}
+          showDraw={!row.knockout}
+        />
       )}
       {fixture && (
         <LiveStatsStrip
@@ -296,29 +321,6 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           awayTotalShots={fixture.awayTotalShots}
           homeShotsOn={fixture.homeShotsOn}
           awayShotsOn={fixture.awayShotsOn}
-        />
-      )}
-      {canReplay && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={play}
-            className="shrink-0 rounded-full border border-hairline/70 px-3 py-1 font-display text-[11.5px] font-bold tracking-[0.01em] text-cream-dim transition-colors hover:border-cream/50 hover:text-cream"
-          >
-            Replay from kick-off
-          </button>
-        </div>
-      )}
-      {frame && (
-        <WdlCurves
-          shape={frame.shape}
-          playing={playing}
-          animate={animate}
-          morphMs={morphMs}
-          colours={row.colours}
-          homeCode={row.homeCode}
-          awayCode={row.awayCode}
-          showDraw={!row.knockout}
         />
       )}
       <div className={frame ? "border-t border-hairline/60 pt-4" : undefined}>
