@@ -14,6 +14,9 @@ interface LiveStatsStripProps {
   colours: RowColours;
   // When a replay is morphing the curve, the bars slide over the same duration.
   morphMs?: number;
+  // During a replay the strip holds every row, splitting evenly with placeholder
+  // text before a stat has been published, rather than popping rows in and out.
+  replaying?: boolean;
   homePossession: number | null;
   awayPossession: number | null;
   homeTotalShots: number | null;
@@ -22,38 +25,35 @@ interface LiveStatsStripProps {
   awayShotsOn: number | null;
 }
 
-// A jointly-zero stat has no signal yet, so skip it rather than show a 50/50 bar.
-function pair(home: number | null, away: number | null): [number, number] | null {
-  return home === null || away === null || home + away === 0 ? null : [home, away];
+function countRow(label: string, home: number | null, away: number | null, replaying: boolean): StatRow | null {
+  if (home === null || away === null) {
+    return replaying ? { label, home: 0, away: 0, homeText: "0", awayText: "0" } : null;
+  }
+  if (home + away === 0 && !replaying) return null;
+  return { label, home, away, homeText: `${home}`, awayText: `${away}` };
+}
+
+function possessionRow(home: number | null, away: number | null, replaying: boolean): StatRow | null {
+  const total = (home ?? 0) + (away ?? 0);
+  if (home === null || away === null || total === 0) {
+    return replaying ? { label: "Possession", home: 50, away: 50, homeText: "-", awayText: "-" } : null;
+  }
+  return {
+    label: "Possession",
+    home,
+    away,
+    homeText: `${Math.round((home / total) * 100)}%`,
+    awayText: `${Math.round((away / total) * 100)}%`,
+  };
 }
 
 function buildRows(props: LiveStatsStripProps): StatRow[] {
-  const rows: StatRow[] = [];
-  const possession = pair(props.homePossession, props.awayPossession);
-  if (possession) {
-    rows.push({
-      label: "Possession",
-      home: possession[0],
-      away: possession[1],
-      homeText: `${Math.round((possession[0] / (possession[0] + possession[1])) * 100)}%`,
-      awayText: `${Math.round((possession[1] / (possession[0] + possession[1])) * 100)}%`,
-    });
-  }
-  const shots = pair(props.homeTotalShots, props.awayTotalShots);
-  if (shots) {
-    rows.push({ label: "Shots", home: shots[0], away: shots[1], homeText: `${shots[0]}`, awayText: `${shots[1]}` });
-  }
-  const onTarget = pair(props.homeShotsOn, props.awayShotsOn);
-  if (onTarget) {
-    rows.push({
-      label: "On target",
-      home: onTarget[0],
-      away: onTarget[1],
-      homeText: `${onTarget[0]}`,
-      awayText: `${onTarget[1]}`,
-    });
-  }
-  return rows;
+  const replaying = props.replaying ?? false;
+  return [
+    possessionRow(props.homePossession, props.awayPossession, replaying),
+    countRow("Shots", props.homeTotalShots, props.awayTotalShots, replaying),
+    countRow("On target", props.homeShotsOn, props.awayShotsOn, replaying),
+  ].filter((row): row is StatRow => row !== null);
 }
 
 function StatBar({ row, colours, morphMs }: { row: StatRow; colours: RowColours; morphMs?: number }) {

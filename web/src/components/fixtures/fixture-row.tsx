@@ -111,7 +111,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
         <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
           <div className="overflow-hidden" inert={!open}>
             {everOpened && (
-              <div className="-mx-1.5 mb-3 mt-1 rounded-lg border border-hairline/40 bg-night-2/70 px-4 pb-5 pt-4">
+              <div className="-mx-1.5 mb-3 mt-1.5 rounded-lg border border-hairline bg-night-2 px-4 pb-5 pt-4 shadow-[inset_0_1px_0_oklch(1_0_0/0.04)]">
                 {tbc && row.slot ? (
                   <SlotDetail row={row} />
                 ) : live ? (
@@ -261,6 +261,8 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
   const { index, minute, playing, animate, beat, morphMs, play } = useReplay(frames);
   const frame = frames[index] ?? null;
   const canReplay = frames.length >= 2;
+  // Old prod data never published stats; only show the strip when some frame has them.
+  const hasStats = frames.some((f) => f.stats.homePossession !== null || f.stats.homeTotalShots !== null || f.stats.homeShotsOn !== null);
   const beatCode = beat === "home" ? row.homeCode : beat === "away" ? row.awayCode : null;
   const beatId = beat === "home" ? row.homeId : beat === "away" ? row.awayId : null;
   if (impact === null) return <LiveDetailLoader />;
@@ -268,13 +270,13 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         {frame && (
-          <p className="flex items-baseline gap-2 font-display text-[14px] text-cream-faint">
+          <p className="flex items-baseline gap-1.5 font-display text-[12.5px] text-cream-faint">
             <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>
-            <span className="font-mono text-[15px] font-semibold tabular-nums text-cream">
+            <span className="font-mono text-[13px] font-semibold tabular-nums text-cream">
               {frame.homeGoals}-{frame.awayGoals}
             </span>
             <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
-            <span className="ml-1 font-mono text-[16px] font-semibold leading-none tabular-nums text-cream-dim">{minute}&apos;</span>
+            <span className="ml-1 font-mono text-[13px] font-semibold leading-none tabular-nums text-cream-dim">{minute}&apos;</span>
             {beatCode && (
               <span
                 key={`${index}-${beatCode}`}
@@ -308,12 +310,13 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           showDraw={!row.knockout}
         />
       )}
-      {frame && (
+      {frame && hasStats && (
         <LiveStatsStrip
           homeCode={row.homeCode}
           awayCode={row.awayCode}
           colours={row.colours}
           morphMs={morphMs}
+          replaying={playing}
           homePossession={frame.stats.homePossession}
           awayPossession={frame.stats.awayPossession}
           homeTotalShots={frame.stats.homeTotalShots}
@@ -347,16 +350,20 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
       <div className="space-y-3">
         {groups.map((g) => (
           <div key={g.id} className="space-y-1">
-            {g.shifts.map((shift, i) => (
-              <div key={shift.stageLabel} className="grid grid-cols-[2.8rem_5.5rem_auto] items-baseline gap-2 font-display text-[13.5px] leading-tight">
-                <span className="font-semibold" style={{ color: i === 0 ? chartColour(g.id) : undefined }}>{i === 0 ? g.code : ""}</span>
-                <span className="text-cream-dim">{shift.stageLabel}</span>
-                <span className="font-mono text-[12.5px] tabular-nums text-cream-faint">
-                  {shift.fromPct.toFixed(0)}% <span className="mx-0.5">&rarr;</span>
-                  <span className="font-semibold text-cream">{shift.toPct.toFixed(0)}%</span>
-                </span>
-              </div>
-            ))}
+            {g.shifts.map((shift, i) => {
+              const up = shift.toPct >= shift.fromPct;
+              return (
+                <div key={shift.stageLabel} className="grid grid-cols-[2.8rem_5.5rem_auto] items-baseline gap-2 font-display text-[13.5px] leading-tight">
+                  <span className="font-semibold" style={{ color: i === 0 ? chartColour(g.id) : undefined }}>{i === 0 ? g.code : ""}</span>
+                  <span className="text-cream-dim">{shift.stageLabel}</span>
+                  <span className="font-mono text-[12.5px] tabular-nums text-cream-faint">
+                    {shift.fromPct.toFixed(0)}%
+                    <span className="mx-1 font-semibold text-cream-dim">{up ? "↑" : "↓"}</span>
+                    <span className="font-semibold text-cream">{shift.toPct.toFixed(0)}%</span>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>
