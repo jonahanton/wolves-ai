@@ -24,7 +24,7 @@ export function SiteNav() {
             href="/"
             className="whitespace-nowrap font-display text-[14px] font-semibold tracking-[-0.01em] text-cream transition-colors hover:text-cream-dim sm:text-[16px]"
           >
-            WWC26 Superforecaster
+            WWC26<span className="hidden sm:inline"> Superforecaster</span>
           </Link>
           <span className="hidden sm:flex">
             <EtClock />
@@ -50,7 +50,7 @@ export function SiteNav() {
               </Link>
             );
           })}
-          <span aria-hidden className="h-4 w-px bg-hairline" />
+          <span aria-hidden className="mt-1 h-4 w-px self-start bg-hairline sm:mt-0 sm:self-center" />
           <GithubLink />
         </nav>
       </div>
