@@ -161,6 +161,12 @@ LIVE_STATE = ArtifactSpec(
     mutable=True,
     description="Latest live poll, scores and in-match deterministic forecasts.",
 )
+LIVE_IMPACT = ArtifactSpec(
+    name="live-impact",
+    pattern="live/impact.json",
+    mutable=True,
+    description="Precomputed agent-forecast impact: published once per live pass, served as-is.",
+)
 LIVE_STATE_POINT = ArtifactSpec(
     name="live-state-point",
     pattern="live/history/{date}/{time}.json",
@@ -241,6 +247,7 @@ LAYOUT: tuple[ArtifactSpec, ...] = (
     ODDS_CLOSE,
     RESULTS,
     LIVE_STATE,
+    LIVE_IMPACT,
     LIVE_STATE_POINT,
     LESSONS,
     SCENARIOS,
