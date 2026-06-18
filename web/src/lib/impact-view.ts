@@ -3,7 +3,7 @@ import type { LiveFixture, LiveState } from "@/lib/live";
 import { liveIsFresh } from "@/lib/live";
 import { teamCode } from "@/lib/team-colours";
 
-export type DigestTone = "live" | "results" | "quiet" | "stale";
+export type DigestTone = "live" | "results" | "quiet";
 
 export type DigestToken =
   | { kind: "text"; text: string }
@@ -87,10 +87,6 @@ export function compactLiveDigest(live: LiveState | null, impact: Impact | null)
     return { tone: "results", tokens };
   }
 
-  if (live && !liveIsFresh(live)) {
-    return { tone: "stale", tokens: [{ kind: "text", text: `Live scores last checked ${timeLabel(live.fetchedAt)} ET` }] };
-  }
-
   const next = nextScheduledFixture(live);
   const tokens: DigestToken[] = [{ kind: "text", text: "No games since last forecast" }];
   const parts: DigestToken[] = [];
@@ -102,6 +98,9 @@ export function compactLiveDigest(live: LiveState | null, impact: Impact | null)
     parts.push({ kind: "text", text: " v " });
     parts.push(teamToken(next.awayId, names));
     parts.push({ kind: "text", text: ` ${timeLabel(next.kickoff)} ET` });
+  }
+  if (live && !liveIsFresh(live)) {
+    parts.push({ kind: "text", text: `${parts.length > 0 ? " · " : ""}last checked ${timeLabel(live.fetchedAt)} ET` });
   }
   if (parts.length > 0) {
     tokens.push({ kind: "text", text: " (" }, ...parts, { kind: "text", text: ")" });
