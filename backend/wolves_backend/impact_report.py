@@ -243,7 +243,7 @@ async def _signal_history(deps: Deps, live: LiveState | None) -> dict[int, list[
             signals = _signals(fixture)
             if signals is not None:
                 history.setdefault(fixture.match, []).append((fixture.minute, signals))
-    return {match: sorted(points) for match, points in history.items()}
+    return {match: sorted(points, key=lambda point: point[0]) for match, points in history.items()}
 
 
 def _signal_at(history: list[tuple[int, LiveSignals]], minute: float) -> LiveSignals | None:
