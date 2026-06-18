@@ -35,3 +35,5 @@ prototypes/
 terraform.tfstate
 terraform.tfstate.*
 *.tfstate.backup
+
+.playwright-mcp/
