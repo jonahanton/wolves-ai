@@ -36,9 +36,18 @@ def _name_tokens(name: str) -> set[str]:
 
 
 def roster_name_tokens(ratings_dir: Path) -> frozenset[str]:
-    """Every accent-stripped name token across all authoritative rosters."""
+    """Every accent-stripped name token across all authoritative rosters and
+    their managers: a manager is named in narrative as readily as a player, so
+    both clear the roster guard."""
+    path = ratings_dir / ROSTERS_FILENAME
+    if not path.exists():
+        raise SquadRostersFileMissingError(ratings_dir)
+    payload = json.loads(path.read_text(encoding="utf-8"))
     tokens: set[str] = set()
-    for players in load_rosters(ratings_dir).values():
-        for name in players:
+    for entry in payload["rosters"].values():
+        for name in entry["players"]:
             tokens |= _name_tokens(name)
+        manager = entry.get("manager")
+        if manager:
+            tokens |= _name_tokens(manager)
     return frozenset(tokens)
