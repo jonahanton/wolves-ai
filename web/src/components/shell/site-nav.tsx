@@ -3,13 +3,13 @@
 import { ShieldHalf, Ticket } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CrystalBallIcon } from "@/components/shell/crystal-ball-icon";
 import { EtClock } from "@/components/shell/et-clock";
 import { GithubLink } from "@/components/shell/github-link";
 import { NavLink } from "@/components/shell/nav-link";
+import { WolfIcon } from "@/components/shell/wolf-icon";
 
 const TABS = [
-  { href: "/forecast", label: "Forecasts", Icon: CrystalBallIcon },
+  { href: "/forecast", label: "Forecasts", Icon: WolfIcon },
   { href: "/teams", label: "Teams", Icon: ShieldHalf },
   { href: "/fixtures", label: "Fixtures", Icon: Ticket },
 ];

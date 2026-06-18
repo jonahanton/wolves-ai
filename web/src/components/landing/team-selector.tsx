@@ -68,7 +68,7 @@ export function TeamSelector({ segments, overflow, selectedTeamId, onSelect }: T
       </div>
 
       {open && (
-        <ul className="no-scrollbar absolute right-0 top-[calc(100%+8px)] z-10 max-h-[300px] w-[172px] overflow-y-auto rounded-lg bg-night-2/95 p-1 shadow-[0_16px_40px_-12px_oklch(0_0_0/0.6)] backdrop-blur-md">
+        <ul className="no-scrollbar absolute right-0 top-[calc(100%+8px)] z-30 max-h-[300px] w-[172px] overflow-y-auto rounded-lg bg-night-2/95 p-1 shadow-[0_16px_40px_-12px_oklch(0_0_0/0.6)] backdrop-blur-md">
           {restOverflow.map((row) => {
             const colour = chartColour(row.teamId);
             return (

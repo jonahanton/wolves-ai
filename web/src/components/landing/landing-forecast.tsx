@@ -77,18 +77,19 @@ export function LandingForecast(props: LandingForecastProps) {
   const colour = chartColour(selectedTeamId);
   const impacts = useMemo(() => chartImpacts(impact), [impact]);
 
-  const distribution = hasDistribution ? (
-    <EpistemicDistribution
-      cell={selectedCell}
-      teamName={selectedRow.name}
-      colour={colour}
-      xMax={xMax}
-      weights={weights}
-      camps={camps}
-      driver={drivers[selectedTeamId]}
-      story={stories[selectedTeamId]}
-    />
-  ) : null;
+  const renderDistribution = () =>
+    hasDistribution ? (
+      <EpistemicDistribution
+        cell={selectedCell}
+        teamName={selectedRow.name}
+        colour={colour}
+        xMax={xMax}
+        weights={weights}
+        camps={camps}
+        driver={drivers[selectedTeamId]}
+        story={stories[selectedTeamId]}
+      />
+    ) : null;
 
   return (
     <>
@@ -97,10 +98,10 @@ export function LandingForecast(props: LandingForecastProps) {
           <h1 className="hero-title text-cream">
             Forecasting the winner of the World Cup
           </h1>
-          <div className="mt-[clamp(6px,1vh,10px)] flex items-center justify-between gap-4 border-t border-hairline pt-[clamp(4px,0.7vh,7px)]">
+          <div className="mt-[clamp(6px,1vh,10px)] flex flex-col gap-2 border-t border-hairline pt-[clamp(4px,0.7vh,7px)] sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <span className="font-display text-[12px] font-medium leading-snug tracking-[0.01em] text-cream-faint">
               Last run {runLabel} ET
-              {nextRun && <span className="block text-cream-faint/70">Next run {nextRun} ET</span>}
+              {nextRun && <span className="text-cream-faint/70"> · Next run {nextRun} ET</span>}
             </span>
             <TeamSelector
               segments={board}
@@ -122,9 +123,9 @@ export function LandingForecast(props: LandingForecastProps) {
               />
             </div>
 
-            {distribution && (
+            {hasDistribution && (
               <div className="hidden min-w-0 lg:block lg:border-l lg:border-hairline lg:pl-[clamp(20px,2.5vw,40px)]">
-                {distribution}
+                {renderDistribution()}
               </div>
             )}
           </div>
@@ -135,14 +136,14 @@ export function LandingForecast(props: LandingForecastProps) {
         </div>
       </HeroVideo>
 
-      {distribution && (
+      {hasDistribution && (
         <section className="wrap @container lg:hidden">
           <div
             aria-hidden
             className="h-[2px] rounded-full transition-colors duration-300"
             style={{ backgroundColor: colour }}
           />
-          <div className="mt-[clamp(20px,3.5vh,40px)]">{distribution}</div>
+          <div className="mt-[clamp(20px,3.5vh,40px)]">{renderDistribution()}</div>
         </section>
       )}
     </>

@@ -1,4 +1,4 @@
-import { CrystalBallIcon } from "@/components/shell/crystal-ball-icon";
+import { WolfIcon } from "@/components/shell/wolf-icon";
 
 export function LiveDetailLoader() {
   return (
@@ -7,7 +7,7 @@ export function LiveDetailLoader() {
       role="status"
       aria-live="polite"
     >
-      <CrystalBallIcon size={26} className="text-cream-dim" ballClassName="spin-y motion-reduce:animate-none" />
+      <WolfIcon size={26} className="text-cream-dim" headClassName="howl motion-reduce:animate-none" />
       <span className="font-display text-[12.5px] shimmer-cream">Reading the live picture</span>
     </div>
   );
