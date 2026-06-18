@@ -411,8 +411,9 @@ export function ForecastChart({
           .duration(DRAW_MS)
           .ease(easeCubicOut)
           .attr("stroke-dashoffset", 0)
-          .on("end", function () {
-            select(this).attr("stroke-dasharray", null);
+          // Clear on interrupt too, else a competing d transition freezes the dash.
+          .on("end interrupt", function () {
+            select(this).attr("stroke-dasharray", null).attr("stroke-dashoffset", null);
           });
       };
       paths.each(function () {
