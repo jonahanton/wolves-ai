@@ -50,9 +50,11 @@ const hanken = localFont({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://wolvesworldcup.com";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://wolvesworldcup.com";
 const TITLE = "WWC26 Superforecaster";
-const DESCRIPTION = "A daily Monte-Carlo forecast for the 2026 World Cup";
+const DESCRIPTION =
+  "Trying to forecast the 2026 World Cup using lots of bayesian stats, data and AI";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
