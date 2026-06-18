@@ -22,7 +22,7 @@ export function SiteNav() {
         <div className="flex items-baseline gap-2.5">
           <Link
             href="/"
-            className="whitespace-nowrap font-display text-[14px] font-semibold tracking-[-0.01em] text-cream transition-colors hover:text-cream-dim sm:text-[16px]"
+            className="whitespace-nowrap font-display text-[17px] font-semibold tracking-[-0.01em] text-cream transition-colors hover:text-cream-dim sm:text-[16px]"
           >
             WWC26<span className="hidden sm:inline"> Superforecaster</span>
           </Link>
@@ -50,7 +50,7 @@ export function SiteNav() {
               </Link>
             );
           })}
-          <span aria-hidden className="mt-1 h-4 w-px self-start bg-hairline sm:mt-0 sm:self-center" />
+          <span aria-hidden className="mt-1 h-4 w-px self-start bg-hairline sm:mt-0 sm:h-3.5 sm:self-center" />
           <GithubLink />
         </nav>
       </div>
