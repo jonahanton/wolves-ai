@@ -12,15 +12,16 @@ const TRANSIENT: ReadonlySet<ApiError["category"]> = new Set(["offline", "upstre
 
 interface ErrorStateProps {
   error: ApiError;
+  onRetry?: () => void;
 }
 
-export function ErrorState({ error }: ErrorStateProps) {
+export function ErrorState({ error, onRetry }: ErrorStateProps) {
   return (
     <section className="wrap py-24">
       <h1 className="statement">{MESSAGES[error.category]}</h1>
       {TRANSIENT.has(error.category) && (
         <div className="mt-6">
-          <RetryButton />
+          <RetryButton onRetry={onRetry} />
         </div>
       )}
     </section>
