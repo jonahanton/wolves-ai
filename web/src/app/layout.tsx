@@ -50,9 +50,25 @@ const hanken = localFont({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://wolvesworldcup.com";
+const TITLE = "WWC26 Superforecaster";
+const DESCRIPTION = "A daily Monte-Carlo forecast for the 2026 World Cup";
+
 export const metadata: Metadata = {
-  title: "WWC26",
-  description: "Wolves World Cup 2026 Superforecaster",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    siteName: TITLE,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {
