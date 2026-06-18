@@ -20,8 +20,10 @@ interface LiveStatsStripProps {
   awayShotsOn: number | null;
 }
 
+// Both sides must be present and not jointly zero, else the bar would show a
+// self-contradicting 50/50 split on a stat that has not really started yet.
 function pair(home: number | null, away: number | null): [number, number] | null {
-  return home === null || away === null ? null : [home, away];
+  return home === null || away === null || home + away === 0 ? null : [home, away];
 }
 
 function buildRows(props: LiveStatsStripProps): StatRow[] {
@@ -32,8 +34,8 @@ function buildRows(props: LiveStatsStripProps): StatRow[] {
       label: "Possession",
       home: possession[0],
       away: possession[1],
-      homeText: `${Math.round(possession[0] * 100)}%`,
-      awayText: `${Math.round(possession[1] * 100)}%`,
+      homeText: `${Math.round((possession[0] / (possession[0] + possession[1])) * 100)}%`,
+      awayText: `${Math.round((possession[1] / (possession[0] + possession[1])) * 100)}%`,
     });
   }
   const shots = pair(props.homeTotalShots, props.awayTotalShots);
