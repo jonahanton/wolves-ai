@@ -236,6 +236,10 @@ class WdlKeyframe(WireModel):
     home_goals: int
     away_goals: int
     wdl: LiveWdl
+
+
+class StatPoint(WireModel):
+    minute: int
     home_shots_on: int | None = None
     away_shots_on: int | None = None
     home_total_shots: int | None = None
@@ -265,6 +269,7 @@ class ImpactFixture(WireModel):
     away_possession: float | None = None
     wdl_draws: LiveWdl | None = None
     wdl_keyframes: list[WdlKeyframe] = []
+    stat_track: list[StatPoint] = []
 
 
 class ImpactResult(WireModel):

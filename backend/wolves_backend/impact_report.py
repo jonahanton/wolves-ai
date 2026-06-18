@@ -28,8 +28,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 REACH_STAGES = ("r32", "r16", "qf", "sf", "final")
-# One keyframe a minute so the curve and stat bars move every minute of the replay.
-REPLAY_STRIDE_MIN = 1
+# Coarse curve keyframes; the per-minute stat track drives the bars cheaply.
+REPLAY_STRIDE_MIN = 3
 
 
 class NoAgentForecastError(Exception):
@@ -140,6 +140,7 @@ async def build_impact(deps: Deps) -> Impact:
                 )
                 if serving
                 else None,
+                _stat_track(f, stat_history.get(f.match, [])) if serving else [],
             )
             for f in in_play
         ],
@@ -256,8 +257,9 @@ def _snapshot_at(history: list[LiveFixture], minute: float) -> LiveFixture | Non
     return found
 
 
-def _keyframe_stats(snap: LiveFixture | None) -> dict[str, int | float | None]:
+def _stat_point(minute: int, snap: LiveFixture | None) -> dict[str, int | float | None]:
     return {
+        "minute": minute,
         "home_shots_on": snap.home_shots_on if snap else None,
         "away_shots_on": snap.away_shots_on if snap else None,
         "home_total_shots": snap.home_total_shots if snap else None,
@@ -267,11 +269,21 @@ def _keyframe_stats(snap: LiveFixture | None) -> dict[str, int | float | None]:
     }
 
 
+def _stat_track(fixture: LiveFixture, history: list[LiveFixture]) -> list[dict[str, int | float | None]]:
+    """One light stat point per match minute, driving the bars without the curve's bulk."""
+    if fixture.minute is None:
+        return []
+    track = [_stat_point(minute, _snapshot_at(history, minute)) for minute in range(fixture.minute + 1)]
+    if track and track[-1]["home_shots_on"] is None and _signals(fixture) is not None:
+        track[-1] = _stat_point(fixture.minute, fixture)
+    return track
+
+
 def _live_wdl_frames(
     forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool, history: list[LiveFixture]
 ) -> tuple[dict[str, list[float]], list[dict[str, Any]]] | None:
     """Current per-draw W/D/L plus a keyframe per goal, all from one shared rate
-    sample. Each keyframe carries the signals and stats as they stood that minute."""
+    sample. Each keyframe blends the signals as they stood at that minute."""
     if fixture.home_id is None or fixture.away_id is None:
         return None
     states = _replay_states(fixture)
@@ -291,15 +303,16 @@ def _live_wdl_frames(
             "home_goals": state.home_goals,
             "away_goals": state.away_goals,
             "wdl": _wdl(frame),
-            **_keyframe_stats(snap),
         }
-        for state, frame, snap in zip(states, frames, snaps, strict=True)
+        for state, frame in zip(states, frames, strict=True)
     ]
     return _wdl(frames[-1]), keyframes
 
 
 def _fixture_block(
-    fixture: LiveFixture, frames: tuple[dict[str, list[float]], list[dict[str, Any]]] | None
+    fixture: LiveFixture,
+    frames: tuple[dict[str, list[float]], list[dict[str, Any]]] | None,
+    stat_track: list[dict[str, int | float | None]],
 ) -> dict[str, Any]:
     forecast = fixture.forecast
     return {
@@ -323,6 +336,7 @@ def _fixture_block(
         "away_possession": fixture.away_possession,
         "wdl_draws": frames[0] if frames else None,
         "wdl_keyframes": frames[1] if frames else [],
+        "stat_track": stat_track,
     }
 
 

@@ -238,9 +238,9 @@ async def test_replay_keyframes_evolve_with_the_recorded_shot_history(tmp_path):
     assert evolved > base + 0.02
 
 
-async def test_replay_keyframes_carry_the_at_or_before_stats(tmp_path):
-    """Each keyframe carries the stats from the latest poll at or before its
-    minute; minutes before the first poll carry none."""
+async def test_stat_track_carries_the_at_or_before_stats_per_minute(tmp_path):
+    """The stat track holds one point per minute, each the latest poll at or
+    before it; minutes before the first poll carry none."""
     engine = published_engine(tmp_path)
     await engine.boot()
     fmt = engine.forecaster.fmt
@@ -261,14 +261,13 @@ async def test_replay_keyframes_carry_the_at_or_before_stats(tmp_path):
 
     app = build_test_app(storage_dir=tmp_path, engine=engine)
     async with client_for(app) as client:
-        keyframes = (await client.get("/impact")).json()["fixtures"][0]["wdlKeyframes"]
+        track = (await client.get("/impact")).json()["fixtures"][0]["statTrack"]
 
-    by_minute = {k["minute"]: k for k in keyframes}
+    by_minute = {p["minute"]: p for p in track}
+    assert len(track) == 61
     assert by_minute[0]["homeShotsOn"] is None
-    early = next(k for k in keyframes if 30 <= k["minute"] < 50)
-    assert early["homeShotsOn"] == 4
-    late = next(k for k in keyframes if k["minute"] >= 50)
-    assert late["homeShotsOn"] == 7
+    assert by_minute[40]["homeShotsOn"] == 4
+    assert by_minute[55]["homeShotsOn"] == 7
 
 
 async def test_replay_tolerates_pre_deploy_history_without_stat_fields(tmp_path):
