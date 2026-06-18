@@ -68,6 +68,34 @@
   }
 }
 
+@keyframes spin-y {
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+@keyframes goal-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(2px) scale(0.92);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@utility spin-y {
+  animation: spin-y 1.6s linear infinite;
+}
+
 @utility shimmer-red {
   background: linear-gradient(
     90deg,

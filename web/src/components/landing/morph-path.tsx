@@ -24,11 +24,13 @@ interface MorphPathProps {
   height: number;
   colour: string;
   width: number;
+  animate?: boolean;
+  durationMs?: number;
 }
 
 // The one element that morphs: the area stroke. d3 interpolates the d-attr
 // across team switches; a shared resample grid keeps point counts identical.
-export function MorphPath({ points, x, y, height, colour, width }: MorphPathProps) {
+export function MorphPath({ points, x, y, height, colour, width, animate = true, durationMs = MORPH_MS }: MorphPathProps) {
   const gRef = useRef<SVGGElement>(null);
   const d =
     width === 0
@@ -54,14 +56,14 @@ export function MorphPath({ points, x, y, height, colour, width }: MorphPathProp
           .attr("d", d),
       );
     path.attr("stroke", colour);
-    if (reduceMotion()) path.attr("d", d);
+    if (!animate || reduceMotion()) path.interrupt("morph").attr("d", d);
     else
       path
         .transition("morph")
-        .duration(MORPH_MS)
+        .duration(durationMs)
         .ease(easeCubicInOut)
         .attr("d", d);
-  }, [d, colour, width]);
+  }, [d, colour, width, animate, durationMs]);
 
   return <g ref={gRef} style={{ pointerEvents: "none" }} />;
 }

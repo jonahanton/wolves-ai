@@ -36,6 +36,21 @@ export interface ImpactFixture {
   pHome: number | null;
   pDraw: number | null;
   pAway: number | null;
+  wdlDraws: LiveWdlDraws | null;
+  wdlKeyframes: WdlKeyframe[];
+}
+
+export interface LiveWdlDraws {
+  pHome: number[];
+  pDraw: number[];
+  pAway: number[];
+}
+
+export interface WdlKeyframe {
+  minute: number;
+  homeGoals: number;
+  awayGoals: number;
+  wdl: LiveWdlDraws;
 }
 
 export interface ImpactResult {

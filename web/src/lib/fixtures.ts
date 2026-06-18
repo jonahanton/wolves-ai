@@ -1,4 +1,5 @@
 import { gridX, samplesToBars, samplesToCurve, type WdlShape } from "@/lib/distribution";
+import type { LiveWdlDraws, WdlKeyframe } from "@/lib/impact";
 import { type LiveFixture, type LiveState, liveIsFresh } from "@/lib/live";
 import type { PlayedResultRow } from "@/lib/results";
 import type { MatchWdlDraws } from "@/lib/sidecars";
@@ -102,10 +103,48 @@ function codeOf(id: string | null, names: Record<string, string>): string {
 function shapeFor(draws: MatchWdlDraws | null, match: number): WdlShape | null {
   const cell = draws?.matches[String(match)];
   if (!cell) return null;
+  return wdlShape(cell.p_home, cell.p_draw, cell.p_away);
+}
+
+export function liveWdlShape(draws: LiveWdlDraws | null): WdlShape | null {
+  if (!draws || draws.pHome.length === 0) return null;
+  return wdlShape(draws.pHome, draws.pDraw, draws.pAway);
+}
+
+export interface WdlFrame {
+  minute: number;
+  homeGoals: number;
+  awayGoals: number;
+  shape: WdlShape;
+}
+
+// Goal-stepped keyframes when the backend supplies them; otherwise a single live
+// frame from the current spread, so the curve survives a backend/frontend skew.
+export function liveWdlFrames(
+  fixture: { wdlKeyframes: WdlKeyframe[]; wdlDraws: LiveWdlDraws | null } | null,
+  minute: number | null,
+  homeGoals: number | null,
+  awayGoals: number | null,
+): WdlFrame[] {
+  const keyframes = (fixture?.wdlKeyframes ?? []).filter((k) => k.wdl.pHome.length > 0);
+  if (keyframes.length > 0) {
+    return keyframes.map((k) => ({
+      minute: k.minute,
+      homeGoals: k.homeGoals,
+      awayGoals: k.awayGoals,
+      shape: wdlShape(k.wdl.pHome, k.wdl.pDraw, k.wdl.pAway),
+    }));
+  }
+  const live = liveWdlShape(fixture?.wdlDraws ?? null);
+  if (!live) return [];
+  return [{ minute: minute ?? 0, homeGoals: homeGoals ?? 0, awayGoals: awayGoals ?? 0, shape: live }];
+}
+
+function wdlShape(home: number[], draw: number[], away: number[]): WdlShape {
   return {
-    home: { curve: samplesToCurve(cell.p_home, GRID), bars: samplesToBars(cell.p_home) },
-    draw: { curve: samplesToCurve(cell.p_draw, GRID), bars: samplesToBars(cell.p_draw) },
-    away: { curve: samplesToCurve(cell.p_away, GRID), bars: samplesToBars(cell.p_away) },
+    home: { curve: samplesToCurve(home, GRID), bars: samplesToBars(home) },
+    draw: { curve: samplesToCurve(draw, GRID), bars: samplesToBars(draw) },
+    away: { curve: samplesToCurve(away, GRID), bars: samplesToBars(away) },
   };
 }
 
@@ -141,7 +180,8 @@ function buildRow(
     status === "live" && live?.forecast
       ? { home: live.forecast.pHome, draw: live.forecast.pDraw ?? 0, away: live.forecast.pAway }
       : { home: match.p_home, draw: match.p_draw ?? 0, away: match.p_away };
-  const hasSpread = status !== "live" && Boolean(draws?.matches[String(match.match)]);
+  // Live rows keep the pre-match spread as the kickoff frame the live curve animates from.
+  const hasSpread = !tbc && Boolean(draws?.matches[String(match.match)]);
 
   return {
     match: match.match,
