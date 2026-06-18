@@ -17,7 +17,6 @@ export function ChampionStat({ row, impact }: ChampionStatProps) {
   const freq = oneInN(row.prob);
   const colour = chartColour(row.teamId);
   const denominator = useCountUp(freq?.denominator ?? 1, 1);
-  const pct = useCountUp(row.prob * 100);
   const longshot = row.prob < LONGSHOT;
   const movement = impact ? impact.fromResultsPp + impact.fromIngamePp : 0;
   const showMovement = impact && Math.abs(movement) >= impact.displayFloorPp;
@@ -40,20 +39,20 @@ export function ChampionStat({ row, impact }: ChampionStatProps) {
           1 <span className="font-bold">in</span> {Math.round(denominator)}
         </span>
         <span className="font-display text-[clamp(18px,2vw,26px)] font-semibold tracking-[-0.01em] text-cream">
-          {row.name} are world champions{" "}
-          <span className="font-normal tabular-nums text-cream-dim">({pct.toFixed(1)}%)</span>
+          {row.name} are world champions
         </span>
       </div>
       {showMovement && (
         <div className="mt-1 animate-[fade-in_320ms_ease-out] font-display text-[12.5px] font-medium text-cream-faint motion-reduce:animate-none">
-          Now an estimated{" "}
+          Now{" "}
           <span className="font-mono tabular-nums" style={{ color: colour }}>
             {(impact.estimated * 100).toFixed(1)}%
           </span>{" "}
-          <span className="font-mono tabular-nums" style={{ color: colour }}>
-            ({movement > 0 ? "up" : "down"} {Math.abs(movement).toFixed(1)}pp)
+          <span className="tabular-nums" style={{ color: colour }}>
+            (<span className="text-[9px]">{movement > 0 ? "▲" : "▼"}</span>
+            <span className="font-mono">{Math.abs(movement).toFixed(1)}pp</span>)
           </span>{" "}
-          after results since the last full forecast
+          on latest results
         </div>
       )}
     </div>

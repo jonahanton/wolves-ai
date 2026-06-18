@@ -1,8 +1,7 @@
 "use client";
 
-import { bisector } from "d3-array";
 import { easeCubicInOut, easeCubicOut } from "d3-ease";
-import { scaleLinear, scaleTime } from "d3-scale";
+import { scaleLinear } from "d3-scale";
 import { select } from "d3-selection";
 import { area as d3Area, curveMonotoneX, line as d3Line } from "d3-shape";
 import "d3-transition";
@@ -36,7 +35,6 @@ const DRAW_MS = 560;
 const MARGIN = { top: 22, right: 78, bottom: 36, left: 14 };
 const MOBILE_MARGIN = { top: 18, right: 64, bottom: 34, left: 10 };
 const MOBILE_BREAK = 560;
-const DAY_MS = 86_400_000;
 const RESULT_LANE_START_PX = 5;
 const RESULT_LANE_PX = 16;
 const ESTIMATE_LANE_PX = 18;
@@ -166,25 +164,39 @@ export function ForecastChart({
     return { ...m, right: m.right + deltaGutter };
   }, [mobile, deltaGutter]);
 
-  const { x, y, runTimes, lastRunTime } = useMemo(() => {
+  const { x, posScale, y, runTimes, lastRunTime } = useMemo(() => {
     const linePoints = lines.flatMap((team) => team.points);
     const times = linePoints.map((p) => p.t);
-    const lo = times.length ? Math.min(...times) : 0;
-    const hi = times.length ? Math.max(...times) : DAY_MS;
-    const pad = Math.max((hi - lo) * 0.04, DAY_MS / 12);
-    const xScale = scaleTime()
-      .domain([lo - pad, hi + pad])
+    const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
+    const n = uniqueTimes.length;
+    // Runs are spaced by order, not by elapsed time, so an irregular agent
+    // cadence still reads as an even cadence on the axis.
+    const indexOf = new Map(uniqueTimes.map((t, i) => [t, i]));
+    const pad = 0.35;
+    const scale = scaleLinear()
+      .domain([-pad, Math.max(1, n - 1) + pad])
       .range([margin.left, Math.max(margin.left + 1, width - margin.right)]);
+    const frac = (t: number) => {
+      if (n === 0) return 0;
+      const exact = indexOf.get(t);
+      if (exact !== undefined) return exact;
+      if (t <= uniqueTimes[0]) return 0;
+      if (t >= uniqueTimes[n - 1]) return n - 1;
+      const hiI = uniqueTimes.findIndex((u) => u >= t);
+      const span = uniqueTimes[hiI] - uniqueTimes[hiI - 1];
+      return hiI - 1 + (span ? (t - uniqueTimes[hiI - 1]) / span : 0);
+    };
+    const xScale = (t: number) => scale(frac(t));
     const maxValue = Math.max(0.04, ...linePoints.map((p) => p.value));
     const yScale = scaleLinear()
       .domain([0, maxValue * 1.06])
       .range([height - margin.bottom, margin.top]);
-    const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
     return {
       x: xScale,
+      posScale: scale,
       y: yScale,
       runTimes: uniqueTimes,
-      lastRunTime: times.length ? hi : null,
+      lastRunTime: n ? uniqueTimes[n - 1] : null,
     };
   }, [lines, width, margin, height]);
 
@@ -406,7 +418,7 @@ export function ForecastChart({
           ? d.colour
           : `color-mix(in oklab, ${d.colour} 78%, var(--color-night))`,
       )
-      .attr("stroke-width", (d) => (d.teamId === selectedTeamId ? 3.4 : 1.6))
+      .attr("stroke-width", (d) => (d.teamId === selectedTeamId ? 3.4 : 2.1))
       .attr("opacity", (d) => (d.teamId === selectedTeamId ? 1 : 0.55))
       .style("cursor", "pointer")
       .style("filter", (d) =>
@@ -510,38 +522,26 @@ export function ForecastChart({
     const selectedLast = selectedLine?.points.at(-1);
     if (selectedLegs && selectedLine && selectedLast && lastRunTime !== null) {
       const colour = selectedLine.colour;
-      const ax = x(lastRunTime) + ESTIMATE_LANE_PX;
+      const head = 4.2;
+      const ax = x(lastRunTime) + 7 + head;
       const y0 = y(selectedLast.value);
       const y1 = y(selectedLast.value + selectedLegs.net / 100);
       const up = selectedLegs.net > 0;
-      const head = 4.2;
-      const tip = up ? y1 + head : y1 - head;
       const fadeEstimate = playIntro || !estimateShownRef.current;
       estimateShownRef.current = true;
       const g = estimateLayer.append("g").attr("opacity", fadeEstimate ? 0 : 1);
-      g.append("line")
-        .attr("x1", x(selectedLast.t))
-        .attr("y1", y0)
-        .attr("x2", ax)
-        .attr("y2", y0)
-        .attr("stroke", colour)
-        .attr("stroke-width", 1)
-        .attr("stroke-dasharray", "1 3")
-        .attr("opacity", 0.45);
-      g.append("line")
-        .attr("x1", ax)
-        .attr("y1", y0)
-        .attr("x2", ax)
-        .attr("y2", tip)
-        .attr("stroke", colour)
-        .attr("stroke-width", 2)
-        .attr("stroke-linecap", "round");
+      const triY = (y0 + y1) / 2;
       g.append("path")
-        .attr("d", `M${ax - head},${tip} L${ax + head},${tip} L${ax},${y1} Z`)
+        .attr(
+          "d",
+          up
+            ? `M${ax},${triY - head} L${ax + head},${triY + head} L${ax - head},${triY + head} Z`
+            : `M${ax},${triY + head} L${ax + head},${triY - head} L${ax - head},${triY - head} Z`,
+        )
         .attr("fill", colour);
       g.append("text")
-        .attr("x", ax + 8)
-        .attr("y", (y0 + y1) / 2)
+        .attr("x", ax + head + 4)
+        .attr("y", triY)
         .attr("dominant-baseline", "middle")
         .attr("font-family", "var(--font-mono)")
         .attr("font-size", 11.5)
@@ -686,8 +686,8 @@ export function ForecastChart({
   function onPointerMove(event: React.PointerEvent<SVGRectElement>) {
     if (!runTimes.length || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const t = x.invert(event.clientX - rect.left).getTime();
-    const index = bisector((time: number) => time).center(runTimes, t);
+    const pos = posScale.invert(event.clientX - rect.left);
+    const index = Math.max(0, Math.min(runTimes.length - 1, Math.round(pos)));
     setHover({
       clientX: event.clientX,
       clientY: event.clientY,
