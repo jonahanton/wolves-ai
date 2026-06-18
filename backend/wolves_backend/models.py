@@ -225,6 +225,19 @@ class TeamImpact(WireModel):
     exit: dict[Literal["groups", "r32", "r16", "qf", "sf", "final", "champion"], StageImpact]
 
 
+class LiveWdl(WireModel):
+    p_home: list[float]
+    p_draw: list[float]
+    p_away: list[float]
+
+
+class WdlKeyframe(WireModel):
+    minute: int
+    home_goals: int
+    away_goals: int
+    wdl: LiveWdl
+
+
 class ImpactFixture(WireModel):
     match: int | None
     home_id: str | None
@@ -238,6 +251,8 @@ class ImpactFixture(WireModel):
     p_home: float | None
     p_draw: float | None
     p_away: float | None
+    wdl_draws: LiveWdl | None = None
+    wdl_keyframes: list[WdlKeyframe] = []
 
 
 class ImpactResult(WireModel):

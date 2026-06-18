@@ -58,7 +58,75 @@ def _live_distributions(
     return out
 
 
-def _fixture_block(fixture: LiveFixture) -> dict[str, Any]:
+REPLAY_STRIDE_MIN = 9
+
+
+def _replay_states(fixture: LiveFixture) -> list[MatchState]:
+    """Keyframes a replay steps through: a minute-cadence grid so the curve drifts
+    as time passes at a held score, plus the exact state just after each goal so
+    the curve jumps when the score changes, ending on the current state."""
+    now = _match_state(fixture)
+    if now is None:
+        return []
+    goals = sorted((g for g in fixture.goals if g.minute <= now.minute), key=lambda g: g.minute)
+
+    def score_at(minute: float) -> tuple[int, int]:
+        home = sum(1 for g in goals if g.side == "home" and g.minute <= minute)
+        away = sum(1 for g in goals if g.side == "away" and g.minute <= minute)
+        return home, away
+
+    def state_at(minute: float, *, post_goal: bool) -> MatchState:
+        home, away = score_at(minute if post_goal else minute - 1e-6)
+        return MatchState(
+            minute=minute,
+            home_goals=home,
+            away_goals=away,
+            home_reds=now.home_reds,
+            away_reds=now.away_reds,
+            period=now.period,
+        )
+
+    minutes: dict[float, bool] = {0.0: False}
+    grid = REPLAY_STRIDE_MIN
+    while grid < now.minute:
+        minutes.setdefault(float(grid), False)
+        grid += REPLAY_STRIDE_MIN
+    for goal in goals:
+        minutes[float(goal.minute)] = True
+    minutes[now.minute] = minutes.get(now.minute, False)
+
+    return [state_at(minute, post_goal=post_goal) for minute, post_goal in sorted(minutes.items())]
+
+
+def _wdl(draws: tuple[list[float], list[float], list[float]]) -> dict[str, list[float]]:
+    return {"p_home": draws[0], "p_draw": draws[1], "p_away": draws[2]}
+
+
+def _live_wdl_frames(
+    forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool
+) -> tuple[dict[str, list[float]], list[dict[str, Any]]] | None:
+    """Current per-draw W/D/L plus a keyframe per goal, all from one shared rate sample."""
+    if fixture.home_id is None or fixture.away_id is None:
+        return None
+    states = _replay_states(fixture)
+    if not states:
+        return None
+    frames = forecaster.live_wdl_draws_at(fixture.home_id, fixture.away_id, states, knockout=knockout)
+    keyframes = [
+        {
+            "minute": int(state.minute),
+            "home_goals": state.home_goals,
+            "away_goals": state.away_goals,
+            "wdl": _wdl(frame),
+        }
+        for state, frame in zip(states, frames, strict=True)
+    ]
+    return _wdl(frames[-1]), keyframes
+
+
+def _fixture_block(
+    fixture: LiveFixture, frames: tuple[dict[str, list[float]], list[dict[str, Any]]] | None
+) -> dict[str, Any]:
     forecast = fixture.forecast
     return {
         "match": fixture.match,
@@ -73,6 +141,8 @@ def _fixture_block(fixture: LiveFixture) -> dict[str, Any]:
         "p_home": forecast.p_home if forecast else None,
         "p_draw": forecast.p_draw if forecast else None,
         "p_away": forecast.p_away if forecast else None,
+        "wdl_draws": frames[0] if frames else None,
+        "wdl_keyframes": frames[1] if frames else [],
     }
 
 
@@ -115,7 +185,9 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
     live = await _live_state(deps)
     in_play = [f for f in live.fixtures if f.status == "live"] if live else []
     live_fresh = _live_is_fresh(live)
-    live_dists = _live_distributions(deps.engine.forecaster, in_play) if live_fresh and deps.engine.ready else {}
+    serving = live_fresh and deps.engine.ready
+    live_dists = _live_distributions(deps.engine.forecaster, in_play) if serving else {}
+    knockout_ids = {m.match for m in deps.engine.forecaster.fmt.knockout}
     selected = _selected_teams(teams, agent_stages, in_play, focus_team)
     agent_results = _played(agent_result_set)
     current_results = _played(current_result_set)
@@ -147,7 +219,13 @@ async def impact(deps: DepsDep, teams: Annotated[str | None, Query()] = None) ->
         "parameter_uncertainty": False,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "results_since_agent": _results_since_agent(agent_result_set, current_result_set),
-        "fixtures": [_fixture_block(f) for f in in_play],
+        "fixtures": [
+            _fixture_block(
+                f,
+                _live_wdl_frames(deps.engine.forecaster, f, knockout=f.match in knockout_ids) if serving else None,
+            )
+            for f in in_play
+        ],
         "teams": {
             team: _team_impact(agent_stages[team], then[team], now[team], live_reach[team]) for team in selected
         },
