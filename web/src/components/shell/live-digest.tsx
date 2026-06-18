@@ -7,11 +7,11 @@ import {
   compactLiveDigest,
   dateTimeLabel,
   type DigestToken,
-  nextDailyRunIso,
   panelTimeline,
   type TimelineEntry,
   topTitleMovers,
 } from "@/lib/impact-view";
+import { nextAgentRunIso } from "@/lib/run-schedule";
 import type { LiveState } from "@/lib/live";
 import { chartColour } from "@/lib/team-colours";
 
@@ -29,7 +29,6 @@ function signed(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
 }
 
-const DAILY_RUN_UTC_HOUR = 11;
 const LIP_FILL = "oklch(0.17 0.025 248 / 0.985)";
 const LIP_CAP_W = 28;
 const LIP_CAP_L = "M0 0 C0 15 7 24 18 24 L28 24 L28 0 Z";
@@ -110,7 +109,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
     const tick = () => {
       const now = new Date();
       setNowEt(now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/New_York" }));
-      setNextRun(dateTimeLabel(nextDailyRunIso(now, DAILY_RUN_UTC_HOUR)));
+      setNextRun(dateTimeLabel(nextAgentRunIso(now)));
     };
     tick();
     const id = window.setInterval(tick, 15_000);
@@ -136,9 +135,8 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
   }, [pollMs]);
 
   return (
-    <section aria-label="Live results digest" className="pointer-events-none sticky top-10 z-10">
-      <div className="absolute inset-x-0 top-0 flex justify-center px-4">
-        <div className="pointer-events-auto w-[min(500px,calc(100vw_-_32px))]">
+    <section aria-label="Live results digest" className="relative z-10 flex justify-center px-4">
+        <div className="w-[min(500px,calc(100vw_-_32px))]">
           <div
             className="grid origin-top transition-[grid-template-rows,opacity,transform] duration-[360ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
             style={{
@@ -149,7 +147,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
           >
             <div className="overflow-hidden">
               <div
-                className="max-h-[70dvh] overflow-y-auto px-5 pb-3.5 pt-3 shadow-[0_18px_44px_oklch(0_0_0/0.24)] backdrop-blur-md"
+                className="max-h-[70dvh] overflow-y-auto px-5 pb-3.5 pt-3 shadow-[0_18px_44px_oklch(0_0_0/0.24)]"
                 style={{ backgroundColor: LIP_FILL }}
               >
                 <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-hairline pb-2 font-mono text-[11.5px] tabular-nums text-cream-faint">
@@ -256,7 +254,6 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
             />
           </button>
         </div>
-      </div>
     </section>
   );
 }

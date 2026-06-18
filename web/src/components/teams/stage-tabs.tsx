@@ -12,7 +12,7 @@ interface StageTabsProps {
 
 export function StageTabs({ rounds, selected, colour, onSelect }: StageTabsProps) {
   return (
-    <div className="flex flex-wrap items-center gap-x-[clamp(12px,1.8vw,22px)] gap-y-1.5">
+    <div className="flex flex-wrap items-center gap-x-[clamp(12px,1.8vw,22px)] gap-y-4">
       {rounds.map((r) => {
         const active = r.round === selected;
         return (
@@ -21,12 +21,14 @@ export function StageTabs({ rounds, selected, colour, onSelect }: StageTabsProps
             type="button"
             onClick={() => onSelect(r.round)}
             aria-pressed={active}
-            className="relative flex items-center gap-1 pb-1 font-display text-[13px] font-semibold tracking-[0.01em] text-cream transition-opacity hover:opacity-100"
+            className="relative -my-2 flex items-center gap-1 py-2 font-display text-[13px] font-semibold tracking-[0.01em] text-cream transition-opacity hover:opacity-100"
             style={{ opacity: active ? 1 : 0.45 }}
           >
-            {r.played && <Check size={12} className="shrink-0 text-cream-dim" strokeWidth={3} />}
-            {r.label}
-            {active && <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full" style={{ backgroundColor: colour }} />}
+            <span className="relative flex items-center gap-1 pb-1">
+              {r.played && <Check size={12} className="shrink-0 text-cream-dim" strokeWidth={3} />}
+              {r.label}
+              {active && <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full" style={{ backgroundColor: colour }} />}
+            </span>
           </button>
         );
       })}

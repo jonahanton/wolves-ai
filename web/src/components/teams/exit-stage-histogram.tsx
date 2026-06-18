@@ -150,6 +150,8 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
   const inner = Math.max(0, width - plotLeft - PAD_R);
   const step = bars.length > 0 ? inner / bars.length : 0;
   const barW = Math.max(2, step);
+  // The full "Champion"/"Groups" labels collide once a column is this narrow.
+  const compactAxis = step < 54;
   const colX = (i: number): number => plotLeft + step * (i + 0.5);
   const y = scaleLinear().domain([0, Y_MAX]).range([TOP + HEIGHT, TOP]);
 
@@ -269,7 +271,7 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
                 fill="oklch(0.965 0.008 95 / 0.5)"
                 opacity={dim ? 0.4 : 1}
               >
-                {b.label}
+                {compactAxis ? b.short : b.label}
               </text>
             </g>
           );

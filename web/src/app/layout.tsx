@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { LiveDigest } from "@/components/shell/live-digest";
+import { Suspense } from "react";
+import { LiveDigestSection } from "@/components/shell/live-digest-section";
 import { RouteProgress } from "@/components/shell/route-progress";
 import { SiteNav } from "@/components/shell/site-nav";
-import { orNull } from "@/lib/api";
-import { loadImpact } from "@/lib/impact";
-import { loadLiveState } from "@/lib/live";
 import "./globals.css";
 
 const albert = localFont({
@@ -64,11 +62,9 @@ export const viewport: Viewport = {
   themeColor: "#1c1a17",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [live, impact] = await Promise.all([loadLiveState(), loadImpact()]);
-
   return (
     <html
       lang="en-GB"
@@ -76,8 +72,12 @@ export default async function RootLayout({
     >
       <body>
         <RouteProgress />
-        <SiteNav />
-        <LiveDigest initialLive={orNull(live)} initialImpact={orNull(impact)} />
+        <div className="sticky top-0 z-30 bg-night/90">
+          <SiteNav />
+          <Suspense fallback={<div className="h-9" />}>
+            <LiveDigestSection />
+          </Suspense>
+        </div>
         <main>{children}</main>
       </body>
     </html>

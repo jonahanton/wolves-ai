@@ -1,4 +1,5 @@
 // Mirrors the backend WireModel routes; this wire is camelCase.
+import { cache } from "react";
 import { type ApiResult, backendGet } from "@/lib/api";
 
 export interface RunRecord {
@@ -36,10 +37,15 @@ export async function loadRunRecords(): Promise<ApiResult<{ runs: RunRecord[] }>
   return backendGet<{ runs: RunRecord[] }>("/runs");
 }
 
-export async function loadSnapshotIndex(): Promise<ApiResult<{ snapshots: SnapshotRef[] }>> {
-  return backendGet<{ snapshots: SnapshotRef[] }>("/snapshots");
-}
+export const loadSnapshotIndex = cache(async (): Promise<ApiResult<{ snapshots: SnapshotRef[] }>> => {
+  return backendGet<{ snapshots: SnapshotRef[] }>("/snapshots", { revalidate: 45 });
+});
 
 export async function loadTeamHistory(teamId: string, limit = 30): Promise<ApiResult<TeamHistory>> {
-  return backendGet<TeamHistory>(`/teams/${encodeURIComponent(teamId)}/history?limit=${limit}`);
+  return backendGet<TeamHistory>(`/teams/${encodeURIComponent(teamId)}/history?limit=${limit}`, { revalidate: 300 });
+}
+
+export async function loadTeamHistories(teamIds: string[], limit = 30): Promise<ApiResult<{ histories: TeamHistory[] }>> {
+  const ids = teamIds.map((id) => encodeURIComponent(id)).join(",");
+  return backendGet<{ histories: TeamHistory[] }>(`/teams/histories?ids=${ids}&limit=${limit}`, { revalidate: 300 });
 }

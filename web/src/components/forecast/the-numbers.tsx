@@ -21,7 +21,7 @@ export function TheNumbers({ workings }: TheNumbersProps) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-1.5 font-display text-[13px] font-semibold text-cream-dim transition-colors hover:text-cream"
+        className="flex items-center gap-1.5 py-1.5 font-display text-[13px] font-semibold text-cream-dim transition-colors hover:text-cream"
       >
         <ChevronRight
           size={14}

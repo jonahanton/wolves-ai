@@ -73,3 +73,31 @@ async def test_history_carries_market_and_blend_probs_when_published():
     point = response.json()["points"][0]
     assert point["marketProb"] == 0.108
     assert point["blendProb"] == 0.097
+
+
+def two_team_body(champ: dict[str, float]) -> str:
+    teams = [{"team_id": tid, "champion_prob": prob, "reach_probs": {"SF": prob * 2}} for tid, prob in champ.items()]
+    return json.dumps({"teams": teams})
+
+
+async def test_histories_batch_returns_each_requested_team():
+    s3 = FakeS3Client(
+        {
+            "snapshots/2026/06/09/run-20260609.json": two_team_body({"ENG": 0.07, "FRA": 0.11}),
+            "snapshots/2026/06/10/agent-20260610.json": two_team_body({"ENG": 0.09, "FRA": 0.12}),
+        }
+    )
+    async with client_for(build_test_app(s3=s3)) as client:
+        response = await client.get("/teams/histories", params={"ids": "ENG,FRA"})
+    assert response.status_code == 200
+    histories = {h["teamId"]: [p["championProb"] for p in h["points"]] for h in response.json()["histories"]}
+    assert histories == {"ENG": [0.07, 0.09], "FRA": [0.11, 0.12]}
+
+
+async def test_histories_batch_keeps_unknown_team_with_empty_points():
+    s3 = FakeS3Client({"snapshots/2026/06/09/run-20260609.json": two_team_body({"ENG": 0.07})})
+    async with client_for(build_test_app(s3=s3)) as client:
+        response = await client.get("/teams/histories", params={"ids": "ENG,XYZ"})
+    histories = {h["teamId"]: h["points"] for h in response.json()["histories"]}
+    assert histories["XYZ"] == []
+    assert len(histories["ENG"]) == 1

@@ -23,6 +23,7 @@ export interface ImpactMover {
   ingamePp: number;
   agentPct: number;
   estimatedPct: number;
+  floorPp: number;
 }
 
 export type TimelineEntry =
@@ -182,13 +183,11 @@ function mostRecentResult(impact: Impact | null): ImpactResult | null {
   return results.length > 0 ? results[results.length - 1] : null;
 }
 
-const MOVER_EPSILON_PP = 0.05;
-
 export function topTitleMovers(impact: Impact | null, limit = 3): ImpactMover[] {
   if (!impact) return [];
   return Object.entries(impact.teams)
     .map(([teamId, team]) => mover(teamId, team.title))
-    .filter((row) => Math.abs(row.deltaPp) >= MOVER_EPSILON_PP)
+    .filter((row) => Math.abs(row.deltaPp) >= row.floorPp)
     .sort((a, b) => Math.abs(b.deltaPp) - Math.abs(a.deltaPp))
     .slice(0, limit);
 }
@@ -206,6 +205,7 @@ function mover(teamId: string, stage: ImpactStage): ImpactMover {
     ingamePp: stage.fromIngamePp,
     agentPct: stage.agent * 100,
     estimatedPct: stage.estimated * 100,
+    floorPp: stage.displayFloorPp,
   };
 }
 
@@ -227,13 +227,6 @@ function timeLabel(value: string): string {
     minute: "2-digit",
     timeZone: "America/New_York",
   });
-}
-
-export function nextDailyRunIso(now: Date, utcHour: number): string {
-  const next = new Date(now);
-  next.setUTCHours(utcHour, 0, 0, 0);
-  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
-  return next.toISOString();
 }
 
 export function dateTimeLabel(value: string): string {

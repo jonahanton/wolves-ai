@@ -11,7 +11,7 @@ from wolves.clients.odds.team_names import team_id_for_name
 from wolves.sim.format import FormatData, GroupMatch, KnockoutMatch, PlayedResult
 
 if TYPE_CHECKING:
-    from wolves.clients.api_football import MatchFixture
+    from wolves.clients.api_football import GoalEvent, MatchFixture
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ class FixtureResolution:
     home_reds: int
     away_reds: int
     knockout: bool
+    goals: tuple[GoalEvent, ...] = ()
 
 
 def results_from_fixtures(fmt: FormatData, fixtures: list[MatchFixture]) -> dict[int, PlayedResult]:
@@ -75,6 +76,7 @@ def resolve_fixture(fmt: FormatData, fixture: MatchFixture) -> FixtureResolution
             home_reds=fixture.home_reds if oriented else fixture.away_reds,
             away_reds=fixture.away_reds if oriented else fixture.home_reds,
             knockout=False,
+            goals=_oriented_goals(fixture, flip=not oriented),
         )
 
     knockout = _knockout_match(fmt, fixture)
@@ -89,7 +91,16 @@ def resolve_fixture(fmt: FormatData, fixture: MatchFixture) -> FixtureResolution
         home_reds=fixture.home_reds,
         away_reds=fixture.away_reds,
         knockout=True,
+        goals=_oriented_goals(fixture, flip=False),
     )
+
+
+def _oriented_goals(fixture: MatchFixture, *, flip: bool) -> tuple[GoalEvent, ...]:
+    if not flip:
+        return tuple(fixture.goals)
+    from wolves.clients.api_football import GoalEvent
+
+    return tuple(GoalEvent(minute=g.minute, side="away" if g.side == "home" else "home") for g in fixture.goals)
 
 
 def _group_match(fmt: FormatData, home_id: str, away_id: str) -> GroupMatch | None:

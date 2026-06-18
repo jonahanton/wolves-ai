@@ -15,6 +15,11 @@ interface WdlCurvesProps {
   homeCode: string;
   awayCode: string;
   showDraw: boolean;
+  // True while stepping a replay: the stroke morphs and bars/labels fade out.
+  morphing?: boolean;
+  // False snaps the stroke without a transition (the rewind to kickoff).
+  animate?: boolean;
+  morphMs?: number;
 }
 
 const HEIGHT = 104;
@@ -42,7 +47,7 @@ interface Lane {
   colour: string;
 }
 
-export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw }: WdlCurvesProps) {
+export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, morphing = false, animate = true, morphMs }: WdlCurvesProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [bloomed, setBloomed] = useState(false);
@@ -62,14 +67,15 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw }: WdlC
     return () => window.cancelAnimationFrame(id);
   }, [width]);
 
+  const active = shape;
   const lanes = useMemo<Lane[]>(() => {
     const all: Lane[] = [
-      { id: "home", label: `${homeCode} win`, mean: barMean(shape.home.bars), ...shape.home, colour: colours.home },
-      { id: "draw", label: "Draw", mean: barMean(shape.draw.bars), ...shape.draw, colour: colours.draw },
-      { id: "away", label: `${awayCode} win`, mean: barMean(shape.away.bars), ...shape.away, colour: colours.away },
+      { id: "home", label: `${homeCode} win`, mean: barMean(active.home.bars), ...active.home, colour: colours.home },
+      { id: "draw", label: "Draw", mean: barMean(active.draw.bars), ...active.draw, colour: colours.draw },
+      { id: "away", label: `${awayCode} win`, mean: barMean(active.away.bars), ...active.away, colour: colours.away },
     ];
     return showDraw ? all : all.filter((l) => l.id !== "draw");
-  }, [shape, colours, homeCode, awayCode, showDraw]);
+  }, [active, colours, homeCode, awayCode, showDraw]);
   const peak = useMemo(() => curvePeak(lanes.map((l) => l.curve)), [lanes]);
 
   const x = useMemo(() => scaleLinear().domain([0, 1]).range([PAD_X, Math.max(PAD_X, width - PAD_X)]), [width]);
@@ -80,6 +86,7 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw }: WdlC
   return (
     <div ref={ref} className="relative">
       <svg width={width} height={HEIGHT} className="block overflow-visible">
+        <g style={{ opacity: morphing ? 0 : 1, transition: "opacity 220ms ease-out" }}>
         {lanes.map((lane) => (
           <g key={lane.id}>
             {lane.bars.map((b, i) => {
@@ -117,6 +124,7 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw }: WdlC
             </text>
           </g>
         ))}
+        </g>
         {lanes.map((lane) => (
           <MorphPath
             key={lane.id}
@@ -126,6 +134,8 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw }: WdlC
             height={HEIGHT}
             colour={lane.colour}
             width={width}
+            animate={bloomed && animate}
+            durationMs={morphMs}
           />
         ))}
       </svg>

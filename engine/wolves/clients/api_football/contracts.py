@@ -11,6 +11,11 @@ MatchPeriod = Literal["regulation", "extra_time", "shootout"]
 WinnerSide = Literal["home", "away"]
 
 
+class GoalEvent(BaseModel):
+    minute: int
+    side: WinnerSide
+
+
 class MatchFixture(BaseModel):
     fixture_id: int
     kickoff: datetime
@@ -23,6 +28,7 @@ class MatchFixture(BaseModel):
     period: MatchPeriod = "regulation"
     home_reds: int = 0
     away_reds: int = 0
+    goals: list[GoalEvent] = []
     city: str | None = None
     winner: WinnerSide | None = None
 

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { type ApiResult, backendGet } from "@/lib/api";
 
 export interface BracketSampleMatch {
@@ -59,9 +60,10 @@ export interface DistributionsSidecar {
 
 export type SidecarName = "distributions" | "bracket-samples" | "pairing-matrices" | "match-wdl-draws";
 
-export async function loadSidecar<T>(runId: string, name: SidecarName): Promise<ApiResult<T>> {
-  return backendGet<T>(`/snapshots/${encodeURIComponent(runId)}/sidecars/${name}`);
-}
+// Sidecars are keyed by an immutable run id, so cache them forever and dedupe per request.
+export const loadSidecar = cache(async <T>(runId: string, name: SidecarName): Promise<ApiResult<T>> => {
+  return backendGet<T>(`/snapshots/${encodeURIComponent(runId)}/sidecars/${name}`, { revalidate: false });
+});
 
 export async function loadDistributions(runId: string): Promise<ApiResult<DistributionsSidecar>> {
   return loadSidecar<DistributionsSidecar>(runId, "distributions");

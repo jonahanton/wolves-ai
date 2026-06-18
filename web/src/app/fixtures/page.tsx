@@ -1,7 +1,7 @@
 import { FixturesList } from "@/components/fixtures/fixtures-list";
 import { ErrorState } from "@/components/shell/error-state";
+import { StaleBanner } from "@/components/shell/stale-banner";
 import { orNull } from "@/lib/api";
-import { loadImpact } from "@/lib/impact";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
 import { loadLiveState } from "@/lib/live";
 import { loadResults } from "@/lib/results";
@@ -26,20 +26,22 @@ export default async function FixturesPage() {
       : (orNull(await loadSnapshot(agentRef.runId)) ?? snapshot);
 
   const runId = agentSnapshot.run.run_id;
-  const [draws, impact] = await Promise.all([loadSidecar<MatchWdlDraws>(runId, "match-wdl-draws"), loadImpact()]);
+  const draws = await loadSidecar<MatchWdlDraws>(runId, "match-wdl-draws");
   const teamNames = Object.fromEntries(agentSnapshot.teams.map((t) => [t.team_id, t.name]));
 
   return (
-    <main className="wrap py-[clamp(28px,5vh,56px)]">
-      <FixturesList
-        matches={agentSnapshot.matches ?? []}
-        slots={agentSnapshot.slots ?? []}
-        draws={orNull(draws)}
-        results={orNull(resultsResult)?.results ?? []}
-        initialLive={orNull(liveResult)}
-        initialImpact={orNull(impact)}
-        teamNames={teamNames}
-      />
-    </main>
+    <>
+      {result.stale && <StaleBanner />}
+      <main className="wrap py-[clamp(28px,5vh,56px)]">
+        <FixturesList
+          matches={agentSnapshot.matches ?? []}
+          slots={agentSnapshot.slots ?? []}
+          draws={orNull(draws)}
+          results={orNull(resultsResult)?.results ?? []}
+          initialLive={orNull(liveResult)}
+          teamNames={teamNames}
+        />
+      </main>
+    </>
   );
 }

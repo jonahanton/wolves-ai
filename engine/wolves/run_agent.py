@@ -15,6 +15,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
+from anthropic import AsyncAnthropic
 from pydantic import BaseModel
 from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -62,7 +63,7 @@ from wolves.graph.contracts import (
     ResearchOutput,
 )
 from wolves.graph.fakes import scripted_model
-from wolves.graph.observed_model import ObservedModel
+from wolves.graph.observed_model import ObservedModel, RetryPolicy
 from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
 from wolves.live import build_fixtures_client
 from wolves.llm.anthropic import build_llm
@@ -1173,12 +1174,23 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             if settings.graph_referee_enabled
             else None
         )
-        provider = AnthropicProvider(api_key=settings.anthropic_api_key)
+        provider = AnthropicProvider(
+            anthropic_client=AsyncAnthropic(
+                api_key=settings.anthropic_api_key,
+                timeout=settings.llm_request_timeout_s,
+                max_retries=settings.anthropic_max_retries,
+            )
+        )
+        retry = RetryPolicy(
+            max_retries=settings.llm_request_max_retries,
+            base_delay_s=settings.llm_retry_base_delay_s,
+            max_delay_s=settings.llm_retry_max_delay_s,
+        )
 
         # Wave planning and numerical judgement need the stronger model;
         # extraction-shaped nodes run on the cheap one.
         def observed(model_name: str) -> ObservedModel:
-            return ObservedModel(AnthropicModel(model_name, provider=provider), runtime=runtime)
+            return ObservedModel(AnthropicModel(model_name, provider=provider), runtime=runtime, retry=retry)
 
         models = GraphModels(
             master=observed(settings.graph_master_model or settings.fast_model),

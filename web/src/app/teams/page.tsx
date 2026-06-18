@@ -1,5 +1,6 @@
 import { TeamBoard } from "@/components/teams/team-board";
 import { ErrorState } from "@/components/shell/error-state";
+import { StaleBanner } from "@/components/shell/stale-banner";
 import { FestivalBand } from "@/components/walls/festival-band";
 import { orNull } from "@/lib/api";
 import { titleBoard } from "@/lib/derive";
@@ -34,10 +35,14 @@ export default async function TeamsPage() {
   );
   const board = titleBoard(agentSnapshot, agentSnapshot.teams.length);
   const impactIds = board.slice(0, 12).map((row) => row.teamId);
-  const impact = impactForAgent(orNull(await loadImpact(impactIds)), agentSnapshot.run.run_id);
+  // Streamed off the critical path; the impact sim is the slow leg.
+  const impactPromise = loadImpact(impactIds)
+    .then((result) => impactForAgent(orNull(result), agentSnapshot.run.run_id))
+    .catch(() => null);
 
   return (
     <>
+      {result.stale && <StaleBanner />}
       <main className="wrap py-[clamp(28px,5vh,56px)]">
         <TeamBoard
           runLabel={formatRunStampEastern(agentSnapshot.run.created_at)}
@@ -46,7 +51,7 @@ export default async function TeamsPage() {
           reachProbs={reachProbs}
           rounds={pairing?.rounds ?? {}}
           results={orNull(resultsResult)?.results ?? []}
-          impact={impact}
+          impactPromise={impactPromise}
         />
       </main>
       <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">

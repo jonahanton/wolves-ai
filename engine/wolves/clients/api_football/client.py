@@ -7,7 +7,7 @@ import httpx
 
 from wolves.connectors._http import _raise_for_status, async_retrying
 
-from .contracts import FixturesClient, MatchFixture, MatchPeriod, MatchStatus, WinnerSide
+from .contracts import FixturesClient, GoalEvent, MatchFixture, MatchPeriod, MatchStatus, WinnerSide
 
 _BASE_URL = "https://v3.football.api-sports.io"
 WORLD_CUP_LEAGUE_ID = 1
@@ -68,6 +68,31 @@ def _red_cards(item: dict[str, Any]) -> tuple[int, int]:
     return home, away
 
 
+def _goal_events(item: dict[str, Any]) -> list[GoalEvent]:
+    """Open-play and penalty goals in order; own goals credit the opponent.
+    Shootout conversions carry the same Goal type but resolve the tie rather than
+    the scoreline, so they are excluded via their Penalty Shootout comment."""
+    home_id = ((item.get("teams") or {}).get("home") or {}).get("id")
+    goals: list[GoalEvent] = []
+    for event in item.get("events") or []:
+        if (event.get("type") or "").casefold() != "goal":
+            continue
+        detail = (event.get("detail") or "").casefold()
+        if "missed" in detail:
+            continue
+        if "shootout" in (event.get("comments") or "").casefold():
+            continue
+        minute = (event.get("time") or {}).get("elapsed")
+        if minute is None:
+            continue
+        scored_by_home = ((event.get("team") or {}).get("id")) == home_id
+        if "own goal" in detail:
+            scored_by_home = not scored_by_home
+        goals.append(GoalEvent(minute=int(minute), side="home" if scored_by_home else "away"))
+    goals.sort(key=lambda g: g.minute)
+    return goals
+
+
 def _to_fixture(item: dict[str, Any]) -> MatchFixture:
     fixture = item.get("fixture") or {}
     teams = item.get("teams") or {}
@@ -88,6 +113,7 @@ def _to_fixture(item: dict[str, Any]) -> MatchFixture:
         period=_period(short),
         home_reds=home_reds,
         away_reds=away_reds,
+        goals=_goal_events(item),
         city=venue.get("city"),
         winner=_winner(teams),
     )

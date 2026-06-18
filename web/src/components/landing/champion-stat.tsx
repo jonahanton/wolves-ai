@@ -45,7 +45,7 @@ export function ChampionStat({ row, impact }: ChampionStatProps) {
         </span>
       </div>
       {showMovement && (
-        <div className="mt-1 font-display text-[12.5px] font-medium text-cream-faint">
+        <div className="mt-1 animate-[fade-in_320ms_ease-out] font-display text-[12.5px] font-medium text-cream-faint motion-reduce:animate-none">
           Now an estimated{" "}
           <span className="font-mono tabular-nums" style={{ color: colour }}>
             {(impact.estimated * 100).toFixed(1)}%

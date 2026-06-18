@@ -1,9 +1,9 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WdlCurves } from "@/components/fixtures/wdl-curves";
-import type { FixtureRow as Row } from "@/lib/fixtures";
+import { type FixtureRow as Row, liveWdlFrames, type WdlFrame } from "@/lib/fixtures";
 import { teamReachShifts } from "@/lib/fixtures-reach";
 import { formatKickoffTimeEastern, formatPctBare } from "@/lib/format";
 import type { Impact } from "@/lib/impact";
@@ -83,7 +83,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
             </span>
           </span>
           {!completed && (live || row.bar) && (
-            <span className="order-3 flex w-full items-baseline justify-between font-mono text-[13.5px] tabular-nums sm:order-2 sm:ml-auto sm:w-auto sm:justify-start sm:gap-4">
+            <span className="order-3 flex w-full items-baseline justify-start gap-5 font-mono text-[13.5px] tabular-nums sm:order-2 sm:ml-auto sm:w-auto sm:gap-4">
               {live ? (
                 <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
               ) : row.bar ? (
@@ -113,7 +113,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
                 {tbc && row.slot ? (
                   <SlotDetail row={row} />
                 ) : live ? (
-                  <ReachStrip row={row} impact={impact} />
+                  <LiveDetail row={row} impact={impact} />
                 ) : row.shape ? (
                   <WdlCurves
                     shape={row.shape}
@@ -158,8 +158,165 @@ function SlotDetail({ row }: { row: Row }) {
   );
 }
 
+type GoalSide = "home" | "away";
+
+interface ReplayTick {
+  minute: number;
+  index: number;
+  morphing: boolean;
+  animate: boolean;
+  beat: GoalSide | null;
+  morphMs: number;
+}
+
+interface Replay extends Omit<ReplayTick, "morphMs"> {
+  morphMs: number;
+  playing: boolean;
+  play: () => void;
+}
+
+const MS_PER_MINUTE = 78;
+const MIN_RUN_MS = 4200;
+const MAX_RUN_MS = 9500;
+const GOAL_PAUSE_MS = 1500;
+const GOAL_MORPH_MS = 360;
+const DRIFT_MORPH_MS = 760;
+
+function goalSide(curr: WdlFrame, prev: WdlFrame): GoalSide | null {
+  if (curr.homeGoals > prev.homeGoals) return "home";
+  if (curr.awayGoals > prev.awayGoals) return "away";
+  return null;
+}
+
+// Run the match clock from kickoff to now. Between goals the curve is held (we
+// have no intermediate keyframes, and a level scoreline barely drifts). When the
+// clock reaches a goal minute the clock pauses, the scorer flashes and the curve
+// jolts; the final same-score frame is a gentle drift, not a beat.
+function useReplay(frames: WdlFrame[]): Replay {
+  const target = frames.length > 0 ? frames[frames.length - 1].minute : 0;
+  const [tick, setTick] = useState<ReplayTick | null>(null);
+  const raf = useRef(0);
+
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
+
+  const play = useCallback(() => {
+    cancelAnimationFrame(raf.current);
+    if (frames.length < 2) return;
+    const run = Math.min(MAX_RUN_MS, Math.max(MIN_RUN_MS, target * MS_PER_MINUTE));
+    let prev = performance.now();
+    let clock = 0;
+    let pause = 0;
+    let lastIndex = 0;
+    let morphStart = 0;
+    let morphMs = DRIFT_MORPH_MS;
+    let beat: GoalSide | null = null;
+    setTick({ minute: 0, index: 0, morphing: false, animate: false, beat: null, morphMs: DRIFT_MORPH_MS });
+
+    const step = (now: number) => {
+      const dt = now - prev;
+      prev = now;
+      if (pause > 0) {
+        pause -= dt;
+        const morphing = now - morphStart < morphMs;
+        setTick({ minute: frames[lastIndex].minute, index: lastIndex, morphing, animate: true, beat, morphMs });
+        raf.current = requestAnimationFrame(step);
+        if (pause <= 0) beat = null;
+        return;
+      }
+      clock += dt;
+      const minute = Math.min(1, clock / run) * target;
+      let index = 0;
+      for (let i = 0; i < frames.length; i += 1) {
+        if (frames[i].minute <= minute + 1e-6) index = i;
+      }
+      if (index !== lastIndex) {
+        const side = goalSide(frames[index], frames[lastIndex]);
+        lastIndex = index;
+        morphStart = now;
+        morphMs = side ? GOAL_MORPH_MS : DRIFT_MORPH_MS;
+        if (side) {
+          beat = side;
+          pause = GOAL_PAUSE_MS;
+          setTick({ minute: frames[index].minute, index, morphing: true, animate: true, beat, morphMs });
+          raf.current = requestAnimationFrame(step);
+          return;
+        }
+      }
+      const morphing = now - morphStart < morphMs;
+      setTick({ minute: Math.round(minute), index, morphing, animate: true, beat: null, morphMs });
+      if (clock < run || morphing) raf.current = requestAnimationFrame(step);
+      else setTick(null);
+    };
+    raf.current = requestAnimationFrame(step);
+  }, [frames, target]);
+
+  if (!tick) {
+    const index = Math.max(0, frames.length - 1);
+    return { index, minute: target, morphing: false, animate: true, beat: null, morphMs: DRIFT_MORPH_MS, playing: false, play };
+  }
+  return { ...tick, index: Math.min(tick.index, frames.length - 1), playing: true, play };
+}
+
+function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
+  const fixture = impact?.fixtures.find((f) => f.match === row.match) ?? null;
+  const frames = liveWdlFrames(fixture, row.minute, row.homeGoals, row.awayGoals);
+  const { index, minute, morphing, animate, beat, morphMs, play } = useReplay(frames);
+  const frame = frames[index] ?? null;
+  const canReplay = frames.length >= 2;
+  const beatCode = beat === "home" ? row.homeCode : beat === "away" ? row.awayCode : null;
+  const beatId = beat === "home" ? row.homeId : beat === "away" ? row.awayId : null;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-baseline justify-between gap-3">
+        {frame && (
+          <p className="flex items-baseline gap-1.5 font-display text-[13px] text-cream-faint">
+            <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>
+            <span className="font-mono font-semibold tabular-nums text-cream-dim">
+              {frame.homeGoals}-{frame.awayGoals}
+            </span>
+            <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
+            <span className="ml-0.5 font-mono font-semibold tabular-nums text-cream-dim">{minute}&apos;</span>
+            {beatCode && (
+              <span
+                key={`${index}-${beatCode}`}
+                className="ml-1 animate-[goal-flash_1500ms_ease-out_forwards] font-display text-[11px] font-bold uppercase tracking-[0.08em]"
+                style={{ color: chartColour(beatId ?? "") }}
+              >
+                Goal {beatCode}
+              </span>
+            )}
+          </p>
+        )}
+        {canReplay && (
+          <button
+            type="button"
+            onClick={play}
+            className="shrink-0 rounded-full border border-hairline/70 px-3 py-1 font-display text-[11.5px] font-bold tracking-[0.01em] text-cream-dim transition-colors hover:border-cream/50 hover:text-cream"
+          >
+            Replay from kick-off
+          </button>
+        )}
+      </div>
+      {frame && (
+        <WdlCurves
+          shape={frame.shape}
+          morphing={morphing}
+          animate={animate}
+          morphMs={morphMs}
+          colours={row.colours}
+          homeCode={row.homeCode}
+          awayCode={row.awayCode}
+          showDraw={!row.knockout}
+        />
+      )}
+      <div className="border-t border-hairline/60 pt-4">
+        <ReachStrip row={row} impact={impact} />
+      </div>
+    </div>
+  );
+}
+
 function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
-  const score = row.homeGoals !== null && row.awayGoals !== null ? `${row.homeGoals}-${row.awayGoals}` : null;
   const sides = [
     { id: row.homeId, code: row.homeCode },
     { id: row.awayId, code: row.awayCode },
@@ -174,18 +331,6 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
   }
   return (
     <div>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <p className="font-display text-[13px] text-cream-faint">
-          <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>{" "}
-          {score && <span className="font-mono font-semibold tabular-nums text-cream-dim">{score}</span>}{" "}
-          <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
-          {row.minute !== null && <span className="ml-1.5 font-mono font-semibold tabular-nums text-cream-dim">{row.minute}&apos;</span>}
-        </p>
-        <span className="shrink-0 whitespace-nowrap text-right leading-tight">
-          <span className="block font-display text-[12px] font-bold tracking-[0.01em] text-cream-dim">Est. shift</span>
-          <span className="block font-display text-[11px] font-medium tracking-[0.01em] text-cream-faint">from current score</span>
-        </span>
-      </div>
       <div className="space-y-3">
         {groups.map((g) => (
           <div key={g.id} className="space-y-1">

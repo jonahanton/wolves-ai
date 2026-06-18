@@ -41,7 +41,9 @@ def write_agent_snapshot(runs_root, fmt) -> None:
     path.write_text(json.dumps(snapshot), encoding="utf-8")
 
 
-def live_state(fmt, *, home_goals: int, minute: int = 61, fetched_at: str = "2026-06-12T15:00:00+00:00") -> dict:
+def live_state(
+    fmt, *, home_goals: int, minute: int = 61, fetched_at: str = "2026-06-12T15:00:00+00:00", goals: list | None = None
+) -> dict:
     opener = fmt.group_matches[0]
     stale_after = (datetime.now(UTC) + timedelta(minutes=2)).isoformat(timespec="seconds")
     return {
@@ -63,6 +65,7 @@ def live_state(fmt, *, home_goals: int, minute: int = 61, fetched_at: str = "202
                 "away_name": opener.away,
                 "home_goals": home_goals,
                 "away_goals": 0,
+                "goals": goals or [],
                 "forecast": {"source": "in_match", "p_home": 0.9, "p_away": 0.02, "p_draw": 0.08},
             }
         ],
@@ -115,6 +118,45 @@ async def test_impact_estimates_in_game_movement_on_the_agent_scale(tmp_path):
     fixture = body["fixtures"][0]
     assert (fixture["homeGoals"], fixture["minute"]) == (9, 61)
     assert "series" not in body
+    wdl = fixture["wdlDraws"]
+    assert len(wdl["pHome"]) == len(wdl["pDraw"]) == len(wdl["pAway"]) > 1
+    assert all(0.0 <= p <= 1.0 for p in wdl["pHome"])
+
+
+async def test_live_wdl_keyframes_step_through_each_goal(tmp_path):
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    (tmp_path / "live").mkdir()
+    state = live_state(
+        fmt,
+        home_goals=2,
+        minute=70,
+        goals=[{"minute": 18, "side": "home"}, {"minute": 55, "side": "home"}],
+    )
+    (tmp_path / "live" / "state.json").write_text(json.dumps(state), encoding="utf-8")
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        body = (await client.get("/impact")).json()
+
+    keyframes = body["fixtures"][0]["wdlKeyframes"]
+    frames = [(k["minute"], k["homeGoals"], k["awayGoals"]) for k in keyframes]
+    # Minutes are strictly increasing and span kickoff to now.
+    assert [k["minute"] for k in keyframes] == sorted(k["minute"] for k in keyframes)
+    assert frames[0] == (0, 0, 0)
+    assert frames[-1] == (70, 2, 0)
+    # The exact post-goal states are present, so the curve jumps when the score does.
+    assert (18, 1, 0) in frames
+    assert (55, 2, 0) in frames
+    # Intermediate minute-cadence frames exist at a held score, giving the drift.
+    assert any(0 < m < 18 and (h, a) == (0, 0) for m, h, a in frames)
+    # Every keyframe shares the same draw count, so the curves are frame-comparable.
+    counts = {len(k["wdl"]["pHome"]) for k in keyframes}
+    assert len(counts) == 1 and counts.pop() > 1
+    # The final keyframe is the current spread the row shows at rest.
+    assert keyframes[-1]["wdl"] == body["fixtures"][0]["wdlDraws"]
 
 
 async def test_impact_requires_a_published_agent_forecast(tmp_path):

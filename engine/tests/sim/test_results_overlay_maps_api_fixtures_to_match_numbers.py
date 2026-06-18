@@ -4,10 +4,10 @@ from datetime import datetime
 
 import pytest
 
-from wolves.clients.api_football import MatchFixture
+from wolves.clients.api_football import GoalEvent, MatchFixture
 from wolves.config import Settings
 from wolves.sim.format import load_format
-from wolves.sim.overlay import results_from_fixtures
+from wolves.sim.overlay import resolve_fixture, results_from_fixtures
 
 
 @pytest.fixture(scope="module")
@@ -43,6 +43,21 @@ def test_reversed_feed_orientation_and_aliases_swap_goals_to_schedule_order(fmt)
 
     assert set(results) == {2}
     assert (results[2].home_goals, results[2].away_goals) == (3, 1)
+
+
+def test_reversed_orientation_flips_goal_event_sides(fmt):
+    fixture = _fixture(
+        home="Czechia",
+        away="South Korea",
+        home_goals=1,
+        away_goals=3,
+        goals=[GoalEvent(minute=10, side="home"), GoalEvent(minute=40, side="away")],
+    )
+
+    resolved = resolve_fixture(fmt, fixture)
+
+    assert resolved is not None
+    assert [(g.minute, g.side) for g in resolved.goals] == [(10, "away"), (40, "home")]
 
 
 def test_provider_ampersand_team_names_resolve(fmt):

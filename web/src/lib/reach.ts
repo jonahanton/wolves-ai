@@ -10,6 +10,7 @@ export type ExitStageKey =
 export interface ExitStageBar {
   key: ExitStageKey;
   label: string;
+  short: string;
   phrase: string;
   noun: string;
   p: number;
@@ -18,18 +19,19 @@ export interface ExitStageBar {
 interface ExitStage {
   key: ExitStageKey;
   label: string;
+  short: string;
   phrase: string;
   noun: string;
 }
 
 const EXIT_STAGES: ExitStage[] = [
-  { key: "groups", label: "Groups", phrase: "Out in groups", noun: "the group stage" },
-  { key: "r32", label: "R32", phrase: "Out in R32", noun: "the round of 32" },
-  { key: "r16", label: "R16", phrase: "Out in R16", noun: "the round of 16" },
-  { key: "qf", label: "QF", phrase: "Out in QF", noun: "the quarter-finals" },
-  { key: "sf", label: "SF", phrase: "Out in SF", noun: "the semi-finals" },
-  { key: "final", label: "Final", phrase: "Runners-up", noun: "the final" },
-  { key: "champion", label: "Champion", phrase: "Champions", noun: "the title" },
+  { key: "groups", label: "Groups", short: "Grp", phrase: "Out in groups", noun: "the group stage" },
+  { key: "r32", label: "R32", short: "R32", phrase: "Out in R32", noun: "the round of 32" },
+  { key: "r16", label: "R16", short: "R16", phrase: "Out in R16", noun: "the round of 16" },
+  { key: "qf", label: "QF", short: "QF", phrase: "Out in QF", noun: "the quarter-finals" },
+  { key: "sf", label: "SF", short: "SF", phrase: "Out in SF", noun: "the semi-finals" },
+  { key: "final", label: "Final", short: "Fin", phrase: "Runners-up", noun: "the final" },
+  { key: "champion", label: "Champion", short: "Win", phrase: "Champions", noun: "the title" },
 ];
 
 // Successive differences of the cumulative reach chain; champion bin == board %.
