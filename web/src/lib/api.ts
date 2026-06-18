@@ -11,7 +11,7 @@ export interface ApiError {
   status?: number;
 }
 
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
+export type ApiResult<T> = { ok: true; data: T; stale?: boolean } | { ok: false; error: ApiError };
 
 // Omit for the safe no-store default; revalidate: false caches forever, a number
 // sets max staleness in seconds; retry re-attempts once on a transient failure.

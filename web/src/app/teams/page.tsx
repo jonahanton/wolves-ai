@@ -1,5 +1,6 @@
 import { TeamBoard } from "@/components/teams/team-board";
 import { ErrorState } from "@/components/shell/error-state";
+import { StaleBanner } from "@/components/shell/stale-banner";
 import { FestivalBand } from "@/components/walls/festival-band";
 import { orNull } from "@/lib/api";
 import { titleBoard } from "@/lib/derive";
@@ -41,6 +42,7 @@ export default async function TeamsPage() {
 
   return (
     <>
+      {result.stale && <StaleBanner />}
       <main className="wrap py-[clamp(28px,5vh,56px)]">
         <TeamBoard
           runLabel={formatRunStampEastern(agentSnapshot.run.created_at)}

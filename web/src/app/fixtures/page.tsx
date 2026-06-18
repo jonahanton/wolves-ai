@@ -1,5 +1,6 @@
 import { FixturesList } from "@/components/fixtures/fixtures-list";
 import { ErrorState } from "@/components/shell/error-state";
+import { StaleBanner } from "@/components/shell/stale-banner";
 import { orNull } from "@/lib/api";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
 import { loadLiveState } from "@/lib/live";
@@ -29,15 +30,18 @@ export default async function FixturesPage() {
   const teamNames = Object.fromEntries(agentSnapshot.teams.map((t) => [t.team_id, t.name]));
 
   return (
-    <main className="wrap py-[clamp(28px,5vh,56px)]">
-      <FixturesList
-        matches={agentSnapshot.matches ?? []}
-        slots={agentSnapshot.slots ?? []}
-        draws={orNull(draws)}
-        results={orNull(resultsResult)?.results ?? []}
-        initialLive={orNull(liveResult)}
-        teamNames={teamNames}
-      />
-    </main>
+    <>
+      {result.stale && <StaleBanner />}
+      <main className="wrap py-[clamp(28px,5vh,56px)]">
+        <FixturesList
+          matches={agentSnapshot.matches ?? []}
+          slots={agentSnapshot.slots ?? []}
+          draws={orNull(draws)}
+          results={orNull(resultsResult)?.results ?? []}
+          initialLive={orNull(liveResult)}
+          teamNames={teamNames}
+        />
+      </main>
+    </>
   );
 }

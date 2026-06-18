@@ -83,7 +83,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
             </span>
           </span>
           {!completed && (live || row.bar) && (
-            <span className="order-3 flex w-full items-baseline justify-between font-mono text-[13.5px] tabular-nums sm:order-2 sm:ml-auto sm:w-auto sm:justify-start sm:gap-4">
+            <span className="order-3 flex w-full items-baseline justify-start gap-5 font-mono text-[13.5px] tabular-nums sm:order-2 sm:ml-auto sm:w-auto sm:gap-4">
               {live ? (
                 <span className="shimmer-red font-semibold">{row.minute !== null ? `${row.minute}'` : "live"}</span>
               ) : row.bar ? (

@@ -1,5 +1,6 @@
 import { LandingForecast } from "@/components/landing/landing-forecast";
 import { ErrorState } from "@/components/shell/error-state";
+import { StaleBanner } from "@/components/shell/stale-banner";
 import { FestivalBand } from "@/components/walls/festival-band";
 import { orNull } from "@/lib/api";
 import { titleBoard } from "@/lib/derive";
@@ -84,6 +85,7 @@ export default async function LandingPage() {
 
   return (
     <>
+      {result.stale && <StaleBanner />}
       <LandingForecast
         runLabel={formatRunStampEastern(agentSnapshot.run.created_at)}
         teams={chartTeams}
