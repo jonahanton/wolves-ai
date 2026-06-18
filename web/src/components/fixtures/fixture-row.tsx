@@ -3,6 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveDetailLoader } from "@/components/fixtures/live-detail-loader";
+import { LiveStatsStrip } from "@/components/fixtures/live-stats-strip";
 import { WdlCurves } from "@/components/fixtures/wdl-curves";
 import { type FixtureRow as Row, liveWdlFrames, type WdlFrame } from "@/lib/fixtures";
 import { teamReachShifts } from "@/lib/fixtures-reach";
@@ -297,6 +298,19 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           </button>
         )}
       </div>
+      {fixture && (
+        <LiveStatsStrip
+          homeCode={row.homeCode}
+          awayCode={row.awayCode}
+          colours={row.colours}
+          homePossession={fixture.homePossession}
+          awayPossession={fixture.awayPossession}
+          homeTotalShots={fixture.homeTotalShots}
+          awayTotalShots={fixture.awayTotalShots}
+          homeShotsOn={fixture.homeShotsOn}
+          awayShotsOn={fixture.awayShotsOn}
+        />
+      )}
       {frame && (
         <WdlCurves
           shape={frame.shape}

@@ -34,6 +34,12 @@ export interface ImpactFixture {
   pHome: number | null;
   pDraw: number | null;
   pAway: number | null;
+  homeShotsOn: number | null;
+  awayShotsOn: number | null;
+  homeTotalShots: number | null;
+  awayTotalShots: number | null;
+  homePossession: number | null;
+  awayPossession: number | null;
   wdlDraws: LiveWdlDraws | null;
   wdlKeyframes: WdlKeyframe[];
 }
