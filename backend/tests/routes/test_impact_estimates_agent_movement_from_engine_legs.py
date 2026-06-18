@@ -195,6 +195,47 @@ async def test_live_shot_dominance_reaches_the_served_wdl_spread(tmp_path):
     assert fixture["homePossession"] == 0.62
 
 
+async def test_replay_keyframes_evolve_with_the_recorded_shot_history(tmp_path):
+    """A poll-history burst of home shots at an early minute lifts that keyframe's
+    home win mass above the same frame built without any history."""
+
+    async def home_at_minute(history: list[dict] | None, keyframe_minute: int) -> float:
+        run_dir = tmp_path / ("with" if history else "without")
+        engine = published_engine(run_dir)
+        await engine.boot()
+        fmt = engine.forecaster.fmt
+        write_agent_snapshot(run_dir, fmt)
+        (run_dir / "live").mkdir(exist_ok=True)
+        state = live_state(fmt, home_goals=0, minute=80)
+        (run_dir / "live" / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        for point in history or []:
+            store = ArtifactStore(engine.settings)
+            stamp = point["time"]
+            body = json.dumps(
+                live_state(
+                    fmt,
+                    home_goals=0,
+                    minute=point["minute"],
+                    fetched_at=f"2026-06-12T{stamp}+00:00",
+                    stats={"home_shots_on": point["home_shots_on"], "away_shots_on": point["away_shots_on"]},
+                )
+            )
+            store.put_text(f"live/history/2026-06-12/{stamp.replace(':', '')}.json", body)
+        app = build_test_app(storage_dir=run_dir, engine=engine)
+        async with client_for(app) as client:
+            keyframes = (await client.get("/impact")).json()["fixtures"][0]["wdlKeyframes"]
+        frame = min(keyframes, key=lambda k: abs(k["minute"] - keyframe_minute))
+        return sum(frame["wdl"]["pHome"]) / len(frame["wdl"]["pHome"])
+
+    history = [
+        {"time": "14:27:00", "minute": 27, "home_shots_on": 6, "away_shots_on": 0},
+        {"time": "15:00:00", "minute": 80, "home_shots_on": 7, "away_shots_on": 5},
+    ]
+    base = await home_at_minute(None, 27)
+    evolved = await home_at_minute(history, 27)
+    assert evolved > base + 0.02
+
+
 async def test_impact_requires_a_published_agent_forecast(tmp_path):
     engine = published_engine(tmp_path)
     await engine.boot()

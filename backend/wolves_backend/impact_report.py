@@ -16,6 +16,7 @@ from wolves.s3.layout import LIVE_IMPACT, LIVE_STATE
 from wolves.sim.format import PlayedResult
 from wolves.sim.result_set import result_set_from_entries
 from wolves.snapshot import ResultSetBlock, ResultSetEntry
+from wolves_backend.live_history import day_states
 from wolves_backend.models import Impact
 from wolves_backend.sim import Leg
 
@@ -101,6 +102,7 @@ async def build_impact(deps: Deps) -> Impact:
     forecaster = deps.engine.forecaster
     live_dists = _live_distributions(forecaster, in_play) if serving else {}
     knockout_ids = {m.match for m in forecaster.fmt.knockout}
+    signal_history = await _signal_history(deps, live) if serving else {}
 
     n_sims = deps.engine.settings.impact_n_sims
     seed = 0
@@ -130,7 +132,14 @@ async def build_impact(deps: Deps) -> Impact:
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "results_since_agent": _results_since_agent(agent_result_set, current_result_set),
         "fixtures": [
-            _fixture_block(f, _live_wdl_frames(forecaster, f, knockout=f.match in knockout_ids) if serving else None)
+            _fixture_block(
+                f,
+                _live_wdl_frames(
+                    forecaster, f, knockout=f.match in knockout_ids, history=signal_history.get(f.match, [])
+                )
+                if serving
+                else None,
+            )
             for f in in_play
         ],
         "teams": {
@@ -215,17 +224,55 @@ def _signals(fixture: LiveFixture) -> LiveSignals | None:
     return signals if signals.has_shots or signals.has_possession else None
 
 
+async def _signal_history(deps: Deps, live: LiveState | None) -> dict[int, list[tuple[int, LiveSignals]]]:
+    """Per live match, the published (minute, signals) points from today's poll
+    history, ascending by minute. The replay reads the latest point at or before
+    each keyframe, so the curve tracks how the pace actually built up."""
+    if live is None:
+        return {}
+    # History partitions by the poll's date, which can differ from kickoff for a
+    # late-night match polled past midnight, so cover both.
+    dates = {fixture.kickoff[:10] for fixture in live.fixtures if fixture.status == "live"}
+    dates.add(live.generated_at[:10])
+    states = [state for day in sorted(dates) for state in await day_states(deps.storage, day)]
+    history: dict[int, list[tuple[int, LiveSignals]]] = {}
+    for state in sorted(states, key=lambda s: s.fetched_at):
+        for fixture in state.fixtures:
+            if fixture.match is None or fixture.minute is None:
+                continue
+            signals = _signals(fixture)
+            if signals is not None:
+                history.setdefault(fixture.match, []).append((fixture.minute, signals))
+    return {match: sorted(points) for match, points in history.items()}
+
+
+def _signal_at(history: list[tuple[int, LiveSignals]], minute: float) -> LiveSignals | None:
+    """The latest published signal at or before this keyframe minute, or None
+    when no poll had landed yet (keeping the pre-match anchor for that frame)."""
+    found: LiveSignals | None = None
+    for point_minute, signals in history:
+        if point_minute > minute:
+            break
+        found = signals
+    return found
+
+
 def _live_wdl_frames(
-    forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool
+    forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool, history: list[tuple[int, LiveSignals]]
 ) -> tuple[dict[str, list[float]], list[dict[str, Any]]] | None:
-    """Current per-draw W/D/L plus a keyframe per goal, all from one shared rate sample."""
+    """Current per-draw W/D/L plus a keyframe per goal, all from one shared rate
+    sample. Each keyframe carries the signals as they stood at that minute."""
     if fixture.home_id is None or fixture.away_id is None:
         return None
     states = _replay_states(fixture)
     if not states:
         return None
+    signals_at = [_signal_at(history, state.minute) for state in states]
+    if signals_at[-1] is None:
+        # The latest keyframe always reflects the freshest published signal.
+        signals_at[-1] = _signals(fixture)
     frames = forecaster.live_wdl_draws_at(
-        fixture.home_id, fixture.away_id, states, knockout=knockout, signals=_signals(fixture)
+        fixture.home_id, fixture.away_id, states, knockout=knockout, signals_at=signals_at
     )
     keyframes = [
         {
