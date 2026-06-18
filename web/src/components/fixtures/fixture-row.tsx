@@ -279,7 +279,7 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
             {beatCode && (
               <span
                 key={`${index}-${beatCode}`}
-                className="ml-1 animate-[goal-flash_1500ms_ease-out] font-display text-[11px] font-bold uppercase tracking-[0.08em]"
+                className="ml-1 animate-[goal-flash_1500ms_ease-out_forwards] font-display text-[11px] font-bold uppercase tracking-[0.08em]"
                 style={{ color: chartColour(beatId ?? "") }}
               >
                 Goal {beatCode}
