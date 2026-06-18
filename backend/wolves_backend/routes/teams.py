@@ -11,12 +11,34 @@ from wolves.data.store import DatasetNotFoundError
 from wolves.insights.explain import StrengthExplanation  # noqa: TC001
 from wolves.insights.path_tree import PathTree  # noqa: TC001
 from wolves_backend.deps import Deps, get_deps
-from wolves_backend.models import TeamHistory
+from wolves_backend.models import TeamHistories, TeamHistory
 from wolves_backend.team_history import team_history_points
 
 router = APIRouter(prefix="/teams")
 
 DepsDep = Annotated[Deps, Depends(get_deps)]
+
+MAX_HISTORY_IDS = 48
+
+
+@router.get("/histories")
+async def histories(
+    deps: DepsDep,
+    ids: Annotated[str, Query()],
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+) -> TeamHistories:
+    """Forecast series for several teams from one pass over the snapshot bodies."""
+    team_ids = [team_id for team_id in (raw.strip() for raw in ids.split(",")) if team_id][:MAX_HISTORY_IDS]
+    if not team_ids:
+        raise HTTPException(status_code=400, detail="ids must list at least one team")
+    refs = (await deps.snapshots.index())[:limit]
+    bodies = list(await asyncio.gather(*(deps.storage.read(ref.key) for ref in refs)))
+    snapshots = list(zip(refs, bodies, strict=True))
+    return TeamHistories(
+        histories=[
+            TeamHistory(team_id=team_id, points=team_history_points(team_id, snapshots)) for team_id in team_ids
+        ]
+    )
 
 
 @router.get("/{team_id}/history")

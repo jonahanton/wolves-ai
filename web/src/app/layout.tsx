@@ -4,7 +4,7 @@ import { LiveDigest } from "@/components/shell/live-digest";
 import { RouteProgress } from "@/components/shell/route-progress";
 import { SiteNav } from "@/components/shell/site-nav";
 import { orNull } from "@/lib/api";
-import { loadImpact } from "@/lib/impact";
+import { loadAgentImpact } from "@/lib/impact";
 import { loadLiveState } from "@/lib/live";
 import "./globals.css";
 
@@ -67,7 +67,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [live, impact] = await Promise.all([loadLiveState(), loadImpact()]);
+  const [live, impact] = await Promise.all([loadLiveState(), loadAgentImpact()]);
 
   return (
     <html

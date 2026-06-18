@@ -82,6 +82,10 @@ class TeamHistory(WireModel):
     points: list[TeamHistoryPoint]
 
 
+class TeamHistories(WireModel):
+    histories: list[TeamHistory]
+
+
 class OddsDates(WireModel):
     dates: list[str]
 

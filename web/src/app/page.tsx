@@ -7,9 +7,9 @@ import { cleanStories } from "@/lib/forecast";
 import type { ChartTeamInput } from "@/lib/forecast-series";
 import { formatRunStampEastern } from "@/lib/format";
 import { loadFullRunIds } from "@/lib/full-runs";
-import { impactForAgent, loadImpact } from "@/lib/impact";
+import { impactForAgent, loadAgentImpact } from "@/lib/impact";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
-import { loadSnapshotIndex, loadTeamHistory } from "@/lib/runs";
+import { loadSnapshotIndex, loadTeamHistories } from "@/lib/runs";
 import { loadDistributions } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
 
@@ -45,14 +45,14 @@ export default async function LandingPage() {
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
     .map((t) => t.team_id);
 
-  const impactIds = [...topIds];
-  const [fullRunIds, distributions, impactResult, ...histories] = await Promise.all([
+  const [fullRunIds, distributions, impactResult, historiesResult] = await Promise.all([
     loadFullRunIds(index),
     loadDistributions(agentSnapshot.run.run_id),
-    loadImpact(impactIds),
-    ...allIds.map((teamId) => loadTeamHistory(teamId)),
+    loadAgentImpact(),
+    loadTeamHistories(allIds),
   ] as const);
   const impact = impactForAgent(orNull(impactResult), agentSnapshot.run.run_id);
+  const historyByTeam = new Map((orNull(historiesResult)?.histories ?? []).map((h) => [h.teamId, h]));
 
   const sidecar = orNull(distributions);
   const championCells = Object.fromEntries(
@@ -71,15 +71,13 @@ export default async function LandingPage() {
   const drivers = agentSnapshot.distributions?.drivers ?? {};
   const stories = cleanStories(agentSnapshot.agent?.narrative.team_stories ?? {});
 
-  const chartTeams: ChartTeamInput[] = allIds.map((teamId, i) => ({
+  const chartTeams: ChartTeamInput[] = allIds.map((teamId) => ({
     teamId,
     name: names[teamId] ?? teamId,
     featured: teamId === leaderId,
     tier: topIds.has(teamId) ? "top" : "rest",
     colour: chartColour(teamId),
-    history: (orNull(histories[i])?.points ?? []).filter((p) =>
-      fullRunIds.has(p.runId),
-    ),
+    history: (historyByTeam.get(teamId)?.points ?? []).filter((p) => fullRunIds.has(p.runId)),
   }));
 
   return (
