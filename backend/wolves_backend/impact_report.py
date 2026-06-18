@@ -241,6 +241,12 @@ def _fixture_block(
         "p_home": forecast.p_home if forecast else None,
         "p_draw": forecast.p_draw if forecast else None,
         "p_away": forecast.p_away if forecast else None,
+        "home_shots_on": fixture.home_shots_on,
+        "away_shots_on": fixture.away_shots_on,
+        "home_total_shots": fixture.home_total_shots,
+        "away_total_shots": fixture.away_total_shots,
+        "home_possession": fixture.home_possession,
+        "away_possession": fixture.away_possession,
         "wdl_draws": frames[0] if frames else None,
         "wdl_keyframes": frames[1] if frames else [],
     }
