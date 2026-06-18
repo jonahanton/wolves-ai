@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Impact } from "@/lib/impact";
 import {
   compactLiveDigest,
+  DAILY_RUN_UTC_HOUR,
   dateTimeLabel,
   type DigestToken,
   nextDailyRunIso,
@@ -29,7 +30,6 @@ function signed(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
 }
 
-const DAILY_RUN_UTC_HOUR = 11;
 const LIP_FILL = "oklch(0.17 0.025 248 / 0.985)";
 const LIP_CAP_W = 28;
 const LIP_CAP_L = "M0 0 C0 15 7 24 18 24 L28 24 L28 0 Z";
@@ -136,7 +136,7 @@ export function LiveDigest({ initialLive, initialImpact }: LiveDigestProps) {
   }, [pollMs]);
 
   return (
-    <section aria-label="Live results digest" className="pointer-events-none relative z-0 h-9">
+    <section aria-label="Live results digest" className="pointer-events-none relative z-10 h-9">
       <div className="absolute inset-x-0 top-0 flex justify-center px-4">
         <div className="pointer-events-auto w-[min(500px,calc(100vw_-_32px))]">
           <div

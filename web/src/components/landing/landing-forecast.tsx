@@ -1,15 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChampionStat } from "@/components/landing/champion-stat";
 import { EpistemicDistribution } from "@/components/landing/epistemic-distribution";
 import { ForecastChart } from "@/components/landing/forecast-chart";
 import { HeroVideo } from "@/components/landing/hero-video";
 import { TeamSelector } from "@/components/landing/team-selector";
 import type { BoardRow } from "@/lib/derive";
+import { formatRunStampEastern } from "@/lib/format";
 import { assembleChartData, type ChartImpactPoint, type ChartTeamInput, type FixtureResultView } from "@/lib/forecast-series";
 import type { Impact } from "@/lib/impact";
-import { resultLabel } from "@/lib/impact-view";
+import { DAILY_RUN_UTC_HOUR, nextDailyRunIso, resultLabel } from "@/lib/impact-view";
 import type {
   CampOut,
   ScenarioWeightOut,
@@ -47,6 +48,13 @@ export function LandingForecast(props: LandingForecastProps) {
   } = props;
   const { xMax, weights, camps, drivers, stories, impact } = props;
   const [selectedTeamId, setSelectedTeamId] = useState(leaderId);
+  const [nextRun, setNextRun] = useState<string | null>(null);
+  useEffect(() => {
+    const tick = () => setNextRun(formatRunStampEastern(nextDailyRunIso(new Date(), DAILY_RUN_UTC_HOUR)));
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const data = useMemo(
     () => ({ ...assembleChartData(teams, [], names), results: impactResultTicks(impact) }),
@@ -87,8 +95,9 @@ export function LandingForecast(props: LandingForecastProps) {
             Forecasting the winner of the World Cup
           </h1>
           <div className="mt-[clamp(6px,1vh,10px)] flex items-center justify-between gap-4 border-t border-hairline pt-[clamp(4px,0.7vh,7px)]">
-            <span className="font-display text-[12px] font-medium tracking-[0.01em] text-cream-faint">
+            <span className="font-display text-[12px] font-medium leading-snug tracking-[0.01em] text-cream-faint">
               Last run {runLabel} ET
+              {nextRun && <span className="block text-cream-faint/70">Next run {nextRun} ET</span>}
             </span>
             <TeamSelector
               segments={board}
