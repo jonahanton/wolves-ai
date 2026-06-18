@@ -71,8 +71,7 @@ class Settings(BaseSettings):
     storage_mode: StorageMode = "both"
 
     runs_root: Path = REPO_ROOT / "runs"
-    # Drives both the fixture poll and the live-overlay impact rebuild, so the
-    # in-match forecast moves with the clock roughly every half minute.
+    # Also the live-overlay impact rebuild cadence, so the in-match forecast tracks the clock.
     live_poll_interval_s: float = 30.0
     # Several missed fast polls plus jitter before consumers treat the state as stale.
     live_stale_after_s: int = 150
