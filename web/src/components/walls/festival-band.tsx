@@ -6,7 +6,8 @@ interface FestivalBandProps {
   tag: string;
 }
 
-const TILE_SIZES = "(min-width: 1024px) 8vw, (min-width: 640px) 11vw, 20vw";
+// Span-2 tiles cover two columns, so size for the wide case to avoid upscaling.
+const TILE_SIZES = "(min-width: 1024px) 17vw, (min-width: 640px) 23vw, 40vw";
 
 export function FestivalBand({ family, tag }: FestivalBandProps) {
   return (
@@ -17,7 +18,7 @@ export function FestivalBand({ family, tag }: FestivalBandProps) {
             key={index}
             className={`relative ${tile.span2 ? "col-span-2" : ""} ${tile.rowSpan2 ? "row-span-2" : ""}`}
           >
-            <Image src={tile.src} alt="" fill sizes={TILE_SIZES} quality={60} className="object-cover" />
+            <Image src={tile.src} alt="" fill sizes={TILE_SIZES} quality={75} className="object-cover" />
           </div>
         ))}
       </div>
