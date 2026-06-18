@@ -15,8 +15,8 @@ interface WdlCurvesProps {
   homeCode: string;
   awayCode: string;
   showDraw: boolean;
-  // True while stepping a replay: the stroke morphs and bars/labels fade out.
-  morphing?: boolean;
+  // Bars and labels read only at a settled frame; they stay hidden across a replay.
+  playing?: boolean;
   // False snaps the stroke without a transition (the rewind to kickoff).
   animate?: boolean;
   morphMs?: number;
@@ -47,7 +47,7 @@ interface Lane {
   colour: string;
 }
 
-export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, morphing = false, animate = true, morphMs }: WdlCurvesProps) {
+export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, playing = false, animate = true, morphMs }: WdlCurvesProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [bloomed, setBloomed] = useState(false);
@@ -86,7 +86,7 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, morphi
   return (
     <div ref={ref} className="relative">
       <svg width={width} height={HEIGHT} className="block overflow-visible">
-        <g style={{ opacity: morphing ? 0 : 1, transition: "opacity 220ms ease-out" }}>
+        <g style={{ opacity: playing || !bloomed ? 0 : 1, transition: "opacity 260ms ease-out" }}>
         {lanes.map((lane) => (
           <g key={lane.id}>
             {lane.bars.map((b, i) => {
