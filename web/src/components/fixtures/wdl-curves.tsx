@@ -20,6 +20,8 @@ interface WdlCurvesProps {
   // False snaps the stroke without a transition (the rewind to kickoff).
   animate?: boolean;
   morphMs?: number;
+  // Linear morph for the continuous drift between keyframes.
+  linearMorph?: boolean;
 }
 
 const HEIGHT = 104;
@@ -47,7 +49,7 @@ interface Lane {
   colour: string;
 }
 
-export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, playing = false, animate = true, morphMs }: WdlCurvesProps) {
+export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, playing = false, animate = true, morphMs, linearMorph = false }: WdlCurvesProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [bloomed, setBloomed] = useState(false);
@@ -136,6 +138,7 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, playin
             width={width}
             animate={bloomed && animate}
             durationMs={morphMs}
+            linear={linearMorph}
           />
         ))}
       </svg>

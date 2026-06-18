@@ -182,6 +182,7 @@ interface ReplayTick {
   animate: boolean;
   beat: GoalSide | null;
   morphMs: number;
+  linear: boolean;
 }
 
 interface Replay extends Omit<ReplayTick, "morphMs"> {
@@ -223,15 +224,16 @@ function useReplay(frames: WdlFrame[]): Replay {
     let lastIndex = 0;
     let morphStart = 0;
     let morphMs = DRIFT_MORPH_MS;
+    let linear = false;
     let beat: GoalSide | null = null;
-    setTick({ minute: 0, index: 0, animate: false, beat: null, morphMs: DRIFT_MORPH_MS });
+    setTick({ minute: 0, index: 0, animate: false, beat: null, morphMs: DRIFT_MORPH_MS, linear: false });
 
     const step = (now: number) => {
       const dt = now - prev;
       prev = now;
       if (pause > 0) {
         pause -= dt;
-        setTick({ minute: frames[lastIndex].minute, index: lastIndex, animate: true, beat, morphMs });
+        setTick({ minute: frames[lastIndex].minute, index: lastIndex, animate: true, beat, morphMs, linear });
         raf.current = requestAnimationFrame(step);
         if (pause <= 0) beat = null;
         return;
@@ -244,19 +246,23 @@ function useReplay(frames: WdlFrame[]): Replay {
       }
       if (index !== lastIndex) {
         const side = goalSide(frames[index], frames[lastIndex]);
+        // A drift morph spans exactly the gap just crossed and runs at constant
+        // speed, so consecutive keyframes chain into one continuous flow.
+        const gapMs = (frames[index].minute - frames[lastIndex].minute) * MS_PER_MINUTE;
         lastIndex = index;
         morphStart = now;
-        morphMs = side ? GOAL_MORPH_MS : DRIFT_MORPH_MS;
+        morphMs = side ? GOAL_MORPH_MS : Math.max(1, gapMs);
+        linear = !side;
         if (side) {
           beat = side;
           pause = GOAL_PAUSE_MS;
-          setTick({ minute: frames[index].minute, index, animate: true, beat, morphMs });
+          setTick({ minute: frames[index].minute, index, animate: true, beat, morphMs, linear: false });
           raf.current = requestAnimationFrame(step);
           return;
         }
       }
       const morphing = now - morphStart < morphMs;
-      setTick({ minute: Math.round(minute), index, animate: true, beat: null, morphMs });
+      setTick({ minute: Math.round(minute), index, animate: true, beat: null, morphMs, linear });
       if (clock < run || morphing) raf.current = requestAnimationFrame(step);
       else setTick(null);
     };
@@ -265,7 +271,7 @@ function useReplay(frames: WdlFrame[]): Replay {
 
   if (!tick) {
     const index = Math.max(0, frames.length - 1);
-    return { index, minute: target, animate: true, beat: null, morphMs: DRIFT_MORPH_MS, playing: false, play };
+    return { index, minute: target, animate: true, beat: null, morphMs: DRIFT_MORPH_MS, linear: false, playing: false, play };
   }
   return { ...tick, index: Math.min(tick.index, frames.length - 1), playing: true, play };
 }
@@ -273,7 +279,7 @@ function useReplay(frames: WdlFrame[]): Replay {
 function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
   const fixture = impact?.fixtures.find((f) => f.match === row.match) ?? null;
   const frames = liveWdlFrames(fixture, row.minute, row.homeGoals, row.awayGoals);
-  const { index, minute, playing, animate, beat, morphMs, play } = useReplay(frames);
+  const { index, minute, playing, animate, beat, morphMs, linear, play } = useReplay(frames);
   const frame = frames[index] ?? null;
   const canReplay = frames.length >= 2;
   const statTrack = fixture?.statTrack ?? [];
@@ -321,6 +327,7 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           playing={playing}
           animate={animate}
           morphMs={morphMs}
+          linearMorph={linear}
           colours={row.colours}
           homeCode={row.homeCode}
           awayCode={row.awayCode}
