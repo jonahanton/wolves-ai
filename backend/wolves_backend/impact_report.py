@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 from wolves.insights.impact import exit_impacts, stage_impacts
 from wolves.live_state import LiveFixture, LiveState
 from wolves.models.inmatch import MatchState
+from wolves.models.live_signals import LiveSignals
 from wolves.s3.layout import LIVE_IMPACT, LIVE_STATE
 from wolves.sim.format import PlayedResult
 from wolves.sim.result_set import result_set_from_entries
@@ -202,6 +203,18 @@ def _wdl(draws: tuple[list[float], list[float], list[float]]) -> dict[str, list[
     return {"p_home": draws[0], "p_draw": draws[1], "p_away": draws[2]}
 
 
+def _signals(fixture: LiveFixture) -> LiveSignals | None:
+    """Live shots and possession from the schedule-oriented fixture; None when
+    the provider has published neither yet."""
+    signals = LiveSignals(
+        home_shots_on=fixture.home_shots_on,
+        away_shots_on=fixture.away_shots_on,
+        home_possession=fixture.home_possession,
+        away_possession=fixture.away_possession,
+    )
+    return signals if signals.has_shots or signals.has_possession else None
+
+
 def _live_wdl_frames(
     forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool
 ) -> tuple[dict[str, list[float]], list[dict[str, Any]]] | None:
@@ -211,7 +224,9 @@ def _live_wdl_frames(
     states = _replay_states(fixture)
     if not states:
         return None
-    frames = forecaster.live_wdl_draws_at(fixture.home_id, fixture.away_id, states, knockout=knockout)
+    frames = forecaster.live_wdl_draws_at(
+        fixture.home_id, fixture.away_id, states, knockout=knockout, signals=_signals(fixture)
+    )
     keyframes = [
         {
             "minute": int(state.minute),
