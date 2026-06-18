@@ -20,8 +20,10 @@ from pathlib import Path
 
 RUNS = Path(__file__).resolve().parent.parent / "runs"
 LIVE = RUNS / "live"
+HISTORY = LIVE / "history"
 REAL_BACKUP = RUNS / ".live-real"
 MARKER = LIVE / ".demo-active"
+SEEDED = LIVE / ".demo-history"
 
 FILES = ("state.json", "results.json")
 
@@ -38,6 +40,16 @@ FINISHED: dict[int, tuple[int, int]] = {
 
 # One in-play game for the score-hold leg: match -> (home_goals, away_goals, minute).
 LIVE_GAME: tuple[int, int, int, int] = (22, 1, 0, 63)  # England 1-0 Croatia, 63'
+
+# Synthetic poll history for the live game, so a replay shows the bars build with
+# the curve. minute -> (home_shots_on, away_shots_on, home_total, away_total, home_poss).
+LIVE_HISTORY: list[tuple[int, int, int, int, int, float]] = [
+    (10, 1, 0, 2, 1, 0.52),
+    (24, 2, 1, 5, 3, 0.55),
+    (38, 3, 1, 8, 3, 0.57),
+    (52, 5, 2, 11, 4, 0.58),
+    (63, 6, 2, 13, 5, 0.58),
+]
 
 
 def _winner(home_goals: int, away_goals: int) -> str | None:
@@ -88,6 +100,32 @@ def _build_scenario(state: dict, results: dict) -> tuple[dict, dict]:
     return state, results
 
 
+def _seed_history(state: dict) -> None:
+    """Write one history point per LIVE_HISTORY minute, each a copy of the demo
+    state with the live game wound back to that minute's score and stats, so a
+    replay animates the bars building up rather than holding flat."""
+    lm = LIVE_GAME[0]
+    now = datetime.now(UTC)
+    written = []
+    for offset, (minute, hso, aso, hts, ats, hposs) in enumerate(LIVE_HISTORY):
+        snap = json.loads(json.dumps(state))
+        stamp = now - timedelta(minutes=len(LIVE_HISTORY) - offset)
+        for fixture in snap["fixtures"]:
+            if fixture["match"] != lm:
+                continue
+            fixture["minute"] = minute
+            fixture["home_shots_on"], fixture["away_shots_on"] = hso, aso
+            fixture["home_total_shots"], fixture["away_total_shots"] = hts, ats
+            fixture["home_possession"], fixture["away_possession"] = hposs, round(1.0 - hposs, 2)
+        snap["generated_at"] = snap["fetched_at"] = stamp.isoformat(timespec="seconds")
+        day = HISTORY / stamp.date().isoformat()
+        day.mkdir(parents=True, exist_ok=True)
+        path = day / f"{stamp.strftime('%H%M%S')}.json"
+        path.write_text(json.dumps(snap, indent=1))
+        written.append(str(path.relative_to(RUNS)))
+    SEEDED.write_text("\n".join(written))
+
+
 def _copy(src: Path, dst: Path) -> None:
     dst.mkdir(parents=True, exist_ok=True)
     for name in FILES:
@@ -108,6 +146,7 @@ def demo_on() -> int:
     )
     (LIVE / "state.json").write_text(json.dumps(state, indent=1))
     (LIVE / "results.json").write_text(json.dumps(results, indent=1))
+    _seed_history(state)
     MARKER.write_text("")
     print("demo scenario written to runs/live")
     return 0
@@ -122,6 +161,10 @@ def demo_off() -> int:
         return 1
     _copy(REAL_BACKUP, LIVE)
     shutil.rmtree(REAL_BACKUP)
+    if SEEDED.exists():
+        for line in SEEDED.read_text().splitlines():
+            (RUNS / line).unlink(missing_ok=True)
+        SEEDED.unlink()
     MARKER.unlink()
     print("real live state restored; demo artefacts removed")
     return 0
