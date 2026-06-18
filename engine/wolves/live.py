@@ -20,6 +20,7 @@ from wolves.clients.api_football import (
     ApiFootballPayloadError,
     FakeFixturesClient,
     FixturesClient,
+    MatchFixture,
 )
 from wolves.config import Settings
 from wolves.forecast import Forecaster
@@ -157,6 +158,7 @@ async def live_pass(
         forecaster = Forecaster(settings)
     if not forecaster.is_fitted:
         forecaster.fit(extra_results=played_match_records(settings))
+    fast = _fast_cadence(polled, now=fetched_at)
     state = build_live_state(
         forecaster,
         polled,
@@ -165,7 +167,7 @@ async def live_pass(
         previous=previous,
         n_sims=n_sims,
         seed=seed,
-        stale_after_s=settings.live_stale_after_s,
+        stale_after_s=settings.live_stale_after_s if fast else settings.live_idle_stale_after_s,
     )
     for drift in state.schedule_drift:
         logger.warning(
@@ -259,6 +261,20 @@ def near_kickoff(state: LiveState | None, *, now: datetime, horizon: timedelta) 
         if fixture.status == "live":
             return True
         if fixture.status == "scheduled" and abs(datetime.fromisoformat(fixture.kickoff) - now) <= horizon:
+            return True
+    return False
+
+
+_FAST_HORIZON = timedelta(hours=1)
+
+
+def _fast_cadence(fixtures: list[MatchFixture], *, now: datetime) -> bool:
+    """True when a fixture is live or kicks off within the horizon, so the stale
+    window can track the poll cadence rather than expiring mid-idle-gap."""
+    for fixture in fixtures:
+        if fixture.status == "live":
+            return True
+        if fixture.status == "scheduled" and abs(fixture.kickoff.astimezone(UTC) - now) <= _FAST_HORIZON:
             return True
     return False
 
