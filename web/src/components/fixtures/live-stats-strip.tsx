@@ -12,6 +12,8 @@ interface LiveStatsStripProps {
   homeCode: string;
   awayCode: string;
   colours: RowColours;
+  // When a replay is morphing the curve, the bars slide over the same duration.
+  morphMs?: number;
   homePossession: number | null;
   awayPossession: number | null;
   homeTotalShots: number | null;
@@ -54,17 +56,18 @@ function buildRows(props: LiveStatsStripProps): StatRow[] {
   return rows;
 }
 
-function StatBar({ row, colours }: { row: StatRow; colours: RowColours }) {
+function StatBar({ row, colours, morphMs }: { row: StatRow; colours: RowColours; morphMs?: number }) {
   const total = row.home + row.away;
   const homePct = total > 0 ? (row.home / total) * 100 : 50;
+  const transition = morphMs ? `width ${morphMs}ms cubic-bezier(0.65, 0, 0.35, 1)` : undefined;
   return (
     <div className="flex flex-col items-center gap-0.5">
       <span className="font-display text-[9px] uppercase tracking-[0.07em] text-cream-faint">{row.label}</span>
       <span className="grid w-[64%] grid-cols-[1.4rem_1fr_1.4rem] items-center gap-2">
         <span className="text-right font-mono text-[11px] tabular-nums text-cream-faint">{row.homeText}</span>
         <span className="flex h-[5px] overflow-hidden rounded-full bg-night-2">
-          <span style={{ width: `${homePct}%`, backgroundColor: colours.home, opacity: 0.7 }} />
-          <span style={{ width: `${100 - homePct}%`, backgroundColor: colours.away, opacity: 0.7 }} />
+          <span style={{ width: `${homePct}%`, backgroundColor: colours.home, opacity: 0.7, transition }} />
+          <span style={{ width: `${100 - homePct}%`, backgroundColor: colours.away, opacity: 0.7, transition }} />
         </span>
         <span className="font-mono text-[11px] tabular-nums text-cream-faint">{row.awayText}</span>
       </span>
@@ -78,7 +81,7 @@ export function LiveStatsStrip(props: LiveStatsStripProps) {
   return (
     <div className="space-y-2">
       {rows.map((row) => (
-        <StatBar key={row.label} row={row} colours={props.colours} />
+        <StatBar key={row.label} row={row} colours={props.colours} morphMs={props.morphMs} />
       ))}
     </div>
   );

@@ -111,7 +111,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
         <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
           <div className="overflow-hidden" inert={!open}>
             {everOpened && (
-              <div className="-mx-1.5 mt-1 rounded-md bg-night-2/60 px-4 pb-5 pt-4">
+              <div className="-mx-1.5 mb-3 mt-1 rounded-lg border border-hairline/40 bg-night-2/70 px-4 pb-5 pt-4">
                 {tbc && row.slot ? (
                   <SlotDetail row={row} />
                 ) : live ? (
@@ -268,12 +268,13 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         {frame && (
-          <p className="flex items-baseline gap-2 font-display text-[16px] text-cream-faint">
+          <p className="flex items-baseline gap-2 font-display text-[14px] text-cream-faint">
             <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>
-            <span className="font-mono text-[18px] font-semibold tabular-nums text-cream">
+            <span className="font-mono text-[15px] font-semibold tabular-nums text-cream">
               {frame.homeGoals}-{frame.awayGoals}
             </span>
             <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
+            <span className="ml-1 font-mono text-[16px] font-semibold leading-none tabular-nums text-cream-dim">{minute}&apos;</span>
             {beatCode && (
               <span
                 key={`${index}-${beatCode}`}
@@ -286,16 +287,13 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           </p>
         )}
         {canReplay && (
-          <div className="flex flex-col items-end gap-1">
-            <button
-              type="button"
-              onClick={play}
-              className="shrink-0 rounded-full border border-hairline/70 px-3 py-1 font-display text-[11.5px] font-bold tracking-[0.01em] text-cream-dim transition-colors hover:border-cream/50 hover:text-cream"
-            >
-              Replay from kick-off
-            </button>
-            <span className="font-mono text-[22px] font-semibold leading-none tabular-nums text-cream-dim">{minute}&apos;</span>
-          </div>
+          <button
+            type="button"
+            onClick={play}
+            className="shrink-0 rounded-full border border-hairline/70 px-3 py-1 font-display text-[11.5px] font-bold tracking-[0.01em] text-cream-dim transition-colors hover:border-cream/50 hover:text-cream"
+          >
+            Replay from kick-off
+          </button>
         )}
       </div>
       {frame && (
@@ -310,17 +308,18 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           showDraw={!row.knockout}
         />
       )}
-      {fixture && (
+      {frame && (
         <LiveStatsStrip
           homeCode={row.homeCode}
           awayCode={row.awayCode}
           colours={row.colours}
-          homePossession={fixture.homePossession}
-          awayPossession={fixture.awayPossession}
-          homeTotalShots={fixture.homeTotalShots}
-          awayTotalShots={fixture.awayTotalShots}
-          homeShotsOn={fixture.homeShotsOn}
-          awayShotsOn={fixture.awayShotsOn}
+          morphMs={morphMs}
+          homePossession={frame.stats.homePossession}
+          awayPossession={frame.stats.awayPossession}
+          homeTotalShots={frame.stats.homeTotalShots}
+          awayTotalShots={frame.stats.awayTotalShots}
+          homeShotsOn={frame.stats.homeShotsOn}
+          awayShotsOn={frame.stats.awayShotsOn}
         />
       )}
       <div className={frame ? "border-t border-hairline/60 pt-4" : undefined}>

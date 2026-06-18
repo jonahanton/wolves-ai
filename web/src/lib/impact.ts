@@ -55,6 +55,12 @@ export interface WdlKeyframe {
   homeGoals: number;
   awayGoals: number;
   wdl: LiveWdlDraws;
+  homeShotsOn: number | null;
+  awayShotsOn: number | null;
+  homeTotalShots: number | null;
+  awayTotalShots: number | null;
+  homePossession: number | null;
+  awayPossession: number | null;
 }
 
 export interface ImpactResult {
