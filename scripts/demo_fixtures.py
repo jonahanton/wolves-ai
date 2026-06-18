@@ -16,6 +16,7 @@ import json
 import math
 import shutil
 import sys
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -39,42 +40,40 @@ FINISHED: dict[int, tuple[int, int]] = {
     23: (2, 1),  # Portugal edge Congo DR: modest upward shift
 }
 
-# One in-play game for the score-hold leg: match -> (home_goals, away_goals, minute).
-LIVE_GAME: tuple[int, int, int, int] = (22, 1, 0, 63)  # England 1-0 Croatia, 63'
-
-# Cumulative shot minutes for the live game: every minute a tally ticks up, the
-# bars build in realistic jumps. minute -> (home_shots_on, away_shots_on, home_total, away_total).
-_SHOT_EVENTS: dict[int, tuple[int, int, int, int]] = {
-    4: (0, 0, 1, 0),
-    9: (1, 0, 2, 1),
-    16: (1, 1, 3, 2),
-    23: (2, 1, 5, 3),
-    31: (2, 1, 6, 4),
-    38: (3, 1, 8, 4),
-    45: (3, 2, 9, 5),
-    52: (5, 2, 11, 5),
-    58: (5, 2, 12, 5),
-    63: (6, 2, 13, 5),
-}
+@dataclass(frozen=True)
+class LiveGame:
+    match: int
+    home_goals: int
+    away_goals: int
+    minute: int
+    home_shots_on: int
+    away_shots_on: int
+    home_total_shots: int
+    away_total_shots: int
+    home_possession: float
+    poss_phase: float
 
 
-def _live_history() -> list[tuple[int, int, int, int, int, float]]:
-    """A per-minute poll series so a replay moves the bars every minute, with
-    possession wandering markedly the way a real feed does."""
-    minute_target = LIVE_GAME[3]
-    series = []
-    hso = aso = hts = ats = 0
-    for minute in range(1, minute_target + 1):
-        if minute in _SHOT_EVENTS:
-            hso, aso, hts, ats = _SHOT_EVENTS[minute]
-        # Possession wanders between roughly 40% and 70%, settling above half.
-        swing = 0.55 + 0.12 * math.sin(minute / 6.0) + 0.04 * math.sin(minute / 2.3)
-        home_poss = round(min(0.72, max(0.38, swing)), 2)
-        series.append((minute, hso, aso, hts, ats, home_poss))
-    return series
+# Demo in-play games; the demo owns these fully and seeds each a per-minute history.
+LIVE_GAMES: tuple[LiveGame, ...] = (
+    LiveGame(22, 1, 0, 63, 6, 2, 13, 5, 0.58, 0.0),  # England 1-0 Croatia
+    LiveGame(27, 0, 0, 10, 1, 1, 3, 2, 0.46, 1.4),  # Canada 0-0 Qatar
+)
 
 
-LIVE_HISTORY: list[tuple[int, int, int, int, int, float]] = _live_history()
+def _poss_at(game: LiveGame, minute: int) -> float:
+    swing = game.home_possession + 0.12 * math.sin(minute / 6.0 + game.poss_phase) + 0.04 * math.sin(minute / 2.3)
+    return round(min(0.74, max(0.30, swing)), 2)
+
+
+def _shots_at(game: LiveGame, minute: int) -> tuple[int, int, int, int]:
+    frac = minute / game.minute if game.minute else 0.0
+    return (
+        round(game.home_shots_on * frac),
+        round(game.away_shots_on * frac),
+        round(game.home_total_shots * frac),
+        round(game.away_total_shots * frac),
+    )
 
 
 def _winner(home_goals: int, away_goals: int) -> str | None:
@@ -108,16 +107,25 @@ def _build_scenario(state: dict, results: dict) -> tuple[dict, dict]:
         }
         results["results"][str(match)] = {"match": match, "home_goals": hg, "away_goals": ag, "winner": won}
 
-    lm, lhg, lag, minute = LIVE_GAME
-    live_fx = fixtures[lm]
-    live_fx["status"] = "live"
-    live_fx["home_goals"], live_fx["away_goals"], live_fx["minute"] = lhg, lag, minute
-    live_fx["forecast"] = {"source": "in_match", "p_home": 0.78, "p_away": 0.07, "p_draw": 0.15, "modal_score": f"{lhg}-{lag}"}
-    live_fx["home_shots_on"], live_fx["away_shots_on"] = 6, 2
-    live_fx["home_total_shots"], live_fx["away_total_shots"] = 13, 5
-    live_fx["home_possession"], live_fx["away_possession"] = 0.58, 0.42
+    for game in LIVE_GAMES:
+        fx = fixtures[game.match]
+        fx["status"] = "live"
+        fx["home_goals"], fx["away_goals"], fx["minute"] = game.home_goals, game.away_goals, game.minute
+        lead = game.home_goals - game.away_goals
+        p_home = 0.5 + 0.14 * lead
+        fx["forecast"] = {
+            "source": "in_match",
+            "p_home": round(p_home, 2),
+            "p_away": round(0.85 - p_home, 2),
+            "p_draw": 0.15,
+            "modal_score": f"{game.home_goals}-{game.away_goals}",
+        }
+        fx["home_shots_on"], fx["away_shots_on"] = game.home_shots_on, game.away_shots_on
+        fx["home_total_shots"], fx["away_total_shots"] = game.home_total_shots, game.away_total_shots
+        fx["home_possession"] = game.home_possession
+        fx["away_possession"] = round(1.0 - game.home_possession, 2)
 
-    state["live_match_count"] = 1
+    state["live_match_count"] = len(LIVE_GAMES)
     state["poll_status"] = "ok"
     state["fetched_at"] = state["generated_at"] = fetched_at
     state["stale_after"] = stale_after
@@ -126,22 +134,24 @@ def _build_scenario(state: dict, results: dict) -> tuple[dict, dict]:
 
 
 def _seed_history(state: dict) -> None:
-    """Write one history point per LIVE_HISTORY minute, each a copy of the demo
-    state with the live game wound back to that minute's score and stats, so a
-    replay animates the bars building up rather than holding flat."""
-    lm = LIVE_GAME[0]
+    """Per-minute history for every live game, so a replay animates each game's
+    bars building rather than holding flat."""
+    longest = max(game.minute for game in LIVE_GAMES)
     now = datetime.now(UTC)
     written = []
-    for offset, (minute, hso, aso, hts, ats, hposs) in enumerate(LIVE_HISTORY):
+    for minute in range(1, longest + 1):
         snap = json.loads(json.dumps(state))
-        stamp = now - timedelta(minutes=len(LIVE_HISTORY) - offset)
         for fixture in snap["fixtures"]:
-            if fixture["match"] != lm:
+            game = next((g for g in LIVE_GAMES if g.match == fixture["match"]), None)
+            if game is None or minute > game.minute:
                 continue
+            hso, aso, hts, ats = _shots_at(game, minute)
+            home_poss = _poss_at(game, minute)
             fixture["minute"] = minute
             fixture["home_shots_on"], fixture["away_shots_on"] = hso, aso
             fixture["home_total_shots"], fixture["away_total_shots"] = hts, ats
-            fixture["home_possession"], fixture["away_possession"] = hposs, round(1.0 - hposs, 2)
+            fixture["home_possession"], fixture["away_possession"] = home_poss, round(1.0 - home_poss, 2)
+        stamp = now - timedelta(minutes=longest - minute)
         snap["generated_at"] = snap["fetched_at"] = stamp.isoformat(timespec="seconds")
         day = HISTORY / stamp.date().isoformat()
         day.mkdir(parents=True, exist_ok=True)
