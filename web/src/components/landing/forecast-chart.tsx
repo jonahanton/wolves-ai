@@ -39,7 +39,7 @@ const MOBILE_BREAK = 560;
 const DAY_MS = 86_400_000;
 const RESULT_LANE_START_PX = 5;
 const RESULT_LANE_PX = 16;
-const ESTIMATE_LANE_PX = 26;
+const ESTIMATE_LANE_PX = 18;
 
 const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.42)";
 const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
@@ -160,7 +160,7 @@ export function ForecastChart({
     () => (selectedTeam ? impactLegs(impacts, selectedTeamId) : null),
     [selectedTeam, impacts, selectedTeamId],
   );
-  const deltaGutter = selectedLegs ? (mobile ? 58 : 74) : 0;
+  const deltaGutter = selectedLegs ? (mobile ? 52 : 62) : 0;
   const margin = useMemo(() => {
     const m = mobile ? MOBILE_MARGIN : MARGIN;
     return { ...m, right: m.right + deltaGutter };
@@ -212,11 +212,22 @@ export function ForecastChart({
   useEffect(() => {
     if (!svgRef.current || scaffoldedRef.current) return;
     const svg = select(svgRef.current);
+    const defs = svg.append("defs");
+    const fade = defs
+      .append("linearGradient")
+      .attr("id", "history-fade")
+      .attr("x1", "0")
+      .attr("x2", "1")
+      .attr("y1", "0")
+      .attr("y2", "0");
+    fade.append("stop").attr("offset", "0%").attr("stop-color", "var(--color-night)").attr("stop-opacity", 0.62);
+    fade.append("stop").attr("offset", "55%").attr("stop-color", "var(--color-night)").attr("stop-opacity", 0);
     svg.append("g").attr("class", "x-axis");
     svg.append("g").attr("class", "baseline");
     svg.append("g").attr("class", "result-ticks");
     svg.append("g").attr("class", "envelope");
     svg.append("g").attr("class", "series");
+    svg.append("g").attr("class", "history-fade");
     svg.append("g").attr("class", "live-estimate");
     svg.append("g").attr("class", "ends");
     svg.append("g").attr("class", "hover-layer");
@@ -390,9 +401,13 @@ export function ForecastChart({
       )
       .attr("stroke-linecap", "round")
       .attr("stroke-linejoin", "round")
-      .attr("stroke", (d) => d.colour)
-      .attr("stroke-width", (d) => (d.teamId === selectedTeamId ? 3.4 : 1.8))
-      .attr("opacity", (d) => (d.teamId === selectedTeamId ? 1 : 0.85))
+      .attr("stroke", (d) =>
+        d.teamId === selectedTeamId
+          ? d.colour
+          : `color-mix(in oklab, ${d.colour} 78%, var(--color-night))`,
+      )
+      .attr("stroke-width", (d) => (d.teamId === selectedTeamId ? 3.4 : 1.6))
+      .attr("opacity", (d) => (d.teamId === selectedTeamId ? 1 : 0.55))
       .style("cursor", "pointer")
       .style("filter", (d) =>
         d.teamId === selectedTeamId
@@ -420,6 +435,19 @@ export function ForecastChart({
         draw(this);
       });
     }
+
+    // Pull the eye to "now": veil older history under a left-to-right night fade.
+    svg
+      .select<SVGGElement>(".history-fade")
+      .selectAll<SVGRectElement, number>("rect")
+      .data([0])
+      .join("rect")
+      .attr("x", margin.left)
+      .attr("y", margin.top)
+      .attr("width", Math.max(0, (lastRunTime !== null ? x(lastRunTime) : width - margin.right) - margin.left))
+      .attr("height", baseY - margin.top)
+      .attr("fill", "url(#history-fade)")
+      .attr("pointer-events", "none");
 
     interface End {
       teamId: string;
@@ -629,11 +657,16 @@ export function ForecastChart({
     const rows = [...teamGroups, ...othersGroup].sort(
       (a, b) => a.anchorY - b.anchorY,
     );
-    const teamGap = width < MOBILE_BREAK ? 36 : 42;
-    const othersGap = width < MOBILE_BREAK ? 22 : 26;
-    const rowGap = (i: number) =>
-      rows[i].kind === "others" ? othersGap : teamGap;
-    const gapBefore = (i: number) => Math.max(rowGap(i - 1), rowGap(i));
+    // Half-height of each label so neighbours separate by exactly what they need:
+    // the selected team is tallest, the rest are smaller and pack tighter.
+    const mob = width < MOBILE_BREAK;
+    const halfHeight = (i: number) => {
+      const r = rows[i];
+      if (r.kind === "others") return mob ? 9 : 10;
+      const emph = r.teams.some((t) => t.emphasised);
+      return emph ? (mob ? 22 : 26) : mob ? 15 : 17;
+    };
+    const gapBefore = (i: number) => halfHeight(i - 1) + halfHeight(i) + 6;
 
     const top = margin.top;
     const bottom = height - margin.bottom - 8;
@@ -736,13 +769,17 @@ export function ForecastChart({
                 key={team.teamId}
                 type="button"
                 onClick={() => onSelectTeam(team.teamId)}
-                className="flex flex-col items-start gap-y-0 transition-opacity hover:opacity-100"
+                className="flex flex-col items-start gap-y-0.5 transition-opacity hover:opacity-100"
                 style={{ color: team.colour }}
               >
-                <span className="font-display text-[14px] font-bold leading-none tracking-[0.01em]">
+                <span
+                  className={`font-display font-bold leading-none tracking-[0.01em] ${team.emphasised ? "text-[15px]" : "text-[12px]"}`}
+                >
                   {team.code}
                 </span>
-                <span className="font-display text-[clamp(20px,2.2vw,28px)] font-extrabold tabular-nums tracking-[-0.02em]">
+                <span
+                  className={`font-display font-extrabold tabular-nums tracking-[-0.02em] ${team.emphasised ? "text-[clamp(20px,2.2vw,27px)]" : "text-[clamp(15px,1.6vw,18px)]"}`}
+                >
                   {group.value}
                 </span>
               </button>
@@ -754,7 +791,7 @@ export function ForecastChart({
         <div
           className="pointer-events-none absolute z-10 whitespace-nowrap text-right transition-opacity duration-300"
           style={{
-            right: Math.max(8, width - (x(lastRunTime) + ESTIMATE_LANE_PX - 6)),
+            right: Math.max(8, width - (x(lastRunTime) + ESTIMATE_LANE_PX + 28)),
             top: 2,
             opacity: intro ? 1 : 0,
           }}
