@@ -11,10 +11,15 @@ import { formatKickoffTimeEastern, formatPctBare } from "@/lib/format";
 import type { Impact, StatPoint } from "@/lib/impact";
 import { chartColour } from "@/lib/team-colours";
 
+// The bars step on the same cadence as the curve keyframes, not every minute,
+// so a replay reads as a calm beat rather than a frantic flicker.
+const STAT_STEP_MIN = 3;
+
 function statAtMinute(track: StatPoint[], minute: number): StatPoint | null {
+  const stepped = Math.floor(minute / STAT_STEP_MIN) * STAT_STEP_MIN;
   let found: StatPoint | null = null;
   for (const point of track) {
-    if (point.minute > minute) break;
+    if (point.minute > stepped) break;
     found = point;
   }
   return found;
@@ -189,7 +194,7 @@ const MS_PER_MINUTE = 78;
 const GOAL_PAUSE_MS = 1500;
 const GOAL_MORPH_MS = 360;
 const DRIFT_MORPH_MS = 760;
-const STAT_MORPH_MS = 320;
+const STAT_MORPH_MS = 240;
 
 function goalSide(curr: WdlFrame, prev: WdlFrame): GoalSide | null {
   if (curr.homeGoals > prev.homeGoals) return "home";
@@ -359,18 +364,18 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
   }
   return (
     <div>
-      <p className="mb-2.5 font-display text-[11px] font-bold uppercase tracking-[0.06em] text-cream-faint">
-        Est. impact on the run
+      <p className="mb-2.5 font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint">
+        Est. impact on team outcomes
       </p>
       <div className="space-y-3">
         {groups.map((g) => (
-          <div key={g.id} className="grid grid-cols-[3rem_1fr] gap-x-3">
+          <div key={g.id} className="grid grid-cols-[3rem_auto] gap-x-3">
             <span className="pt-px font-display text-[13.5px] font-semibold" style={{ color: chartColour(g.id) }}>{g.code}</span>
             <div className="space-y-1.5">
               {g.shifts.map((shift) => {
                 const up = shift.toPct >= shift.fromPct;
                 return (
-                  <div key={shift.stageLabel} className="flex items-center justify-between gap-3 font-display text-[13px] leading-none">
+                  <div key={shift.stageLabel} className="grid grid-cols-[5rem_auto] items-center gap-x-3 font-display text-[13px] leading-none">
                     <span className="text-cream-dim">{shift.stageLabel}</span>
                     <span className="flex items-center gap-1.5 font-mono text-[12.5px] tabular-nums">
                       <span className="text-cream-faint">{shift.fromPct.toFixed(0)}%</span>
