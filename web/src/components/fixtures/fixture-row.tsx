@@ -177,8 +177,6 @@ interface Replay extends Omit<ReplayTick, "morphMs"> {
 }
 
 const MS_PER_MINUTE = 78;
-const MIN_RUN_MS = 4200;
-const MAX_RUN_MS = 9500;
 const GOAL_PAUSE_MS = 1500;
 const GOAL_MORPH_MS = 360;
 const DRIFT_MORPH_MS = 760;
@@ -203,7 +201,7 @@ function useReplay(frames: WdlFrame[]): Replay {
   const play = useCallback(() => {
     cancelAnimationFrame(raf.current);
     if (frames.length < 2) return;
-    const run = Math.min(MAX_RUN_MS, Math.max(MIN_RUN_MS, target * MS_PER_MINUTE));
+    const run = Math.max(1, target * MS_PER_MINUTE);
     let prev = performance.now();
     let clock = 0;
     let pause = 0;

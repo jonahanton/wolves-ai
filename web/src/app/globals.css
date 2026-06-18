@@ -74,6 +74,17 @@
   }
 }
 
+@keyframes howl {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  45%,
+  70% {
+    transform: rotate(-9deg);
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -103,6 +114,12 @@
 
 @utility spin-y {
   animation: spin-y 1.6s linear infinite;
+}
+
+@utility howl {
+  transform-box: fill-box;
+  transform-origin: 50% 92%;
+  animation: howl 2.2s ease-in-out infinite;
 }
 
 @utility shimmer-red {
