@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CrystalBallIcon } from "@/components/shell/crystal-ball-icon";
 import { EtClock } from "@/components/shell/et-clock";
+import { GithubLink } from "@/components/shell/github-link";
 import { NavLink } from "@/components/shell/nav-link";
 
 const TABS = [
@@ -49,6 +50,8 @@ export function SiteNav() {
               </Link>
             );
           })}
+          <span aria-hidden className="h-4 w-px bg-hairline" />
+          <GithubLink />
         </nav>
       </div>
     </header>
