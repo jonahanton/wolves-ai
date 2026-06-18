@@ -238,6 +238,39 @@ async def test_replay_keyframes_evolve_with_the_recorded_shot_history(tmp_path):
     assert evolved > base + 0.02
 
 
+async def test_replay_keyframes_carry_the_at_or_before_stats(tmp_path):
+    """Each keyframe carries the stats from the latest poll at or before its
+    minute; minutes before the first poll carry none."""
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    (tmp_path / "live").mkdir()
+    (tmp_path / "live" / "state.json").write_text(
+        json.dumps(live_state(fmt, home_goals=0, minute=60)), encoding="utf-8"
+    )
+    store = ArtifactStore(engine.settings)
+    for stamp, minute, hso in (("14:30:00", 30, 4), ("14:50:00", 50, 7)):
+        body = json.dumps(
+            live_state(
+                fmt, home_goals=0, minute=minute, fetched_at=f"2026-06-12T{stamp}+00:00",
+                stats={"home_shots_on": hso, "away_shots_on": 1},
+            )
+        )
+        store.put_text(f"live/history/2026-06-12/{stamp.replace(':', '')}.json", body)
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        keyframes = (await client.get("/impact")).json()["fixtures"][0]["wdlKeyframes"]
+
+    by_minute = {k["minute"]: k for k in keyframes}
+    assert by_minute[0]["homeShotsOn"] is None
+    early = next(k for k in keyframes if 30 <= k["minute"] < 50)
+    assert early["homeShotsOn"] == 4
+    late = next(k for k in keyframes if k["minute"] >= 50)
+    assert late["homeShotsOn"] == 7
+
+
 async def test_replay_tolerates_pre_deploy_history_without_stat_fields(tmp_path):
     """History points written before this feature carry no stat fields. They must
     parse, contribute no signal, and leave the early keyframes on the pre-match

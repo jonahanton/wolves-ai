@@ -103,7 +103,7 @@ async def build_impact(deps: Deps) -> Impact:
     forecaster = deps.engine.forecaster
     live_dists = _live_distributions(forecaster, in_play) if serving else {}
     knockout_ids = {m.match for m in forecaster.fmt.knockout}
-    signal_history = await _signal_history(deps, live) if serving else {}
+    stat_history = await _stat_history(deps, live) if serving else {}
 
     n_sims = deps.engine.settings.impact_n_sims
     seed = 0
@@ -136,7 +136,7 @@ async def build_impact(deps: Deps) -> Impact:
             _fixture_block(
                 f,
                 _live_wdl_frames(
-                    forecaster, f, knockout=f.match in knockout_ids, history=signal_history.get(f.match, [])
+                    forecaster, f, knockout=f.match in knockout_ids, history=stat_history.get(f.match, [])
                 )
                 if serving
                 else None,
@@ -225,52 +225,63 @@ def _signals(fixture: LiveFixture) -> LiveSignals | None:
     return signals if signals.has_shots or signals.has_possession else None
 
 
-async def _signal_history(deps: Deps, live: LiveState | None) -> dict[int, list[tuple[int, LiveSignals]]]:
-    """Per live match, the published (minute, signals) points from today's poll
-    history, ascending by minute. The replay reads the latest point at or before
-    each keyframe, so the curve tracks how the pace actually built up."""
+async def _stat_history(deps: Deps, live: LiveState | None) -> dict[int, list[LiveFixture]]:
+    """Per live match, the polled fixture snapshots that published a signal,
+    ascending by minute. The replay reads the latest snapshot at or before each
+    keyframe, so both the curve and the stat bars track how the pace built up."""
     if live is None:
         return {}
     # Poll date can differ from kickoff date for a match spanning midnight; cover both.
     dates = {fixture.kickoff[:10] for fixture in live.fixtures if fixture.status == "live"}
     dates.add(live.generated_at[:10])
     states = [state for day in sorted(dates) for state in await day_states(deps.storage, day)]
-    history: dict[int, list[tuple[int, LiveSignals]]] = {}
+    history: dict[int, list[LiveFixture]] = {}
     for state in sorted(states, key=lambda s: s.fetched_at):
         for fixture in state.fixtures:
             if fixture.match is None or fixture.minute is None:
                 continue
-            signals = _signals(fixture)
-            if signals is not None:
-                history.setdefault(fixture.match, []).append((fixture.minute, signals))
-    return {match: sorted(points, key=lambda point: point[0]) for match, points in history.items()}
+            if _signals(fixture) is not None:
+                history.setdefault(fixture.match, []).append(fixture)
+    return {match: sorted(snaps, key=lambda snap: snap.minute or 0) for match, snaps in history.items()}
 
 
-def _signal_at(history: list[tuple[int, LiveSignals]], minute: float) -> LiveSignals | None:
-    """The latest published signal at or before this keyframe minute, or None
-    when no poll had landed yet (keeping the pre-match anchor for that frame)."""
-    found: LiveSignals | None = None
-    for point_minute, signals in history:
-        if point_minute > minute:
+def _snapshot_at(history: list[LiveFixture], minute: float) -> LiveFixture | None:
+    """The latest snapshot at or before this keyframe minute, or None when no poll
+    had landed yet (keeping the pre-match anchor and no stat bars for that frame)."""
+    found: LiveFixture | None = None
+    for snap in history:
+        if (snap.minute or 0) > minute:
             break
-        found = signals
+        found = snap
     return found
 
 
+def _keyframe_stats(snap: LiveFixture | None) -> dict[str, int | float | None]:
+    return {
+        "home_shots_on": snap.home_shots_on if snap else None,
+        "away_shots_on": snap.away_shots_on if snap else None,
+        "home_total_shots": snap.home_total_shots if snap else None,
+        "away_total_shots": snap.away_total_shots if snap else None,
+        "home_possession": snap.home_possession if snap else None,
+        "away_possession": snap.away_possession if snap else None,
+    }
+
+
 def _live_wdl_frames(
-    forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool, history: list[tuple[int, LiveSignals]]
+    forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool, history: list[LiveFixture]
 ) -> tuple[dict[str, list[float]], list[dict[str, Any]]] | None:
     """Current per-draw W/D/L plus a keyframe per goal, all from one shared rate
-    sample. Each keyframe carries the signals as they stood at that minute."""
+    sample. Each keyframe carries the signals and stats as they stood that minute."""
     if fixture.home_id is None or fixture.away_id is None:
         return None
     states = _replay_states(fixture)
     if not states:
         return None
-    signals_at = [_signal_at(history, state.minute) for state in states]
-    if signals_at[-1] is None:
-        # The latest keyframe always reflects the freshest published signal.
-        signals_at[-1] = _signals(fixture)
+    snaps = [_snapshot_at(history, state.minute) for state in states]
+    if snaps[-1] is None:
+        # The latest keyframe always reflects the freshest published snapshot.
+        snaps[-1] = fixture
+    signals_at = [_signals(snap) if snap else None for snap in snaps]
     frames = forecaster.live_wdl_draws_at(
         fixture.home_id, fixture.away_id, states, knockout=knockout, signals_at=signals_at
     )
@@ -280,8 +291,9 @@ def _live_wdl_frames(
             "home_goals": state.home_goals,
             "away_goals": state.away_goals,
             "wdl": _wdl(frame),
+            **_keyframe_stats(snap),
         }
-        for state, frame in zip(states, frames, strict=True)
+        for state, frame, snap in zip(states, frames, snaps, strict=True)
     ]
     return _wdl(frames[-1]), keyframes
 

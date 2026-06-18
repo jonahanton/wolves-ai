@@ -236,6 +236,12 @@ class WdlKeyframe(WireModel):
     home_goals: int
     away_goals: int
     wdl: LiveWdl
+    home_shots_on: int | None = None
+    away_shots_on: int | None = None
+    home_total_shots: int | None = None
+    away_total_shots: int | None = None
+    home_possession: float | None = None
+    away_possession: float | None = None
 
 
 class ImpactFixture(WireModel):
