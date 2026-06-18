@@ -50,12 +50,12 @@ class FakeLiveForecaster:
     def score_grid(self, home: str, away: str, *, neutral: bool = True, match: int | None = None):
         return ScorelineDistribution.single(1, 1)
 
-    def live_match(self, home: str, away: str, state, *, knockout: bool):
+    def live_match(self, home: str, away: str, state, *, knockout: bool, signals=None):
         if state.home_goals > state.away_goals:
             return {"home": 0.78, "draw": 0.15, "away": 0.07}
         return {"home": 0.40, "draw": 0.31, "away": 0.29}
 
-    def live_distribution(self, home: str, away: str, state):
+    def live_distribution(self, home: str, away: str, state, *, signals=None):
         return ScorelineDistribution.single(state.home_goals, state.away_goals)
 
     def title_probs(self, *, n_sims: int, seed: int = 0, results=None, live_distributions=None):

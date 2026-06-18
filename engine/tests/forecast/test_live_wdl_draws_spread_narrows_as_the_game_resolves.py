@@ -10,6 +10,7 @@ from wolves.config import Settings
 from wolves.data.teams import registry_team_key
 from wolves.forecast import Forecaster
 from wolves.models.inmatch import MatchState
+from wolves.models.live_signals import LiveSignals
 
 HOME, AWAY = "mexico", "south-africa"
 
@@ -60,3 +61,16 @@ def test_same_seed_is_deterministic(forecaster: Forecaster) -> None:
     first = forecaster.live_wdl_draws(HOME, AWAY, state, knockout=False, seed=0, draws=64)
     second = forecaster.live_wdl_draws(HOME, AWAY, state, knockout=False, seed=0, draws=64)
     assert first == second
+
+
+def test_live_shot_dominance_moves_the_per_draw_spread(forecaster: Forecaster) -> None:
+    """The blend must reach the per-draw arrays, not just the scalar rate: a side
+    out-shooting the other lifts its win mass across the whole spread."""
+    state = MatchState(minute=60.0, home_goals=0, away_goals=0)
+    base_home, _, _ = _spread(forecaster, state)
+    signals = LiveSignals(home_shots_on=8, away_shots_on=1)
+    blended_home, _, blended_away = forecaster.live_wdl_draws(
+        HOME, AWAY, state, knockout=False, draws=200, signals=signals
+    )
+    assert np.array(blended_home).mean() > base_home.mean() + 0.05
+    assert np.array(blended_home).mean() > np.array(blended_away).mean()

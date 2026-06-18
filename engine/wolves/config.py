@@ -82,6 +82,15 @@ class Settings(BaseSettings):
     live_idle_stale_after_s: int = 1080
     live_idle_grace_hours: float = 6.0
 
+    # Live shot/possession blend into the in-match goal rates. The confidence weight
+    # is minute / (minute + halflife), so signals earn trust as the match unfolds; the
+    # cap bounds how far one side's rate can move so a freak early shot count cannot run away.
+    live_blend_shots: bool = True
+    live_blend_halflife_minutes: float = 90.0
+    live_blend_conversion_prior: float = 0.30
+    live_blend_multiplier_cap: float = 2.0
+    live_blend_possession_tilt: float = 0.10
+
     # Calendar-aware agent spend (wolves/run_policy.py): the day's phase
     # sets the ceiling, front-loaded into the opening week.
     agent_ceiling_opening_usd: float = 6.00

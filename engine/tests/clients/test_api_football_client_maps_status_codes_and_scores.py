@@ -47,6 +47,59 @@ async def test_fixture_parses_into_typed_matches_with_status_mapping():
     assert by_id[1300030].status == "abandoned"
 
 
+async def test_live_statistics_parse_into_shots_and_possession():
+    body = json.loads(_FIXTURE.read_text(encoding="utf-8"))
+    live_item = next(i for i in body["response"] if i["fixture"]["id"] == 1300015)
+    enriched = json.loads(json.dumps(live_item))
+    enriched["statistics"] = [
+        {
+            "team": {"id": 9},
+            "statistics": [
+                {"type": "Shots on Goal", "value": 6},
+                {"type": "Total Shots", "value": 13},
+                {"type": "Ball Possession", "value": "61%"},
+            ],
+        },
+        {
+            "team": {"id": 1001},
+            "statistics": [
+                {"type": "Shots on Goal", "value": 2},
+                {"type": "Total Shots", "value": 5},
+                {"type": "Ball Possession", "value": "39%"},
+            ],
+        },
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "ids" in request.url.params:
+            return httpx.Response(200, json={"errors": [], "response": [enriched]})
+        return httpx.Response(200, json=body)
+
+    client = ApiFootballClient("test-key", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    matches = await client.fixtures()
+    await client.aclose()
+
+    live = next(m for m in matches if m.fixture_id == 1300015)
+    assert (live.home_shots_on, live.away_shots_on) == (6, 2)
+    assert (live.home_total_shots, live.away_total_shots) == (13, 5)
+    assert live.home_possession == pytest.approx(0.61)
+    assert live.away_possession == pytest.approx(0.39)
+
+
+async def test_fixtures_without_a_statistics_block_leave_signals_unset():
+    body = json.loads(_FIXTURE.read_text(encoding="utf-8"))
+    scheduled = next(m for m in await _client_from(body).fixtures() if m.fixture_id == 1300021)
+    assert scheduled.home_shots_on is None
+    assert scheduled.home_possession is None
+
+
+def _client_from(body: dict) -> ApiFootballClient:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    return ApiFootballClient("test-key", client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+
+
 @pytest.mark.parametrize(
     ("short", "status", "period"),
     [

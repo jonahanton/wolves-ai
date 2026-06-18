@@ -27,6 +27,12 @@ class FixtureResolution:
     away_reds: int
     knockout: bool
     goals: tuple[GoalEvent, ...] = ()
+    home_shots_on: int | None = None
+    away_shots_on: int | None = None
+    home_total_shots: int | None = None
+    away_total_shots: int | None = None
+    home_possession: float | None = None
+    away_possession: float | None = None
 
 
 def results_from_fixtures(fmt: FormatData, fixtures: list[MatchFixture]) -> dict[int, PlayedResult]:
@@ -77,6 +83,7 @@ def resolve_fixture(fmt: FormatData, fixture: MatchFixture) -> FixtureResolution
             away_reds=fixture.away_reds if oriented else fixture.home_reds,
             knockout=False,
             goals=_oriented_goals(fixture, flip=not oriented),
+            **_oriented_stats(fixture, flip=not oriented),
         )
 
     knockout = _knockout_match(fmt, fixture)
@@ -92,6 +99,7 @@ def resolve_fixture(fmt: FormatData, fixture: MatchFixture) -> FixtureResolution
         away_reds=fixture.away_reds,
         knockout=True,
         goals=_oriented_goals(fixture, flip=False),
+        **_oriented_stats(fixture, flip=False),
     )
 
 
@@ -101,6 +109,18 @@ def _oriented_goals(fixture: MatchFixture, *, flip: bool) -> tuple[GoalEvent, ..
     from wolves.clients.api_football import GoalEvent
 
     return tuple(GoalEvent(minute=g.minute, side="away" if g.side == "home" else "home") for g in fixture.goals)
+
+
+def _oriented_stats(fixture: MatchFixture, *, flip: bool) -> dict[str, int | float | None]:
+    home, away = ("away", "home") if flip else ("home", "away")
+    return {
+        "home_shots_on": getattr(fixture, f"{home}_shots_on"),
+        "away_shots_on": getattr(fixture, f"{away}_shots_on"),
+        "home_total_shots": getattr(fixture, f"{home}_total_shots"),
+        "away_total_shots": getattr(fixture, f"{away}_total_shots"),
+        "home_possession": getattr(fixture, f"{home}_possession"),
+        "away_possession": getattr(fixture, f"{away}_possession"),
+    }
 
 
 def _group_match(fmt: FormatData, home_id: str, away_id: str) -> GroupMatch | None:
