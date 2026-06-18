@@ -294,19 +294,20 @@ class Forecaster:
         knockout: bool,
         seed: int = 0,
         draws: int = PARAMETER_DRAWS,
-        signals: LiveSignals | None = None,
+        signals_at: Sequence[LiveSignals | None] | None = None,
     ) -> list[tuple[list[float], list[float], list[float]]]:
         """W/D/L draws at each state from one shared rate sample, so a replay's
-        keyframes are directly comparable: only the match state changes. Live
-        signals reflect the current minute, so they blend into the latest state
-        only and the earlier keyframes keep their pure pre-match anchor."""
+        keyframes are directly comparable: only the match state changes.
+        signals_at supplies the live signals as they stood at each keyframe, so
+        the curve reflects how the pace built up; a None entry (no poll yet at
+        that minute) keeps the pure pre-match anchor."""
+        if signals_at is not None and len(signals_at) != len(states):
+            raise ValueError("signals_at must align one-to-one with states")
         base_home, base_away = self._draw_rates(home, away, seed=seed, draws=draws)
         out = []
-        latest = max((s.minute for s in states), default=0.0)
-        for state in states:
-            lam_home, lam_away = base_home, base_away
-            if state.minute >= latest:
-                lam_home, lam_away = self._blended(lam_home, lam_away, signals, state.minute)
+        for index, state in enumerate(states):
+            signals = signals_at[index] if signals_at is not None else None
+            lam_home, lam_away = self._blended(base_home, base_away, signals, state.minute)
             home_p, draw_p, away_p = _live_wdl_draws(lam_home, lam_away, state, knockout=knockout)
             out.append((home_p.tolist(), draw_p.tolist(), away_p.tolist()))
         return out

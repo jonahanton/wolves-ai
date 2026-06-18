@@ -76,13 +76,31 @@ def test_live_shot_dominance_moves_the_per_draw_spread(forecaster: Forecaster) -
     assert np.array(blended_home).mean() > np.array(blended_away).mean()
 
 
-def test_replay_blends_only_the_live_minute_not_earlier_keyframes(forecaster: Forecaster) -> None:
-    """A replay's earlier keyframes keep their pure pre-match anchor; only the
-    latest state carries the current live signal."""
+def test_replay_blends_each_keyframe_with_its_own_signal(forecaster: Forecaster) -> None:
+    """Each keyframe carries the signals as they stood at that minute, so a None
+    entry keeps the pre-match anchor and a present one moves that frame alone."""
     early = MatchState(minute=20.0, home_goals=0, away_goals=0)
     now = MatchState(minute=75.0, home_goals=0, away_goals=0)
-    signals = LiveSignals(home_shots_on=9, away_shots_on=1)
+    signals_at = [None, LiveSignals(home_shots_on=9, away_shots_on=1)]
     base = forecaster.live_wdl_draws_at(HOME, AWAY, [early, now], knockout=False, draws=128)
-    blended = forecaster.live_wdl_draws_at(HOME, AWAY, [early, now], knockout=False, draws=128, signals=signals)
+    blended = forecaster.live_wdl_draws_at(HOME, AWAY, [early, now], knockout=False, draws=128, signals_at=signals_at)
     assert blended[0] == base[0]
     assert np.mean(blended[1][0]) > np.mean(base[1][0])
+
+
+def test_replay_moves_an_early_keyframe_when_its_signal_is_present(forecaster: Forecaster) -> None:
+    """An early keyframe with its own live signal shifts, proving the curve can
+    evolve from kickoff rather than only at the latest minute."""
+    early = MatchState(minute=30.0, home_goals=0, away_goals=0)
+    now = MatchState(minute=75.0, home_goals=0, away_goals=0)
+    signals_at = [LiveSignals(home_shots_on=6, away_shots_on=0), None]
+    base = forecaster.live_wdl_draws_at(HOME, AWAY, [early, now], knockout=False, draws=128)
+    blended = forecaster.live_wdl_draws_at(HOME, AWAY, [early, now], knockout=False, draws=128, signals_at=signals_at)
+    assert np.mean(blended[0][0]) > np.mean(base[0][0])
+    assert blended[1] == base[1]
+
+
+def test_signals_at_must_align_with_states(forecaster: Forecaster) -> None:
+    state = MatchState(minute=40.0, home_goals=0, away_goals=0)
+    with pytest.raises(ValueError, match="align one-to-one"):
+        forecaster.live_wdl_draws_at(HOME, AWAY, [state], knockout=False, signals_at=[None, None])
