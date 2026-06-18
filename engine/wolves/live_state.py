@@ -5,7 +5,7 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field, ValidationError
 
-from wolves.clients.api_football import MatchFixture, MatchPeriod, MatchStatus
+from wolves.clients.api_football import GoalEvent, MatchFixture, MatchPeriod, MatchStatus
 from wolves.data.contracts import MatchRecord
 from wolves.models.contracts import FittedState, ScorelineDistribution
 from wolves.models.inmatch import MatchState
@@ -47,6 +47,7 @@ class LiveFixture(BaseModel):
     away_goals: int | None = None
     home_reds: int = 0
     away_reds: int = 0
+    goals: list[GoalEvent] = Field(default_factory=list)
     forecast: LiveForecast | None = None
     message: str | None = None
 
@@ -233,6 +234,7 @@ def _fixture_state(
         away_goals=resolved.away_goals if resolved else fixture.away_goals,
         home_reds=resolved.home_reds if resolved else fixture.home_reds,
         away_reds=resolved.away_reds if resolved else fixture.away_reds,
+        goals=list(resolved.goals) if resolved else list(fixture.goals),
         forecast=forecast,
         message=_message(fixture, resolved, forecast),
     )

@@ -218,6 +218,23 @@ def extra_time_distribution(
     return ScorelineDistribution(grid=grid / grid.sum())
 
 
+def live_wdl_draws(
+    lam_home: np.ndarray, lam_away: np.ndarray, state: MatchState, *, knockout: bool, params: HazardParams = FITTED
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-parameter-draw W/D/L from the live state: one in-match chain per (lam_home, lam_away) pair.
+
+    Mirrors the pre-match W/D/L sidecar's per-draw spread so the live curve is a
+    drop-in. Knockout draw mass resolves through extra time and an even shootout."""
+    n = lam_home.shape[0]
+    home = np.empty(n)
+    draw = np.empty(n)
+    away = np.empty(n)
+    for i in range(n):
+        wdl = live_win_probabilities(float(lam_home[i]), float(lam_away[i]), state, knockout=knockout, params=params)
+        home[i], draw[i], away[i] = wdl["home"], wdl["draw"], wdl["away"]
+    return home, draw, away
+
+
 def live_win_probabilities(
     lam_home: float, lam_away: float, state: MatchState, *, knockout: bool, params: HazardParams = FITTED
 ) -> dict[str, float]:

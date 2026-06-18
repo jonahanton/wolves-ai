@@ -6,7 +6,7 @@ quantified: every strength delta reports its output-space impact."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime
 
@@ -24,13 +24,20 @@ from wolves.models.contracts import (
     Fixture,
     ScorelineDistribution,
 )
-from wolves.models.inmatch import MatchState, final_score_distribution, live_win_probabilities
+from wolves.models.inmatch import (
+    MatchState,
+    final_score_distribution,
+    live_win_probabilities,
+)
+from wolves.models.inmatch import (
+    live_wdl_draws as _live_wdl_draws,
+)
 from wolves.models.poisson import PoissonDecayModel, poisson_grid
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
 from wolves.sim.latent import LatentEffect
 from wolves.sim.mc import MIN_GOAL_MEAN_AFTER_OFFSET, SimResult, run_tournament
-from wolves.sim.model_engine import PoissonMatchEngine
+from wolves.sim.model_engine import PARAMETER_DRAWS, PoissonMatchEngine
 from wolves.sim.outputs import build_focus_team, build_groups, build_matches, build_slots, build_team_reach
 from wolves.sim.perturbations import (
     DeltaDistribution,
@@ -238,6 +245,53 @@ class Forecaster:
     def live_distribution(self, home: str, away: str, state: MatchState) -> ScorelineDistribution:
         lam_home, lam_away = self.match_rates(home, away)
         return final_score_distribution(lam_home, lam_away, state)
+
+    def live_wdl_draws(
+        self, home: str, away: str, state: MatchState, *, knockout: bool, seed: int = 0, draws: int = PARAMETER_DRAWS
+    ) -> tuple[list[float], list[float], list[float]]:
+        """Per-parameter-draw live W/D/L spread, the in-match analogue of the
+        pre-match W/D/L sidecar so the live curve reuses the same component."""
+        lam_home, lam_away = self._draw_rates(home, away, seed=seed, draws=draws)
+        home_p, draw_p, away_p = _live_wdl_draws(lam_home, lam_away, state, knockout=knockout)
+        return home_p.tolist(), draw_p.tolist(), away_p.tolist()
+
+    def live_wdl_draws_at(
+        self,
+        home: str,
+        away: str,
+        states: Sequence[MatchState],
+        *,
+        knockout: bool,
+        seed: int = 0,
+        draws: int = PARAMETER_DRAWS,
+    ) -> list[tuple[list[float], list[float], list[float]]]:
+        """W/D/L draws at each state from one shared rate sample, so a replay's
+        keyframes are directly comparable: only the match state changes."""
+        lam_home, lam_away = self._draw_rates(home, away, seed=seed, draws=draws)
+        out = []
+        for state in states:
+            home_p, draw_p, away_p = _live_wdl_draws(lam_home, lam_away, state, knockout=knockout)
+            out.append((home_p.tolist(), draw_p.tolist(), away_p.tolist()))
+        return out
+
+    def _draw_rates(
+        self, home: str, away: str, *, seed: int, draws: int
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Neutral per-draw lambdas from the fitted covariance, matching the
+        model engine's parameter-draw construction."""
+        state = self.state
+        home_key, away_key = registry_team_key(home), registry_team_key(away)
+        index = {team: i for i, team in enumerate(state.teams)}
+        mean = np.concatenate([state.strengths, [state.globals_["intercept"]]])
+        if state.covariance is not None:
+            cov = state.covariance[:-1, :-1]  # drop the home-advantage axis; live group games are neutral
+            rng = np.random.default_rng(seed)
+            sample = rng.multivariate_normal(mean, cov, size=draws, method="svd")
+        else:
+            sample = np.tile(mean, (draws, 1))
+        intercept = sample[:, -1]
+        diff = sample[:, index[home_key]] - sample[:, index[away_key]]
+        return np.exp(intercept + diff), np.exp(intercept - diff)
 
     def simulate(
         self,
