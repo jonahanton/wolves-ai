@@ -76,6 +76,9 @@ def _build_scenario(state: dict, results: dict) -> tuple[dict, dict]:
     live_fx["status"] = "live"
     live_fx["home_goals"], live_fx["away_goals"], live_fx["minute"] = lhg, lag, minute
     live_fx["forecast"] = {"source": "in_match", "p_home": 0.78, "p_away": 0.07, "p_draw": 0.15, "modal_score": f"{lhg}-{lag}"}
+    live_fx["home_shots_on"], live_fx["away_shots_on"] = 6, 2
+    live_fx["home_total_shots"], live_fx["away_total_shots"] = 13, 5
+    live_fx["home_possession"], live_fx["away_possession"] = 0.58, 0.42
 
     state["live_match_count"] = 1
     state["poll_status"] = "ok"
