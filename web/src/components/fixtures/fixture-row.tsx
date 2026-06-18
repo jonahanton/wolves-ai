@@ -8,8 +8,17 @@ import { WdlCurves } from "@/components/fixtures/wdl-curves";
 import { type FixtureRow as Row, liveWdlFrames, type WdlFrame } from "@/lib/fixtures";
 import { teamReachShifts } from "@/lib/fixtures-reach";
 import { formatKickoffTimeEastern, formatPctBare } from "@/lib/format";
-import type { Impact } from "@/lib/impact";
+import type { Impact, StatPoint } from "@/lib/impact";
 import { chartColour } from "@/lib/team-colours";
+
+function statAtMinute(track: StatPoint[], minute: number): StatPoint | null {
+  let found: StatPoint | null = null;
+  for (const point of track) {
+    if (point.minute > minute) break;
+    found = point;
+  }
+  return found;
+}
 
 interface FixtureRowProps {
   row: Row;
@@ -180,6 +189,7 @@ const MS_PER_MINUTE = 78;
 const GOAL_PAUSE_MS = 1500;
 const GOAL_MORPH_MS = 360;
 const DRIFT_MORPH_MS = 760;
+const STAT_MORPH_MS = 320;
 
 function goalSide(curr: WdlFrame, prev: WdlFrame): GoalSide | null {
   if (curr.homeGoals > prev.homeGoals) return "home";
@@ -261,8 +271,10 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
   const { index, minute, playing, animate, beat, morphMs, play } = useReplay(frames);
   const frame = frames[index] ?? null;
   const canReplay = frames.length >= 2;
-  // Old prod data never published stats; only show the strip when some frame has them.
-  const hasStats = frames.some((f) => f.stats.homePossession !== null || f.stats.homeTotalShots !== null || f.stats.homeShotsOn !== null);
+  const statTrack = fixture?.statTrack ?? [];
+  const stat = statAtMinute(statTrack, minute);
+  // Old prod data never published stats; only show the strip when the track carries some.
+  const hasStats = statTrack.some((s) => s.homePossession !== null || s.homeTotalShots !== null || s.homeShotsOn !== null);
   const beatCode = beat === "home" ? row.homeCode : beat === "away" ? row.awayCode : null;
   const beatId = beat === "home" ? row.homeId : beat === "away" ? row.awayId : null;
   if (impact === null) return <LiveDetailLoader />;
@@ -315,14 +327,14 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           homeCode={row.homeCode}
           awayCode={row.awayCode}
           colours={row.colours}
-          morphMs={morphMs}
+          morphMs={playing ? STAT_MORPH_MS : undefined}
           replaying={playing}
-          homePossession={frame.stats.homePossession}
-          awayPossession={frame.stats.awayPossession}
-          homeTotalShots={frame.stats.homeTotalShots}
-          awayTotalShots={frame.stats.awayTotalShots}
-          homeShotsOn={frame.stats.homeShotsOn}
-          awayShotsOn={frame.stats.awayShotsOn}
+          homePossession={stat?.homePossession ?? null}
+          awayPossession={stat?.awayPossession ?? null}
+          homeTotalShots={stat?.homeTotalShots ?? null}
+          awayTotalShots={stat?.awayTotalShots ?? null}
+          homeShotsOn={stat?.homeShotsOn ?? null}
+          awayShotsOn={stat?.awayShotsOn ?? null}
         />
       )}
       <div className={frame ? "border-t border-hairline/60 pt-4" : undefined}>
@@ -347,7 +359,10 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
   }
   return (
     <div>
-      <div className="space-y-3.5">
+      <p className="mb-2.5 font-display text-[11px] font-bold uppercase tracking-[0.06em] text-cream-faint">
+        Est. impact on the run
+      </p>
+      <div className="space-y-3">
         {groups.map((g) => (
           <div key={g.id} className="grid grid-cols-[3rem_1fr] gap-x-3">
             <span className="pt-px font-display text-[13.5px] font-semibold" style={{ color: chartColour(g.id) }}>{g.code}</span>

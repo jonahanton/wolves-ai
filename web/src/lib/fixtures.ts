@@ -111,40 +111,17 @@ export function liveWdlShape(draws: LiveWdlDraws | null): WdlShape | null {
   return wdlShape(draws.pHome, draws.pDraw, draws.pAway);
 }
 
-export interface FrameStats {
-  homeShotsOn: number | null;
-  awayShotsOn: number | null;
-  homeTotalShots: number | null;
-  awayTotalShots: number | null;
-  homePossession: number | null;
-  awayPossession: number | null;
-}
-
 export interface WdlFrame {
   minute: number;
   homeGoals: number;
   awayGoals: number;
   shape: WdlShape;
-  stats: FrameStats;
-}
-
-function keyframeStats(k: WdlKeyframe): FrameStats {
-  return {
-    homeShotsOn: k.homeShotsOn,
-    awayShotsOn: k.awayShotsOn,
-    homeTotalShots: k.homeTotalShots,
-    awayTotalShots: k.awayTotalShots,
-    homePossession: k.homePossession,
-    awayPossession: k.awayPossession,
-  };
 }
 
 // Goal-stepped keyframes when the backend supplies them; otherwise a single live
 // frame from the current spread, so the curve survives a backend/frontend skew.
 export function liveWdlFrames(
-  fixture:
-    | { wdlKeyframes: WdlKeyframe[]; wdlDraws: LiveWdlDraws | null } & Partial<FrameStats>
-    | null,
+  fixture: { wdlKeyframes: WdlKeyframe[]; wdlDraws: LiveWdlDraws | null } | null,
   minute: number | null,
   homeGoals: number | null,
   awayGoals: number | null,
@@ -156,7 +133,6 @@ export function liveWdlFrames(
       homeGoals: k.homeGoals,
       awayGoals: k.awayGoals,
       shape: wdlShape(k.wdl.pHome, k.wdl.pDraw, k.wdl.pAway),
-      stats: keyframeStats(k),
     }));
   }
   const live = liveWdlShape(fixture?.wdlDraws ?? null);
@@ -167,14 +143,6 @@ export function liveWdlFrames(
       homeGoals: homeGoals ?? 0,
       awayGoals: awayGoals ?? 0,
       shape: live,
-      stats: {
-        homeShotsOn: fixture?.homeShotsOn ?? null,
-        awayShotsOn: fixture?.awayShotsOn ?? null,
-        homeTotalShots: fixture?.homeTotalShots ?? null,
-        awayTotalShots: fixture?.awayTotalShots ?? null,
-        homePossession: fixture?.homePossession ?? null,
-        awayPossession: fixture?.awayPossession ?? null,
-      },
     },
   ];
 }

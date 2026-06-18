@@ -42,6 +42,7 @@ export interface ImpactFixture {
   awayPossession: number | null;
   wdlDraws: LiveWdlDraws | null;
   wdlKeyframes: WdlKeyframe[];
+  statTrack: StatPoint[];
 }
 
 export interface LiveWdlDraws {
@@ -55,6 +56,10 @@ export interface WdlKeyframe {
   homeGoals: number;
   awayGoals: number;
   wdl: LiveWdlDraws;
+}
+
+export interface StatPoint {
+  minute: number;
   homeShotsOn: number | null;
   awayShotsOn: number | null;
   homeTotalShots: number | null;
