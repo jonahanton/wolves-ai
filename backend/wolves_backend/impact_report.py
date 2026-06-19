@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 REACH_STAGES = ("r32", "r16", "qf", "sf", "final")
 # Coarse curve keyframes; the per-minute stat track drives the bars cheaply.
-REPLAY_STRIDE_MIN = 3
+REPLAY_STRIDE_MIN = 5
 
 
 class NoAgentForecastError(Exception):

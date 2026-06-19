@@ -13,7 +13,7 @@ import { chartColour } from "@/lib/team-colours";
 
 // The bars step on the same cadence as the curve keyframes, not every minute,
 // so a replay reads as a calm beat rather than a frantic flicker.
-const STAT_STEP_MIN = 3;
+const STAT_STEP_MIN = 5;
 
 function statAtMinute(track: StatPoint[], minute: number): StatPoint | null {
   const stepped = Math.floor(minute / STAT_STEP_MIN) * STAT_STEP_MIN;
@@ -262,7 +262,7 @@ function useReplay(frames: WdlFrame[]): Replay {
         }
       }
       const morphing = now - morphStart < morphMs;
-      setTick({ minute: Math.round(minute), index, animate: true, beat: null, morphMs, linear });
+      setTick({ minute: frames[index].minute, index, animate: true, beat: null, morphMs, linear });
       if (clock < run || morphing) raf.current = requestAnimationFrame(step);
       else setTick(null);
     };
