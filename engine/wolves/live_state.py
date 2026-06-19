@@ -9,6 +9,7 @@ from wolves.clients.api_football import GoalEvent, MatchFixture, MatchPeriod, Ma
 from wolves.data.contracts import MatchRecord
 from wolves.models.contracts import FittedState, ScorelineDistribution
 from wolves.models.inmatch import MatchState
+from wolves.models.live_signals import LiveSignals
 from wolves.s3.artifacts import ArtifactStore
 from wolves.s3.client import S3UnavailableError
 from wolves.s3.layout import LIVE_STATE, LIVE_STATE_POINT
@@ -48,6 +49,12 @@ class LiveFixture(BaseModel):
     home_reds: int = 0
     away_reds: int = 0
     goals: list[GoalEvent] = Field(default_factory=list)
+    home_shots_on: int | None = None
+    away_shots_on: int | None = None
+    home_total_shots: int | None = None
+    away_total_shots: int | None = None
+    home_possession: float | None = None
+    away_possession: float | None = None
     forecast: LiveForecast | None = None
     message: str | None = None
 
@@ -89,9 +96,13 @@ class LiveForecaster(Protocol):
         self, home: str, away: str, *, neutral: bool = True, match: int | None = None
     ) -> ScorelineDistribution: ...
 
-    def live_match(self, home: str, away: str, state: MatchState, *, knockout: bool) -> dict[str, float]: ...
+    def live_match(
+        self, home: str, away: str, state: MatchState, *, knockout: bool, signals: LiveSignals | None = None
+    ) -> dict[str, float]: ...
 
-    def live_distribution(self, home: str, away: str, state: MatchState) -> ScorelineDistribution: ...
+    def live_distribution(
+        self, home: str, away: str, state: MatchState, *, signals: LiveSignals | None = None
+    ) -> ScorelineDistribution: ...
 
     def title_probs(
         self,
@@ -172,7 +183,9 @@ def build_live_state(
         if fixture.status == "live" and resolved is not None:
             state = _match_state(fixture, resolved)
             if state is not None:
-                distribution = forecaster.live_distribution(resolved.home_id, resolved.away_id, state)
+                distribution = forecaster.live_distribution(
+                    resolved.home_id, resolved.away_id, state, signals=_signals(resolved)
+                )
                 live_distributions[resolved.match] = distribution
         rendered.append(_fixture_state(forecaster, fixture, resolved, distribution))
 
@@ -235,6 +248,12 @@ def _fixture_state(
         home_reds=resolved.home_reds if resolved else fixture.home_reds,
         away_reds=resolved.away_reds if resolved else fixture.away_reds,
         goals=list(resolved.goals) if resolved else list(fixture.goals),
+        home_shots_on=resolved.home_shots_on if resolved else fixture.home_shots_on,
+        away_shots_on=resolved.away_shots_on if resolved else fixture.away_shots_on,
+        home_total_shots=resolved.home_total_shots if resolved else fixture.home_total_shots,
+        away_total_shots=resolved.away_total_shots if resolved else fixture.away_total_shots,
+        home_possession=resolved.home_possession if resolved else fixture.home_possession,
+        away_possession=resolved.away_possession if resolved else fixture.away_possession,
         forecast=forecast,
         message=_message(fixture, resolved, forecast),
     )
@@ -258,7 +277,9 @@ def _forecast(
         state = _match_state(fixture, resolved)
         if state is None or distribution is None:
             return None
-        probs = forecaster.live_match(resolved.home_id, resolved.away_id, state, knockout=resolved.knockout)
+        probs = forecaster.live_match(
+            resolved.home_id, resolved.away_id, state, knockout=resolved.knockout, signals=_signals(resolved)
+        )
         return _forecast_from_probs("in_match", probs, distribution)
     probs = forecaster.match_probs(resolved.home_id, resolved.away_id, match=resolved.match)
     dist = forecaster.score_grid(resolved.home_id, resolved.away_id, match=resolved.match)
@@ -276,6 +297,18 @@ def _match_state(fixture: MatchFixture, resolved: FixtureResolution) -> MatchSta
         away_reds=resolved.away_reds,
         period=fixture.period,
     )
+
+
+def _signals(resolved: FixtureResolution) -> LiveSignals | None:
+    """Live shots and possession oriented to the schedule's home/away sides.
+    None when neither signal has been published yet."""
+    signals = LiveSignals(
+        home_shots_on=resolved.home_shots_on,
+        away_shots_on=resolved.away_shots_on,
+        home_possession=resolved.home_possession,
+        away_possession=resolved.away_possession,
+    )
+    return signals if signals.has_shots or signals.has_possession else None
 
 
 def _forecast_from_probs(source: ForecastSource, probs: dict[str, float], dist: ScorelineDistribution) -> LiveForecast:

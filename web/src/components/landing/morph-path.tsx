@@ -1,6 +1,6 @@
 "use client";
 
-import { easeCubicInOut } from "d3-ease";
+import { easeCubicInOut, easeLinear } from "d3-ease";
 import type { scaleLinear } from "d3-scale";
 import { select } from "d3-selection";
 import { area as d3Area, curveMonotoneX } from "d3-shape";
@@ -26,11 +26,13 @@ interface MorphPathProps {
   width: number;
   animate?: boolean;
   durationMs?: number;
+  // Linear easing chains consecutive segments seamlessly for a continuous drift.
+  linear?: boolean;
 }
 
 // The one element that morphs: the area stroke. d3 interpolates the d-attr
 // across team switches; a shared resample grid keeps point counts identical.
-export function MorphPath({ points, x, y, height, colour, width, animate = true, durationMs = MORPH_MS }: MorphPathProps) {
+export function MorphPath({ points, x, y, height, colour, width, animate = true, durationMs = MORPH_MS, linear = false }: MorphPathProps) {
   const gRef = useRef<SVGGElement>(null);
   const d =
     width === 0
@@ -61,9 +63,9 @@ export function MorphPath({ points, x, y, height, colour, width, animate = true,
       path
         .transition("morph")
         .duration(durationMs)
-        .ease(easeCubicInOut)
+        .ease(linear ? easeLinear : easeCubicInOut)
         .attr("d", d);
-  }, [d, colour, width, animate, durationMs]);
+  }, [d, colour, width, animate, durationMs, linear]);
 
   return <g ref={gRef} style={{ pointerEvents: "none" }} />;
 }

@@ -238,6 +238,16 @@ class WdlKeyframe(WireModel):
     wdl: LiveWdl
 
 
+class StatPoint(WireModel):
+    minute: int
+    home_shots_on: int | None = None
+    away_shots_on: int | None = None
+    home_total_shots: int | None = None
+    away_total_shots: int | None = None
+    home_possession: float | None = None
+    away_possession: float | None = None
+
+
 class ImpactFixture(WireModel):
     match: int | None
     home_id: str | None
@@ -251,8 +261,15 @@ class ImpactFixture(WireModel):
     p_home: float | None
     p_draw: float | None
     p_away: float | None
+    home_shots_on: int | None = None
+    away_shots_on: int | None = None
+    home_total_shots: int | None = None
+    away_total_shots: int | None = None
+    home_possession: float | None = None
+    away_possession: float | None = None
     wdl_draws: LiveWdl | None = None
     wdl_keyframes: list[WdlKeyframe] = []
+    stat_track: list[StatPoint] = []
 
 
 class ImpactResult(WireModel):

@@ -32,6 +32,7 @@ from wolves.models.inmatch import (
 from wolves.models.inmatch import (
     live_wdl_draws as _live_wdl_draws,
 )
+from wolves.models.live_signals import BlendParams, LiveSignals, Rates, blend_rates
 from wolves.models.poisson import PoissonDecayModel, poisson_grid
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
@@ -101,8 +102,19 @@ class Forecaster:
         self._dataset = dataset
         self._default_results: dict[int, PlayedResult] = {}
         half_life = self.champion.half_life_days
-        self.model = PoissonDecayModel(**({"half_life_days": half_life} if half_life else {}))
+        self.model = PoissonDecayModel(
+            **({"half_life_days": half_life} if half_life else {}),
+            form_half_life_days=settings.form_half_life_days,
+            form_weight=settings.form_weight,
+        )
         self._state: FittedState | None = None
+        self._blend = BlendParams(
+            halflife_minutes=settings.live_blend_halflife_minutes,
+            conversion_prior=settings.live_blend_conversion_prior,
+            multiplier_cap=settings.live_blend_multiplier_cap,
+            possession_tilt=settings.live_blend_possession_tilt,
+        )
+        self._blend_enabled = settings.live_blend_shots
 
     def set_default_results(self, results: Mapping[int, PlayedResult] | None) -> None:
         """Use played tournament results in every simulation unless explicitly overridden."""
@@ -238,20 +250,42 @@ class Forecaster:
         fixture = Fixture(home=registry_team_key(home), away=registry_team_key(away), neutral=neutral)
         return self.model.rates(fixture, self.state)
 
-    def live_match(self, home: str, away: str, state: MatchState, *, knockout: bool) -> dict[str, float]:
+    def _blended(
+        self, lam_home: Rates, lam_away: Rates, signals: LiveSignals | None, minute: float
+    ) -> tuple[Rates, Rates]:
+        if signals is None or not self._blend_enabled:
+            return lam_home, lam_away
+        return blend_rates(lam_home, lam_away, signals, minute, params=self._blend)
+
+    def live_match(
+        self, home: str, away: str, state: MatchState, *, knockout: bool, signals: LiveSignals | None = None
+    ) -> dict[str, float]:
         lam_home, lam_away = self.match_rates(home, away)
+        lam_home, lam_away = self._blended(lam_home, lam_away, signals, state.minute)
         return live_win_probabilities(lam_home, lam_away, state, knockout=knockout)
 
-    def live_distribution(self, home: str, away: str, state: MatchState) -> ScorelineDistribution:
+    def live_distribution(
+        self, home: str, away: str, state: MatchState, *, signals: LiveSignals | None = None
+    ) -> ScorelineDistribution:
         lam_home, lam_away = self.match_rates(home, away)
+        lam_home, lam_away = self._blended(lam_home, lam_away, signals, state.minute)
         return final_score_distribution(lam_home, lam_away, state)
 
     def live_wdl_draws(
-        self, home: str, away: str, state: MatchState, *, knockout: bool, seed: int = 0, draws: int = PARAMETER_DRAWS
+        self,
+        home: str,
+        away: str,
+        state: MatchState,
+        *,
+        knockout: bool,
+        seed: int = 0,
+        draws: int = PARAMETER_DRAWS,
+        signals: LiveSignals | None = None,
     ) -> tuple[list[float], list[float], list[float]]:
         """Per-parameter-draw live W/D/L spread, the in-match analogue of the
         pre-match W/D/L sidecar so the live curve reuses the same component."""
         lam_home, lam_away = self._draw_rates(home, away, seed=seed, draws=draws)
+        lam_home, lam_away = self._blended(lam_home, lam_away, signals, state.minute)
         home_p, draw_p, away_p = _live_wdl_draws(lam_home, lam_away, state, knockout=knockout)
         return home_p.tolist(), draw_p.tolist(), away_p.tolist()
 
@@ -264,19 +298,25 @@ class Forecaster:
         knockout: bool,
         seed: int = 0,
         draws: int = PARAMETER_DRAWS,
+        signals_at: Sequence[LiveSignals | None] | None = None,
     ) -> list[tuple[list[float], list[float], list[float]]]:
         """W/D/L draws at each state from one shared rate sample, so a replay's
-        keyframes are directly comparable: only the match state changes."""
-        lam_home, lam_away = self._draw_rates(home, away, seed=seed, draws=draws)
+        keyframes are directly comparable: only the match state changes.
+        signals_at supplies the live signals as they stood at each keyframe, so
+        the curve reflects how the pace built up; a None entry (no poll yet at
+        that minute) keeps the pure pre-match anchor."""
+        if signals_at is not None and len(signals_at) != len(states):
+            raise ValueError("signals_at must align one-to-one with states")
+        base_home, base_away = self._draw_rates(home, away, seed=seed, draws=draws)
         out = []
-        for state in states:
+        for index, state in enumerate(states):
+            signals = signals_at[index] if signals_at is not None else None
+            lam_home, lam_away = self._blended(base_home, base_away, signals, state.minute)
             home_p, draw_p, away_p = _live_wdl_draws(lam_home, lam_away, state, knockout=knockout)
             out.append((home_p.tolist(), draw_p.tolist(), away_p.tolist()))
         return out
 
-    def _draw_rates(
-        self, home: str, away: str, *, seed: int, draws: int
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def _draw_rates(self, home: str, away: str, *, seed: int, draws: int) -> tuple[np.ndarray, np.ndarray]:
         """Neutral per-draw lambdas from the fitted covariance, matching the
         model engine's parameter-draw construction."""
         state = self.state

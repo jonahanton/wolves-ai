@@ -93,6 +93,35 @@ def _goal_events(item: dict[str, Any]) -> list[GoalEvent]:
     return goals
 
 
+_STAT_TYPES = {
+    "shots on goal": "shots_on",
+    "total shots": "total_shots",
+    "ball possession": "possession",
+}
+
+
+def _parse_stat(stat_type: str, value: Any) -> float | int | None:
+    if value is None:
+        return None
+    if stat_type == "possession":
+        return float(str(value).rstrip("%")) / 100.0 if str(value).strip() else None
+    return int(value)
+
+
+def _statistics(item: dict[str, Any]) -> dict[str, float | int | None]:
+    """Per-side shots and possession from a by-ids statistics block, keyed
+    home_*/away_* by team id. Absent for fixtures requested without statistics."""
+    home_id = ((item.get("teams") or {}).get("home") or {}).get("id")
+    out: dict[str, float | int | None] = {}
+    for block in item.get("statistics") or []:
+        side = "home" if ((block.get("team") or {}).get("id")) == home_id else "away"
+        for entry in block.get("statistics") or []:
+            key = _STAT_TYPES.get((entry.get("type") or "").casefold())
+            if key is not None:
+                out[f"{side}_{key}"] = _parse_stat(key, entry.get("value"))
+    return out
+
+
 def _to_fixture(item: dict[str, Any]) -> MatchFixture:
     fixture = item.get("fixture") or {}
     teams = item.get("teams") or {}
@@ -101,6 +130,7 @@ def _to_fixture(item: dict[str, Any]) -> MatchFixture:
     status = fixture.get("status") or {}
     short = (status.get("short")) or ""
     home_reds, away_reds = _red_cards(item)
+    stats = _statistics(item)
     return MatchFixture(
         fixture_id=int(fixture.get("id") or 0),
         kickoff=datetime.fromisoformat(fixture.get("date")),
@@ -114,6 +144,12 @@ def _to_fixture(item: dict[str, Any]) -> MatchFixture:
         home_reds=home_reds,
         away_reds=away_reds,
         goals=_goal_events(item),
+        home_shots_on=stats.get("home_shots_on"),
+        away_shots_on=stats.get("away_shots_on"),
+        home_total_shots=stats.get("home_total_shots"),
+        away_total_shots=stats.get("away_total_shots"),
+        home_possession=stats.get("home_possession"),
+        away_possession=stats.get("away_possession"),
         city=venue.get("city"),
         winner=_winner(teams),
     )

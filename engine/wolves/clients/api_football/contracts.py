@@ -29,6 +29,12 @@ class MatchFixture(BaseModel):
     home_reds: int = 0
     away_reds: int = 0
     goals: list[GoalEvent] = []
+    home_shots_on: int | None = None
+    away_shots_on: int | None = None
+    home_total_shots: int | None = None
+    away_total_shots: int | None = None
+    home_possession: float | None = None
+    away_possession: float | None = None
     city: str | None = None
     winner: WinnerSide | None = None
 

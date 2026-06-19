@@ -42,7 +42,13 @@ def write_agent_snapshot(runs_root, fmt) -> None:
 
 
 def live_state(
-    fmt, *, home_goals: int, minute: int = 61, fetched_at: str = "2026-06-12T15:00:00+00:00", goals: list | None = None
+    fmt,
+    *,
+    home_goals: int,
+    minute: int = 61,
+    fetched_at: str = "2026-06-12T15:00:00+00:00",
+    goals: list | None = None,
+    stats: dict | None = None,
 ) -> dict:
     opener = fmt.group_matches[0]
     stale_after = (datetime.now(UTC) + timedelta(minutes=2)).isoformat(timespec="seconds")
@@ -67,6 +73,7 @@ def live_state(
                 "away_goals": 0,
                 "goals": goals or [],
                 "forecast": {"source": "in_match", "p_home": 0.9, "p_away": 0.02, "p_draw": 0.08},
+                **(stats or {}),
             }
         ],
     }
@@ -157,6 +164,155 @@ async def test_live_wdl_keyframes_step_through_each_goal(tmp_path):
     assert len(counts) == 1 and counts.pop() > 1
     # The final keyframe is the current spread the row shows at rest.
     assert keyframes[-1]["wdl"] == body["fixtures"][0]["wdlDraws"]
+
+
+async def test_live_shot_dominance_reaches_the_served_wdl_spread(tmp_path):
+    """The blend must survive the backend path: a level live game where the home
+    side is out-shooting the away side serves a higher home win mass and exposes
+    the raw shot stats on the fixture."""
+
+    async def served_spread(stats: dict | None) -> tuple[float, dict]:
+        engine = published_engine(tmp_path / ("with" if stats else "without"))
+        await engine.boot()
+        fmt = engine.forecaster.fmt
+        run_dir = tmp_path / ("with" if stats else "without")
+        write_agent_snapshot(run_dir, fmt)
+        (run_dir / "live").mkdir(exist_ok=True)
+        (run_dir / "live" / "state.json").write_text(
+            json.dumps(live_state(fmt, home_goals=0, minute=70, stats=stats)), encoding="utf-8"
+        )
+        app = build_test_app(storage_dir=run_dir, engine=engine)
+        async with client_for(app) as client:
+            fixture = (await client.get("/impact")).json()["fixtures"][0]
+        return sum(fixture["wdlDraws"]["pHome"]) / len(fixture["wdlDraws"]["pHome"]), fixture
+
+    base, _ = await served_spread(None)
+    blended, fixture = await served_spread(
+        {"home_shots_on": 9, "away_shots_on": 1, "home_possession": 0.62, "away_possession": 0.38}
+    )
+    assert blended > base + 0.02
+    assert (fixture["homeShotsOn"], fixture["awayShotsOn"]) == (9, 1)
+    assert fixture["homePossession"] == 0.62
+
+
+async def test_replay_keyframes_evolve_with_the_recorded_shot_history(tmp_path):
+    """A poll-history burst of home shots at an early minute lifts that keyframe's
+    home win mass above the same frame built without any history."""
+
+    async def home_at_minute(history: list[dict] | None, keyframe_minute: int) -> float:
+        run_dir = tmp_path / ("with" if history else "without")
+        engine = published_engine(run_dir)
+        await engine.boot()
+        fmt = engine.forecaster.fmt
+        write_agent_snapshot(run_dir, fmt)
+        (run_dir / "live").mkdir(exist_ok=True)
+        state = live_state(fmt, home_goals=0, minute=80)
+        (run_dir / "live" / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        for point in history or []:
+            store = ArtifactStore(engine.settings)
+            stamp = point["time"]
+            body = json.dumps(
+                live_state(
+                    fmt,
+                    home_goals=0,
+                    minute=point["minute"],
+                    fetched_at=f"2026-06-12T{stamp}+00:00",
+                    stats={"home_shots_on": point["home_shots_on"], "away_shots_on": point["away_shots_on"]},
+                )
+            )
+            store.put_text(f"live/history/2026-06-12/{stamp.replace(':', '')}.json", body)
+        app = build_test_app(storage_dir=run_dir, engine=engine)
+        async with client_for(app) as client:
+            keyframes = (await client.get("/impact")).json()["fixtures"][0]["wdlKeyframes"]
+        # Query a keyframe strictly after the early burst, so the blend has landed.
+        frame = next(k for k in keyframes if k["minute"] >= keyframe_minute)
+        return sum(frame["wdl"]["pHome"]) / len(frame["wdl"]["pHome"])
+
+    history = [
+        {"time": "14:19:30", "minute": 20, "home_shots_on": 5, "away_shots_on": 0},
+        # A second poll at the same minute must not break the sort of the series.
+        {"time": "14:20:00", "minute": 20, "home_shots_on": 6, "away_shots_on": 0},
+        {"time": "15:00:00", "minute": 80, "home_shots_on": 7, "away_shots_on": 5},
+    ]
+    base = await home_at_minute(None, 40)
+    evolved = await home_at_minute(history, 40)
+    assert evolved > base + 0.02
+
+
+async def test_stat_track_carries_the_at_or_before_stats_per_minute(tmp_path):
+    """The stat track holds one point per minute, each the latest poll at or
+    before it; minutes before the first poll carry none."""
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    (tmp_path / "live").mkdir()
+    (tmp_path / "live" / "state.json").write_text(
+        json.dumps(live_state(fmt, home_goals=0, minute=60)), encoding="utf-8"
+    )
+    store = ArtifactStore(engine.settings)
+    for stamp, minute, hso in (("14:30:00", 30, 4), ("14:50:00", 50, 7)):
+        body = json.dumps(
+            live_state(
+                fmt, home_goals=0, minute=minute, fetched_at=f"2026-06-12T{stamp}+00:00",
+                stats={"home_shots_on": hso, "away_shots_on": 1},
+            )
+        )
+        store.put_text(f"live/history/2026-06-12/{stamp.replace(':', '')}.json", body)
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        track = (await client.get("/impact")).json()["fixtures"][0]["statTrack"]
+
+    by_minute = {p["minute"]: p for p in track}
+    assert len(track) == 61
+    assert by_minute[0]["homeShotsOn"] is None
+    assert by_minute[40]["homeShotsOn"] == 4
+    assert by_minute[55]["homeShotsOn"] == 7
+
+
+async def test_replay_tolerates_pre_deploy_history_without_stat_fields(tmp_path):
+    """History points written before this feature carry no stat fields. They must
+    parse, contribute no signal, and leave the early keyframes on the pre-match
+    anchor rather than 500 the report."""
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    (tmp_path / "live").mkdir()
+    (tmp_path / "live" / "state.json").write_text(
+        json.dumps(live_state(fmt, home_goals=0, minute=70)), encoding="utf-8"
+    )
+    opener = fmt.group_matches[0]
+    legacy = {
+        "schema_version": 1,
+        "generated_at": "2026-06-12T14:30:00+00:00",
+        "fetched_at": "2026-06-12T14:30:00+00:00",
+        "stale_after": "2026-06-12T14:32:00+00:00",
+        "fixtures": [
+            {
+                "external_id": 1,
+                "match": opener.match,
+                "status": "live",
+                "kickoff": "2026-06-12T14:00:00+00:00",
+                "minute": 30,
+                "home_id": opener.home,
+                "away_id": opener.away,
+                "home_name": opener.home,
+                "away_name": opener.away,
+                "home_goals": 0,
+                "away_goals": 0,
+            }
+        ],
+    }
+    ArtifactStore(engine.settings).put_text("live/history/2026-06-12/143000.json", json.dumps(legacy))
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        response = await client.get("/impact")
+    assert response.status_code == 200
+    keyframes = response.json()["fixtures"][0]["wdlKeyframes"]
+    assert len(keyframes) > 1
 
 
 async def test_impact_requires_a_published_agent_forecast(tmp_path):

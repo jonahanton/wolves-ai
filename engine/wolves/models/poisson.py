@@ -57,8 +57,25 @@ class InsufficientFitDataError(Exception):
         super().__init__(f"only {n_matches} usable matches before {as_of}")
 
 
+def _blended_decay(
+    age: np.ndarray, *, half_life_days: float, form_half_life_days: float, form_weight: float
+) -> np.ndarray:
+    """Time decay, optionally convex-blended with a faster recent-form decay."""
+    decay = 0.5 ** (age / half_life_days)
+    if form_weight <= 0.0 or form_half_life_days <= 0.0:
+        return decay
+    fast = 0.5 ** (age / form_half_life_days)
+    return (1.0 - form_weight) * decay + form_weight * fast
+
+
 def load_fit_data(
-    dataset: DatasetHandle, *, as_of: date, half_life_days: float, min_importance: float = 1.0
+    dataset: DatasetHandle,
+    *,
+    as_of: date,
+    half_life_days: float,
+    min_importance: float = 1.0,
+    form_half_life_days: float = 0.0,
+    form_weight: float = 0.0,
 ) -> _FitData:
     """Matches strictly before as_of, decay-weighted, restricted to teams with
     enough appearances to identify a strength."""
@@ -85,7 +102,12 @@ def load_fit_data(
     teams = tuple(sorted(keep))
     index = {team: i for i, team in enumerate(teams)}
     played = np.array([row[0].toordinal() for row in rows], dtype=np.float64)
-    decay = 0.5 ** ((as_of.toordinal() - played) / half_life_days)
+    decay = _blended_decay(
+        as_of.toordinal() - played,
+        half_life_days=half_life_days,
+        form_half_life_days=form_half_life_days,
+        form_weight=form_weight,
+    )
     importance = np.array([row[5] for row in rows], dtype=np.float64)
     return _FitData(
         teams=teams,
@@ -227,15 +249,24 @@ class PoissonDecayModel:
         dixon_coles: bool = False,
         elo_prior_weight: float = 0.0,
         min_importance: float = 1.0,
+        form_half_life_days: float = 0.0,
+        form_weight: float = 0.0,
     ) -> None:
         self.half_life_days = half_life_days
         self.dixon_coles = dixon_coles
         self.elo_prior_weight = elo_prior_weight
         self.min_importance = min_importance
+        self.form_half_life_days = form_half_life_days
+        self.form_weight = form_weight
 
     def fit(self, dataset: DatasetHandle, *, as_of: date, seed: int = 0) -> FittedState:
         data = load_fit_data(
-            dataset, as_of=as_of, half_life_days=self.half_life_days, min_importance=self.min_importance
+            dataset,
+            as_of=as_of,
+            half_life_days=self.half_life_days,
+            min_importance=self.min_importance,
+            form_half_life_days=self.form_half_life_days,
+            form_weight=self.form_weight,
         )
         n_teams = len(data.teams)
         start = np.zeros(n_teams + 2)
@@ -276,6 +307,8 @@ class PoissonDecayModel:
                 "intercept": float(intercept),
                 "home_adv": float(home_adv),
                 "half_life_days": self.half_life_days,
+                "form_half_life_days": self.form_half_life_days,
+                "form_weight": self.form_weight,
                 "rho": rho,
                 "elo_prior_weight": self.elo_prior_weight,
             },

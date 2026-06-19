@@ -137,7 +137,14 @@ export function liveWdlFrames(
   }
   const live = liveWdlShape(fixture?.wdlDraws ?? null);
   if (!live) return [];
-  return [{ minute: minute ?? 0, homeGoals: homeGoals ?? 0, awayGoals: awayGoals ?? 0, shape: live }];
+  return [
+    {
+      minute: minute ?? 0,
+      homeGoals: homeGoals ?? 0,
+      awayGoals: awayGoals ?? 0,
+      shape: live,
+    },
+  ];
 }
 
 function wdlShape(home: number[], draw: number[], away: number[]): WdlShape {

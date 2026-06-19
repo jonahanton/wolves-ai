@@ -80,7 +80,8 @@ FITTED = HazardParams(
     trailing_two=1.432,
     leading=0.917,
     red_sanctioned=0.512,
-    red_opponent=1.199,
+    # Top of the noisy WC band (point 1.199, se log 0.112), matching the wider man-advantage literature.
+    red_opponent=1.45,
     h1_stoppage=4.0,
     h2_stoppage_close=9.0,
     h2_stoppage_settled=8.0,

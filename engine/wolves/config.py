@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     data_dir: Path = REPO_ROOT / "data"
     focus_team: str = "england"
     n_sims: int = 10_000
+
+    # Recent-form weighting, off: the backtest scored every setting worse than single-decay (knob at 0 is a no-op).
+    form_half_life_days: float = 0.0
+    form_weight: float = 0.0
     # The live impact path differences two reach sims, so its Monte-Carlo error
     # is wider than a single run's; held high enough that a one-goal swing clears
     # the noise floor rather than reading as a spurious negative move.
@@ -81,6 +85,15 @@ class Settings(BaseSettings):
     # One missed idle poll plus slack: between games "stale" must mean stuck, not resting.
     live_idle_stale_after_s: int = 1080
     live_idle_grace_hours: float = 6.0
+
+    # Live shot/possession blend into the in-match goal rates. The confidence weight
+    # is minute / (minute + halflife), so signals earn trust as the match unfolds; the
+    # cap bounds how far one side's rate can move so a freak early shot count cannot run away.
+    live_blend_shots: bool = True
+    live_blend_halflife_minutes: float = 90.0
+    live_blend_conversion_prior: float = 0.30
+    live_blend_multiplier_cap: float = 2.0
+    live_blend_possession_tilt: float = 0.10
 
     # Calendar-aware agent spend (wolves/run_policy.py): the day's phase
     # sets the ceiling, front-loaded into the opening week.

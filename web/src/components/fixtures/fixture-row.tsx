@@ -3,12 +3,27 @@
 import { ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveDetailLoader } from "@/components/fixtures/live-detail-loader";
+import { LiveStatsStrip } from "@/components/fixtures/live-stats-strip";
 import { WdlCurves } from "@/components/fixtures/wdl-curves";
 import { type FixtureRow as Row, liveWdlFrames, type WdlFrame } from "@/lib/fixtures";
 import { teamReachShifts } from "@/lib/fixtures-reach";
 import { formatKickoffTimeEastern, formatPctBare } from "@/lib/format";
-import type { Impact } from "@/lib/impact";
+import type { Impact, StatPoint } from "@/lib/impact";
 import { chartColour } from "@/lib/team-colours";
+
+// The bars step on the same cadence as the curve keyframes, not every minute,
+// so a replay reads as a calm beat rather than a frantic flicker.
+const STAT_STEP_MIN = 5;
+
+function statAtMinute(track: StatPoint[], minute: number): StatPoint | null {
+  const stepped = Math.floor(minute / STAT_STEP_MIN) * STAT_STEP_MIN;
+  let found: StatPoint | null = null;
+  for (const point of track) {
+    if (point.minute > stepped) break;
+    found = point;
+  }
+  return found;
+}
 
 interface FixtureRowProps {
   row: Row;
@@ -110,7 +125,7 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
         <div className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
           <div className="overflow-hidden" inert={!open}>
             {everOpened && (
-              <div className="-mx-1.5 mt-1 rounded-md bg-night-2/60 px-4 pb-5 pt-4">
+              <div className="-mx-1.5 mb-3 mt-1.5 rounded-lg border border-hairline bg-night-2 px-4 pb-5 pt-4 shadow-[inset_0_1px_0_oklch(1_0_0/0.04)]">
                 {tbc && row.slot ? (
                   <SlotDetail row={row} />
                 ) : live ? (
@@ -167,6 +182,7 @@ interface ReplayTick {
   animate: boolean;
   beat: GoalSide | null;
   morphMs: number;
+  linear: boolean;
 }
 
 interface Replay extends Omit<ReplayTick, "morphMs"> {
@@ -179,6 +195,7 @@ const MS_PER_MINUTE = 78;
 const GOAL_PAUSE_MS = 1500;
 const GOAL_MORPH_MS = 360;
 const DRIFT_MORPH_MS = 760;
+const STAT_MORPH_MS = 240;
 
 function goalSide(curr: WdlFrame, prev: WdlFrame): GoalSide | null {
   if (curr.homeGoals > prev.homeGoals) return "home";
@@ -207,15 +224,16 @@ function useReplay(frames: WdlFrame[]): Replay {
     let lastIndex = 0;
     let morphStart = 0;
     let morphMs = DRIFT_MORPH_MS;
+    let linear = false;
     let beat: GoalSide | null = null;
-    setTick({ minute: 0, index: 0, animate: false, beat: null, morphMs: DRIFT_MORPH_MS });
+    setTick({ minute: 0, index: 0, animate: false, beat: null, morphMs: DRIFT_MORPH_MS, linear: false });
 
     const step = (now: number) => {
       const dt = now - prev;
       prev = now;
       if (pause > 0) {
         pause -= dt;
-        setTick({ minute: frames[lastIndex].minute, index: lastIndex, animate: true, beat, morphMs });
+        setTick({ minute: frames[lastIndex].minute, index: lastIndex, animate: true, beat, morphMs, linear });
         raf.current = requestAnimationFrame(step);
         if (pause <= 0) beat = null;
         return;
@@ -228,19 +246,23 @@ function useReplay(frames: WdlFrame[]): Replay {
       }
       if (index !== lastIndex) {
         const side = goalSide(frames[index], frames[lastIndex]);
+        // A drift morph spans exactly the gap just crossed and runs at constant
+        // speed, so consecutive keyframes chain into one continuous flow.
+        const gapMs = (frames[index].minute - frames[lastIndex].minute) * MS_PER_MINUTE;
         lastIndex = index;
         morphStart = now;
-        morphMs = side ? GOAL_MORPH_MS : DRIFT_MORPH_MS;
+        morphMs = side ? GOAL_MORPH_MS : Math.max(1, gapMs);
+        linear = !side;
         if (side) {
           beat = side;
           pause = GOAL_PAUSE_MS;
-          setTick({ minute: frames[index].minute, index, animate: true, beat, morphMs });
+          setTick({ minute: frames[index].minute, index, animate: true, beat, morphMs, linear: false });
           raf.current = requestAnimationFrame(step);
           return;
         }
       }
       const morphing = now - morphStart < morphMs;
-      setTick({ minute: Math.round(minute), index, animate: true, beat: null, morphMs });
+      setTick({ minute: Math.round(minute), index, animate: true, beat: null, morphMs, linear });
       if (clock < run || morphing) raf.current = requestAnimationFrame(step);
       else setTick(null);
     };
@@ -249,7 +271,7 @@ function useReplay(frames: WdlFrame[]): Replay {
 
   if (!tick) {
     const index = Math.max(0, frames.length - 1);
-    return { index, minute: target, animate: true, beat: null, morphMs: DRIFT_MORPH_MS, playing: false, play };
+    return { index, minute: target, animate: true, beat: null, morphMs: DRIFT_MORPH_MS, linear: false, playing: false, play };
   }
   return { ...tick, index: Math.min(tick.index, frames.length - 1), playing: true, play };
 }
@@ -257,23 +279,27 @@ function useReplay(frames: WdlFrame[]): Replay {
 function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
   const fixture = impact?.fixtures.find((f) => f.match === row.match) ?? null;
   const frames = liveWdlFrames(fixture, row.minute, row.homeGoals, row.awayGoals);
-  const { index, minute, playing, animate, beat, morphMs, play } = useReplay(frames);
+  const { index, minute, playing, animate, beat, morphMs, linear, play } = useReplay(frames);
   const frame = frames[index] ?? null;
   const canReplay = frames.length >= 2;
+  const statTrack = fixture?.statTrack ?? [];
+  const stat = statAtMinute(statTrack, minute);
+  // Old prod data never published stats; only show the strip when the track carries some.
+  const hasStats = statTrack.some((s) => s.homePossession !== null || s.homeTotalShots !== null || s.homeShotsOn !== null);
   const beatCode = beat === "home" ? row.homeCode : beat === "away" ? row.awayCode : null;
   const beatId = beat === "home" ? row.homeId : beat === "away" ? row.awayId : null;
   if (impact === null) return <LiveDetailLoader />;
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         {frame && (
-          <p className="flex items-baseline gap-1.5 font-display text-[13px] text-cream-faint">
+          <p className="flex items-baseline gap-1.5 font-display text-[12.5px] text-cream-faint">
             <span className="font-semibold" style={{ color: chartColour(row.homeId ?? "") }}>{row.homeCode}</span>
-            <span className="font-mono font-semibold tabular-nums text-cream-dim">
+            <span className="font-mono text-[13px] font-semibold tabular-nums text-cream">
               {frame.homeGoals}-{frame.awayGoals}
             </span>
             <span className="font-semibold" style={{ color: chartColour(row.awayId ?? "") }}>{row.awayCode}</span>
-            <span className="ml-0.5 font-mono font-semibold tabular-nums text-cream-dim">{minute}&apos;</span>
+            <span className="ml-1 font-mono text-[13px] font-semibold leading-none tabular-nums text-cream-dim">{minute}&apos;</span>
             {beatCode && (
               <span
                 key={`${index}-${beatCode}`}
@@ -301,10 +327,26 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           playing={playing}
           animate={animate}
           morphMs={morphMs}
+          linearMorph={linear}
           colours={row.colours}
           homeCode={row.homeCode}
           awayCode={row.awayCode}
           showDraw={!row.knockout}
+        />
+      )}
+      {frame && hasStats && (
+        <LiveStatsStrip
+          homeCode={row.homeCode}
+          awayCode={row.awayCode}
+          colours={row.colours}
+          morphMs={playing ? STAT_MORPH_MS : undefined}
+          replaying={playing}
+          homePossession={stat?.homePossession ?? null}
+          awayPossession={stat?.awayPossession ?? null}
+          homeTotalShots={stat?.homeTotalShots ?? null}
+          awayTotalShots={stat?.awayTotalShots ?? null}
+          homeShotsOn={stat?.homeShotsOn ?? null}
+          awayShotsOn={stat?.awayShotsOn ?? null}
         />
       )}
       <div className={frame ? "border-t border-hairline/60 pt-4" : undefined}>
@@ -329,19 +371,28 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
   }
   return (
     <div>
-      <div className="space-y-3">
+      <p className="mb-2.5 text-center font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint">
+        Est. impact on team outcomes
+      </p>
+      <div className="mx-auto w-fit space-y-3">
         {groups.map((g) => (
-          <div key={g.id} className="space-y-1">
-            {g.shifts.map((shift, i) => (
-              <div key={shift.stageLabel} className="grid grid-cols-[2.8rem_5.5rem_auto] items-baseline gap-2 font-display text-[13.5px] leading-tight">
-                <span className="font-semibold" style={{ color: i === 0 ? chartColour(g.id) : undefined }}>{i === 0 ? g.code : ""}</span>
-                <span className="text-cream-dim">{shift.stageLabel}</span>
-                <span className="font-mono text-[12.5px] tabular-nums text-cream-faint">
-                  {shift.fromPct.toFixed(0)}% <span className="mx-0.5">&rarr;</span>
-                  <span className="font-semibold text-cream">{shift.toPct.toFixed(0)}%</span>
-                </span>
-              </div>
-            ))}
+          <div key={g.id} className="grid grid-cols-[3rem_auto] gap-x-3">
+            <span className="pt-px font-display text-[13.5px] font-semibold" style={{ color: chartColour(g.id) }}>{g.code}</span>
+            <div className="space-y-1.5">
+              {g.shifts.map((shift) => {
+                const up = shift.toPct >= shift.fromPct;
+                return (
+                  <div key={shift.stageLabel} className="grid grid-cols-[5rem_auto] items-center gap-x-3 font-display text-[13px] leading-none">
+                    <span className="text-cream-dim">{shift.stageLabel}</span>
+                    <span className="flex items-center gap-1.5 font-mono text-[12.5px] tabular-nums">
+                      <span className="text-cream-faint">{shift.fromPct.toFixed(0)}%</span>
+                      <span className="text-[10px] leading-none text-cream-dim">{up ? "↑" : "↓"}</span>
+                      <span className="font-semibold text-cream">{shift.toPct.toFixed(0)}%</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>
