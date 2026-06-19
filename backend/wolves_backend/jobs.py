@@ -108,10 +108,10 @@ class LiveLoop:
         if idle <= chunk:
             await asyncio.sleep(idle)
             return
-        waited = 0.0
-        while waited < idle:
-            await asyncio.sleep(min(chunk, idle - waited))
-            waited += chunk
+        remaining = idle
+        while remaining > 0:
+            await asyncio.sleep(min(chunk, remaining))
+            remaining -= chunk
             if await self._new_agent_forecast_landed():
                 return
 

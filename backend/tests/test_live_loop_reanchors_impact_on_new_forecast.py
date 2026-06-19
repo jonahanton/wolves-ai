@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import math
 from types import SimpleNamespace
 
 from wolves.config import Settings as EngineSettings
@@ -46,10 +45,6 @@ def _loop(tmp_path, *, refs: list[SnapshotRef], anchored: str | None, fast: bool
     return loop
 
 
-def _chunks(loop: LiveLoop) -> int:
-    return math.ceil(loop._settings.live_idle_interval_s / loop._settings.impact_anchor_probe_interval_s)
-
-
 def test_new_forecast_mid_idle_returns_within_one_chunk(tmp_path, monkeypatch):
     refs = [_ref("agent-20260618-101744", "agent")]
     loop = _loop(tmp_path, refs=refs, anchored="agent-20260618-101744")
@@ -64,13 +59,14 @@ def test_new_forecast_mid_idle_returns_within_one_chunk(tmp_path, monkeypatch):
 def test_idle_elapses_fully_when_no_new_forecast(tmp_path, monkeypatch):
     refs = [_ref("agent-20260619-101015", "agent")]
     loop = _loop(tmp_path, refs=refs, anchored="agent-20260619-101015")
+    chunk = loop._settings.impact_anchor_probe_interval_s
+    loop._interval = lambda: chunk * 2.5
     sleeps = _Sleeps()
     monkeypatch.setattr(jobs.asyncio, "sleep", sleeps)
 
     asyncio.run(loop._idle_wait())
 
-    assert len(sleeps.durations) == _chunks(loop)
-    assert sum(sleeps.durations) == loop._settings.live_idle_interval_s
+    assert sleeps.durations == [chunk, chunk, chunk * 0.5]
 
 
 def test_fast_cadence_sleeps_once_without_probing(tmp_path, monkeypatch):
@@ -97,4 +93,4 @@ def test_probe_failure_lets_idle_elapse(tmp_path, monkeypatch):
 
     asyncio.run(loop._idle_wait())
 
-    assert len(sleeps.durations) == _chunks(loop)
+    assert sum(sleeps.durations) == loop._settings.live_idle_interval_s
