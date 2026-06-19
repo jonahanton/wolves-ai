@@ -4,7 +4,8 @@ World Cup 2026 forecasting app.
 
 ## How the forecast works
 
-The full forecast is a big agentic pipeline, which is a dynamic graph and I've scheduled it to run once a day. An agent graph plans and executes the forecast as a big dynamic graph (wave-scheduled DAG), with a master agent that dispatches waves of specialist worker nodes (research, quant, forecast, critic) onto a shared workspace. The graph continues to go (the master 'patches' it live) until the master evaluates that the forecast is complete and can be published, and passes a bunch of conditions imposed by a validator agent and a referee agent. Research nodes pull live signal from web search (Brave and Exa); the quantitative base is fitted from Elo histories, past international results (football-data, martj42), bookmaker and Polymarket market closes.
+The full forecast is an agentic pipeline, which is a dynamic graph and I've scheduled it to run once a day. An agent graph plans and executes the forecast as a 
+wave-scheduled DAG, with a master agent that dispatches waves of specialist worker nodes (research, quant, forecast, critic) onto a shared workspace. The graph continues to go (the master 'patches' it live) until the master evaluates that the forecast is complete and can be published, and passes a bunch of conditions imposed by a validator agent and a referee agent. Research nodes pull live signal from the web; the quantitative base is fitted from Elo histories, past international results (football-data, martj42), bookmaker and Polymarket market closes.
 
 The agents don't predict the scorelines in individual games as I think this would be subject to heavy bias and clear failure modes, so instead they propose a set of weighted scenario 'worlds', each expressed as additive team strength deltas over a base. Every world is then MC simulated over the full tournament (50k sims) using an Elo/Poisson bivariate match engine, and the tournament's rules are enforced exactly with real group fixtures, FIFA group tiebreakers, the best-third-place ranking, etc. The per-world champion, reach and exit distributions are combined into a weighted mixture, extremised against a baseline prior.
 
@@ -37,7 +38,7 @@ make demo/off  # restore real data and re-enable the poller
 
 ## Serving
 
-The daily run publishes its output as a snapshot (probability distributions, bracket samples) to S3; the backend serves the latest snapshot and the frontend displays it. Live match-day results are polled from API-Football and overlaid on the published forecast.
+The daily run publishes its output as a snapshot (probability distributions, bracket samples) to S3; the backend serves the latest snapshot and the frontend displays it. Live match-day results are polled and overlaid on the published forecast.
 
 ## Develop
 
