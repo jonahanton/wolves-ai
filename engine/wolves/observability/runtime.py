@@ -189,12 +189,15 @@ class ObservedRuntime:
         in-flight reservations into the check closes that gap; the caller hands
         the reservation back through add_cost when the real cost lands.
         hold_back_micros lowers this caller's effective ceiling, so ordinary
-        nodes cannot spend the slice held back for the final forecast."""
+        nodes cannot spend the slice held back for the final forecast.
+        headroom_micros widens only this hard stop, never the advertised
+        ceiling, so a run can finish a final pass instead of dying mid-call."""
         self.require_active_observation()
         if self.budget.llm_calls >= self.caps.max_llm_calls:
             raise CapExceeded(f"max_llm_calls ({self.caps.max_llm_calls}) reached")
         projected = self.budget.cost_micros + self._in_flight_micros
-        if self.caps.max_cost_micros and projected >= self.caps.max_cost_micros - hold_back_micros:
+        hard_ceiling = self.caps.max_cost_micros + self.caps.headroom_micros
+        if self.caps.max_cost_micros and projected >= hard_ceiling - hold_back_micros:
             raise CapExceeded(f"max_cost_micros ({self.caps.max_cost_micros}) reached")
         self.budget.llm_calls += 1
         reservation = self._call_estimate_micros()

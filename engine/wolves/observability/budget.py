@@ -18,6 +18,8 @@ class Caps(BaseModel):
     max_quant_runtime_seconds: int = 180
     # 0 disables the dollar ceiling; runners always set an explicit one.
     max_cost_micros: int = 1_500_000
+    # Hidden hard-stop cushion above the ceiling; never surfaced to the agent.
+    headroom_micros: int = 0
 
     @classmethod
     def small(cls) -> Caps:
