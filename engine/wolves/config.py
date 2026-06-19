@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     focus_team: str = "england"
     n_sims: int = 10_000
 
-    # Recent-form weighting: either knob at 0 reproduces the single-decay fit.
+    # Recent-form weighting, off: the backtest scored every setting worse than single-decay (knob at 0 is a no-op).
     form_half_life_days: float = 0.0
     form_weight: float = 0.0
     # The live impact path differences two reach sims, so its Monte-Carlo error
