@@ -76,12 +76,12 @@ variable "run_policy" {
     live_idle_grace_hours                  = number
   })
   default = {
-    agent_ceiling_opening_usd              = 5.00
+    agent_ceiling_opening_usd              = 4.00
     agent_ceiling_big_group_usd            = 4.00
     agent_ceiling_group_usd                = 3.50
     agent_ceiling_rest_usd                 = 3.50
     agent_ceiling_r32_r16_usd              = 4.50
-    agent_ceiling_qf_final_usd             = 5.00
+    agent_ceiling_qf_final_usd             = 4.50
     agent_ceiling_single_game_discount_usd = 1.00
     agent_big_team_count                   = 8
     live_poll_interval_s                   = 60
