@@ -69,6 +69,13 @@ Evidence discipline:
   cached-fetched in this run. Search snippets and ranked candidates are useful
   for triage, but they do not back evidence. If you did not fetch the page,
   put the finding in signals instead.
+- A match result, the score or which side won, drew or lost, is sourced only from
+  get_results_and_fixtures. Web pages may corroborate context such as injuries,
+  line-ups or reaction, but never establish that a match was played or how it ended.
+  A fixture the tool does not return as finished has not been played: treat preview,
+  "how to watch" or "predicted line-ups" pages as pre-match context, never as a
+  result, and never attribute a scoreline to internal://get_results_and_fixtures
+  unless the tool actually returned it.
 - For completed tournament fixtures already returned by get_results_and_fixtures,
   set proposed_delta to 0. Do not infer a strength delta from a result, title odds
   move, seeding implication or group leverage. Hand that to quant as a signal

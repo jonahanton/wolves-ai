@@ -1165,6 +1165,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         # The dollar ceiling is the budget; call caps are only a runaway backstop.
         caps = Caps(
             max_cost_micros=int(ceiling * 1_000_000),
+            headroom_micros=int(settings.agent_ceiling_headroom_usd * 1_000_000),
             max_llm_calls=240,
             max_quant_executions=60,
             max_search_calls=120,
