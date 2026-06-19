@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -10,6 +11,45 @@ from wolves.sim.format import GROUPS, FormatData, GroupMatch, PlayedResult
 from wolves.sim.tiebreaks import rank_group, rank_thirds
 
 MIN_GOAL_MEAN_AFTER_OFFSET = 0.05
+
+
+def fixture_lambdas(
+    engine: MatchEngine,
+    home: np.ndarray,
+    away: np.ndarray,
+    *,
+    city: str,
+    stage: str,
+    engine_stage: str,
+    match: int,
+    offsets: Mapping[int, tuple[float, float]],
+    in_match_perturbations: tuple,
+    pert_index: dict[str, int],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Per-sim lambdas for one fixture, shared by the tournament loop and the
+    analytic W/D/L curve: engine rates, goal offsets, then in-match perturbations."""
+    from wolves.sim.perturbations import MatchContext
+
+    lam_h, lam_a = engine.lambdas(home, away, city=city, stage=engine_stage)
+    if match in offsets:
+        off_h, off_a = offsets[match]
+        lam_h = np.maximum(lam_h + off_h, MIN_GOAL_MEAN_AFTER_OFFSET)
+        lam_a = np.maximum(lam_a + off_a, MIN_GOAL_MEAN_AFTER_OFFSET)
+    if in_match_perturbations:
+        mctx = MatchContext(
+            home=home,
+            away=away,
+            city=city,
+            stage=stage,
+            match=match,
+            lam_home=lam_h,
+            lam_away=lam_a,
+            team_index=pert_index,
+        )
+        for pert in in_match_perturbations:
+            pert.apply_in_match(mctx)
+        lam_h, lam_a = mctx.lam_home, mctx.lam_away
+    return lam_h, lam_a
 
 
 class ThirdsAllocationError(Exception):
@@ -87,7 +127,7 @@ def run_tournament(
     in_match_perturbations adjust per-sim lambdas on the matches they select;
     outcome_perturbations reweight resolved knockout advances on their pairings."""
     from wolves.data.teams import registry_team_key
-    from wolves.sim.perturbations import KnockoutContext, MatchContext
+    from wolves.sim.perturbations import KnockoutContext
 
     rng = np.random.default_rng(seed)
     idx = fmt.team_index()
@@ -106,26 +146,18 @@ def run_tournament(
     def match_lambdas(
         home: np.ndarray, away: np.ndarray, city: str, stage: str, match: int, *, engine_stage: str
     ) -> tuple[np.ndarray, np.ndarray]:
-        lam_h, lam_a = engine.lambdas(home, away, city=city, stage=engine_stage)
-        if match in offsets:
-            off_h, off_a = offsets[match]
-            lam_h = np.maximum(lam_h + off_h, MIN_GOAL_MEAN_AFTER_OFFSET)
-            lam_a = np.maximum(lam_a + off_a, MIN_GOAL_MEAN_AFTER_OFFSET)
-        if in_match_perturbations:
-            mctx = MatchContext(
-                home=home,
-                away=away,
-                city=city,
-                stage=stage,
-                match=match,
-                lam_home=lam_h,
-                lam_away=lam_a,
-                team_index=pert_index,
-            )
-            for pert in in_match_perturbations:
-                pert.apply_in_match(mctx)
-            lam_h, lam_a = mctx.lam_home, mctx.lam_away
-        return lam_h, lam_a
+        return fixture_lambdas(
+            engine,
+            home,
+            away,
+            city=city,
+            stage=stage,
+            engine_stage=engine_stage,
+            match=match,
+            offsets=offsets,
+            in_match_perturbations=in_match_perturbations,
+            pert_index=pert_index,
+        )
 
     pts = np.zeros((n_teams, n_sims), dtype=np.int32)
     gf = np.zeros((n_teams, n_sims), dtype=np.int32)
