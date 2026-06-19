@@ -26,6 +26,14 @@ def test_remaining_counts_down():
     assert gate.remaining == 1
 
 
+def test_keep_free_reserves_a_floor_for_other_callers():
+    gate = BudgetGate(budget=12)
+    searches = sum(gate.try_reserve(keep_free=3) for _ in range(20))
+    assert searches == 9
+    assert gate.remaining == 3
+    assert gate.try_reserve()
+
+
 async def test_parallel_sibling_tasks_cannot_over_reserve():
     """All siblings dispatched in one turn race the gate; exactly `budget` win."""
     gate = BudgetGate(budget=4)

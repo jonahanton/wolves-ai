@@ -369,6 +369,10 @@ Standing orders:
   a revision. Frequent small corrections beat rare large ones, but a within-run
   revision adds no new information, so revise only to fix a forecast that is
   wrong on its own terms, never to chase motion.
+- When run_context carries a structural_repair brief, the last submission was
+  rejected for a defect only quant can fix. Brief one quant node as it instructs,
+  reusing the cited mixture's worlds unchanged, then re-forecast; do not re-brief
+  the forecast node against the same artifact.
 - Never use em-dashes in anything you write.
 
 A failed node is not a dead end: its error is on the blackboard. Re-brief it

@@ -17,6 +17,7 @@ from wolves.agent.audit_policy import (
 from wolves.agent.audit_policy import (
     is_large_non_base,
     non_base_mass,
+    repair_owner,
     required_keys,
 )
 from wolves.agent.contracts import ForecastSubmission
@@ -48,6 +49,12 @@ class ValidationIssue(BaseModel):
     message: str
     severity: IssueSeverity = "hard"
 
+    @property
+    def repair_owner(self) -> str:
+        """Whether the forecast node can fix this by editing its submission, or
+        only a quant node can, by regenerating the cited artifact."""
+        return repair_owner(self.code)
+
 
 class EscalationDetail(BaseModel):
     team: str
@@ -68,6 +75,12 @@ class ValidationReport(BaseModel):
     @property
     def hard_issues(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.severity == "hard"]
+
+    @property
+    def quant_repair_issues(self) -> list[ValidationIssue]:
+        """Hard issues only a quant node can fix; the forecast node retrying
+        against these just burns budget on an artifact it cannot rewrite."""
+        return [i for i in self.hard_issues if i.repair_owner == "quant"]
 
     def summary(self) -> str:
         return "; ".join(f"[{i.code}] {i.message}" for i in self.issues)

@@ -36,6 +36,12 @@ _DEMAND_SUBMIT = (
     "with your best current forecast; note the pressure in the justification text if it constrained you."
 )
 
+_STRUCTURAL_REPAIR_BRIEF = (
+    "The last submission was rejected for a structural defect only quant can fix. Brief a quant node to reuse the "
+    "cited mixture's existing worlds and weights unchanged and recompute only the missing factor_audit rows "
+    "(e.g. a mixture_spread row from wq.mixture_spread), then re-register; no new world simulation is needed."
+)
+
 
 @dataclass(frozen=True)
 class GraphModels:
@@ -284,6 +290,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             if any(op.kind == "forecast" for op in ops):
                 _reset_forecast_copy_state(deps)
             had_referee_replan = submission_state.referee_replan_required
+            had_structural_repair = submission_state.structural_repair_required
             outcomes = await _execute_wave(ops, deps=deps, store=store, models=models)
             board.merge(ops, outcomes)
             await _submit_clean_preview(deps)
@@ -298,6 +305,17 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                     submission_state.referee_replan_required = False
                 else:
                     logger.info("referee requested master replanning after wave %d", board.wave)
+                    continue
+            if submission_state.structural_repair_required:
+                quant_ran = had_structural_repair and any(
+                    outcome.ok and outcome.kind == "quant" for outcome in outcomes
+                )
+                if quant_ran:
+                    submission_state.structural_repair_required = False
+                    board.set_context("structural_repair", "")
+                else:
+                    board.set_context("structural_repair", _STRUCTURAL_REPAIR_BRIEF)
+                    logger.info("structural repair requested after wave %d; replanning quant", board.wave)
                     continue
             if patch.stop:
                 # A stop patch may carry final ops; they run before the end.

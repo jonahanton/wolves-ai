@@ -195,9 +195,13 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         python_calls=0,
     )
     if isinstance(model, ObservedModel):
-        # Only the forecast node may spend the held-back reserve; every other
-        # kind hits its ceiling early so the run always affords a submission.
-        hold_back = 0 if brief.kind == "forecast" else int(settings.graph_forecast_reserve_usd * 1_000_000)
+        # The forecast node, and a quant node repairing a structural rejection,
+        # may spend the held-back reserve; other nodes hit their ceiling early so
+        # the run always affords a submission or its repair.
+        spends_reserve = brief.kind == "forecast" or (
+            brief.kind == "quant" and deps.submission.structural_repair_required
+        )
+        hold_back = 0 if spends_reserve else int(settings.graph_forecast_reserve_usd * 1_000_000)
         model = ObservedModel(
             model.wrapped,
             runtime=deps.runtime,
