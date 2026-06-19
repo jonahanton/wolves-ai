@@ -74,7 +74,6 @@ locals {
     { name = "AGENT_CEILING_REST_USD", value = tostring(var.run_policy.agent_ceiling_rest_usd) },
     { name = "AGENT_CEILING_R32_R16_USD", value = tostring(var.run_policy.agent_ceiling_r32_r16_usd) },
     { name = "AGENT_CEILING_QF_FINAL_USD", value = tostring(var.run_policy.agent_ceiling_qf_final_usd) },
-    { name = "AGENT_CEILING_SINGLE_GAME_DISCOUNT_USD", value = tostring(var.run_policy.agent_ceiling_single_game_discount_usd) },
     { name = "AGENT_BIG_TEAM_COUNT", value = tostring(var.run_policy.agent_big_team_count) },
     { name = "LIVE_POLL_INTERVAL_S", value = tostring(var.run_policy.live_poll_interval_s) },
     { name = "LIVE_STALE_AFTER_S", value = tostring(var.run_policy.live_stale_after_s) },

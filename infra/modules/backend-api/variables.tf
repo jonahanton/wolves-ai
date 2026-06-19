@@ -116,18 +116,17 @@ variable "live_data_secret_arns" {
 variable "run_policy" {
   description = "Live-ops knobs mirrored into the backend so the in-process loops and the policy calendar match the engine's."
   type = object({
-    agent_ceiling_opening_usd              = number
-    agent_ceiling_big_group_usd            = number
-    agent_ceiling_group_usd                = number
-    agent_ceiling_rest_usd                 = number
-    agent_ceiling_r32_r16_usd              = number
-    agent_ceiling_qf_final_usd             = number
-    agent_ceiling_single_game_discount_usd = number
-    agent_big_team_count                   = number
-    live_poll_interval_s                   = number
-    live_stale_after_s                     = number
-    live_idle_interval_s                   = number
-    live_idle_grace_hours                  = number
+    agent_ceiling_opening_usd   = number
+    agent_ceiling_big_group_usd = number
+    agent_ceiling_group_usd     = number
+    agent_ceiling_rest_usd      = number
+    agent_ceiling_r32_r16_usd   = number
+    agent_ceiling_qf_final_usd  = number
+    agent_big_team_count        = number
+    live_poll_interval_s        = number
+    live_stale_after_s          = number
+    live_idle_interval_s        = number
+    live_idle_grace_hours       = number
   })
 }
 
