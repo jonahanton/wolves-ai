@@ -97,6 +97,8 @@ def generate_snapshot(
             settings=settings,
             played=frozenset(forecaster.played_results(extra_results=played)),
             rng_seed=seed,
+            forecaster=forecaster,
+            world_specs={"baseline": ((), ())},
         )
         model_probs = {t.team_id: t.champion_prob for t in outputs.teams}
         markets = _markets_block(settings, forecaster, model_probs)

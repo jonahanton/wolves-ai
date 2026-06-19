@@ -33,11 +33,11 @@ from wolves.models.inmatch import (
     live_wdl_draws as _live_wdl_draws,
 )
 from wolves.models.live_signals import BlendParams, LiveSignals, Rates, blend_rates
-from wolves.models.poisson import PoissonDecayModel, poisson_grid
+from wolves.models.poisson import PoissonDecayModel, poisson_grid, poisson_wdl_draws
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
 from wolves.sim.latent import LatentEffect
-from wolves.sim.mc import MIN_GOAL_MEAN_AFTER_OFFSET, SimResult, run_tournament
+from wolves.sim.mc import MIN_GOAL_MEAN_AFTER_OFFSET, SimResult, fixture_lambdas, run_tournament
 from wolves.sim.model_engine import PARAMETER_DRAWS, PoissonMatchEngine
 from wolves.sim.outputs import build_focus_team, build_groups, build_matches, build_slots, build_team_reach
 from wolves.sim.perturbations import (
@@ -368,6 +368,90 @@ class Forecaster:
             in_match_perturbations=in_match,
             outcome_perturbations=on_outcome,
         )
+
+    def _world_engine(
+        self,
+        perturbations: tuple[Perturbation, ...],
+        latent_effects: tuple[LatentEffect, ...],
+        *,
+        draws: int,
+        seed: int,
+    ) -> tuple[
+        PoissonMatchEngine,
+        dict[int, tuple[float, float]],
+        dict[int, ScorelineDistribution],
+        tuple[Perturbation, ...],
+    ]:
+        """Rebuild one world's parameter-draw engine as simulate would, so its
+        per-draw lambdas reproduce the sim's, with that world's offsets, grids
+        and in-match perturbations."""
+        state, offsets, grids, extra_var = self._perturbed(perturbations)
+        if extra_var.any():
+            base_cov = state.covariance if state.covariance is not None else np.zeros((len(extra_var), len(extra_var)))
+            state = replace(state, covariance=base_cov + np.diag(extra_var))
+        in_match = tuple(p for p in perturbations if p.acts_in_match and p.active(on=state.as_of))
+        engine = PoissonMatchEngine(self.fmt, state, parameter_draws=draws, latent_effects=latent_effects)
+        engine.begin(np.random.default_rng(seed), draws)
+        return engine, offsets, grids, in_match
+
+    def group_wdl_draws(
+        self,
+        *,
+        worlds: Mapping[str, tuple[tuple[Perturbation, ...], tuple[LatentEffect, ...]]],
+        weights: Mapping[str, float],
+        played: frozenset[int],
+        draws: int,
+        seed: int = 0,
+    ) -> dict[int, tuple[list[float], list[float], list[float]]]:
+        """Per-draw W/D/L for every unplayed group fixture, mixed over worlds by
+        weight. Closed-form independent Poisson (rho=0, city-aware), matching the
+        sim's goal frequency; injected-grid fixtures use the grid directly."""
+        idx = self.fmt.team_index()
+        pert_index = {registry_team_key(team): col for team, col in idx.items()}
+        accum: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray]] = {
+            m.match: (np.zeros(draws), np.zeros(draws), np.zeros(draws))
+            for m in self.fmt.group_matches
+            if m.match not in played
+        }
+        for name, weight in weights.items():
+            perturbations, latent_effects = worlds[name]
+            engine, offsets, grids, in_match = self._world_engine(perturbations, latent_effects, draws=draws, seed=seed)
+            for m in self.fmt.group_matches:
+                if m.match not in accum:
+                    continue
+                if m.match in grids:
+                    grid = grids[m.match]
+                    p_home = np.full(draws, grid.p_home)
+                    p_draw = np.full(draws, grid.p_draw)
+                    p_away = np.full(draws, grid.p_away)
+                else:
+                    home = np.full(draws, idx[m.home])
+                    away = np.full(draws, idx[m.away])
+                    lam_home, lam_away = fixture_lambdas(
+                        engine,
+                        home,
+                        away,
+                        city=m.city,
+                        stage="group",
+                        engine_stage="group",
+                        match=m.match,
+                        offsets=offsets,
+                        in_match_perturbations=in_match,
+                        pert_index=pert_index,
+                    )
+                    p_home, p_draw, p_away = poisson_wdl_draws(lam_home, lam_away)
+                ph, pd, pa = accum[m.match]
+                ph += weight * p_home
+                pd += weight * p_draw
+                pa += weight * p_away
+        return {
+            match: (
+                [round(float(p), 4) for p in ph],
+                [round(float(p), 4) for p in pd],
+                [round(float(p), 4) for p in pa],
+            )
+            for match, (ph, pd, pa) in accum.items()
+        }
 
     def title_probs(
         self,

@@ -136,7 +136,11 @@ async def build_impact(deps: Deps) -> Impact:
             _fixture_block(
                 f,
                 _live_wdl_frames(
-                    forecaster, f, knockout=f.match in knockout_ids, history=stat_history.get(f.match, [])
+                    forecaster,
+                    f,
+                    knockout=f.match in knockout_ids,
+                    history=stat_history.get(f.match, []),
+                    draws=deps.engine.settings.wdl_curve_draws,
                 )
                 if serving
                 else None,
@@ -280,7 +284,7 @@ def _stat_track(fixture: LiveFixture, history: list[LiveFixture]) -> list[dict[s
 
 
 def _live_wdl_frames(
-    forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool, history: list[LiveFixture]
+    forecaster: Forecaster, fixture: LiveFixture, *, knockout: bool, history: list[LiveFixture], draws: int
 ) -> tuple[dict[str, list[float]], list[dict[str, Any]]] | None:
     """Current per-draw W/D/L plus a keyframe per goal, all from one shared rate
     sample. Each keyframe blends the signals as they stood at that minute."""
@@ -295,7 +299,7 @@ def _live_wdl_frames(
         snaps[-1] = fixture
     signals_at = [_signals(snap) if snap else None for snap in snaps]
     frames = forecaster.live_wdl_draws_at(
-        fixture.home_id, fixture.away_id, states, knockout=knockout, signals_at=signals_at
+        fixture.home_id, fixture.away_id, states, knockout=knockout, signals_at=signals_at, draws=draws
     )
     keyframes = [
         {

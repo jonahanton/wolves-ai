@@ -984,6 +984,8 @@ def _build_snapshot(
         settings=settings,
         played=frozenset(deps.forecaster.played_results(extra_results=played)),
         rng_seed=seed,
+        forecaster=deps.forecaster,
+        world_specs={w.name: (tuple(w.perturbations), tuple(w.latent_effects)) for w in worlds},
         anchor_result=anchor_result,
         effective_d=effective_d,
         stream_records=load_stream(settings),

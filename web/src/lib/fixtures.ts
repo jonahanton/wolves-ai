@@ -149,9 +149,9 @@ export function liveWdlFrames(
 
 function wdlShape(home: number[], draw: number[], away: number[]): WdlShape {
   return {
-    home: { curve: samplesToCurve(home, GRID), bars: samplesToBars(home) },
-    draw: { curve: samplesToCurve(draw, GRID), bars: samplesToBars(draw) },
-    away: { curve: samplesToCurve(away, GRID), bars: samplesToBars(away) },
+    home: { curve: samplesToCurve(home, GRID), bars: samplesToBars(home), samples: home.length },
+    draw: { curve: samplesToCurve(draw, GRID), bars: samplesToBars(draw), samples: draw.length },
+    away: { curve: samplesToCurve(away, GRID), bars: samplesToBars(away), samples: away.length },
   };
 }
 
