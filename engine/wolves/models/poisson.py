@@ -60,10 +60,7 @@ class InsufficientFitDataError(Exception):
 def _blended_decay(
     age: np.ndarray, *, half_life_days: float, form_half_life_days: float, form_weight: float
 ) -> np.ndarray:
-    """Time decay, optionally mixed with a faster recent-form decay. The mix is a
-    convex blend of the two decays only; importance stays the outer multiplier at
-    the call site, so recency never reorders matches of equal age by competition.
-    A no-op (the slow decay alone) until both form knobs are positive."""
+    """Time decay, optionally convex-blended with a faster recent-form decay."""
     decay = 0.5 ** (age / half_life_days)
     if form_weight <= 0.0 or form_half_life_days <= 0.0:
         return decay
