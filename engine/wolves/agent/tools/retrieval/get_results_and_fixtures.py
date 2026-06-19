@@ -6,7 +6,6 @@ from typing import Any
 from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools._shared import reserve_or_refuse
 from wolves.sim.format import GROUPS, FormatData, GroupMatch, PlayedResult, load_format
 from wolves.sim.overlay import resolve_fixture, results_from_fixtures
 from wolves.toolkit._timeout import run_with_timeout
@@ -129,9 +128,6 @@ async def _get_results_and_fixtures(args: GetResultsAndFixturesArgs, deps: Agent
             return _invalid_date(
                 f"date {args.date} is after today {deps.as_of}; do not query live fixture state after as-of"
             )
-    refused = reserve_or_refuse(deps)
-    if refused is not None:
-        return refused
     deps.runtime.charge_data_fetch()
     with deps.runtime.observe(kind="data_fetch", actor=deps.actor, name="get_results_and_fixtures") as rec:
         fmt = load_format(deps.settings.data_dir)

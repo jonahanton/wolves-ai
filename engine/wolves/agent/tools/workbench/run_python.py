@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from wolves.agent.audit_policy import intrinsic_missing_rows
 from wolves.agent.deps import AgentDeps
 from wolves.quant.context import build_sandbox_context
 from wolves.quant.inputs import prepare_inputs
@@ -48,14 +49,14 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
     deps.quant.write_analysis(actor=deps.actor, workspace=workspace, code=args.code, filename=script)
     result = await deps.quant.execute(actor=deps.actor, workspace=workspace, script=script)
     clean_missing_result = result.no_result and result.exit_code == 0 and not result.timed_out
-    registered = (
+    registered, audit_warnings = (
         _register_mixtures(
             deps,
             workspace_dir=workspace.dir.name,
             files=[o.filename for o in result.output_files],
         )
         if result.ok or clean_missing_result
-        else []
+        else ([], [])
     )
     result_text = json.dumps(result.result_value, ensure_ascii=False, default=str)
     return ToolResult(
@@ -75,18 +76,22 @@ async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
                 if registered
                 else {}
             ),
+            **({"audit_warnings": audit_warnings} if audit_warnings else {}),
             **({"error": result.error} if result.error else {}),
         },
     )
 
 
-def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str]) -> list[str]:
+def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str]) -> tuple[list[str], list[str]]:
     """Mixture artifacts computed in the sandbox become run artifacts the
-    forecast node can cite and submit by reference."""
+    forecast node can cite and submit by reference. A large-non-base mixture
+    missing factor_audit coverage is still registered, but the gap is surfaced
+    here so the quant node authors the row now, not at the unrecoverable submit."""
     store = deps.artifacts
     if store is None:
-        return []
+        return [], []
     artifact_ids: list[str] = []
+    warnings: list[str] = []
     registered = {r.summary.split(":", 1)[0]: r.id for r in store.all() if r.kind == "mixture"}
     for filename in files:
         if not filename.endswith(".json"):
@@ -106,6 +111,7 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
             if artifact is not None and artifact.payload != payload:
                 store.amend_payload(artifact.id, payload)
                 artifact_ids.append(artifact.id)
+                warnings.extend(_audit_gap_warning(payload, marker))
             continue
         artifact = store.add(
             kind="mixture",
@@ -115,7 +121,19 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
             workspace_prefix=f"runs/{store.run_id}/workspace/quant/{workspace_dir}",
         )
         artifact_ids.append(artifact.id)
-    return artifact_ids
+        warnings.extend(_audit_gap_warning(payload, marker))
+    return artifact_ids, warnings
+
+
+def _audit_gap_warning(payload: dict, marker: str) -> list[str]:
+    missing = intrinsic_missing_rows(payload)
+    if not missing:
+        return []
+    return [
+        f"{marker} is a large non-base mixture missing factor_audit rows: {', '.join(missing)}. "
+        "Add them with wq.factor_audit (e.g. a mixture_spread row from wq.mixture_spread) and re-register; "
+        "the submit validator rejects this artifact otherwise."
+    ]
 
 
 def _describe_mixture(payload: dict) -> str:

@@ -165,6 +165,10 @@ discovering them:
   decorative checklist: it is the machine-readable proof of what you actually
   quantified or deliberately nulled. For a market_gap check, fill teams with
   every team whose market stance the mixture or submission relies on.
+- A large non-base mixture (non-base world weight at or above 0.15) must carry a
+  mixture_spread row, read from wq.mixture_spread; registration flags the gap in
+  audit_warnings and the submit validator rejects the artifact without it. Add
+  the row here, while you still hold the workspace, never leave it for submission.
 - When research or your own analysis identifies live branches, add an optional
   branch audit as well: wq.branch_audit(checks=[...], verdict=...), then pass
   branch_audit=branch_audit and, where useful, world_metadata={world:

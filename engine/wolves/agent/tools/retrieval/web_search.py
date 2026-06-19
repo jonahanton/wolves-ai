@@ -53,7 +53,7 @@ async def _web_search(args: WebSearchArgs, deps: AgentDeps) -> ToolResult[Any]:
                 ),
             ),
         )
-    refused = reserve_or_refuse(deps)
+    refused = reserve_or_refuse(deps, keep_free=deps.settings.graph_research_fetch_floor)
     if refused is not None:
         return refused
     result = await run_with_timeout(

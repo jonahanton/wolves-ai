@@ -139,6 +139,9 @@ class Settings(BaseSettings):
     # A pre-mortem critic reads evidence, mixtures and the branch audit; 8 starved it.
     graph_critic_request_limit: int = 16
     graph_research_tool_budget: int = 12
+    # Slots a research node holds back from searching so it can always fetch the
+    # sources it intends to cite; a snippet it cannot fetch is a signal, not evidence.
+    graph_research_fetch_floor: int = 3
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
     graph_critic_tool_budget: int = 6
