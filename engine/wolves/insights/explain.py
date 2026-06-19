@@ -65,6 +65,8 @@ def model_explain(forecaster: Forecaster, team: str) -> StrengthExplanation:
         as_of=state.as_of,
         half_life_days=state.globals_["half_life_days"],
         min_importance=forecaster.model.min_importance,
+        form_half_life_days=state.globals_.get("form_half_life_days", 0.0),
+        form_weight=state.globals_.get("form_weight", 0.0),
     )
     diff = state.strengths[data.home_idx] - state.strengths[data.away_idx]
     lam_home = np.exp(state.globals_["intercept"] + diff + state.globals_["home_adv"] * data.at_home)

@@ -102,7 +102,11 @@ class Forecaster:
         self._dataset = dataset
         self._default_results: dict[int, PlayedResult] = {}
         half_life = self.champion.half_life_days
-        self.model = PoissonDecayModel(**({"half_life_days": half_life} if half_life else {}))
+        self.model = PoissonDecayModel(
+            **({"half_life_days": half_life} if half_life else {}),
+            form_half_life_days=settings.form_half_life_days,
+            form_weight=settings.form_weight,
+        )
         self._state: FittedState | None = None
         self._blend = BlendParams(
             halflife_minutes=settings.live_blend_halflife_minutes,

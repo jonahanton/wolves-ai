@@ -59,6 +59,14 @@ class Settings(BaseSettings):
     data_dir: Path = REPO_ROOT / "data"
     focus_team: str = "england"
     n_sims: int = 10_000
+
+    # Optional recent-form weighting for the base Poisson fit: a faster decay mixed
+    # into the slow time decay so hot or cold teams register, never as a separate
+    # term, so competition importance stays the outer multiplier. Disabled until a
+    # backtest clears it; form_weight 0 or form_half_life_days 0 reproduces the
+    # single-decay fit exactly.
+    form_half_life_days: float = 0.0
+    form_weight: float = 0.0
     # The live impact path differences two reach sims, so its Monte-Carlo error
     # is wider than a single run's; held high enough that a one-goal swing clears
     # the noise floor rather than reading as a spurious negative move.
