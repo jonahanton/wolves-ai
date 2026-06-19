@@ -119,6 +119,7 @@ export function samplesToBars(samples: number[]): Bar[] {
 export interface OutcomeShape {
   curve: DistroPoint[];
   bars: Bar[];
+  samples: number;
 }
 
 export interface WdlShape {
