@@ -10,6 +10,16 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
+from wolves.agent.audit_policy import BASE_WORLDS as _BASE_WORLDS
+from wolves.agent.audit_policy import (
+    VALID_AUDIT_STATUSES as _VALID_AUDIT_STATUSES,
+)
+from wolves.agent.audit_policy import (
+    is_large_non_base,
+    non_base_mass,
+    repair_owner,
+    required_keys,
+)
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.forecast_artifact import ForecastArtifactError, worlds_from_payload
 from wolves.agent.ledger import EvidenceLedger
@@ -21,9 +31,6 @@ if TYPE_CHECKING:
 EM_DASH = "\u2014"
 _REACH_ORDER = ["r32", "r16", "qf", "sf", "final", "champion"]
 _UNPRICED_DELTA_FLOOR = 0.5
-_BASE_WORLDS = frozenset({"baseline", "model_base", "market_base"})
-_FACTOR_AUDIT_WORLD_WEIGHT = 0.15
-_VALID_AUDIT_STATUSES = {"checked", "not_material", "not_applicable", "missing"}
 
 
 class ValidatorLimits(BaseModel):
@@ -41,6 +48,12 @@ class ValidationIssue(BaseModel):
     code: str
     message: str
     severity: IssueSeverity = "hard"
+
+    @property
+    def repair_owner(self) -> str:
+        """Whether the forecast node can fix this by editing its submission, or
+        only a quant node can, by regenerating the cited artifact."""
+        return repair_owner(self.code)
 
 
 class EscalationDetail(BaseModel):
@@ -62,6 +75,12 @@ class ValidationReport(BaseModel):
     @property
     def hard_issues(self) -> list[ValidationIssue]:
         return [i for i in self.issues if i.severity == "hard"]
+
+    @property
+    def quant_repair_issues(self) -> list[ValidationIssue]:
+        """Hard issues only a quant node can fix; the forecast node retrying
+        against these just burns budget on an artifact it cannot rewrite."""
+        return [i for i in self.hard_issues if i.repair_owner == "quant"]
 
     def summary(self) -> str:
         return "; ".join(f"[{i.code}] {i.message}" for i in self.issues)
@@ -565,12 +584,11 @@ def _check_factor_audit(
     if "conditionals" not in payload and "noise_floor_pp" not in payload:
         return []
     audit = payload.get("factor_audit")
-    non_base_mass = sum(weight for name, weight in weights.items() if name not in _BASE_WORLDS)
-    large_non_base = non_base_mass >= _FACTOR_AUDIT_WORLD_WEIGHT
+    large_non_base = is_large_non_base(weights)
     has_market_stance = bool(submission.market_justification.strip() or submission.market_gaps)
     if audit is None:
         if large_non_base or has_market_stance:
-            reason = f"non-base mass {non_base_mass:.2f}" if large_non_base else "market stance"
+            reason = f"non-base mass {non_base_mass(weights):.2f}" if large_non_base else "market stance"
             return [
                 _issue(
                     "factor_audit_missing",
@@ -679,19 +697,13 @@ def _required_factor_audit_keys(
     has_market_stance: bool,
     has_previous_context: bool,
 ) -> set[str]:
-    if not large_non_base and not has_market_stance:
-        return set()
-    weights: dict[str, float] = payload.get("weights") or {}
-    required = {"mixture_spread"} if large_non_base else set()
-    if has_previous_context:
-        required.add("previous_continuity")
-    if {"model_base", "market_base"} <= set(weights):
-        required.add("bases")
-    if has_market_stance:
-        required.add("market_gap")
-    if payload.get("priced_items") or submission.news_impacts:
-        required.add("ledger_pricing")
-    return required
+    return required_keys(
+        payload.get("weights") or {},
+        large_non_base=large_non_base,
+        has_market_stance=has_market_stance,
+        has_previous_context=has_previous_context,
+        has_priced_or_news=bool(payload.get("priced_items") or submission.news_impacts),
+    )
 
 
 _MARKET_GAP_TOLERANCE_PP = 0.2

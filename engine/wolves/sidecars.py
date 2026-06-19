@@ -11,8 +11,12 @@ from pydantic import BaseModel
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from wolves.forecast import Forecaster, Perturbation
     from wolves.sim.format import FormatData
+    from wolves.sim.latent import LatentEffect
     from wolves.sim.mc import SimResult
+
+    WorldSpec = tuple[tuple[Perturbation, ...], tuple[LatentEffect, ...]]
 
 KO_ROUNDS = ("r32", "r16", "qf", "sf", "final")
 DEFAULT_BRACKET_SAMPLES = 100
@@ -28,13 +32,18 @@ class UnknownSidecarError(Exception):
 @dataclass(frozen=True)
 class SidecarInputs:
     """What publish time has in hand; played holds match numbers with a final
-    result, which producers skip wherever per-sim variation is required."""
+    result, which producers skip wherever per-sim variation is required.
+    forecaster + world_specs + wdl_curve_draws drive the analytic W/D/L curve;
+    the other producers stay on parameter_draws."""
 
     fmt: FormatData
     per_world_results: dict[str, SimResult]
     weights: dict[str, float]
     parameter_draws: int
     rng_seed: int
+    forecaster: Forecaster
+    world_specs: dict[str, WorldSpec]
+    wdl_curve_draws: int
     played: frozenset[int] = frozenset()
 
 
@@ -154,33 +163,21 @@ def build_pairing_matrices(inputs: SidecarInputs) -> PairingMatrices:
 
 
 def build_match_wdl_draws(inputs: SidecarInputs) -> MatchWdlDraws:
-    """Per-parameter-draw W/D/L for group matches, mixed over worlds by weight.
-
-    Sims map to draws by i % parameter_draws, mirroring the model engine's
-    world assignment. Matches in inputs.played are skipped: their goals are
-    fixed, so a per-draw spread would be meaningless."""
-    n_draws = inputs.parameter_draws
-    out: dict[int, MatchWdl] = {}
-    for m in inputs.fmt.group_matches:
-        if m.match in inputs.played:
-            continue
-        p_home = np.zeros(n_draws)
-        p_draw = np.zeros(n_draws)
-        p_away = np.zeros(n_draws)
-        for name, weight in inputs.weights.items():
-            result = inputs.per_world_results[name]
-            hg, ag = result.group_goals[m.match]
-            draw_idx = np.arange(result.n_sims) % n_draws
-            counts = np.maximum(np.bincount(draw_idx, minlength=n_draws), 1)
-            p_home += weight * np.bincount(draw_idx, weights=hg > ag, minlength=n_draws) / counts
-            p_draw += weight * np.bincount(draw_idx, weights=hg == ag, minlength=n_draws) / counts
-            p_away += weight * np.bincount(draw_idx, weights=hg < ag, minlength=n_draws) / counts
-        out[m.match] = MatchWdl(
-            p_home=[round(float(p), 4) for p in p_home],
-            p_draw=[round(float(p), 4) for p in p_draw],
-            p_away=[round(float(p), 4) for p in p_away],
-        )
-    return MatchWdlDraws(matches=out)
+    """Analytic per-draw W/D/L for unplayed group matches, mixed over worlds by
+    weight; played matches are skipped (fixed goals carry no spread)."""
+    curves = inputs.forecaster.group_wdl_draws(
+        worlds=inputs.world_specs,
+        weights=inputs.weights,
+        played=inputs.played,
+        draws=inputs.wdl_curve_draws,
+        seed=inputs.rng_seed,
+    )
+    return MatchWdlDraws(
+        matches={
+            match: MatchWdl(p_home=p_home, p_draw=p_draw, p_away=p_away)
+            for match, (p_home, p_draw, p_away) in curves.items()
+        }
+    )
 
 
 @dataclass(frozen=True)

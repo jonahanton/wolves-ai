@@ -46,6 +46,7 @@ interface Lane {
   mean: number;
   curve: DistroPoint[];
   bars: Bar[];
+  samples: number;
   colour: string;
 }
 
@@ -104,8 +105,8 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, playin
                   height={HEIGHT - y(b.y)}
                   fill={lane.colour}
                   fillOpacity={MIN_OPACITY + (MAX_OPACITY - MIN_OPACITY) * t}
-                  onMouseEnter={(e) => setHover(wdlBarHover(e, b, lane.label, lane.colour))}
-                  onMouseMove={(e) => setHover(wdlBarHover(e, b, lane.label, lane.colour))}
+                  onMouseEnter={(e) => setHover(wdlBarHover(e, b, lane.label, lane.colour, lane.samples))}
+                  onMouseMove={(e) => setHover(wdlBarHover(e, b, lane.label, lane.colour, lane.samples))}
                   onMouseLeave={() => setHover(null)}
                 />
               );
@@ -189,8 +190,8 @@ interface LabelLayout {
   anchor: "start" | "middle" | "end";
 }
 
-const CHAR_PX = 6.6;
-const LABEL_GAP = 8;
+const CHAR_PX = 7.4;
+const LABEL_GAP = 12;
 
 // Place each peak label at its mean, then nudge colliding labels rightward so they
 // never overlap; a leader line keeps each label tied to its marker once nudged.

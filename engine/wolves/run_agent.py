@@ -984,6 +984,8 @@ def _build_snapshot(
         settings=settings,
         played=frozenset(deps.forecaster.played_results(extra_results=played)),
         rng_seed=seed,
+        forecaster=deps.forecaster,
+        world_specs={w.name: (tuple(w.perturbations), tuple(w.latent_effects)) for w in worlds},
         anchor_result=anchor_result,
         effective_d=effective_d,
         stream_records=load_stream(settings),
@@ -1160,9 +1162,15 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
 
     if args.live:
         ceiling = args.ceiling
-        # The dollar ceiling is the budget; the call cap is only a runaway
-        # backstop, sized so cheap-tier nodes cannot exhaust it first.
-        caps = Caps(max_cost_micros=int(ceiling * 1_000_000), max_llm_calls=240, max_quant_executions=60)
+        # The dollar ceiling is the budget; call caps are only a runaway backstop.
+        caps = Caps(
+            max_cost_micros=int(ceiling * 1_000_000),
+            max_llm_calls=240,
+            max_quant_executions=60,
+            max_search_calls=120,
+            max_fetch_calls=120,
+            max_data_fetches=120,
+        )
         tracer = build_logfire_tracer(settings) if settings.logfire_token else InMemoryTracer()
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
         llm: LLMClient = build_llm(settings, model=settings.relevance_model)

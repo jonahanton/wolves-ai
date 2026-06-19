@@ -8,7 +8,6 @@ import httpx
 from pydantic import BaseModel
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools._shared import reserve_or_refuse
 from wolves.clients.odds import OddsEvent, event_consensus, market_last_updates, team_id_for_name, winner_probabilities
 from wolves.markets.devig import weighted_consensus
 from wolves.sim.format import Team, load_format
@@ -126,9 +125,6 @@ async def _h2h_payload(deps: AgentDeps) -> dict[str, Any]:
 
 
 async def _get_odds(args: GetOddsArgs, deps: AgentDeps) -> ToolResult[Any]:
-    refused = reserve_or_refuse(deps)
-    if refused is not None:
-        return refused
     if cached := deps.market_cache.get(args.market):
         return ToolResult(payload=cached)
     async with deps.market_cache_lock:

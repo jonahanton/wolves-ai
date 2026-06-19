@@ -97,24 +97,26 @@ class Settings(BaseSettings):
 
     # Calendar-aware agent spend (wolves/run_policy.py): the day's phase
     # sets the ceiling, front-loaded into the opening week.
-    agent_ceiling_opening_usd: float = 6.00
-    agent_ceiling_big_group_usd: float = 4.50
+    agent_ceiling_opening_usd: float = 4.00
+    agent_ceiling_big_group_usd: float = 4.00
     agent_ceiling_group_usd: float = 3.50
     agent_ceiling_rest_usd: float = 3.50
     agent_ceiling_r32_r16_usd: float = 4.50
-    agent_ceiling_qf_final_usd: float = 6.00
-    agent_ceiling_single_game_discount_usd: float = 1.00
+    agent_ceiling_qf_final_usd: float = 4.50
     agent_big_team_count: int = 8
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
     article_cache_max_age_hours: float = 48.0
     # Published numbers are re-simulated at this fidelity regardless of --sims.
     publish_n_sims: int = 50_000
+    # Parameter draws behind the fixtures-page W/D/L curves; analytic, so cheap to raise.
+    wdl_curve_draws: int = 500
 
     bookmaker_leg_weight: float = 1.0
     polymarket_leg_weight: float = 1.0
 
     agent_submit_retries: int = 3
+    agent_structural_repair_attempts: int = 2
 
     graph_max_waves: int = 8
     # In-call output validation retries for the master's structured patch; a
@@ -139,6 +141,8 @@ class Settings(BaseSettings):
     # A pre-mortem critic reads evidence, mixtures and the branch audit; 8 starved it.
     graph_critic_request_limit: int = 16
     graph_research_tool_budget: int = 12
+    # Slots held back from searching so a research node can always fetch what it cites.
+    graph_research_fetch_floor: int = 3
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
     graph_critic_tool_budget: int = 6

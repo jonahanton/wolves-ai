@@ -56,6 +56,10 @@ class SubmissionState:
     referee_interventions: int = 0
     referee_approved: set[str] = field(default_factory=set)
     referee_replan_required: bool = False
+    # Submit-time defect only a quant node can fix; routes to a master quant repair.
+    structural_repair_required: bool = False
+    structural_repair_signature: tuple[str, ...] | None = None
+    structural_repair_attempts: int = 0
     publication_blocked: bool = False
     escalation_fired: bool = False
     escalations: list[str] = field(default_factory=list)

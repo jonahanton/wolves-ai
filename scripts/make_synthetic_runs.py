@@ -115,7 +115,15 @@ def _build(
     weights = {w.name: w.weight for w in worlds}
     champion_prob = {t.team_id: t.champion_prob for t in outputs.teams}
     distributions, sidecars = build_run_distributions(
-        fc.fmt, per_world, weights, settings=fc._settings, played=frozenset(), rng_seed=seed, champion_prob=champion_prob
+        fc.fmt,
+        per_world,
+        weights,
+        settings=fc._settings,
+        played=frozenset(),
+        rng_seed=seed,
+        forecaster=fc,
+        world_specs={w.name: (tuple(w.perturbations), tuple(w.latent_effects)) for w in worlds},
+        champion_prob=champion_prob,
     )
     per_world_champion = {
         w.name: {t.team_id: t.champion_prob for t in fc.sim_outputs(n_sims=N_SIMS, seed=seed, result=per_world[w.name]).teams}

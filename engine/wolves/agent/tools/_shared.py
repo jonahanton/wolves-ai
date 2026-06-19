@@ -12,8 +12,8 @@ from wolves.toolkit._budget_gate import budget_exhausted_message
 from wolves.toolkit.result import ToolError, ToolResult
 
 
-def reserve_or_refuse(deps: AgentDeps) -> ToolResult[Any] | None:
-    if deps.gate.try_reserve():
+def reserve_or_refuse(deps: AgentDeps, *, keep_free: int = 0) -> ToolResult[Any] | None:
+    if deps.gate.try_reserve(keep_free=keep_free):
         return None
     return ToolResult(
         ok=False,

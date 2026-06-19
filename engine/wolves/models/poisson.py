@@ -341,3 +341,20 @@ def poisson_grid(lam_home: float, lam_away: float, *, rho: float = 0.0) -> Score
         grid[1, 0] *= max(1.0 + lam_away * rho, 1e-9)
         grid[1, 1] *= max(1.0 - rho, 1e-9)
     return ScorelineDistribution(grid=grid / grid.sum())
+
+
+def poisson_wdl_draws(lam_home: np.ndarray, lam_away: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-draw independent-Poisson W/D/L over arrays of goal rates (rho=0)."""
+    # rho=0 is the closed form of the sim's independent goal draws, not the rho-aware match grid.
+    goals = np.arange(MAX_GOALS + 1)
+    log_fact = np.cumsum(np.concatenate([[0.0], np.log(goals[1:])]))
+    lam_home = np.asarray(lam_home, dtype=np.float64)
+    lam_away = np.asarray(lam_away, dtype=np.float64)
+    ph = np.exp(np.outer(np.log(lam_home), goals) - lam_home[:, None] - log_fact)
+    pa = np.exp(np.outer(np.log(lam_away), goals) - lam_away[:, None] - log_fact)
+    grid = ph[:, :, None] * pa[:, None, :]
+    grid /= grid.sum(axis=(1, 2), keepdims=True)
+    p_draw = np.diagonal(grid, axis1=1, axis2=2).sum(axis=1)
+    p_home = np.tril(grid, -1).sum(axis=(1, 2))
+    p_away = np.triu(grid, 1).sum(axis=(1, 2))
+    return p_home, p_draw, p_away

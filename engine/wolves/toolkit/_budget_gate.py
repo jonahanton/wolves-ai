@@ -52,9 +52,14 @@ class BudgetGate:
     def exhausted(self) -> bool:
         return self._budget > 0 and self._used >= self._budget
 
-    def try_reserve(self) -> bool:
-        """Atomic check-and-increment. Returns ``False`` when exhausted."""
-        if self._budget > 0 and self._used >= self._budget:
+    def try_reserve(self, *, keep_free: int = 0) -> bool:
+        """Atomic check-and-increment. Returns ``False`` when exhausted.
+
+        ``keep_free`` reserves a floor for other callers: a reservation only
+        succeeds if at least ``keep_free`` slots would remain afterwards. A
+        search passes the fetch floor so it cannot consume the slots a later
+        fetch needs to back the evidence it cites; a fetch passes 0."""
+        if self._budget > 0 and self._used + keep_free >= self._budget:
             return False
         self._used += 1
         return True

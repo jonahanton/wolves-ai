@@ -386,6 +386,7 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
         deps_type=AgentDeps,
         output_type=_NODE_OUTPUTS[kind],
         system_prompt=prompt(_PROMPT_NAME.get(kind, kind)),
+        output_retries=2 if kind == "research" else 1,
         toolsets=[
             build_toolset(
                 _NODE_SPECS[kind],
@@ -399,6 +400,7 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
 
         @agent.output_validator
         def _research_source_discipline(ctx: RunContext[AgentDeps], output: ResearchOutput) -> ResearchOutput:
+            _demote_unfetchable_snippets(output, ctx.deps)
             issues = _research_source_issues(output, ctx.deps)
             if issues:
                 ctx.deps.runtime.emit(
@@ -411,6 +413,43 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
             return output
 
     return agent
+
+
+def _demote_unfetchable_snippets(output: ResearchOutput, deps: AgentDeps) -> None:
+    """When the tool budget is spent, an evidence item citing a public URL the
+    run could not fetch is downgraded to a signal rather than failing the whole
+    node. Budget that remained means the model chose not to fetch, so the hard
+    reject stands. Branch-referenced findings are load-bearing and never moved."""
+    if not deps.gate.exhausted:
+        return
+    referenced = {index for branch in output.candidate_branches for index in branch.evidence_indices}
+    keep: list[Any] = []
+    remap: dict[int, int] = {}
+    for index, item in enumerate(output.evidence, start=1):
+        url = item.source_url.strip()
+        demotable = (
+            url.startswith(("http://", "https://"))
+            and url not in _INTERNAL_SOURCE_URLS
+            and _host(url) not in _PLACEHOLDER_HOSTS
+            and not _fake_tool_source(url)
+            and not _fetched_public_source(url, deps)
+            and index not in referenced
+        )
+        if demotable:
+            output.signals.append(f"unverified ({_source_label(url)}): {item.claim}")
+            deps.runtime.emit(
+                "evidence_demoted",
+                deps.actor,
+                f"unfetched snippet demoted to signal, budget spent: {url[:80]}",
+            )
+            continue
+        remap[index] = len(keep) + 1
+        keep.append(item)
+    if len(keep) == len(output.evidence):
+        return
+    output.evidence = keep
+    for branch in output.candidate_branches:
+        branch.evidence_indices = [remap[index] for index in branch.evidence_indices if index in remap]
 
 
 @cache
