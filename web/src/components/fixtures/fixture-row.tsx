@@ -262,7 +262,7 @@ function useReplay(frames: WdlFrame[]): Replay {
         }
       }
       const morphing = now - morphStart < morphMs;
-      setTick({ minute: frames[index].minute, index, animate: true, beat: null, morphMs, linear });
+      setTick({ minute: Math.round(minute), index, animate: true, beat: null, morphMs, linear });
       if (clock < run || morphing) raf.current = requestAnimationFrame(step);
       else setTick(null);
     };
@@ -371,7 +371,7 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
   }
   return (
     <div>
-      <p className="mb-2.5 font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint">
+      <p className="mb-2.5 text-center font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint">
         Est. impact on team outcomes
       </p>
       <div className="space-y-3">
