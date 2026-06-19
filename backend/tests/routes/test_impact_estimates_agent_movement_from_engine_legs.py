@@ -224,17 +224,18 @@ async def test_replay_keyframes_evolve_with_the_recorded_shot_history(tmp_path):
         app = build_test_app(storage_dir=run_dir, engine=engine)
         async with client_for(app) as client:
             keyframes = (await client.get("/impact")).json()["fixtures"][0]["wdlKeyframes"]
-        frame = min(keyframes, key=lambda k: abs(k["minute"] - keyframe_minute))
+        # Query a keyframe strictly after the early burst, so the blend has landed.
+        frame = next(k for k in keyframes if k["minute"] >= keyframe_minute)
         return sum(frame["wdl"]["pHome"]) / len(frame["wdl"]["pHome"])
 
     history = [
-        {"time": "14:26:30", "minute": 27, "home_shots_on": 5, "away_shots_on": 0},
+        {"time": "14:19:30", "minute": 20, "home_shots_on": 5, "away_shots_on": 0},
         # A second poll at the same minute must not break the sort of the series.
-        {"time": "14:27:00", "minute": 27, "home_shots_on": 6, "away_shots_on": 0},
+        {"time": "14:20:00", "minute": 20, "home_shots_on": 6, "away_shots_on": 0},
         {"time": "15:00:00", "minute": 80, "home_shots_on": 7, "away_shots_on": 5},
     ]
-    base = await home_at_minute(None, 27)
-    evolved = await home_at_minute(history, 27)
+    base = await home_at_minute(None, 40)
+    evolved = await home_at_minute(history, 40)
     assert evolved > base + 0.02
 
 
