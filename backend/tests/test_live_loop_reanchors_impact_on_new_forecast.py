@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from types import SimpleNamespace
 
 from wolves.config import Settings as EngineSettings
+from wolves_backend import jobs
 from wolves_backend.jobs import LiveLoop
 from wolves_backend.models import SnapshotRef
 
@@ -12,46 +14,87 @@ def _ref(run_id: str, kind: str) -> SnapshotRef:
     return SnapshotRef(run_id=run_id, as_of="2026-06-19", kind=kind, key=f"snapshots/2026/06/19/{run_id}.json")
 
 
-def _loop(tmp_path, *, newest_agent: str | None, anchored: str | None) -> LiveLoop:
+class _Sleeps:
+    """Records each sleep without waiting, firing a hook on the Nth call."""
+
+    def __init__(self, *, on_call: int | None = None, hook=None) -> None:
+        self.durations: list[float] = []
+        self._on_call = on_call
+        self._hook = hook
+
+    async def __call__(self, seconds: float) -> None:
+        self.durations.append(seconds)
+        if self._on_call is not None and len(self.durations) == self._on_call and self._hook is not None:
+            self._hook()
+
+
+def _loop(tmp_path, *, refs: list[SnapshotRef], anchored: str | None, fast: bool = False) -> LiveLoop:
     settings = EngineSettings(_env_file=None, runs_root=tmp_path, storage_mode="local")
-    refs = [_ref("live-20260619-025728", "live")]
-    if newest_agent is not None:
-        refs.append(_ref(newest_agent, "agent"))
-    snapshots = SimpleNamespace(index=lambda: _async(refs))
+    probe_calls = {"count": 0}
+
+    async def _index_for(_day):
+        probe_calls["count"] += 1
+        return list(refs)
+
+    snapshots = SimpleNamespace(index_for=_index_for)
     impact = SimpleNamespace(anchored_run_id=lambda: anchored)
     engine = SimpleNamespace(settings=settings, ready=True)
     deps = SimpleNamespace(engine=engine, snapshots=snapshots, impact=impact)
-    return LiveLoop(deps=deps, alerts=SimpleNamespace())
+    loop = LiveLoop(deps=deps, alerts=SimpleNamespace())
+    loop._interval = lambda: settings.live_poll_interval_s if fast else settings.live_idle_interval_s
+    loop._probe_calls = probe_calls  # type: ignore[attr-defined]
+    return loop
 
 
-async def _async(value):
-    return value
+def _chunks(loop: LiveLoop) -> int:
+    return math.ceil(loop._settings.live_idle_interval_s / loop._settings.impact_anchor_probe_interval_s)
 
 
-def test_idle_collapses_to_poll_when_a_newer_agent_forecast_is_unanchored(tmp_path):
-    loop = _loop(tmp_path, newest_agent="agent-20260619-101015", anchored="agent-20260618-101744")
-    loop._interval = lambda: loop._settings.live_idle_interval_s
-    assert asyncio.run(loop._sleep_interval()) == loop._settings.live_poll_interval_s
+def test_new_forecast_mid_idle_returns_within_one_chunk(tmp_path, monkeypatch):
+    refs = [_ref("agent-20260618-101744", "agent")]
+    loop = _loop(tmp_path, refs=refs, anchored="agent-20260618-101744")
+    sleeps = _Sleeps(on_call=3, hook=lambda: refs.insert(0, _ref("agent-20260619-101015", "agent")))
+    monkeypatch.setattr(jobs.asyncio, "sleep", sleeps)
+
+    asyncio.run(loop._idle_wait())
+
+    assert sleeps.durations == [loop._settings.impact_anchor_probe_interval_s] * 3
 
 
-def test_idle_holds_when_impact_already_anchored_to_newest(tmp_path):
-    loop = _loop(tmp_path, newest_agent="agent-20260619-101015", anchored="agent-20260619-101015")
-    loop._interval = lambda: loop._settings.live_idle_interval_s
-    assert asyncio.run(loop._sleep_interval()) == loop._settings.live_idle_interval_s
+def test_idle_elapses_fully_when_no_new_forecast(tmp_path, monkeypatch):
+    refs = [_ref("agent-20260619-101015", "agent")]
+    loop = _loop(tmp_path, refs=refs, anchored="agent-20260619-101015")
+    sleeps = _Sleeps()
+    monkeypatch.setattr(jobs.asyncio, "sleep", sleeps)
+
+    asyncio.run(loop._idle_wait())
+
+    assert len(sleeps.durations) == _chunks(loop)
+    assert sum(sleeps.durations) == loop._settings.live_idle_interval_s
 
 
-def test_fast_cadence_is_never_lengthened(tmp_path):
-    loop = _loop(tmp_path, newest_agent="agent-20260619-101015", anchored="agent-20260618-101744")
-    loop._interval = lambda: loop._settings.live_poll_interval_s
-    assert asyncio.run(loop._sleep_interval()) == loop._settings.live_poll_interval_s
+def test_fast_cadence_sleeps_once_without_probing(tmp_path, monkeypatch):
+    refs = [_ref("agent-20260619-101015", "agent")]
+    loop = _loop(tmp_path, refs=refs, anchored="agent-20260618-101744", fast=True)
+    sleeps = _Sleeps()
+    monkeypatch.setattr(jobs.asyncio, "sleep", sleeps)
+
+    asyncio.run(loop._idle_wait())
+
+    assert sleeps.durations == [loop._settings.live_poll_interval_s]
+    assert loop._probe_calls["count"] == 0
 
 
-def test_index_failure_falls_back_to_the_idle_cadence(tmp_path):
-    loop = _loop(tmp_path, newest_agent="agent-20260619-101015", anchored="agent-20260618-101744")
-    loop._interval = lambda: loop._settings.live_idle_interval_s
+def test_probe_failure_lets_idle_elapse(tmp_path, monkeypatch):
+    loop = _loop(tmp_path, refs=[], anchored="agent-20260618-101744")
 
-    def _boom():
+    async def _boom(_day):
         raise RuntimeError("s3 down")
 
-    loop._deps.snapshots.index = _boom
-    assert asyncio.run(loop._sleep_interval()) == loop._settings.live_idle_interval_s
+    loop._deps.snapshots.index_for = _boom
+    sleeps = _Sleeps()
+    monkeypatch.setattr(jobs.asyncio, "sleep", sleeps)
+
+    asyncio.run(loop._idle_wait())
+
+    assert len(sleeps.durations) == _chunks(loop)
