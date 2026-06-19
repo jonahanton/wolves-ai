@@ -110,6 +110,8 @@ class Settings(BaseSettings):
     article_cache_max_age_hours: float = 48.0
     # Published numbers are re-simulated at this fidelity regardless of --sims.
     publish_n_sims: int = 50_000
+    # Parameter draws behind the fixtures-page W/D/L curves; analytic, so cheap to raise.
+    wdl_curve_draws: int = 500
 
     bookmaker_leg_weight: float = 1.0
     polymarket_leg_weight: float = 1.0

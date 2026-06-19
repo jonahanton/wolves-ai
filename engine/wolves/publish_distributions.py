@@ -20,6 +20,8 @@ from wolves.snapshot import DistributionsBlock, TeamDistributions
 if TYPE_CHECKING:
     from wolves.agent.stream import StreamRecord
     from wolves.config import Settings
+    from wolves.forecast import Forecaster
+    from wolves.sidecars import WorldSpec
     from wolves.sim.format import FormatData
     from wolves.sim.mc import SimResult
 
@@ -34,6 +36,8 @@ def build_run_distributions(
     settings: Settings,
     played: frozenset[int],
     rng_seed: int,
+    forecaster: Forecaster,
+    world_specs: dict[str, WorldSpec],
     anchor_result: SimResult | None = None,
     effective_d: float = 1.0,
     stream_records: list[StreamRecord] | None = None,
@@ -60,6 +64,9 @@ def build_run_distributions(
         weights=weights,
         parameter_draws=PARAMETER_DRAWS,
         rng_seed=rng_seed,
+        forecaster=forecaster,
+        world_specs=world_specs,
+        wdl_curve_draws=settings.wdl_curve_draws,
         played=played,
     )
     sidecars: dict[str, object] = {SIDECAR_NAME: dist_sidecar}

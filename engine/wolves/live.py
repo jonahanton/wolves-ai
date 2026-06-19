@@ -207,6 +207,8 @@ async def live_pass(
             settings=settings,
             played=frozenset(forecaster.played_results(extra_results=merged.results)),
             rng_seed=seed,
+            forecaster=forecaster,
+            world_specs={w.name: (tuple(w.perturbations), tuple(w.latent_effects)) for w in published_worlds},
             stream_records=load_stream(settings),
         )
     except Exception:
