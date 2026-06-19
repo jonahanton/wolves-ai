@@ -66,15 +66,24 @@ export function resampleCurve(points: DistroPoint[], grid: number[]): DistroPoin
   });
 }
 
-const WDL_BINS = 24;
+const WDL_BINS_MIN = 24;
+const WDL_BINS_MAX = 60;
+const WDL_SAMPLES_PER_BIN = 10;
+
+// Bars scale with the draw count; short legacy arrays stay at the floor, never over-binned.
+function wdlBins(n: number): number {
+  const target = Math.round(n / WDL_SAMPLES_PER_BIN);
+  return Math.max(WDL_BINS_MIN, Math.min(WDL_BINS_MAX, target));
+}
 
 // A raw draw array becomes a density curve on the shared grid: bin over [0,1],
 // normalise to a density, then resample so every outcome shares the grid for morphing.
 export function samplesToCurve(samples: number[], grid: number[]): DistroPoint[] {
   if (samples.length === 0) return grid.map((x) => ({ x, y: 0 }));
-  const thresholds = Array.from({ length: WDL_BINS - 1 }, (_, i) => (i + 1) / WDL_BINS);
+  const nBins = wdlBins(samples.length);
+  const thresholds = Array.from({ length: nBins - 1 }, (_, i) => (i + 1) / nBins);
   const bins = bin<number, number>().domain([0, 1]).thresholds(thresholds)(samples);
-  const width = 1 / WDL_BINS;
+  const width = 1 / nBins;
   const points = bins.map((b) => ({
     x: ((b.x0 ?? 0) + (b.x1 ?? width)) / 2,
     y: b.length / (samples.length * width),
@@ -96,9 +105,10 @@ export function histogramBars(cell: CellShape): Bar[] {
 // Density histogram of a raw draw array over [0,1], aligned to the curve bins.
 export function samplesToBars(samples: number[]): Bar[] {
   if (samples.length === 0) return [];
-  const thresholds = Array.from({ length: WDL_BINS - 1 }, (_, i) => (i + 1) / WDL_BINS);
+  const nBins = wdlBins(samples.length);
+  const thresholds = Array.from({ length: nBins - 1 }, (_, i) => (i + 1) / nBins);
   const bins = bin<number, number>().domain([0, 1]).thresholds(thresholds)(samples);
-  const width = 1 / WDL_BINS;
+  const width = 1 / nBins;
   return bins.map((b) => ({
     x0: b.x0 ?? 0,
     x1: b.x1 ?? width,
