@@ -190,8 +190,8 @@ interface LabelLayout {
   anchor: "start" | "middle" | "end";
 }
 
-const CHAR_PX = 6.6;
-const LABEL_GAP = 8;
+const CHAR_PX = 7.4;
+const LABEL_GAP = 12;
 
 // Place each peak label at its mean, then nudge colliding labels rightward so they
 // never overlap; a leader line keeps each label tied to its marker once nudged.
