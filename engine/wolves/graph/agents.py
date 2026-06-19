@@ -264,9 +264,12 @@ def _fixture_clause_teams(text: str, teams: list[Team]) -> list[Team]:
     return found
 
 
+_RESULT_SCORELINE = re.compile(r"(?<![\d:-])\d{1,2}\s*[-\u2013]\s*\d{1,2}(?![\d:-])")
+
+
 def _scoreline_pairs(text: str, teams: list[Team]) -> list[frozenset[str]]:
     pairs: list[frozenset[str]] = []
-    for scoreline in _SCORELINE.finditer(text):
+    for scoreline in _RESULT_SCORELINE.finditer(text):
         home = _last_mentioned_team(text[: scoreline.start()], teams)
         away = _first_mentioned_team(text[scoreline.end() :], teams)
         if home is not None and away is not None and home.id != away.id:

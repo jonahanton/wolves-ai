@@ -46,6 +46,12 @@ def test_future_fixture_without_a_scoreline_passes(tmp_path: Path):
     assert _research_source_issues(output, deps) == []
 
 
+def test_iso_date_between_two_teams_is_not_read_as_a_score(tmp_path: Path):
+    deps = _deps(tmp_path, played={})
+    output = _evidence("Brazil meet Haiti on 2026-06-20 in Philadelphia; preview only")
+    assert _research_source_issues(output, deps) == []
+
+
 def test_missing_forecaster_skips_the_check(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
     output = _evidence("Brazil 0-1 Haiti in Group C, confirmed result")
