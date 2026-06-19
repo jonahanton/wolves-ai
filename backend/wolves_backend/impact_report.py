@@ -56,6 +56,9 @@ class ImpactService:
                 self._cached = await self._load_or_build(deps)
             return self._cached
 
+    def anchored_run_id(self) -> str | None:
+        return self._cached.agent_run_id if self._cached is not None else None
+
     async def refresh(self, deps: Deps) -> None:
         """Recompute and publish the report; called every live pass and on boot."""
         async with self._lock:
