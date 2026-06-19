@@ -10,10 +10,7 @@ LARGE_NON_BASE_WEIGHT = 0.15
 
 VALID_AUDIT_STATUSES = frozenset({"checked", "not_material", "not_applicable", "missing"})
 
-# Validation issues the forecast node cannot resolve by editing its submission:
-# they describe the cited mixture artifact itself, so only a quant node that
-# regenerates the artifact can clear them. Spending a forecast resubmission
-# against one of these is wasted budget against an unfixable error.
+# Issues describing the cited artifact itself: only a quant node can clear them.
 QUANT_OWNED_ISSUE_CODES = frozenset(
     {
         "factor_audit_missing",
@@ -34,7 +31,11 @@ def repair_owner(code: str) -> str:
 
 
 def non_base_mass(weights: dict[str, float]) -> float:
-    return sum(weight for name, weight in weights.items() if name not in BASE_WORLDS)
+    return sum(
+        weight
+        for name, weight in weights.items()
+        if name not in BASE_WORLDS and isinstance(weight, int | float)
+    )
 
 
 def is_large_non_base(weights: dict[str, float]) -> bool:
@@ -83,8 +84,8 @@ def intrinsic_missing_rows(payload: dict) -> list[str]:
     missing. The submission-dependent obligations (market_gap, ledger_pricing,
     previous_continuity) are not knowable at registration time and are left to
     the submit validator."""
-    weights: dict[str, float] = payload.get("weights") or {}
-    if not weights or not payload.get("worlds"):
+    weights = payload.get("weights")
+    if not isinstance(weights, dict) or not payload.get("worlds"):
         return []
     required = required_keys(
         weights,

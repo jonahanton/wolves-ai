@@ -40,3 +40,9 @@ def test_same_signature_repeat_falls_through_to_hard_path(deps: AgentDeps):
 
 def test_forecast_owned_failure_is_not_routed(deps: AgentDeps):
     assert _structural_repair_result(_report("rank_claim_mismatch"), deps, artifact_id="mixture-002") is None
+
+
+def test_distinct_signatures_stop_routing_at_the_attempt_cap(deps: AgentDeps):
+    deps.submission.structural_repair_attempts = deps.settings.agent_structural_repair_attempts
+
+    assert _structural_repair_result(_report("factor_audit_missing_coverage"), deps, artifact_id="mixture-009") is None

@@ -196,8 +196,7 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
     )
     if isinstance(model, ObservedModel):
         # The forecast node, and a quant node repairing a structural rejection,
-        # may spend the held-back reserve; other nodes hit their ceiling early so
-        # the run always affords a submission or its repair.
+        # may spend the held-back reserve; other nodes stop early so a submission stays affordable.
         spends_reserve = brief.kind == "forecast" or (
             brief.kind == "quant" and deps.submission.structural_repair_required
         )

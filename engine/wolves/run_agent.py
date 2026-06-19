@@ -1160,8 +1160,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
 
     if args.live:
         ceiling = args.ceiling
-        # The dollar ceiling is the budget; call caps are only a runaway backstop,
-        # sized so cheap-tier nodes and per-node fetch floors cannot exhaust them first.
+        # The dollar ceiling is the budget; call caps are only a runaway backstop.
         caps = Caps(
             max_cost_micros=int(ceiling * 1_000_000),
             max_llm_calls=240,

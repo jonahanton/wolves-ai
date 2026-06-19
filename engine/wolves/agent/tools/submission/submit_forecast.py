@@ -32,6 +32,8 @@ def _structural_repair_result(report: ValidationReport, deps: AgentDeps, *, arti
     quant_issues = report.quant_repair_issues
     if not quant_issues:
         return None
+    if deps.submission.structural_repair_attempts >= deps.settings.agent_structural_repair_attempts:
+        return None
     signature = (artifact_id, *sorted(issue.code for issue in quant_issues))
     if signature == deps.submission.structural_repair_signature:
         return None
@@ -79,6 +81,7 @@ def _accept_forecast(
     deps.submission.copy_repair_required = False
     deps.submission.referee_replan_required = False
     deps.submission.structural_repair_required = False
+    deps.submission.structural_repair_signature = None
     deps.submission.publication_blocked = False
     deps.submission.accepted = checked
     deps.submission.escalations = report.escalations

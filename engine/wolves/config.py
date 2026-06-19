@@ -115,6 +115,7 @@ class Settings(BaseSettings):
     polymarket_leg_weight: float = 1.0
 
     agent_submit_retries: int = 3
+    agent_structural_repair_attempts: int = 2
 
     graph_max_waves: int = 8
     # In-call output validation retries for the master's structured patch; a
@@ -139,8 +140,7 @@ class Settings(BaseSettings):
     # A pre-mortem critic reads evidence, mixtures and the branch audit; 8 starved it.
     graph_critic_request_limit: int = 16
     graph_research_tool_budget: int = 12
-    # Slots a research node holds back from searching so it can always fetch the
-    # sources it intends to cite; a snippet it cannot fetch is a signal, not evidence.
+    # Slots held back from searching so a research node can always fetch what it cites.
     graph_research_fetch_floor: int = 3
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
