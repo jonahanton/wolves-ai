@@ -63,12 +63,12 @@ class LiveLoop:
                 await self._engine.refresh()
             # The overlay drifts with the match clock, so impact rebuilds every pass.
             await self._refresh_impact()
-            await asyncio.sleep(await self._sleep_interval())
+            await self._idle_wait()
 
     async def _new_agent_forecast_landed(self) -> bool:
         """A fresh agent snapshot exists that the impact report has not anchored to yet."""
         try:
-            refs = await self._deps.snapshots.index()
+            refs = await self._deps.snapshots.index_for(datetime.now(UTC).date())
         except Exception:
             logger.warning("agent-snapshot probe failed; deferring to the idle cadence", exc_info=True)
             return False
@@ -100,14 +100,20 @@ class LiveLoop:
         finally:
             await fixtures.aclose()
 
-    async def _sleep_interval(self) -> float:
+    async def _idle_wait(self) -> None:
+        """Wait out the interval, but cut it short the moment a fresh agent forecast
+        lands so the lip re-anchors within one probe rather than one idle gap."""
         idle = await asyncio.to_thread(self._interval)
-        if idle <= self._settings.live_poll_interval_s:
-            return idle
-        # A just-published forecast must not wait out the idle gap before the lip re-anchors.
-        if await self._new_agent_forecast_landed():
-            return self._settings.live_poll_interval_s
-        return idle
+        chunk = self._settings.impact_anchor_probe_interval_s
+        if idle <= chunk:
+            await asyncio.sleep(idle)
+            return
+        remaining = idle
+        while remaining > 0:
+            await asyncio.sleep(min(chunk, remaining))
+            remaining -= chunk
+            if await self._new_agent_forecast_landed():
+                return
 
     def _interval(self) -> float:
         try:

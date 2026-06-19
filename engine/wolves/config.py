@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     # Away from a live window the loop slows down, and with --until-idle it
     # exits once no kickoff falls inside the grace horizon.
     live_idle_interval_s: float = 900.0
+    # The idle wait probes for a freshly published agent forecast at this cadence
+    # so the impact lip re-anchors within one probe rather than one idle gap.
+    impact_anchor_probe_interval_s: float = 60.0
     # One missed idle poll plus slack: between games "stale" must mean stuck, not resting.
     live_idle_stale_after_s: int = 1080
     live_idle_grace_hours: float = 6.0

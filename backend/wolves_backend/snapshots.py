@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 from wolves_backend.models import SnapshotRef
 
 if TYPE_CHECKING:
+    from datetime import date
+
     from wolves_backend.storage import Storage
 
 RUN_ID_PATTERN = re.compile(r"^(run|live|agent)-(\d{4})(\d{2})(\d{2})(?:-\d{6})?$")
@@ -56,3 +58,6 @@ class SnapshotSource:
 
     async def index(self) -> list[SnapshotRef]:
         return snapshot_refs(await self._storage.list_keys(SNAPSHOTS_PREFIX))
+
+    async def index_for(self, day: date) -> list[SnapshotRef]:
+        return snapshot_refs(await self._storage.list_keys(f"{SNAPSHOTS_PREFIX}{day:%Y/%m/%d}/"))
