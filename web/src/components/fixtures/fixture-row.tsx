@@ -374,7 +374,7 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
       <p className="mb-2.5 text-center font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint">
         Est. impact on team outcomes
       </p>
-      <div className="space-y-3">
+      <div className="mx-auto w-fit space-y-3">
         {groups.map((g) => (
           <div key={g.id} className="grid grid-cols-[3rem_auto] gap-x-3">
             <span className="pt-px font-display text-[13.5px] font-semibold" style={{ color: chartColour(g.id) }}>{g.code}</span>
