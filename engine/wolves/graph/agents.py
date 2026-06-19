@@ -264,6 +264,50 @@ def _fixture_clause_teams(text: str, teams: list[Team]) -> list[Team]:
     return found
 
 
+def _scoreline_pairs(text: str, teams: list[Team]) -> list[frozenset[str]]:
+    pairs: list[frozenset[str]] = []
+    for scoreline in _SCORELINE.finditer(text):
+        home = _last_mentioned_team(text[: scoreline.start()], teams)
+        away = _first_mentioned_team(text[scoreline.end() :], teams)
+        if home is not None and away is not None and home.id != away.id:
+            pairs.append(frozenset({home.id, away.id}))
+    return pairs
+
+
+def _scheduled_group_pairs(deps: AgentDeps) -> dict[frozenset[str], int]:
+    try:
+        fmt = load_format(deps.settings.data_dir)
+    except (OSError, ValueError):
+        return {}
+    return {frozenset({match.home, match.away}): match.match for match in fmt.group_matches}
+
+
+def _unplayed_result_issues(output: ResearchOutput, deps: AgentDeps | None) -> list[str]:
+    """Flag a scoreline asserted for a fixture the results tool has not returned as finished."""
+    if deps is None or deps.forecaster is None:
+        return []
+    scheduled = _scheduled_group_pairs(deps)
+    if not scheduled:
+        return []
+    played = set(deps.forecaster.played_results())
+    teams = _teams(deps)
+    issues: list[str] = []
+    for index, item in enumerate(output.evidence, start=1):
+        text = " ".join(part for part in (item.claim, item.quote, item.mechanism) if part)
+        for pair in _scoreline_pairs(text, teams):
+            match_id = scheduled.get(pair)
+            if match_id is None or match_id in played:
+                continue
+            names = " v ".join(sorted(pair))
+            issues.append(
+                f"evidence {index} asserts a result for {names}, but get_results_and_fixtures has not "
+                "returned that fixture as finished. A match result comes only from the results tool; this "
+                "fixture has not been played. Move pre-match context to signals or drop the scoreline."
+            )
+            break
+    return issues
+
+
 def _group_context_window(text: str, end: int) -> str:
     start = max(
         text.rfind(".", 0, end),
@@ -358,6 +402,7 @@ def _research_source_issues(output: ResearchOutput, deps: AgentDeps | None = Non
                 "evidence_indices; attach the receipts that make it worth quant pricing."
             )
     issues.extend(_research_group_context_issues(output, deps))
+    issues.extend(_unplayed_result_issues(output, deps))
     return issues
 
 
