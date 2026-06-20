@@ -8,6 +8,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from wolves.clients.api_football import GoalEvent
 from wolves.insights.impact import exit_impacts, stage_impacts
 from wolves.live_state import LiveFixture, LiveState
 from wolves.models.inmatch import MatchState
@@ -186,29 +187,14 @@ def _replay_states(fixture: LiveFixture) -> list[MatchState]:
     now = _match_state(fixture)
     if now is None:
         return []
-    goals = sorted((g for g in fixture.goals if g.minute <= now.minute), key=lambda g: g.minute)
-
-    if goals:
-        home_count = sum(1 for g in goals if g.side == "home")
-        away_count = sum(1 for g in goals if g.side == "away")
-        if (home_count, away_count) == (now.away_goals, now.home_goals) and now.home_goals != now.away_goals:
-            from wolves.clients.api_football import GoalEvent
-
-            goals = [GoalEvent(minute=g.minute, side="away" if g.side == "home" else "home") for g in goals]
-        elif home_count != now.home_goals or away_count != now.away_goals:
-            goals = []
-
-    def score_at(minute: float) -> tuple[int, int]:
-        home = sum(1 for g in goals if g.side == "home" and g.minute <= minute)
-        away = sum(1 for g in goals if g.side == "away" and g.minute <= minute)
-        return home, away
+    goals = _reconcile_goals(sorted((g for g in fixture.goals if g.minute <= now.minute), key=lambda g: g.minute), now)
 
     def state_at(minute: float, *, post_goal: bool) -> MatchState:
-        home, away = score_at(minute if post_goal else minute - 1e-6)
+        cutoff = minute if post_goal else minute - 1e-6
         return MatchState(
             minute=minute,
-            home_goals=home,
-            away_goals=away,
+            home_goals=sum(1 for g in goals if g.side == "home" and g.minute <= cutoff),
+            away_goals=sum(1 for g in goals if g.side == "away" and g.minute <= cutoff),
             home_reds=now.home_reds,
             away_reds=now.away_reds,
             period=now.period,
@@ -223,20 +209,25 @@ def _replay_states(fixture: LiveFixture) -> list[MatchState]:
         minutes[float(goal.minute)] = True
     minutes[now.minute] = minutes.get(now.minute, False)
 
-    states = [state_at(minute, post_goal=post_goal) for minute, post_goal in sorted(minutes.items())]
+    return [state_at(minute, post_goal=post_goal) for minute, post_goal in sorted(minutes.items())]
 
-    if states and (states[-1].home_goals, states[-1].away_goals) != (now.home_goals, now.away_goals):
-        last = states[-1]
-        states[-1] = MatchState(
-            minute=last.minute,
-            home_goals=now.home_goals,
-            away_goals=now.away_goals,
-            home_reds=last.home_reds,
-            away_reds=last.away_reds,
-            period=last.period,
-        )
 
-    return states
+def _reconcile_goals(goals: list[GoalEvent], now: MatchState) -> list[GoalEvent]:
+    """Force goal-event sides to reproduce the authoritative aggregate score; the
+    provider can misattribute individual goals while the scoreline stays correct."""
+    home, away = now.home_goals, now.away_goals
+    scored = (sum(g.side == "home" for g in goals), sum(g.side == "away" for g in goals))
+    if scored == (home, away):
+        return goals
+    if scored == (away, home):
+        return [GoalEvent(minute=g.minute, side="away" if g.side == "home" else "home") for g in goals]
+    minutes = [g.minute for g in goals]
+    if len(minutes) == home + away and 0 in (home, away):
+        side = "home" if away == 0 else "away"
+        return [GoalEvent(minute=m, side=side) for m in minutes]
+    held = [GoalEvent(minute=0, side="home") for _ in range(home)]
+    held += [GoalEvent(minute=0, side="away") for _ in range(away)]
+    return held
 
 
 def _wdl(draws: tuple[list[float], list[float], list[float]]) -> dict[str, list[float]]:

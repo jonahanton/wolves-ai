@@ -166,6 +166,36 @@ async def test_live_wdl_keyframes_step_through_each_goal(tmp_path):
     assert keyframes[-1]["wdl"] == body["fixtures"][0]["wdlDraws"]
 
 
+async def test_live_wdl_keyframes_repair_misattributed_goals(tmp_path):
+    engine = published_engine(tmp_path)
+    await engine.boot()
+    fmt = engine.forecaster.fmt
+    write_agent_snapshot(tmp_path, fmt)
+    (tmp_path / "live").mkdir()
+    state = live_state(
+        fmt,
+        home_goals=2,
+        minute=51,
+        goals=[{"minute": 20, "side": "home"}, {"minute": 44, "side": "away"}],
+    )
+    (tmp_path / "live" / "state.json").write_text(json.dumps(state), encoding="utf-8")
+
+    app = build_test_app(storage_dir=tmp_path, engine=engine)
+    async with client_for(app) as client:
+        body = (await client.get("/impact")).json()
+
+    keyframes = body["fixtures"][0]["wdlKeyframes"]
+    frames = [(k["minute"], k["homeGoals"], k["awayGoals"]) for k in keyframes]
+    assert frames[0] == (0, 0, 0)
+    assert frames[-1] == (51, 2, 0)
+    assert all(a == 0 for _, _, a in frames)
+    # The misattributed goals still drive the animated curve, stepping at their minutes.
+    assert (20, 1, 0) in frames
+    assert (44, 2, 0) in frames
+    counts = {len(k["wdl"]["pHome"]) for k in keyframes}
+    assert len(counts) == 1 and counts.pop() > 1
+
+
 async def test_live_shot_dominance_reaches_the_served_wdl_spread(tmp_path):
     """The blend must survive the backend path: a level live game where the home
     side is out-shooting the away side serves a higher home win mass and exposes
