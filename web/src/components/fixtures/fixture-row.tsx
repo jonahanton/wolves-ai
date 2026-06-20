@@ -151,10 +151,10 @@ export function FixtureRow({ row, impact }: FixtureRowProps) {
 
 function CandidateList({ label, candidates }: { label: string; candidates: { teamId: string; code: string; prob: number; colour: string }[] }) {
   return (
-    <div className="grid grid-cols-[4rem_repeat(3,5.5rem)] items-baseline gap-x-3">
+    <div className="grid grid-cols-[3rem_repeat(3,minmax(0,1fr))] items-baseline gap-x-2 sm:gap-x-3">
       <span className="truncate font-mono text-[13px] text-cream-faint">{label}</span>
       {candidates.map((c) => (
-        <span key={c.teamId} className="font-display text-[14.5px]">
+        <span key={c.teamId} className="truncate font-display text-[14.5px]">
           <span className="font-semibold text-cream">{c.code}</span>
           <span className="ml-1.5 font-mono text-[12.5px] tabular-nums text-cream-faint">{formatPctBare(c.prob)}%</span>
         </span>

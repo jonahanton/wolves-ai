@@ -26,7 +26,7 @@ const PAD_R = 4;
 const MIN_OPACITY = 0.28;
 const MAX_OPACITY = 0.92;
 const TICK = "oklch(0.965 0.008 95 / 0.4)";
-const Y_MAX = 1;
+const Y_HEADROOM = 1.18;
 
 interface Hover {
   x: number;
@@ -153,7 +153,10 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
   // The full "Champion"/"Groups" labels collide once a column is this narrow.
   const compactAxis = step < 54;
   const colX = (i: number): number => plotLeft + step * (i + 0.5);
-  const y = scaleLinear().domain([0, Y_MAX]).range([TOP + HEIGHT, TOP]);
+  // Scale to the tallest bar so a low-ceiling distribution still fills the panel,
+  // never beyond 100%; headroom leaves room for the caption above the mode.
+  const yMax = Math.min(1, Math.max(...bars.map((b) => b.p), 0.01) * Y_HEADROOM);
+  const y = scaleLinear().domain([0, yMax]).range([TOP + HEIGHT, TOP]);
 
   const curve =
     settled || width === 0
@@ -209,8 +212,8 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
             : `How far ${teamName} are forecast to go: most likely ${mode.phrase.toLowerCase()} (${pct(mode.p)}), on average ${meanBar?.phrase.toLowerCase()}`
         }
       >
-        <text x={plotLeft - 6} y={y(1) + 3} textAnchor="end" fontFamily="var(--font-mono)" fontSize={9.5} fill={TICK}>
-          100%
+        <text x={plotLeft - 6} y={y(yMax) + 3} textAnchor="end" fontFamily="var(--font-mono)" fontSize={9.5} fill={TICK}>
+          {`${Math.round(yMax * 100)}%`}
         </text>
         <text x={plotLeft - 6} y={y(0)} textAnchor="end" fontFamily="var(--font-mono)" fontSize={9.5} fill={TICK}>
           0%
@@ -218,17 +221,15 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
         {bars.map((b, i) => {
           const cx = colX(i);
           const h = y(0) - y(b.p);
-          const t = b.p / Y_MAX;
+          const t = b.p / yMax;
           const dim = settled !== null && settled.key !== b.key;
           const isMode = showMarkers && i === modeIndex;
           const isMean = showMarkers && i === meanRoundIndex;
           const isSettled = settled !== null && settled.key === b.key;
-          const tag = isMode && isMean ? "Mean · Mode" : isMode ? "Mode" : isMean ? "Mean" : "";
-          const bracket = isMode && b.p > 0 ? `${b.label}, ${pct(b.p)}` : b.label;
-          const caption = tag ? `${tag} (${bracket})` : "";
+          const caption = isMode && isMean ? "Mean · Mode" : isMode ? "Mode" : isMean ? "Mean" : "";
           const captionAnchor = cx < 70 ? "start" : cx > width - 70 ? "end" : "middle";
           const captionY = y(b.p) - (stackMarkers && isMean ? 32 : 20);
-          const showPct = b.p > 0 && !isMode && (isSettled || b.key === "champion");
+          const showPct = b.p > 0 && (isMode || isSettled || b.key === "champion");
           return (
             <g key={b.key}>
               <rect

@@ -20,6 +20,7 @@ active, and make sure `git config user.name`/`user.email` give
 - Single author: Jonah Anton, always. No Co-Authored-By trailers, no Claude attribution, no generated-with footers, in commits or PRs.
 - Commit messages: one concise imperative line. PR descriptions: a few short lines.
 - Commit logically grouped changes as you go; never one giant commit.
+- Releases are opt-in: label a PR `release` before merge and `tag-release.yml` tags the next `prod-x.y.z` patch, firing `release.yml`; unlabelled merges deploy nothing.
 
 ## Style
 
