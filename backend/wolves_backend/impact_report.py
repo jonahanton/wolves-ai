@@ -183,11 +183,20 @@ def _live_distributions(forecaster: Forecaster, fixtures: list[LiveFixture]) -> 
 
 
 def _replay_states(fixture: LiveFixture) -> list[MatchState]:
-    """Replay keyframes: a minute grid for held-score drift plus the post-goal jumps."""
     now = _match_state(fixture)
     if now is None:
         return []
     goals = sorted((g for g in fixture.goals if g.minute <= now.minute), key=lambda g: g.minute)
+
+    if goals:
+        home_count = sum(1 for g in goals if g.side == "home")
+        away_count = sum(1 for g in goals if g.side == "away")
+        if (home_count, away_count) == (now.away_goals, now.home_goals) and now.home_goals != now.away_goals:
+            from wolves.clients.api_football import GoalEvent
+
+            goals = [GoalEvent(minute=g.minute, side="away" if g.side == "home" else "home") for g in goals]
+        elif home_count != now.home_goals or away_count != now.away_goals:
+            goals = []
 
     def score_at(minute: float) -> tuple[int, int]:
         home = sum(1 for g in goals if g.side == "home" and g.minute <= minute)
@@ -214,7 +223,20 @@ def _replay_states(fixture: LiveFixture) -> list[MatchState]:
         minutes[float(goal.minute)] = True
     minutes[now.minute] = minutes.get(now.minute, False)
 
-    return [state_at(minute, post_goal=post_goal) for minute, post_goal in sorted(minutes.items())]
+    states = [state_at(minute, post_goal=post_goal) for minute, post_goal in sorted(minutes.items())]
+
+    if states and (states[-1].home_goals, states[-1].away_goals) != (now.home_goals, now.away_goals):
+        last = states[-1]
+        states[-1] = MatchState(
+            minute=last.minute,
+            home_goals=now.home_goals,
+            away_goals=now.away_goals,
+            home_reds=last.home_reds,
+            away_reds=last.away_reds,
+            period=last.period,
+        )
+
+    return states
 
 
 def _wdl(draws: tuple[list[float], list[float], list[float]]) -> dict[str, list[float]]:
