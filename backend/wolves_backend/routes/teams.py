@@ -12,7 +12,7 @@ from wolves.insights.explain import StrengthExplanation  # noqa: TC001
 from wolves.insights.path_tree import PathTree  # noqa: TC001
 from wolves_backend.deps import Deps, get_deps
 from wolves_backend.models import TeamHistories, TeamHistory
-from wolves_backend.team_history import team_history_points
+from wolves_backend.team_history import team_histories_points
 
 router = APIRouter(prefix="/teams")
 
@@ -34,18 +34,17 @@ async def histories(
     refs = (await deps.snapshots.index())[:limit]
     bodies = list(await asyncio.gather(*(deps.storage.read(ref.key) for ref in refs)))
     snapshots = list(zip(refs, bodies, strict=True))
-    return TeamHistories(
-        histories=[
-            TeamHistory(team_id=team_id, points=team_history_points(team_id, snapshots)) for team_id in team_ids
-        ]
-    )
+    # JSON parsing dominates here; keep it off the API event loop.
+    series = await asyncio.to_thread(team_histories_points, team_ids, snapshots)
+    return TeamHistories(histories=[TeamHistory(team_id=team_id, points=series[team_id]) for team_id in team_ids])
 
 
 @router.get("/{team_id}/history")
 async def history(team_id: str, deps: DepsDep, limit: Annotated[int, Query(ge=1, le=100)] = 30) -> TeamHistory:
     refs = (await deps.snapshots.index())[:limit]
     bodies = await asyncio.gather(*(deps.storage.read(ref.key) for ref in refs))
-    points = team_history_points(team_id, zip(refs, bodies, strict=True))
+    snapshots = list(zip(refs, bodies, strict=True))
+    points = (await asyncio.to_thread(team_histories_points, [team_id], snapshots))[team_id]
     if not points:
         raise HTTPException(status_code=404, detail="no forecast history for team")
     return TeamHistory(team_id=team_id, points=points)

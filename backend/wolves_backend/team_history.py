@@ -6,18 +6,22 @@ from typing import TYPE_CHECKING
 from wolves_backend.models import TeamHistoryPoint
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
     from wolves_backend.models import SnapshotRef
 
 
-def team_history_points(team_id: str, snapshots: Iterable[tuple[SnapshotRef, str | None]]) -> list[TeamHistoryPoint]:
-    """Extract one team's forecast series from snapshot bodies, oldest first."""
+def team_histories_points(
+    team_ids: Sequence[str], snapshots: Iterable[tuple[SnapshotRef, str | None]]
+) -> dict[str, list[TeamHistoryPoint]]:
+    """Series for several teams from one parse over the bodies, each oldest first."""
+    parsed = [(ref, snapshot) for ref, body in snapshots if (snapshot := _parse(body)) is not None]
+    return {team_id: _points_for(team_id, parsed) for team_id in team_ids}
+
+
+def _points_for(team_id: str, parsed: list[tuple[SnapshotRef, dict]]) -> list[TeamHistoryPoint]:
     points = []
-    for ref, body in snapshots:
-        snapshot = _parse(body)
-        if snapshot is None:
-            continue
+    for ref, snapshot in parsed:
         team = _team_block(team_id, snapshot)
         if team is None:
             continue
