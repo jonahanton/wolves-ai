@@ -79,7 +79,11 @@ export function WdlCurves({ shape, colours, homeCode, awayCode, showDraw, playin
     ];
     return showDraw ? all : all.filter((l) => l.id !== "draw");
   }, [active, colours, homeCode, awayCode, showDraw]);
-  const peak = useMemo(() => curvePeak(lanes.map((l) => l.curve)), [lanes]);
+  // A near-certain bar spikes past the smoothed curve, so scale to the taller of the two.
+  const peak = useMemo(
+    () => Math.max(curvePeak(lanes.map((l) => l.curve)), ...lanes.flatMap((l) => l.bars.map((b) => b.y))),
+    [lanes],
+  );
 
   const x = useMemo(() => scaleLinear().domain([0, 1]).range([PAD_X, Math.max(PAD_X, width - PAD_X)]), [width]);
   const y = useMemo(() => scaleLinear().domain([0, peak * Y_HEADROOM]).range([HEIGHT, TOP]), [peak]);

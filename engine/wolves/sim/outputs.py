@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import numpy as np
 
 from wolves.sim.format import GROUPS, FormatData, KnockoutMatch
@@ -25,26 +27,57 @@ ONWARD_ROUNDS = ("r16", "qf")
 KO_ROUNDS = ("r32", "r16", "qf", "sf", "final")
 
 
+def _top_candidates(fmt: FormatData, probs: np.ndarray) -> list[Candidate]:
+    top = np.argsort(probs)[::-1][:TOP_CANDIDATES]
+    return [Candidate(team_id=fmt.teams[int(i)].id, prob=round(float(probs[i]), 4)) for i in top if probs[i] > 0]
+
+
 def _candidates(fmt: FormatData, teams: np.ndarray) -> list[Candidate]:
     if teams.size == 0:
         return []
-    counts = np.bincount(teams, minlength=len(fmt.teams)) / teams.size
-    top = np.argsort(counts)[::-1][:TOP_CANDIDATES]
-    return [Candidate(team_id=fmt.teams[int(i)].id, prob=round(float(counts[i]), 4)) for i in top if counts[i] > 0]
+    return _top_candidates(fmt, np.bincount(teams, minlength=len(fmt.teams)) / teams.size)
 
 
-def build_slots(fmt: FormatData, result: SimResult) -> list[Slot]:
+def _slot_occupancy(fmt: FormatData, result: SimResult) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+    """Per-slot team-occupancy probabilities for each side, as full team-length vectors."""
+    n_teams = len(fmt.teams)
+    return {
+        m.match: (
+            np.bincount(result.ko_home[m.match], minlength=n_teams) / result.n_sims,
+            np.bincount(result.ko_away[m.match], minlength=n_teams) / result.n_sims,
+        )
+        for m in fmt.knockout
+    }
+
+
+def _slots_from_occupancy(fmt: FormatData, occupancy: Mapping[int, tuple[np.ndarray, np.ndarray]]) -> list[Slot]:
     return [
         Slot(
             match=m.match,
             stage=m.stage,
             date=m.date,
             city=m.city,
-            home=SlotSide(label=m.home, candidates=_candidates(fmt, result.ko_home[m.match])),
-            away=SlotSide(label=m.away, candidates=_candidates(fmt, result.ko_away[m.match])),
+            home=SlotSide(label=m.home, candidates=_top_candidates(fmt, occupancy[m.match][0])),
+            away=SlotSide(label=m.away, candidates=_top_candidates(fmt, occupancy[m.match][1])),
         )
         for m in fmt.knockout
     ]
+
+
+def build_slots(fmt: FormatData, result: SimResult) -> list[Slot]:
+    return _slots_from_occupancy(fmt, _slot_occupancy(fmt, result))
+
+
+def build_mixed_slots(fmt: FormatData, weighted: Mapping[str, tuple[float, SimResult]]) -> list[Slot]:
+    """Slot candidates mixed across worlds, so each side's probabilities are the
+    weight-average of its per-world occupancy and stay coherent with mixed reach."""
+    per_world = {name: _slot_occupancy(fmt, result) for name, (_, result) in weighted.items()}
+    mixed: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+    for m in fmt.knockout:
+        home = sum(weight * per_world[name][m.match][0] for name, (weight, _) in weighted.items())
+        away = sum(weight * per_world[name][m.match][1] for name, (weight, _) in weighted.items())
+        mixed[m.match] = (home, away)
+    return _slots_from_occupancy(fmt, mixed)
 
 
 def build_team_reach(fmt: FormatData, result: SimResult) -> dict[str, dict[str, float]]:

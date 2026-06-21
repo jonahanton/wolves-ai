@@ -29,7 +29,6 @@ function countRow(label: string, home: number | null, away: number | null, repla
   if (home === null || away === null) {
     return replaying ? { label, home: 0, away: 0, homeText: "0", awayText: "0" } : null;
   }
-  if (home + away === 0 && !replaying) return null;
   return { label, home, away, homeText: `${home}`, awayText: `${away}` };
 }
 

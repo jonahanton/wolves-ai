@@ -3,10 +3,10 @@
 The artifact carries world configurations (typed perturbations plus
 weights); the harness re-simulates each world and mixes every published
 probability by weight, so the snapshot is an integral over the agent's
-latent model, never a typed number. Path-narrative blocks (focus-team paths,
-slots, groups) come from the modal world: probabilities are linear in the
-mixture, bracket narratives are not, and the modal world is the honest
-single story to tell."""
+latent model, never a typed number. Slot candidate probabilities are per-side
+marginals, so they are mixed by weight too and stay coherent with mixed reach.
+Joint-narrative blocks (focus-team paths, groups) come from the modal world:
+those are conjunctions over a single bracket, not linear in the mixture."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from wolves.sim.api import SimOutputs
 from wolves.sim.format import PlayedResult
 from wolves.sim.latent import LatentEffect
 from wolves.sim.mc import SimResult
+from wolves.sim.outputs import build_mixed_slots
 from wolves.sim.perturbations import parse_perturbation, spec_for
 
 
@@ -110,6 +111,8 @@ def mixed_outputs(
         return per_world[modal.name]
     weights = {w.name: w.weight for w in worlds}
     mixed = per_world[modal.name].model_copy(deep=True)
+    if mixed.slots:
+        mixed.slots = build_mixed_slots(forecaster.fmt, {w.name: (w.weight, per_world_results[w.name]) for w in worlds})
 
     for stage in mixed.focus.finish_probs:
         mixed.focus.finish_probs[stage] = _mix(weights, per_world, lambda o, s=stage: o.focus.finish_probs[s])
