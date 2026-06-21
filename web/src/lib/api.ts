@@ -42,13 +42,18 @@ function fetchInit(policy?: CachePolicy): RequestInit {
 }
 
 async function fetchOnce(path: string, policy?: CachePolicy): Promise<ApiResult<Response>> {
+  const start = Date.now();
   try {
     const response = await fetch(new URL(path, BACKEND_URL), fetchInit(policy));
     if (!response.ok) {
+      console.warn(`backend ${path} -> ${response.status} in ${Date.now() - start}ms`);
       return { ok: false, error: { category: categorise(response.status), status: response.status } };
     }
     return { ok: true, data: response };
-  } catch {
+  } catch (err) {
+    const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    const timedOut = err instanceof Error && err.name === "TimeoutError";
+    console.warn(`backend ${path} -> ${timedOut ? "timeout" : "offline"} after ${Date.now() - start}ms (${reason})`);
     return { ok: false, error: { category: "offline" } };
   }
 }
@@ -57,7 +62,9 @@ async function fetchResponse(path: string, policy?: CachePolicy): Promise<ApiRes
   const first = await fetchOnce(path, policy);
   if (first.ok || !policy?.retry || !isTransient(first.error)) return first;
   await new Promise((resolve) => setTimeout(resolve, RETRY_BACKOFF_MS));
-  return fetchOnce(path, policy);
+  const second = await fetchOnce(path, policy);
+  console.warn(`backend ${path} retried after ${first.error.category}; retry ${second.ok ? "succeeded" : "failed"}`);
+  return second;
 }
 
 export async function backendGet<T>(path: string, policy?: CachePolicy): Promise<ApiResult<T>> {
@@ -65,7 +72,8 @@ export async function backendGet<T>(path: string, policy?: CachePolicy): Promise
   if (!result.ok) return result;
   try {
     return { ok: true, data: (await result.data.json()) as T };
-  } catch {
+  } catch (err) {
+    console.warn(`backend ${path} -> JSON parse failed (${err instanceof Error ? err.message : String(err)})`);
     return { ok: false, error: { category: "offline" } };
   }
 }
@@ -75,7 +83,8 @@ export async function backendGetText(path: string, policy?: CachePolicy): Promis
   if (!result.ok) return result;
   try {
     return { ok: true, data: await result.data.text() };
-  } catch {
+  } catch (err) {
+    console.warn(`backend ${path} -> body read failed (${err instanceof Error ? err.message : String(err)})`);
     return { ok: false, error: { category: "offline" } };
   }
 }

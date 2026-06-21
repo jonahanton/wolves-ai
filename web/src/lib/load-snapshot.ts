@@ -12,8 +12,10 @@ export const loadLatestSnapshot = cache(async (): Promise<ApiResult<Snapshot>> =
     return result;
   }
   if (lastGood && result.error.category !== "not_found") {
+    console.warn(`latest snapshot ${result.error.category}; serving stale lastGood`);
     return { ok: true, data: lastGood, stale: true };
   }
+  console.warn(`latest snapshot ${result.error.category} and no stale fallback; landing page will error`);
   return result;
 });
 
