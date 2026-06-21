@@ -17,6 +17,7 @@ export interface SnapshotRef {
   asOf: string;
   kind: string;
   key: string;
+  hasDistributions: boolean;
 }
 
 export interface TeamHistoryPoint {
@@ -38,14 +39,20 @@ export async function loadRunRecords(): Promise<ApiResult<{ runs: RunRecord[] }>
 }
 
 export const loadSnapshotIndex = cache(async (): Promise<ApiResult<{ snapshots: SnapshotRef[] }>> => {
-  return backendGet<{ snapshots: SnapshotRef[] }>("/snapshots", { revalidate: 45 });
+  return backendGet<{ snapshots: SnapshotRef[] }>("/snapshots", { revalidate: 45, retry: true });
 });
 
 export async function loadTeamHistory(teamId: string, limit = 30): Promise<ApiResult<TeamHistory>> {
-  return backendGet<TeamHistory>(`/teams/${encodeURIComponent(teamId)}/history?limit=${limit}`, { revalidate: 300 });
+  return backendGet<TeamHistory>(`/teams/${encodeURIComponent(teamId)}/history?limit=${limit}`, {
+    revalidate: 300,
+    retry: true,
+  });
 }
 
 export async function loadTeamHistories(teamIds: string[], limit = 30): Promise<ApiResult<{ histories: TeamHistory[] }>> {
   const ids = teamIds.map((id) => encodeURIComponent(id)).join(",");
-  return backendGet<{ histories: TeamHistory[] }>(`/teams/histories?ids=${ids}&limit=${limit}`, { revalidate: 300 });
+  return backendGet<{ histories: TeamHistory[] }>(`/teams/histories?ids=${ids}&limit=${limit}`, {
+    revalidate: 300,
+    retry: true,
+  });
 }

@@ -7,7 +7,6 @@ import { titleBoard } from "@/lib/derive";
 import { cleanStories } from "@/lib/forecast";
 import type { ChartTeamInput } from "@/lib/forecast-series";
 import { formatRunStampEastern } from "@/lib/format";
-import { loadFullRunIds } from "@/lib/full-runs";
 import { impactForAgent, loadAgentImpact } from "@/lib/impact";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
 import { loadSnapshotIndex, loadTeamHistories } from "@/lib/runs";
@@ -46,8 +45,8 @@ export default async function LandingPage() {
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
     .map((t) => t.team_id);
 
-  const [fullRunIds, distributions, historiesResult] = await Promise.all([
-    loadFullRunIds(index),
+  const fullRunIds = new Set(index.filter((ref) => ref.kind === "agent" && ref.hasDistributions).map((ref) => ref.runId));
+  const [distributions, historiesResult] = await Promise.all([
     loadDistributions(agentSnapshot.run.run_id),
     loadTeamHistories(allIds),
   ] as const);
