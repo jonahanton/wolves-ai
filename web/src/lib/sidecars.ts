@@ -62,7 +62,7 @@ export type SidecarName = "distributions" | "bracket-samples" | "pairing-matrice
 
 // Sidecars are keyed by an immutable run id, so cache them forever and dedupe per request.
 export const loadSidecar = cache(async <T>(runId: string, name: SidecarName): Promise<ApiResult<T>> => {
-  return backendGet<T>(`/snapshots/${encodeURIComponent(runId)}/sidecars/${name}`, { revalidate: false });
+  return backendGet<T>(`/snapshots/${encodeURIComponent(runId)}/sidecars/${name}`, { revalidate: false, retry: true });
 });
 
 export async function loadDistributions(runId: string): Promise<ApiResult<DistributionsSidecar>> {

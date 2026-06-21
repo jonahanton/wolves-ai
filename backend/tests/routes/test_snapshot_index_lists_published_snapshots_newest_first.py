@@ -9,6 +9,7 @@ async def test_index_parses_dated_keys_skips_pointer_and_sorts_newest_first():
             "snapshots/latest.json": "{}",
             "snapshots/2026/06/09/run-20260609.json": "{}",
             "snapshots/2026/06/10/agent-20260610-234149.json": "{}",
+            "snapshots/2026/06/10/agent-20260610-234149.distributions.json": "{}",
             "snapshots/2026/06/10/live-20260610-120000.json": "{}",
             "snapshots/2026/06/10/junk.txt": "x",
         }
@@ -23,18 +24,21 @@ async def test_index_parses_dated_keys_skips_pointer_and_sorts_newest_first():
                 "asOf": "2026-06-10",
                 "kind": "live",
                 "key": "snapshots/2026/06/10/live-20260610-120000.json",
+                "hasDistributions": False,
             },
             {
                 "runId": "agent-20260610-234149",
                 "asOf": "2026-06-10",
                 "kind": "agent",
                 "key": "snapshots/2026/06/10/agent-20260610-234149.json",
+                "hasDistributions": True,
             },
             {
                 "runId": "run-20260609",
                 "asOf": "2026-06-09",
                 "kind": "run",
                 "key": "snapshots/2026/06/09/run-20260609.json",
+                "hasDistributions": False,
             },
         ]
     }

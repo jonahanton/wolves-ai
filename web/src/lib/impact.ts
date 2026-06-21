@@ -103,7 +103,7 @@ export interface Impact {
 
 // The report is precomputed for every team and served as one cached artifact,
 // so the lip and the chart share a single request with no team selection.
-export const loadImpact = cache(async (): Promise<ApiResult<Impact>> => backendGet<Impact>("/impact"));
+export const loadImpact = cache(async (): Promise<ApiResult<Impact>> => backendGet<Impact>("/impact", { retry: true }));
 
 export const loadAgentImpact = loadImpact;
 

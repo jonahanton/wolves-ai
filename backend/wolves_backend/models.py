@@ -40,6 +40,7 @@ class SnapshotRef(WireModel):
     as_of: str
     kind: str
     key: str
+    has_distributions: bool = False
 
 
 class SnapshotIndex(WireModel):
