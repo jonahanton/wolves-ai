@@ -82,6 +82,15 @@ export default async function LandingPage() {
     history: (historyByTeam.get(teamId)?.points ?? []).filter((p) => fullRunIds.has(p.runId)),
   }));
 
+  if (chartTeams.every((team) => team.history.length === 0)) {
+    const rawPoints = [...historyByTeam.values()].reduce((sum, h) => sum + h.points.length, 0);
+    console.warn(
+      `landing chart empty: indexOk=${indexResult.ok} historiesOk=${historiesResult.ok} ` +
+        `indexSnapshots=${index.length} fullRunIds=${fullRunIds.size} ` +
+        `historyTeams=${historyByTeam.size} rawHistoryPoints=${rawPoints} chartTeams=${chartTeams.length}`,
+    );
+  }
+
   return (
     <>
       {result.stale && <StaleBanner />}
