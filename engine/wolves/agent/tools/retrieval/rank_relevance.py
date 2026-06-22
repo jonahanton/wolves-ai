@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
+from pydantic_ai import Agent, ToolOutput
+from pydantic_ai.models.anthropic import AnthropicModelSettings
 
 from wolves.agent.deps import AgentDeps
 from wolves.agent.relevance_memory import RankedSource
@@ -42,6 +44,14 @@ class _Ranking(BaseModel):
 
 class _Rankings(BaseModel):
     rankings: list[_Ranking]
+
+
+_RANKER = Agent(
+    output_type=ToolOutput(_Rankings, strict=True),
+    system_prompt=prompt("rank_relevance"),
+    output_retries=1,
+)
+_RANK_SETTINGS = AnthropicModelSettings(anthropic_cache="5m", max_tokens=1500)
 
 
 def _candidate_block(c: Candidate, seen_run: str | None, prior: RankedSource | None) -> str:
@@ -84,14 +94,8 @@ async def _rank_relevance(args: RankRelevanceArgs, deps: AgentDeps) -> ToolResul
         _candidate_block(c, seen.get(c.url), priors.get(c.url)) for c in args.candidates
     )
     try:
-        ranked = await deps.llm.structured(
-            prompt_name="rank_relevance",
-            actor=deps.actor,
-            response_model=_Rankings,
-            user=user,
-            system=prompt("rank_relevance"),
-            max_tokens=1500,
-        )
+        model = deps.relevance_model.for_actor(deps.actor, operation="rank_relevance")
+        ranked = (await _RANKER.run(user, model=model, model_settings=_RANK_SETTINGS)).output
     except Exception as exc:
         return ToolResult(
             ok=False,

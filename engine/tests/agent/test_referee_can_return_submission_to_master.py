@@ -4,22 +4,20 @@ import json
 
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps, build_run_store
-from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.tools.submission.referee import _referee_context
 from wolves.agent.tools.submission.submit_forecast import _submit_forecast
 from wolves.agent.validator import ValidationReport
 from wolves.graph.agents import _forecast_post_check_refusal
-from wolves.llm.observed import ObservedLLM
+from wolves.graph.fakes import scripted_output_model
+from wolves.graph.observed_model import ObservedModel
 
 
-class CapturingScriptedLLM(ScriptedLLM):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.last_user = ""
-
-    async def complete(self, **kwargs):
-        self.last_user = kwargs["user"]
-        return await super().complete(**kwargs)
+def _referee_model(deps, outputs, *, captured_prompts=None):
+    return ObservedModel(
+        scripted_output_model(outputs, captured_prompts=captured_prompts),
+        runtime=deps.runtime,
+        actor="referee",
+    )
 
 
 def _seed_clean_submission_deps(tmp_path):
@@ -54,27 +52,24 @@ def _clean_submission():
 
 async def test_referee_master_issue_blocks_once_and_writes_critique(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
-    deps.referee_llm = ObservedLLM(
-        ScriptedLLM(
-            turns=[],
-            structured=[
-                {
-                    "approved": False,
-                    "summary": "France market premium was asserted but never audited.",
-                    "issues": [
-                        {
-                            "severity": "major",
-                            "owner": "master",
-                            "threshold": "large market disagreement without a quant audit",
-                            "message": "The submission should not publish before the France gap is tested.",
-                            "suggested_next_step": "Open a quant node to audit the France market gap.",
-                        }
-                    ],
-                    "suggested_master_brief": "Audit the France market gap before final submission.",
-                }
-            ],
-        ),
-        deps.runtime,
+    deps.referee_model = _referee_model(
+        deps,
+        [
+            {
+                "approved": False,
+                "summary": "France market premium was asserted but never audited.",
+                "issues": [
+                    {
+                        "severity": "major",
+                        "owner": "master",
+                        "threshold": "large market disagreement without a quant audit",
+                        "message": "The submission should not publish before the France gap is tested.",
+                        "suggested_next_step": "Open a quant node to audit the France market gap.",
+                    }
+                ],
+                "suggested_master_brief": "Audit the France market gap before final submission.",
+            },
+        ],
     )
 
     with deps.runtime.run_trace():
@@ -95,12 +90,27 @@ async def test_referee_master_issue_blocks_once_and_writes_critique(tmp_path):
 
 async def test_referee_approval_allows_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
-    deps.referee_llm = ObservedLLM(
-        ScriptedLLM(
-            turns=[],
-            structured=[{"approved": True, "summary": "Ready to publish.", "issues": [], "suggested_master_brief": ""}],
-        ),
-        deps.runtime,
+    deps.referee_model = _referee_model(
+        deps,
+        [{"approved": True, "summary": "Ready to publish.", "issues": [], "suggested_master_brief": ""}],
+    )
+
+    with deps.runtime.run_trace():
+        result = await _submit_forecast(_clean_submission(), deps)
+
+    assert result.ok
+    assert deps.submission.accepted is not None
+    deps.runtime.shutdown()
+
+
+async def test_referee_retries_an_incomplete_report(tmp_path):
+    deps = _seed_clean_submission_deps(tmp_path)
+    deps.referee_model = _referee_model(
+        deps,
+        [
+            {"approved": True, "summary": "Missing required fields."},
+            {"approved": True, "summary": "Ready to publish.", "issues": [], "suggested_master_brief": ""},
+        ],
     )
 
     with deps.runtime.run_trace():
@@ -113,27 +123,24 @@ async def test_referee_approval_allows_clean_submission(tmp_path):
 
 async def test_referee_blocking_issue_overrides_approved_flag(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
-    deps.referee_llm = ObservedLLM(
-        ScriptedLLM(
-            turns=[],
-            structured=[
-                {
-                    "approved": True,
-                    "summary": "Contradictory report with a blocker.",
-                    "issues": [
-                        {
-                            "severity": "major",
-                            "owner": "forecast",
-                            "threshold": "public copy contradiction",
-                            "message": "The headline contradicts the published preview.",
-                            "suggested_next_step": "Rewrite the headline from the preview.",
-                        }
-                    ],
-                    "suggested_master_brief": "",
-                }
-            ],
-        ),
-        deps.runtime,
+    deps.referee_model = _referee_model(
+        deps,
+        [
+            {
+                "approved": True,
+                "summary": "Contradictory report with a blocker.",
+                "issues": [
+                    {
+                        "severity": "major",
+                        "owner": "forecast",
+                        "threshold": "public copy contradiction",
+                        "message": "The headline contradicts the published preview.",
+                        "suggested_next_step": "Rewrite the headline from the preview.",
+                    }
+                ],
+                "suggested_master_brief": "",
+            },
+        ],
     )
 
     with deps.runtime.run_trace():
@@ -148,27 +155,24 @@ async def test_referee_blocking_issue_overrides_approved_flag(tmp_path):
 
 async def test_referee_minor_issue_does_not_block_publication(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
-    deps.referee_llm = ObservedLLM(
-        ScriptedLLM(
-            turns=[],
-            structured=[
-                {
-                    "approved": False,
-                    "summary": "One caution, not a blocker.",
-                    "issues": [
-                        {
-                            "severity": "minor",
-                            "owner": "forecast",
-                            "threshold": "copy could be clearer",
-                            "message": "The market explanation could be clearer.",
-                            "suggested_next_step": "Consider tightening tomorrow.",
-                        }
-                    ],
-                    "suggested_master_brief": "",
-                }
-            ],
-        ),
-        deps.runtime,
+    deps.referee_model = _referee_model(
+        deps,
+        [
+            {
+                "approved": False,
+                "summary": "One caution, not a blocker.",
+                "issues": [
+                    {
+                        "severity": "minor",
+                        "owner": "forecast",
+                        "threshold": "copy could be clearer",
+                        "message": "The market explanation could be clearer.",
+                        "suggested_next_step": "Consider tightening tomorrow.",
+                    }
+                ],
+                "suggested_master_brief": "",
+            },
+        ],
     )
 
     with deps.runtime.run_trace():
@@ -182,12 +186,9 @@ async def test_referee_minor_issue_does_not_block_publication(tmp_path):
 
 async def test_referee_disapproval_without_blocking_issue_publishes_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
-    deps.referee_llm = ObservedLLM(
-        ScriptedLLM(
-            turns=[],
-            structured=[{"approved": False, "summary": "Not ready.", "issues": [], "suggested_master_brief": ""}],
-        ),
-        deps.runtime,
+    deps.referee_model = _referee_model(
+        deps,
+        [{"approved": False, "summary": "Not ready.", "issues": [], "suggested_master_brief": ""}],
     )
 
     with deps.runtime.run_trace():
@@ -204,7 +205,7 @@ async def test_referee_disapproval_without_blocking_issue_publishes_clean_submis
 
 async def test_referee_unavailable_publishes_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
-    deps.referee_llm = ObservedLLM(ScriptedLLM(turns=[], structured=[]), deps.runtime)
+    deps.referee_model = _referee_model(deps, [])
 
     with deps.runtime.run_trace():
         result = await _submit_forecast(_clean_submission(), deps)
@@ -221,7 +222,7 @@ async def test_referee_unavailable_publishes_clean_submission(tmp_path):
 
 async def test_missing_referee_client_publishes_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
-    deps.referee_llm = None
+    deps.referee_model = None
 
     result = await _submit_forecast(_clean_submission(), deps)
 
@@ -238,27 +239,24 @@ async def test_missing_referee_client_publishes_clean_submission(tmp_path):
 async def test_referee_intervention_cap_publishes_clean_submission(tmp_path):
     deps = _seed_clean_submission_deps(tmp_path)
     deps.submission.referee_interventions = deps.settings.graph_referee_max_interventions
-    deps.referee_llm = ObservedLLM(
-        ScriptedLLM(
-            turns=[],
-            structured=[
-                {
-                    "approved": False,
-                    "summary": "Still blocked.",
-                    "issues": [
-                        {
-                            "severity": "major",
-                            "owner": "master",
-                            "threshold": "missing quant audit",
-                            "message": "The market gap still has no quant audit.",
-                            "suggested_next_step": "Stop publication.",
-                        }
-                    ],
-                    "suggested_master_brief": "Audit the market gap.",
-                }
-            ],
-        ),
-        deps.runtime,
+    deps.referee_model = _referee_model(
+        deps,
+        [
+            {
+                "approved": False,
+                "summary": "Still blocked.",
+                "issues": [
+                    {
+                        "severity": "major",
+                        "owner": "master",
+                        "threshold": "missing quant audit",
+                        "message": "The market gap still has no quant audit.",
+                        "suggested_next_step": "Stop publication.",
+                    }
+                ],
+                "suggested_master_brief": "Audit the market gap.",
+            },
+        ],
     )
 
     with deps.runtime.run_trace():
@@ -301,20 +299,21 @@ async def test_referee_context_includes_cited_ledger_rows(tmp_path):
         summary="market gap audit",
         payload={"summary": "France gap priced.", "findings": ["market premium tested"]},
     )
-    client = CapturingScriptedLLM(
-        turns=[],
-        structured=[{"approved": True, "summary": "Ready.", "issues": [], "suggested_master_brief": ""}],
+    captured_prompts: list[str] = []
+    deps.referee_model = _referee_model(
+        deps,
+        [{"approved": True, "summary": "Ready.", "issues": [], "suggested_master_brief": ""}],
+        captured_prompts=captured_prompts,
     )
-    deps.referee_llm = ObservedLLM(client, deps.runtime)
 
     with deps.runtime.run_trace():
         result = await _submit_forecast(_clean_submission(), deps)
 
     assert result.ok
-    assert "led-0001" in client.last_user
-    assert "England keeper trained" in client.last_user
-    assert "https://www.thefa.com/news" in client.last_user
-    context = json.loads(client.last_user)
+    assert "led-0001" in captured_prompts[0]
+    assert "England keeper trained" in captured_prompts[0]
+    assert "https://www.thefa.com/news" in captured_prompts[0]
+    context = json.loads(captured_prompts[0])
     assert context["published_preview"]
     assert context["artifact"]["weights"] == {"baseline": 1.0}
     assert context["research_artifacts"][0]["candidate_branches"] == [{"branch_id": "england-availability"}]

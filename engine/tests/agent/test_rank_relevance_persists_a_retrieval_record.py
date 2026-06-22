@@ -100,9 +100,25 @@ def test_relevance_memory_keeps_current_run_visible_when_replaying_past_as_of(tm
 async def test_ranking_failure_degrades_to_judgement(tmp_path: Path):
     deps = dataclasses.replace(build_graph_deps(tmp_path, structured=[]), actor="research-1")
     args = RankRelevanceArgs(sub_question="q", candidates=[Candidate(url="https://example.com/x", title="t")])
-    result = await _rank_relevance(args, deps)
+    with deps.runtime.run_trace():
+        result = await _rank_relevance(args, deps)
     assert not result.ok
     assert result.error is not None and result.error.type == "ranking_unavailable"
+    deps.runtime.shutdown()
+
+
+async def test_ranking_retries_a_semantically_invalid_score(tmp_path: Path):
+    invalid = {"rankings": [{"url": "https://example.com/x", "score": 1.2, "reason": "Invalid."}]}
+    valid = {"rankings": [{"url": "https://example.com/x", "score": 0.8, "reason": "Relevant."}]}
+    deps = dataclasses.replace(build_graph_deps(tmp_path, structured=[invalid, valid]), actor="research-1")
+    args = RankRelevanceArgs(sub_question="q", candidates=[Candidate(url="https://example.com/x", title="t")])
+
+    with deps.runtime.run_trace():
+        result = await _rank_relevance(args, deps)
+
+    assert result.ok
+    assert result.payload is not None
+    assert result.payload["rankings"][0]["score"] == 0.8
     deps.runtime.shutdown()
 
 

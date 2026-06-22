@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from wolves.agent.deps import AgentDeps
-from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.ledger import EvidenceLedger
 from wolves.agent.memory import RunMemory
 from wolves.agent.validator import ValidatorLimits
@@ -12,7 +11,8 @@ from wolves.clients.odds import FakeOddsClient, FakePolymarketClient
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb
 from wolves.graph.artifacts import RunArtifactStore
-from wolves.llm.observed import ObservedLLM
+from wolves.graph.fakes import scripted_output_model
+from wolves.graph.observed_model import ObservedModel
 from wolves.observability import Caps, InMemoryTracer, build_runtime
 from wolves.quant.observed import ObservedQuant
 from wolves.s3.artifacts import ArtifactStore
@@ -42,7 +42,7 @@ def build_graph_deps(
     runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=caps or Caps(), runs_root=tmp_path)
     return AgentDeps(
         runtime=runtime,
-        llm=ObservedLLM(ScriptedLLM(turns=[], structured=structured or []), runtime),
+        relevance_model=ObservedModel(scripted_output_model(structured or []), runtime=runtime, actor="relevance"),
         web=ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient()),
         odds=FakeOddsClient(),
         polymarket=FakePolymarketClient(),

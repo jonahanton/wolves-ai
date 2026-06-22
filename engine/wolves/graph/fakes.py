@@ -6,7 +6,7 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 from pydantic import BaseModel
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, ToolCallPart
+from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
 ToolCalls = Sequence[tuple[str, dict[str, Any]]]
@@ -25,6 +25,15 @@ def _latest_prompt(messages: list[ModelMessage]) -> str:
             texts = [p.content for p in message.parts if hasattr(p, "content") and isinstance(p.content, str)]
             if texts:
                 return "\n".join(texts)
+    return ""
+
+
+def _latest_user_prompt(messages: list[ModelMessage]) -> str:
+    for message in reversed(messages):
+        if isinstance(message, ModelRequest):
+            for part in reversed(message.parts):
+                if isinstance(part, UserPromptPart) and isinstance(part.content, str):
+                    return part.content
     return ""
 
 
@@ -47,5 +56,25 @@ def scripted_model(steps: Sequence[ScriptStep], *, model_name: str = "scripted")
             return ModelResponse(parts=[ToolCallPart(tool_name=output_tool.name, args=step.model_dump(mode="json"))])
         parts = [ToolCallPart(tool_name=name, args=args) for name, args in step]
         return ModelResponse(parts=parts)
+
+    return FunctionModel(replay, model_name=model_name)
+
+
+def scripted_output_model(
+    outputs: Sequence[dict[str, Any]],
+    *,
+    model_name: str = "scripted-output",
+    captured_prompts: list[str] | None = None,
+) -> FunctionModel:
+    """Replay structured output tool arguments in order."""
+    remaining = list(outputs)
+
+    def replay(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        if not remaining:
+            raise GraphScriptExhaustedError(model_name)
+        if captured_prompts is not None:
+            captured_prompts.append(_latest_user_prompt(messages))
+        output_tool = info.output_tools[0]
+        return ModelResponse(parts=[ToolCallPart(tool_name=output_tool.name, args=remaining.pop(0))])
 
     return FunctionModel(replay, model_name=model_name)

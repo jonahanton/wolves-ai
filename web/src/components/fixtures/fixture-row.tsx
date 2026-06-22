@@ -284,8 +284,6 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
   const canReplay = frames.length >= 2;
   const statTrack = fixture?.statTrack ?? [];
   const stat = statAtMinute(statTrack, minute);
-  // Old prod data never published stats; only show the strip when the track carries some.
-  const hasStats = statTrack.some((s) => s.homePossession !== null || s.homeTotalShots !== null || s.homeShotsOn !== null);
   const beatCode = beat === "home" ? row.homeCode : beat === "away" ? row.awayCode : null;
   const beatId = beat === "home" ? row.homeId : beat === "away" ? row.awayId : null;
   if (impact === null) return <LiveDetailLoader />;
@@ -334,21 +332,19 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           showDraw={!row.knockout}
         />
       )}
-      {frame && hasStats && (
-        <LiveStatsStrip
-          homeCode={row.homeCode}
-          awayCode={row.awayCode}
-          colours={row.colours}
-          morphMs={playing ? STAT_MORPH_MS : undefined}
-          replaying={playing}
-          homePossession={stat?.homePossession ?? null}
-          awayPossession={stat?.awayPossession ?? null}
-          homeTotalShots={stat?.homeTotalShots ?? null}
-          awayTotalShots={stat?.awayTotalShots ?? null}
-          homeShotsOn={stat?.homeShotsOn ?? null}
-          awayShotsOn={stat?.awayShotsOn ?? null}
-        />
-      )}
+      <LiveStatsStrip
+        homeCode={row.homeCode}
+        awayCode={row.awayCode}
+        colours={row.colours}
+        morphMs={playing ? STAT_MORPH_MS : undefined}
+        replaying={playing}
+        homePossession={stat?.homePossession ?? null}
+        awayPossession={stat?.awayPossession ?? null}
+        homeTotalShots={stat?.homeTotalShots ?? null}
+        awayTotalShots={stat?.awayTotalShots ?? null}
+        homeShotsOn={stat?.homeShotsOn ?? null}
+        awayShotsOn={stat?.awayShotsOn ?? null}
+      />
       {!row.knockout && (
         <div className={frame ? "border-t border-hairline/60 pt-4" : undefined}>
           <ReachStrip row={row} impact={impact} />
