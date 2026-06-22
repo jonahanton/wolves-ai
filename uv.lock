@@ -4102,7 +4102,7 @@ otel = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", specifier = ">=0.96.0" },
+    { name = "anthropic", specifier = ">=0.109.1" },
     { name = "boto3", specifier = ">=1.35.0" },
     { name = "duckdb", specifier = ">=1.1.0" },
     { name = "emcee", specifier = ">=3.1.6" },

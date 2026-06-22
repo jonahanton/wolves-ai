@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, transform_schema
 
 from wolves.config import Settings
 from wolves.llm.client import LLMClient, LLMResponse, ToolTurn, ToolUseBlock
@@ -59,7 +59,8 @@ class AnthropicClient(LLMClient):
                 {
                     "name": schema_name,
                     "description": "Return the requested structured output.",
-                    "input_schema": schema,
+                    "strict": True,
+                    "input_schema": transform_schema(schema),
                 }
             ],
             "tool_choice": {"type": "tool", "name": schema_name},
