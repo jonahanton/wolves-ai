@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -9,8 +8,6 @@ from wolves.sidecars import SIDECAR_NAMES
 from wolves_backend.deps import Deps, get_deps
 from wolves_backend.models import SnapshotIndex
 from wolves_backend.snapshots import is_valid_run_id
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/snapshots")
 
@@ -23,15 +20,7 @@ def _json_response(raw: str) -> Response:
 
 @router.get("")
 async def index(deps: DepsDep) -> SnapshotIndex:
-    refs = await deps.snapshots.index()
-    agents = [ref for ref in refs if ref.kind == "agent"]
-    logger.info(
-        "snapshot index: total=%d agents=%d agents_with_distributions=%d",
-        len(refs),
-        len(agents),
-        sum(1 for ref in agents if ref.has_distributions),
-    )
-    return SnapshotIndex(snapshots=refs)
+    return SnapshotIndex(snapshots=await deps.snapshots.index())
 
 
 @router.get("/latest")

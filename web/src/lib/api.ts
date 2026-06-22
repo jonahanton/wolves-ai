@@ -1,6 +1,7 @@
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 
-const TIMEOUT_MS = 8000;
+// Generous enough to ride out a cloudflared tunnel stall; the backend itself answers in well under a second.
+const TIMEOUT_MS = 15000;
 
 const authHeaders: HeadersInit = process.env.BACKEND_KEY ? { "X-Wolves-Key": process.env.BACKEND_KEY } : {};
 
