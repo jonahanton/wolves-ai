@@ -49,9 +49,9 @@ export async function loadTeamHistory(teamId: string, limit = 30): Promise<ApiRe
   });
 }
 
-export async function loadTeamHistories(teamIds: string[], limit = 30): Promise<ApiResult<{ histories: TeamHistory[] }>> {
+export async function loadPublishedAgentHistories(teamIds: string[]): Promise<ApiResult<{ histories: TeamHistory[] }>> {
   const ids = teamIds.map((id) => encodeURIComponent(id)).join(",");
-  return backendGet<{ histories: TeamHistory[] }>(`/teams/histories?ids=${ids}&limit=${limit}`, {
+  return backendGet<{ histories: TeamHistory[] }>(`/teams/histories?ids=${ids}&scope=published-agent`, {
     revalidate: 300,
     retry: true,
   });
