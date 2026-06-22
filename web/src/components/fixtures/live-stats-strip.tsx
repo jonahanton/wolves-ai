@@ -32,10 +32,10 @@ function countRow(label: string, home: number | null, away: number | null, repla
   return { label, home, away, homeText: `${home}`, awayText: `${away}` };
 }
 
-function possessionRow(home: number | null, away: number | null, replaying: boolean): StatRow | null {
+function possessionRow(home: number | null, away: number | null): StatRow {
   const total = (home ?? 0) + (away ?? 0);
   if (home === null || away === null || total === 0) {
-    return replaying ? { label: "Possession", home: 50, away: 50, homeText: "-", awayText: "-" } : null;
+    return { label: "Possession", home: 50, away: 50, homeText: "-", awayText: "-" };
   }
   return {
     label: "Possession",
@@ -49,7 +49,7 @@ function possessionRow(home: number | null, away: number | null, replaying: bool
 function buildRows(props: LiveStatsStripProps): StatRow[] {
   const replaying = props.replaying ?? false;
   return [
-    possessionRow(props.homePossession, props.awayPossession, replaying),
+    possessionRow(props.homePossession, props.awayPossession),
     countRow("Shots", props.homeTotalShots, props.awayTotalShots, replaying),
     countRow("On target", props.homeShotsOn, props.awayShotsOn, replaying),
   ].filter((row): row is StatRow => row !== null);
