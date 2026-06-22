@@ -4,12 +4,11 @@ from pathlib import Path
 
 from tests.conftest import build_submission
 from tests.graph.conftest import build_graph_deps, build_run_store
-from wolves.agent.fakes import ScriptedLLM
 from wolves.config import Settings
 from wolves.graph.contracts import ForecastOutput, GraphPatch, NodePatch, QuantOutput, ResearchOutput
-from wolves.graph.fakes import scripted_model
+from wolves.graph.fakes import scripted_model, scripted_output_model
+from wolves.graph.observed_model import ObservedModel
 from wolves.graph.runner import GraphModels, run_graph
-from wolves.llm.observed import ObservedLLM
 from wolves.observability import EventLog
 
 
@@ -105,10 +104,9 @@ async def test_referee_replan_returns_to_master_before_terminal_path(tmp_path: P
             "mixture": {"england": 0.08, "rest": 0.92},
         },
     )
-    deps.referee_llm = ObservedLLM(
-        ScriptedLLM(
-            turns=[],
-            structured=[
+    deps.referee_model = ObservedModel(
+        scripted_output_model(
+            [
                 {
                     "approved": False,
                     "summary": "France market premium still needs a quant audit.",
@@ -122,14 +120,14 @@ async def test_referee_replan_returns_to_master_before_terminal_path(tmp_path: P
                         }
                     ],
                     "suggested_master_brief": "Open a quant node for the France market branch.",
-                }
-            ],
+                },
+            ]
         ),
-        deps.runtime,
+        runtime=deps.runtime,
+        actor="referee",
     )
     submission = build_submission(
-        evidence_ids=[],
-        scenario_weights=[{"name": "baseline", "weight": 1.0, "rationale": "Baseline remains live."}]
+        evidence_ids=[], scenario_weights=[{"name": "baseline", "weight": 1.0, "rationale": "Baseline remains live."}]
     )
     models = GraphModels(
         master=scripted_model(
@@ -178,10 +176,9 @@ async def test_referee_infrastructure_block_publishes_without_replan(tmp_path: P
             "mixture": {"england": 0.08, "rest": 0.92},
         },
     )
-    deps.referee_llm = ObservedLLM(ScriptedLLM(turns=[], structured=[]), deps.runtime)
+    deps.referee_model = ObservedModel(scripted_output_model([]), runtime=deps.runtime, actor="referee")
     submission = build_submission(
-        evidence_ids=[],
-        scenario_weights=[{"name": "baseline", "weight": 1.0, "rationale": "Baseline remains live."}]
+        evidence_ids=[], scenario_weights=[{"name": "baseline", "weight": 1.0, "rationale": "Baseline remains live."}]
     )
     models = GraphModels(
         master=scripted_model(

@@ -10,7 +10,7 @@ from typing import Any
 
 import anthropic
 from pydantic_ai import RunContext
-from pydantic_ai.messages import ModelMessage, ModelResponse
+from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter, ModelResponse
 from pydantic_ai.models import Model, ModelRequestParameters, StreamedResponse
 from pydantic_ai.models.anthropic import AnthropicModelSettings
 from pydantic_ai.models.wrapper import WrapperModel
@@ -97,18 +97,31 @@ class ObservedModel(WrapperModel):
         *,
         runtime: ObservedRuntime,
         actor: str = "graph",
+        operation: str | None = None,
         hold_back_micros: int = 0,
         retry: RetryPolicy = DEFAULT_RETRY,
     ) -> None:
         super().__init__(wrapped)
         self._runtime = runtime
         self._actor = actor
+        self._operation = operation
         self._hold_back_micros = hold_back_micros
         self._retry = retry
 
     @property
     def retry(self) -> RetryPolicy:
         return self._retry
+
+    def for_actor(self, actor: str, *, operation: str | None = None) -> ObservedModel:
+        """Attribute a model view to one graph actor."""
+        return ObservedModel(
+            self.wrapped,
+            runtime=self._runtime,
+            actor=actor,
+            operation=operation,
+            hold_back_micros=self._hold_back_micros,
+            retry=self._retry,
+        )
 
     async def request(
         self,
@@ -150,13 +163,28 @@ class ObservedModel(WrapperModel):
     ) -> ModelResponse:
         reservation = self._runtime.charge_llm(hold_back_micros=self._hold_back_micros)
         settled = False
+        operation_metadata = (
+            {
+                "operation": self._operation,
+                "output_tools": [tool.name for tool in model_request_parameters.output_tools],
+            }
+            if self._operation is not None
+            else None
+        )
         try:
             with self._runtime.observe(
                 kind="llm_call",
                 actor=self._actor,
-                name=f"llm:{self.model_name}",
+                name=f"llm:{self._operation or self.model_name}",
                 as_generation=True,
                 model=self.model_name,
+                input=(
+                    {"messages": ModelMessagesTypeAdapter.dump_python(messages, mode="json")}
+                    if self._operation is not None
+                    else None
+                ),
+                metadata=operation_metadata,
+                model_parameters=dict(model_settings or {}) if self._operation is not None else None,
             ) as rec:
                 response = await super().request(messages, model_settings, model_request_parameters)
                 usage = _usage_dict(response.usage)
@@ -174,6 +202,11 @@ class ObservedModel(WrapperModel):
                     model=response.model_name or self.model_name,
                     usage=usage,
                     cost_micros=cost,
+                    **(
+                        {"operation": self._operation, "response_id": response.provider_response_id}
+                        if self._operation is not None
+                        else {}
+                    ),
                 )
                 return response
         finally:

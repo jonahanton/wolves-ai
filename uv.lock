@@ -4119,7 +4119,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2.0" },
     { name = "polars", specifier = ">=1.0.0" },
     { name = "pydantic", specifier = ">=2.11.0" },
-    { name = "pydantic-ai", specifier = ">=1.84.0,<1.98.0" },
+    { name = "pydantic-ai", specifier = ">=1.97.0,<1.98.0" },
     { name = "pydantic-settings", specifier = ">=2.10.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },

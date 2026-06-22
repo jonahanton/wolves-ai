@@ -18,7 +18,6 @@ from wolves.clients.api_football import FixturesClient
 from wolves.clients.odds import OddsClient, PolymarketClient
 from wolves.config import Settings
 from wolves.connectors.observed import ObservedWeb
-from wolves.llm.observed import ObservedLLM
 from wolves.observability.runtime import ObservedRuntime
 from wolves.quant.observed import ObservedQuant
 from wolves.toolkit._budget_gate import BudgetGate
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
     from wolves.agent.publish_surface import PublishSurface
     from wolves.forecast import Forecaster
     from wolves.graph.artifacts import RunArtifactStore
+    from wolves.graph.observed_model import ObservedModel
 
 
 TodoStatus = Literal["pending", "in_progress", "completed"]
@@ -90,7 +90,7 @@ class AgentDeps:
     gate; the submission state stays shared by reference."""
 
     runtime: ObservedRuntime
-    llm: ObservedLLM
+    relevance_model: ObservedModel
     web: ObservedWeb
     odds: OddsClient
     polymarket: PolymarketClient
@@ -102,7 +102,7 @@ class AgentDeps:
     settings: Settings
     limits: ValidatorLimits
     actor: str = "master"
-    referee_llm: ObservedLLM | None = None
+    referee_model: ObservedModel | None = None
     as_of: str = ""
     disable_continuity: bool = False
     publish_requested_n_sims: int | None = None

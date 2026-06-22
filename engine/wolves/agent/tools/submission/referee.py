@@ -4,7 +4,9 @@ import hashlib
 import json
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from pydantic_ai import Agent, ToolOutput
+from pydantic_ai.models.anthropic import AnthropicModelSettings
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
@@ -35,8 +37,8 @@ class RefereeIssue(BaseModel):
 class RefereeReport(BaseModel):
     approved: bool
     summary: str
-    issues: list[RefereeIssue] = Field(default_factory=list)
-    suggested_master_brief: str = ""
+    issues: list[RefereeIssue]
+    suggested_master_brief: str
 
     @property
     def blocking_issues(self) -> list[RefereeIssue]:
@@ -51,6 +53,14 @@ class RefereeReport(BaseModel):
         return any(issue.owner == "infra" for issue in self.blocking_issues)
 
 
+_REFEREE = Agent(
+    output_type=ToolOutput(RefereeReport, strict=True),
+    system_prompt=prompt("referee"),
+    output_retries=1,
+)
+_REFEREE_SETTINGS = AnthropicModelSettings(anthropic_cache="5m", max_tokens=1800)
+
+
 def submission_fingerprint(args: ForecastSubmission) -> str:
     body = args.model_dump_json()
     return hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
@@ -62,8 +72,8 @@ async def referee_review(
     validation: ValidationReport,
 ) -> RefereeReport:
     if not deps.settings.graph_referee_enabled:
-        return RefereeReport(approved=True, summary="referee disabled")
-    if deps.referee_llm is None:
+        return RefereeReport(approved=True, summary="referee disabled", issues=[], suggested_master_brief="")
+    if deps.referee_model is None:
         deps.runtime.emit("referee", "referee", "referee enabled but no referee model is configured")
         return RefereeReport(
             approved=False,
@@ -80,17 +90,11 @@ async def referee_review(
             suggested_master_brief="Referee infrastructure is unavailable; do not replan the forecast.",
         )
     if submission_fingerprint(args) in deps.submission.referee_approved:
-        return RefereeReport(approved=True, summary="already approved")
+        return RefereeReport(approved=True, summary="already approved", issues=[], suggested_master_brief="")
     user = json.dumps(_referee_context(args, deps, validation), ensure_ascii=False, indent=1)
     try:
-        report = await deps.referee_llm.structured(
-            prompt_name="referee",
-            actor="referee",
-            response_model=RefereeReport,
-            user=user,
-            system=prompt("referee"),
-            max_tokens=1800,
-        )
+        model = deps.referee_model.for_actor("referee", operation="referee")
+        report = (await _REFEREE.run(user, model=model, model_settings=_REFEREE_SETTINGS)).output
     except Exception as exc:
         deps.runtime.emit("referee", "referee", f"referee unavailable: {exc}")
         return RefereeReport(

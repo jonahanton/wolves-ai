@@ -18,7 +18,6 @@ from urllib.parse import urlparse
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel
 from pydantic_ai.models import Model
-from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 
 from wolves import ENGINE_VERSION
@@ -27,7 +26,6 @@ from wolves.agent.attribution import decompose
 from wolves.agent.calibration import CalibrationLedger, total_spread_pnl
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps, SubmissionState
-from wolves.agent.fakes import ScriptedLLM
 from wolves.agent.ledger import EvidenceLedger, LedgerEntry
 from wolves.agent.market_base import seed_baseline_payload
 from wolves.agent.memory import RunMemory
@@ -52,6 +50,7 @@ from wolves.clients.odds import (
 from wolves.config import Settings
 from wolves.connectors import FakeFetchClient, FakeSearchClient, ObservedWeb, build_web
 from wolves.forecast import Forecaster
+from wolves.graph.anthropic import build_anthropic_model
 from wolves.graph.artifacts import RunArtifactStore
 from wolves.graph.contracts import (
     ForecastOutput,
@@ -62,13 +61,10 @@ from wolves.graph.contracts import (
     QuantOutput,
     ResearchOutput,
 )
-from wolves.graph.fakes import scripted_model
+from wolves.graph.fakes import scripted_model, scripted_output_model
 from wolves.graph.observed_model import ObservedModel, RetryPolicy
 from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
 from wolves.live import build_fixtures_client
-from wolves.llm.anthropic import build_llm
-from wolves.llm.client import LLMClient
-from wolves.llm.observed import ObservedLLM
 from wolves.markets.blend import blend_probabilities
 from wolves.markets.outright import outright_consensus
 from wolves.observability import (
@@ -353,7 +349,7 @@ def _build_deps(
     *,
     settings: Settings,
     runtime: ObservedRuntime,
-    llm: LLMClient,
+    relevance_model: ObservedModel,
     web: ObservedWeb,
     odds: OddsClient,
     polymarket: PolymarketClient,
@@ -362,7 +358,7 @@ def _build_deps(
     as_of: str,
     n_sims: int,
     seed: int,
-    referee_llm: LLMClient | None = None,
+    referee_model: ObservedModel | None = None,
     disable_continuity: bool = False,
 ) -> AgentDeps:
     forecaster: Forecaster | None = None
@@ -375,8 +371,8 @@ def _build_deps(
         logger.warning("run continues without a fitted forecaster: %s", exc)
     return AgentDeps(
         runtime=runtime,
-        llm=ObservedLLM(llm, runtime),
-        referee_llm=ObservedLLM(referee_llm, runtime) if referee_llm is not None else None,
+        relevance_model=relevance_model,
+        referee_model=referee_model,
         web=web,
         odds=odds,
         polymarket=polymarket,
@@ -1136,6 +1132,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     if not publisher.run_enabled():
         logger.warning("run %s skipped: runs disabled by kill switch", run_id)
         return 0
+    anthropic_client: AsyncAnthropic | None = None
     if args.live:
         blocked = _live_attempt_blocker(
             settings,
@@ -1174,22 +1171,12 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
         tracer = build_logfire_tracer(settings) if settings.logfire_token else InMemoryTracer()
         runtime = build_runtime(run_id=run_id, tracer=tracer, caps=caps, runs_root=settings.runs_root)
-        llm: LLMClient = build_llm(settings, model=settings.relevance_model)
-        referee_llm: LLMClient | None = (
-            build_llm(
-                settings,
-                model=settings.graph_referee_model or settings.graph_master_model or settings.smart_model,
-            )
-            if settings.graph_referee_enabled
-            else None
+        anthropic_client = AsyncAnthropic(
+            api_key=settings.anthropic_api_key,
+            timeout=settings.llm_request_timeout_s,
+            max_retries=settings.anthropic_max_retries,
         )
-        provider = AnthropicProvider(
-            anthropic_client=AsyncAnthropic(
-                api_key=settings.anthropic_api_key,
-                timeout=settings.llm_request_timeout_s,
-                max_retries=settings.anthropic_max_retries,
-            )
-        )
+        provider = AnthropicProvider(anthropic_client=anthropic_client)
         retry = RetryPolicy(
             max_retries=settings.llm_request_max_retries,
             base_delay_s=settings.llm_retry_base_delay_s,
@@ -1198,8 +1185,18 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
 
         # Wave planning and numerical judgement need the stronger model;
         # extraction-shaped nodes run on the cheap one.
-        def observed(model_name: str) -> ObservedModel:
-            return ObservedModel(AnthropicModel(model_name, provider=provider), runtime=runtime, retry=retry)
+        def observed(model_name: str, *, actor: str = "graph") -> ObservedModel:
+            return ObservedModel(build_anthropic_model(model_name, provider), runtime=runtime, actor=actor, retry=retry)
+
+        relevance_model = observed(settings.relevance_model, actor="relevance")
+        referee_model: ObservedModel | None = (
+            observed(
+                settings.graph_referee_model or settings.graph_master_model or settings.smart_model,
+                actor="referee",
+            )
+            if settings.graph_referee_enabled
+            else None
+        )
 
         models = GraphModels(
             master=observed(settings.graph_master_model or settings.fast_model),
@@ -1229,13 +1226,8 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     else:
         runtime = build_runtime(run_id=run_id, tracer=InMemoryTracer(), caps=Caps(), runs_root=settings.runs_root)
         models = _dev_models(runtime, as_of, settings.focus_team)
-        sample = {
-            "rating_overrides": [
-                {"team_id": settings.focus_team, "delta_elo": 15.0, "cause": "keeper fit", "ledger_ids": ["led-0001"]}
-            ]
-        }
-        llm = ScriptedLLM(turns=[], structured=[sample, sample])
-        referee_llm = None
+        relevance_model = ObservedModel(scripted_output_model([]), runtime=runtime, actor="relevance")
+        referee_model = None
         web = ObservedWeb(runtime=runtime, brave=FakeSearchClient(), fetch=FakeFetchClient())
         odds = FakeOddsClient()
         polymarket = FakePolymarketClient()
@@ -1248,7 +1240,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
     deps = _build_deps(
         settings=settings,
         runtime=runtime,
-        llm=llm,
+        relevance_model=relevance_model,
         web=web,
         odds=odds,
         polymarket=polymarket,
@@ -1257,7 +1249,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         as_of=as_of,
         n_sims=args.sims,
         seed=args.seed,
-        referee_llm=referee_llm,
+        referee_model=referee_model,
         disable_continuity=args.no_previous_forecast,
     )
     store = RunArtifactStore(ArtifactStore(settings), run_id=run_id)
@@ -1347,9 +1339,8 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         await odds.aclose()
         await polymarket.aclose()
         await fixtures.aclose()
-        await llm.aclose()
-        if referee_llm is not None:
-            await referee_llm.aclose()
+        if anthropic_client is not None:
+            await anthropic_client.close()
 
     spent = runtime.budget.cost_micros / 1e6
     if deps.artifacts is not None:
