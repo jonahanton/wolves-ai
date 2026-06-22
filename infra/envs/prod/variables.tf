@@ -111,16 +111,15 @@ variable "backend_image_tag" {
   default     = "latest"
 }
 
-# 1 vCPU / 2GB: the backend hosts the fitted engine, interactive sims and the
-# in-process live and archive loops.
+# 2 vCPU / 4GB: a single core starved the cloudflared sidecar and stalled its streams.
 variable "backend_cpu" {
   type    = number
-  default = 1024
+  default = 2048
 }
 
 variable "backend_memory" {
   type    = number
-  default = 2048
+  default = 4096
 }
 
 variable "backend_desired_count" {

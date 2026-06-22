@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
-import time
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,8 +13,6 @@ from wolves.insights.path_tree import PathTree  # noqa: TC001
 from wolves_backend.deps import Deps, get_deps
 from wolves_backend.models import TeamHistories, TeamHistory
 from wolves_backend.team_history import team_histories_points
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/teams")
 
@@ -35,28 +31,11 @@ async def histories(
     team_ids = [team_id for team_id in (raw.strip() for raw in ids.split(",")) if team_id][:MAX_HISTORY_IDS]
     if not team_ids:
         raise HTTPException(status_code=400, detail="ids must list at least one team")
-    t0 = time.monotonic()
     refs = (await deps.snapshots.index())[:limit]
-    t_index = time.monotonic()
-    bodies = list(await asyncio.gather(*(deps.storage.read(ref.key) for ref in refs)))
-    t_reads = time.monotonic()
+    bodies = await asyncio.gather(*(deps.storage.read(ref.key) for ref in refs))
     snapshots = list(zip(refs, bodies, strict=True))
     # JSON parsing dominates here; keep it off the API event loop.
     series = await asyncio.to_thread(team_histories_points, team_ids, snapshots)
-    t_parse = time.monotonic()
-    logger.info(
-        "histories timing: teams=%d snapshots=%d agents=%d missing_bodies=%d empty_series=%d "
-        "index_ms=%.0f reads_ms=%.0f parse_ms=%.0f total_ms=%.0f",
-        len(team_ids),
-        len(refs),
-        sum(1 for ref in refs if ref.kind == "agent"),
-        sum(1 for body in bodies if body is None),
-        sum(1 for points in series.values() if not points),
-        (t_index - t0) * 1000,
-        (t_reads - t_index) * 1000,
-        (t_parse - t_reads) * 1000,
-        (t_parse - t0) * 1000,
-    )
     return TeamHistories(histories=[TeamHistory(team_id=team_id, points=series[team_id]) for team_id in team_ids])
 
 
