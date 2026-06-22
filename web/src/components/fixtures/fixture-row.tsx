@@ -349,9 +349,11 @@ function LiveDetail({ row, impact }: { row: Row; impact: Impact | null }) {
           awayShotsOn={stat?.awayShotsOn ?? null}
         />
       )}
-      <div className={frame ? "border-t border-hairline/60 pt-4" : undefined}>
-        <ReachStrip row={row} impact={impact} />
-      </div>
+      {!row.knockout && (
+        <div className={frame ? "border-t border-hairline/60 pt-4" : undefined}>
+          <ReachStrip row={row} impact={impact} />
+        </div>
+      )}
     </div>
   );
 }
@@ -363,11 +365,11 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
   ].filter((s): s is { id: string; code: string } => s.id !== null);
   const groups =
     impact?.liveMode === "in_match_distribution"
-      ? sides.map((s) => ({ ...s, shifts: teamReachShifts(impact, s.id) })).filter((g) => g.shifts.length > 0)
+      ? sides.map((s) => ({ ...s, shifts: teamReachShifts(impact, s.id) }))
       : [];
 
-  if (groups.length === 0) {
-    return <p className="font-display text-[13px] text-cream-faint">No material shift in either team&apos;s run from the game state.</p>;
+  if (groups.length !== 2 || groups.some((group) => group.shifts.length !== 2)) {
+    return <p className="font-display text-[13px] text-cream-faint">Live impact estimate unavailable.</p>;
   }
   return (
     <div>
@@ -380,13 +382,13 @@ function ReachStrip({ row, impact }: { row: Row; impact: Impact | null }) {
             <span className="pt-px font-display text-[13.5px] font-semibold" style={{ color: chartColour(g.id) }}>{g.code}</span>
             <div className="space-y-1.5">
               {g.shifts.map((shift) => {
-                const up = shift.toPct >= shift.fromPct;
+                const direction = shift.toPct > shift.fromPct ? "↑" : shift.toPct < shift.fromPct ? "↓" : "→";
                 return (
                   <div key={shift.stageLabel} className="grid grid-cols-[5rem_auto] items-center gap-x-3 font-display text-[13px] leading-none">
                     <span className="text-cream-dim">{shift.stageLabel}</span>
                     <span className="flex items-center gap-1.5 font-mono text-[12.5px] tabular-nums">
                       <span className="text-cream-faint">{shift.fromPct.toFixed(0)}%</span>
-                      <span className="text-[10px] leading-none text-cream-dim">{up ? "↑" : "↓"}</span>
+                      <span className="text-[10px] leading-none text-cream-dim">{direction}</span>
                       <span className="font-semibold text-cream">{shift.toPct.toFixed(0)}%</span>
                     </span>
                   </div>
