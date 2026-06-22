@@ -9,7 +9,7 @@ import type { ChartTeamInput } from "@/lib/forecast-series";
 import { formatRunStampEastern } from "@/lib/format";
 import { impactForAgent, loadAgentImpact } from "@/lib/impact";
 import { loadLatestSnapshot, loadSnapshot } from "@/lib/load-snapshot";
-import { loadSnapshotIndex, loadTeamHistories } from "@/lib/runs";
+import { loadPublishedAgentHistories, loadSnapshotIndex } from "@/lib/runs";
 import { loadDistributions } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
 
@@ -48,7 +48,7 @@ export default async function LandingPage() {
   const fullRunIds = new Set(index.filter((ref) => ref.kind === "agent" && ref.hasDistributions).map((ref) => ref.runId));
   const [distributions, historiesResult] = await Promise.all([
     loadDistributions(agentSnapshot.run.run_id),
-    loadTeamHistories(allIds),
+    loadPublishedAgentHistories(allIds),
   ] as const);
   // Streamed off the critical path; the impact sim is the slow leg.
   const impactPromise = loadAgentImpact()

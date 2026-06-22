@@ -101,3 +101,48 @@ async def test_histories_batch_keeps_unknown_team_with_empty_points():
     histories = {h["teamId"]: h["points"] for h in response.json()["histories"]}
     assert histories["XYZ"] == []
     assert len(histories["ENG"]) == 1
+
+
+async def test_published_agent_histories_include_every_full_agent_snapshot():
+    objects = {
+        "snapshots/2026/06/22/live-20260622-120000.json": snapshot_body("ENG", 0.5),
+        "snapshots/2026/06/22/run-20260622.json": snapshot_body("ENG", 0.4),
+    }
+    for index in range(31):
+        run_id = f"agent-20260613-{index:06d}"
+        prefix = f"snapshots/2026/06/13/{run_id}"
+        objects[f"{prefix}.json"] = snapshot_body("ENG", index / 100)
+        objects[f"{prefix}.distributions.json"] = "{}"
+    objects["snapshots/2026/06/14/agent-20260614-120000.json"] = snapshot_body("ENG", 0.75)
+
+    async with client_for(build_test_app(s3=FakeS3Client(objects))) as client:
+        response = await client.get(
+            "/teams/histories",
+            params={"ids": "ENG", "scope": "published-agent"},
+        )
+
+    assert response.status_code == 200
+    points = response.json()["histories"][0]["points"]
+    assert len(points) == 31
+    assert {point["runId"] for point in points} == {f"agent-20260613-{index:06d}" for index in range(31)}
+
+
+async def test_recent_histories_keep_live_and_simulation_snapshots():
+    s3 = FakeS3Client(
+        {
+            "snapshots/2026/06/21/agent-20260621-120000.json": snapshot_body("ENG", 0.1),
+            "snapshots/2026/06/21/agent-20260621-120000.distributions.json": "{}",
+            "snapshots/2026/06/22/live-20260622-120000.json": snapshot_body("ENG", 0.2),
+            "snapshots/2026/06/22/run-20260622.json": snapshot_body("ENG", 0.3),
+        }
+    )
+
+    async with client_for(build_test_app(s3=s3)) as client:
+        response = await client.get("/teams/histories", params={"ids": "ENG"})
+
+    points = response.json()["histories"][0]["points"]
+    assert [point["runId"] for point in points] == [
+        "agent-20260621-120000",
+        "live-20260622-120000",
+        "run-20260622",
+    ]

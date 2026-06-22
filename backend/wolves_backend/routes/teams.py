@@ -26,12 +26,17 @@ async def histories(
     deps: DepsDep,
     ids: Annotated[str, Query()],
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
+    scope: Literal["recent", "published-agent"] = "recent",
 ) -> TeamHistories:
     """Forecast series for several teams from one pass over the snapshot bodies."""
     team_ids = [team_id for team_id in (raw.strip() for raw in ids.split(",")) if team_id][:MAX_HISTORY_IDS]
     if not team_ids:
         raise HTTPException(status_code=400, detail="ids must list at least one team")
-    refs = (await deps.snapshots.index())[:limit]
+    refs = await deps.snapshots.index()
+    if scope == "published-agent":
+        refs = [ref for ref in refs if ref.kind == "agent" and ref.has_distributions]
+    else:
+        refs = refs[:limit]
     bodies = await asyncio.gather(*(deps.storage.read(ref.key) for ref in refs))
     snapshots = list(zip(refs, bodies, strict=True))
     # JSON parsing dominates here; keep it off the API event loop.
