@@ -68,6 +68,29 @@ def _usage_dict(usage: Any) -> dict[str, int]:
 
 
 _PART_TEXT_CHARS = 2000
+_DEFAULT_MAX_OUTPUT_TOKENS = 4096
+
+
+def _request_reservation_micros(
+    model_name: str,
+    messages: list[ModelMessage],
+    model_settings: ModelSettings | None,
+    model_request_parameters: ModelRequestParameters,
+) -> int:
+    input_bytes = len(ModelMessagesTypeAdapter.dump_json(messages)) + len(
+        repr(model_request_parameters).encode("utf-8")
+    )
+    input_tokens = max(1, (input_bytes + 1) // 2)
+    output_tokens = int((model_settings or {}).get("max_tokens") or _DEFAULT_MAX_OUTPUT_TOKENS)
+    return cost_micros(
+        model_name,
+        {
+            "input": input_tokens,
+            "output": output_tokens,
+            "cache_write": input_tokens,
+            "cache_read": 0,
+        },
+    )
 
 
 def _rendered_parts(parts: list[Any]) -> list[dict[str, str]]:
@@ -99,6 +122,9 @@ class ObservedModel(WrapperModel):
         actor: str = "graph",
         operation: str | None = None,
         hold_back_micros: int = 0,
+        hold_back_calls: int = 0,
+        reservation_floor_micros: int = 0,
+        use_headroom: bool = False,
         retry: RetryPolicy = DEFAULT_RETRY,
     ) -> None:
         super().__init__(wrapped)
@@ -106,11 +132,18 @@ class ObservedModel(WrapperModel):
         self._actor = actor
         self._operation = operation
         self._hold_back_micros = hold_back_micros
+        self._hold_back_calls = hold_back_calls
+        self._reservation_floor_micros = reservation_floor_micros
+        self._use_headroom = use_headroom
         self._retry = retry
 
     @property
     def retry(self) -> RetryPolicy:
         return self._retry
+
+    @property
+    def reservation_floor_micros(self) -> int:
+        return self._reservation_floor_micros
 
     def for_actor(self, actor: str, *, operation: str | None = None) -> ObservedModel:
         """Attribute a model view to one graph actor."""
@@ -120,6 +153,9 @@ class ObservedModel(WrapperModel):
             actor=actor,
             operation=operation,
             hold_back_micros=self._hold_back_micros,
+            hold_back_calls=self._hold_back_calls,
+            reservation_floor_micros=self._reservation_floor_micros,
+            use_headroom=self._use_headroom,
             retry=self._retry,
         )
 
@@ -161,7 +197,18 @@ class ObservedModel(WrapperModel):
         model_settings: ModelSettings | None,
         model_request_parameters: ModelRequestParameters,
     ) -> ModelResponse:
-        reservation = self._runtime.charge_llm(hold_back_micros=self._hold_back_micros)
+        reservation = self._runtime.charge_llm(
+            hold_back_micros=self._hold_back_micros,
+            hold_back_calls=self._hold_back_calls,
+            reservation_floor_micros=self._reservation_floor_micros,
+            reservation_estimate_micros=_request_reservation_micros(
+                self.model_name,
+                messages,
+                model_settings,
+                model_request_parameters,
+            ),
+            use_headroom=self._use_headroom,
+        )
         settled = False
         operation_metadata = (
             {
@@ -225,7 +272,18 @@ class ObservedModel(WrapperModel):
     ) -> AsyncIterator[StreamedResponse]:
         # Nothing streams today, but a future run_stream call must not bypass
         # the ceiling: charge before the call, settle cost when the stream closes.
-        reservation = self._runtime.charge_llm(hold_back_micros=self._hold_back_micros)
+        reservation = self._runtime.charge_llm(
+            hold_back_micros=self._hold_back_micros,
+            hold_back_calls=self._hold_back_calls,
+            reservation_floor_micros=self._reservation_floor_micros,
+            reservation_estimate_micros=_request_reservation_micros(
+                self.model_name,
+                messages,
+                model_settings,
+                model_request_parameters,
+            ),
+            use_headroom=self._use_headroom,
+        )
         settled = False
         try:
             async with super().request_stream(

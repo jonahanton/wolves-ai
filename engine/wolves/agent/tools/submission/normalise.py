@@ -5,7 +5,11 @@ from dataclasses import dataclass
 
 from wolves.agent.contracts import ForecastSubmission
 from wolves.agent.deps import AgentDeps
-from wolves.agent.tools.submission._validation import factor_audit_section, published_title_preview
+from wolves.agent.tools.submission._validation import (
+    factor_audit_section,
+    published_title_preview,
+    validator_anchors,
+)
 from wolves.agent.validator import ValidationReport
 
 _PERCENT = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s?%")
@@ -25,6 +29,7 @@ def normalise_submission(args: ForecastSubmission, deps: AgentDeps) -> Normalise
     warnings: list[str] = []
     submission = _strip_story_percent_drift(args, deps, warnings)
     submission = _trim_unaudited_market_gaps(submission, deps, warnings)
+    submission = _canonicalise_market_gaps(submission, deps, warnings)
     return NormalisedSubmission(submission=submission, warnings=warnings)
 
 
@@ -45,9 +50,14 @@ def note_copy_repair_state(report: ValidationReport, deps: AgentDeps) -> int:
     return deps.submission.copy_issue_repeats
 
 
-def _strip_story_percent_drift(
-    args: ForecastSubmission, deps: AgentDeps, warnings: list[str]
-) -> ForecastSubmission:
+def note_validation_issues(report: ValidationReport, deps: AgentDeps) -> None:
+    for issue in report.issues:
+        deps.submission.validation_issue_counts[issue.code] = (
+            deps.submission.validation_issue_counts.get(issue.code, 0) + 1
+        )
+
+
+def _strip_story_percent_drift(args: ForecastSubmission, deps: AgentDeps, warnings: list[str]) -> ForecastSubmission:
     preview = published_title_preview(deps, args.artifact_id)
     titles = preview["titles"]
     if not titles or not args.narrative.team_stories:
@@ -67,9 +77,7 @@ def _strip_story_percent_drift(
             stories[team] = story
     if not changed:
         return args
-    warnings.append(
-        "stripped non-published percentages from team story summaries for: " + ", ".join(sorted(changed))
-    )
+    warnings.append("stripped non-published percentages from team story summaries for: " + ", ".join(sorted(changed)))
     return args.model_copy(update={"narrative": args.narrative.model_copy(update={"team_stories": stories})})
 
 
@@ -92,9 +100,7 @@ def _strip_mismatched_percentages(text: str, published_pp: float) -> str:
     return stripped.strip()
 
 
-def _trim_unaudited_market_gaps(
-    args: ForecastSubmission, deps: AgentDeps, warnings: list[str]
-) -> ForecastSubmission:
+def _trim_unaudited_market_gaps(args: ForecastSubmission, deps: AgentDeps, warnings: list[str]) -> ForecastSubmission:
     if not args.market_gaps:
         return args
     covered = _market_gap_audit_teams(deps, args.artifact_id)
@@ -127,3 +133,42 @@ def _market_gap_audit_teams(deps: AgentDeps, artifact_id: str) -> set[str] | Non
         if isinstance(teams, list):
             covered.update(str(team) for team in teams)
     return covered if saw_market_row else None
+
+
+def _canonicalise_market_gaps(
+    args: ForecastSubmission,
+    deps: AgentDeps,
+    warnings: list[str],
+) -> ForecastSubmission:
+    if not args.market_gaps:
+        return args
+    anchors = validator_anchors(deps)
+    model = anchors.baseline_titles or {}
+    market = anchors.market_titles or {}
+    forecast = published_title_preview(deps, args.artifact_id)["titles"]
+    gaps = []
+    omitted: list[str] = []
+    for gap in args.market_gaps:
+        team = gap.team_id
+        if team not in model or team not in market or team not in forecast:
+            omitted.append(team)
+            continue
+        model_market = round((model[team] - market[team]) * 100, 2)
+        forecast_market = round((forecast[team] - market[team]) * 100, 2)
+        gaps.append(
+            gap.model_copy(
+                update={
+                    "model_prob": model[team],
+                    "market_prob": market[team],
+                    "forecast_prob": forecast[team],
+                    "model_market_gap_pp": model_market,
+                    "forecast_market_gap_pp": forecast_market,
+                    "gap_pp": abs(model_market),
+                }
+            )
+        )
+    if omitted:
+        warnings.append(
+            "removed market_gaps without complete model, market and forecast anchors: " + ", ".join(omitted)
+        )
+    return args.model_copy(update={"market_gaps": gaps})

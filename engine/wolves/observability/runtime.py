@@ -141,7 +141,7 @@ class ObservedRuntime:
                 yield recorder
             except Exception as exc:
                 recorder.note(error=f"{type(exc).__name__}: {exc}")
-                span.update(metadata={"error": str(exc)})
+                span.update(metadata={"error": str(exc), "severity": "error"})
                 raise
             finally:
                 self.events.append(
@@ -163,16 +163,18 @@ class ObservedRuntime:
         ) as recorder:
             yield recorder
 
-    def emit(self, kind: str, actor: str, summary: str, **payload: Any) -> None:
+    def emit(self, kind: str, actor: str, summary: str, *, severity: str = "info", **payload: Any) -> None:
         """A point-in-time event: a short tracer observation mirrored to JSONL."""
         as_type = _OBSERVATION_TYPES.get(kind, "span")
-        with self.tracer.observation(f"{kind}:{actor}", as_type=as_type, input=payload) as span:
+        with self.tracer.observation(
+            f"{kind}:{actor}", as_type=as_type, input=payload, metadata={"severity": severity}
+        ) as span:
             span.update(output={"summary": summary})
             self.events.append(
                 kind=kind,
                 actor=actor,
                 summary=summary,
-                payload=payload,
+                payload={"severity": severity, **payload},
                 trace_id=span.trace_id,
                 observation_id=span.id,
             )
@@ -181,7 +183,15 @@ class ObservedRuntime:
         if self.tracer.current_trace_id() is None:
             raise RuntimeError("Refusing external action with no active observation.")
 
-    def charge_llm(self, *, hold_back_micros: int = 0) -> int:
+    def charge_llm(
+        self,
+        *,
+        hold_back_micros: int = 0,
+        hold_back_calls: int = 0,
+        reservation_floor_micros: int = 0,
+        reservation_estimate_micros: int = 0,
+        use_headroom: bool = False,
+    ) -> int:
         """Admit one LLM call and reserve its estimated cost; returns the reservation.
 
         Parallel siblings all pass a plain pre-check before any of their costs
@@ -193,14 +203,19 @@ class ObservedRuntime:
         headroom_micros widens only this hard stop, never the advertised
         ceiling, so a run can finish a final pass instead of dying mid-call."""
         self.require_active_observation()
-        if self.budget.llm_calls >= self.caps.max_llm_calls:
+        if self.budget.llm_calls >= self.caps.max_llm_calls - hold_back_calls:
             raise CapExceeded(f"max_llm_calls ({self.caps.max_llm_calls}) reached")
-        projected = self.budget.cost_micros + self._in_flight_micros
-        hard_ceiling = self.caps.max_cost_micros + self.caps.headroom_micros
-        if self.caps.max_cost_micros and projected >= hard_ceiling - hold_back_micros:
-            raise CapExceeded(f"max_cost_micros ({self.caps.max_cost_micros}) reached")
+        hard_ceiling = self.caps.max_cost_micros + (self.caps.headroom_micros if use_headroom else 0)
+        reservation = max(
+            self._call_estimate_micros(),
+            reservation_floor_micros,
+            reservation_estimate_micros,
+        )
+        if self.caps.max_cost_micros:
+            available = hard_ceiling - hold_back_micros - self.budget.cost_micros - self._in_flight_micros
+            if available <= 0 or reservation > available:
+                raise CapExceeded(f"max_cost_micros ({self.caps.max_cost_micros}) reached")
         self.budget.llm_calls += 1
-        reservation = self._call_estimate_micros()
         self._in_flight_micros += reservation
         return reservation
 

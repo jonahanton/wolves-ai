@@ -11,11 +11,15 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
-def _archive_dir() -> Path:
+def _archive_dir(*, history_required: bool = False) -> Path:
     ctx = context()
+    if ctx.archive_dir:
+        return Path(ctx.archive_dir)
+    if not history_required and (ctx.current_outrights or {}).get("consensus"):
+        return SESSION.root / "inputs" / "current-market-only"
     if not ctx.archive_dir:
         raise SandboxContextError("odds archive", "market helpers need archived odds snapshots")
-    return Path(ctx.archive_dir)
+    raise AssertionError("unreachable")
 
 
 def market_gaps(*, n_sims: int | None = None, seed: int = 0) -> pd.DataFrame:
@@ -47,7 +51,7 @@ def market_movement(*, history_points: int = 4) -> pd.DataFrame:
 
     from wolves.insights.market import market_movement as _movement
 
-    movement = _movement(_archive_dir(), forecaster().fmt, history_points=history_points)
+    movement = _movement(_archive_dir(history_required=True), forecaster().fmt, history_points=history_points)
     SESSION.usage.queries += 1
     return pd.DataFrame([m.model_dump() for m in movement.outright_bookmakers])
 

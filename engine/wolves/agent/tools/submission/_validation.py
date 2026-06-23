@@ -64,7 +64,7 @@ def validation_next_action(report: ValidationReport, *, copy_repair_blocked: boo
     return "Fix exactly the listed issues before using any other tool."
 
 
-def _anchors(deps: AgentDeps) -> ValidatorAnchors:
+def validator_anchors(deps: AgentDeps) -> ValidatorAnchors:
     if deps.submission.anchors is None:
         deps.submission.anchors = ValidatorAnchors(
             baseline_titles=_baseline_titles(deps), market_titles=_market_titles(deps)
@@ -172,7 +172,7 @@ def world_metadata_section(deps: AgentDeps, artifact_id: str) -> dict | None:
 
 
 def market_gap_contract(deps: AgentDeps, args: ForecastSubmission) -> MarketGapContract:
-    market_titles = _anchors(deps).market_titles or {}
+    market_titles = validator_anchors(deps).market_titles or {}
     preview = published_title_preview(deps, args.artifact_id)
     titles = preview["titles"]
     submitted: list[dict[str, object]] = []
@@ -371,7 +371,7 @@ def _team_tokens(data_dir: Path) -> frozenset[str]:
 
 
 def validation_report(args: ForecastSubmission, deps: AgentDeps) -> ValidationReport:
-    anchors = _anchors(deps)
+    anchors = validator_anchors(deps)
     spread = spread_section(deps, args.artifact_id)
     preview = published_title_preview(deps, args.artifact_id)
     return validate_submission(

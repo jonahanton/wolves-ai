@@ -16,7 +16,12 @@ from tests.graph.conftest import build_graph_deps, build_run_store
 from wolves.config import Settings
 from wolves.graph import runner as runner_module
 from wolves.graph.blackboard import Blackboard
-from wolves.graph.runner import _should_continue_after_acceptance
+from wolves.graph.contracts import NodeOutcome, NodePatch
+from wolves.graph.runner import (
+    _has_registered_repair_mixture,
+    _should_continue_after_acceptance,
+    _sync_publishable_artifacts,
+)
 
 
 @dataclass
@@ -84,3 +89,31 @@ def test_disabled_loop_never_reopens(deps_with_premortem):
     reopen, reason = _should_continue_after_acceptance(deps, _board(deps))
     assert reopen is False
     assert "disabled" in reason
+
+
+def test_superseded_last_accepted_submission_is_cleared(deps_with_premortem):
+    deps = deps_with_premortem
+    board = _board(deps)
+    first = deps.artifacts.add(kind="mixture", created_by="quant-1", summary="first", payload={})
+    second = deps.artifacts.add(kind="mixture", created_by="quant-2", summary="second", payload={})
+    board.merge(
+        [NodePatch(node_id="quant-1", kind="quant", objective="first", brief="first")],
+        [NodeOutcome(node_id="quant-1", kind="quant", ok=True, artifact_ids=[first.id])],
+    )
+    board.merge(
+        [NodePatch(node_id="quant-2", kind="quant", objective="second", brief="second", replaces="quant-1")],
+        [NodeOutcome(node_id="quant-2", kind="quant", ok=True, artifact_ids=[second.id])],
+    )
+    deps.submission.last_accepted = build_submission(artifact_id=first.id)
+
+    _sync_publishable_artifacts(deps, board)
+
+    assert deps.submission.last_accepted is None
+
+
+def test_quant_summary_without_mixture_does_not_complete_structural_repair(deps_with_premortem):
+    deps = deps_with_premortem
+    summary = deps.artifacts.add(kind="quant", created_by="quant-1", summary="summary", payload={})
+    outcome = NodeOutcome(node_id="quant-1", kind="quant", ok=True, artifact_ids=[summary.id])
+
+    assert not _has_registered_repair_mixture([outcome], deps.artifacts)

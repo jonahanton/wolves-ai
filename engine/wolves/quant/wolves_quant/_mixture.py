@@ -132,9 +132,7 @@ def scenario_mixture(
     return result
 
 
-def combine_mixtures(
-    mixtures: list[dict[str, float]], weights: list[float] | None = None
-) -> dict[str, float]:
+def combine_mixtures(mixtures: list[dict[str, float]], weights: list[float] | None = None) -> dict[str, float]:
     """Weighted log-odds average of independent per-team title dicts, renormalised; equal weights when none given."""
     if not mixtures:
         raise ValueError("combine_mixtures needs at least one mixture")

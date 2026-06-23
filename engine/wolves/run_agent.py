@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import logging
 import math
@@ -63,6 +64,7 @@ from wolves.graph.contracts import (
 )
 from wolves.graph.fakes import scripted_model, scripted_output_model
 from wolves.graph.observed_model import ObservedModel, RetryPolicy
+from wolves.graph.reserves import finalisation_reserve_calls, finalisation_reserves_micros
 from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
 from wolves.live import build_fixtures_client
 from wolves.markets.blend import blend_probabilities
@@ -94,10 +96,12 @@ from wolves.snapshot import (
     AttributionOut,
     CalibrationSummary,
     CampOut,
+    FinalisationOut,
     GovernorOut,
     LedgerEntryOut,
     MarketGapOut,
     MarketsBlock,
+    MovementOut,
     NarrativeBlock,
     NewsItemOut,
     ProvenanceOut,
@@ -463,7 +467,13 @@ async def _publish_fallback(
         logger.error("deterministic fallback publish failed", exc_info=True)
 
 
-def _prefer_last_clean(result: GraphRunResult, state: SubmissionState, *, run_id: str) -> GraphRunResult:
+def _prefer_last_clean(
+    result: GraphRunResult,
+    state: SubmissionState,
+    *,
+    run_id: str,
+    referee_enabled: bool,
+) -> GraphRunResult:
     """A submission that validated clean and was withheld only by the
     escalation pause beats the deterministic fallback when the steelman
     round never completed."""
@@ -475,6 +485,13 @@ def _prefer_last_clean(result: GraphRunResult, state: SubmissionState, *, run_id
     logger.warning(
         "run %s: steelman round interrupted after a clean submission; publishing the last clean forecast", run_id
     )
+    if referee_enabled:
+        fingerprint = hashlib.sha256(state.last_clean.model_dump_json().encode("utf-8")).hexdigest()[:16]
+        if fingerprint in state.referee_approved:
+            state.referee_status = "approved"
+        else:
+            state.referee_status = "bypassed_interrupted"
+            state.referee_reason = "steelman finalisation ended before referee review"
     result.submission = state.last_clean
     result.escalations = state.last_clean_escalations or None
     return result
@@ -876,7 +893,12 @@ def _build_drivers(
         market_gap = (
             MarketGapOut(
                 **gap.model_dump(),
-                direction="market_higher" if gap.market_prob >= gap.model_prob else "market_lower",
+                direction=(
+                    "market_higher"
+                    if gap.market_prob >= (gap.forecast_prob if gap.forecast_prob is not None else gap.model_prob)
+                    else "market_lower"
+                ),
+                model_direction="market_higher" if gap.market_prob >= gap.model_prob else "market_lower",
             )
             if gap
             else None
@@ -903,7 +925,12 @@ def _market_gap_outputs(submission) -> list[MarketGapOut]:
     return [
         MarketGapOut(
             **gap.model_dump(),
-            direction="market_higher" if gap.market_prob >= gap.model_prob else "market_lower",
+            direction=(
+                "market_higher"
+                if gap.market_prob >= (gap.forecast_prob if gap.forecast_prob is not None else gap.model_prob)
+                else "market_lower"
+            ),
+            model_direction="market_higher" if gap.market_prob >= gap.model_prob else "market_lower",
         )
         for gap in submission.market_gaps
     ]
@@ -1016,9 +1043,7 @@ def _build_snapshot(
     narrative = NarrativeBlock(
         **{
             **submission.narrative.model_dump(),
-            "team_stories": _select_team_stories(
-                submission, outputs, deps.ledger, limit=settings.story_team_count
-            ),
+            "team_stories": _select_team_stories(submission, outputs, deps.ledger, limit=settings.story_team_count),
         }
     )
     branch_audit = artifact.payload.get("branch_audit")
@@ -1056,6 +1081,17 @@ def _build_snapshot(
         branch_audit=branch_audit if isinstance(branch_audit, dict) else None,
         world_metadata=world_metadata if isinstance(world_metadata, dict) else {},
         revision=_revision_block(result, submission, deps.submission.counterfactual),
+        finalisation=FinalisationOut(
+            artifact_id=submission.artifact_id,
+            submission_fingerprint=hashlib.sha256(submission.model_dump_json().encode("utf-8")).hexdigest()[:16],
+            validation_issue_counts=deps.submission.validation_issue_counts,
+            referee_status=deps.submission.referee_status,
+            referee_reason=deps.submission.referee_reason[:300],
+            advertised_ceiling_usd=round(deps.runtime.caps.max_cost_micros / 1e6, 4),
+            forecast_reserved_usd=finalisation_reserves_micros(deps.settings, deps.runtime.caps)[0] / 1e6,
+            referee_reserved_usd=finalisation_reserves_micros(deps.settings, deps.runtime.caps)[1] / 1e6,
+            settled_cost_usd=round(deps.runtime.budget.cost_micros / 1e6, 4),
+        ),
     )
     snapshot = Snapshot(
         run=RunMeta(
@@ -1118,7 +1154,22 @@ def _attribution_block(deps: AgentDeps, outputs) -> AttributionOut | None:
             results=played,
             submitted=submitted,
         )
-        return AttributionOut(bracket_pp=report.bracket_pp, refit_pp=report.refit_pp, residual_pp=report.residual_pp)
+        previous_probs = {team.team_id: team.champion_prob for team in previous.teams}
+        movement = {
+            team: MovementOut(
+                previous_prob=previous_prob,
+                current_prob=submitted.get(team, 0.0),
+                delta_pp=round((submitted.get(team, 0.0) - previous_prob) * 100, 2),
+            )
+            for team, previous_prob in previous_probs.items()
+            if team in submitted
+        }
+        return AttributionOut(
+            bracket_pp=report.bracket_pp,
+            refit_pp=report.refit_pp,
+            residual_pp=report.residual_pp,
+            movement=movement,
+        )
     except Exception as exc:
         logger.warning("attribution skipped: %s", exc)
         return None
@@ -1182,24 +1233,54 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             base_delay_s=settings.llm_retry_base_delay_s,
             max_delay_s=settings.llm_retry_max_delay_s,
         )
+        forecast_reserve_micros, referee_reserve_micros = finalisation_reserves_micros(settings, caps)
+        forecast_reserve_calls, referee_reserve_calls = finalisation_reserve_calls(settings, caps)
 
         # Wave planning and numerical judgement need the stronger model;
         # extraction-shaped nodes run on the cheap one.
-        def observed(model_name: str, *, actor: str = "graph") -> ObservedModel:
-            return ObservedModel(build_anthropic_model(model_name, provider), runtime=runtime, actor=actor, retry=retry)
+        def observed(
+            model_name: str,
+            *,
+            actor: str = "graph",
+            hold_back_micros: int = 0,
+            hold_back_calls: int = 0,
+            reservation_floor_micros: int = 0,
+            use_headroom: bool = False,
+        ) -> ObservedModel:
+            return ObservedModel(
+                build_anthropic_model(model_name, provider),
+                runtime=runtime,
+                actor=actor,
+                hold_back_micros=hold_back_micros,
+                hold_back_calls=hold_back_calls,
+                reservation_floor_micros=reservation_floor_micros,
+                use_headroom=use_headroom,
+                retry=retry,
+            )
 
-        relevance_model = observed(settings.relevance_model, actor="relevance")
+        relevance_model = observed(
+            settings.relevance_model,
+            actor="relevance",
+            hold_back_micros=forecast_reserve_micros + referee_reserve_micros,
+            hold_back_calls=forecast_reserve_calls + referee_reserve_calls,
+        )
         referee_model: ObservedModel | None = (
             observed(
                 settings.graph_referee_model or settings.graph_master_model or settings.smart_model,
                 actor="referee",
+                reservation_floor_micros=referee_reserve_micros,
+                use_headroom=True,
             )
             if settings.graph_referee_enabled
             else None
         )
 
         models = GraphModels(
-            master=observed(settings.graph_master_model or settings.fast_model),
+            master=observed(
+                settings.graph_master_model or settings.fast_model,
+                hold_back_micros=forecast_reserve_micros + referee_reserve_micros,
+                hold_back_calls=forecast_reserve_calls + referee_reserve_calls,
+            ),
             nodes={
                 "research": observed(settings.graph_research_model or settings.worker_model),
                 "quant": observed(settings.graph_quant_model or settings.worker_model),
@@ -1209,9 +1290,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
         web = build_web(settings, runtime)
         odds: OddsClient = TheOddsApiClient(settings.odds_api_key) if settings.odds_api_key else FakeOddsClient()
-        polymarket: PolymarketClient = (
-            FakePolymarketClient() if settings.polymarket_demo else GammaPolymarketClient()
-        )
+        polymarket: PolymarketClient = FakePolymarketClient() if settings.polymarket_demo else GammaPolymarketClient()
         fixtures: FixturesClient = build_fixtures_client(settings)
         logger.info(
             "LIVE run %s: master=%s, workers=%s, referee=%s, ceiling=$%.2f",
@@ -1289,7 +1368,12 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
     market: dict[str, float] = {}
     try:
-        result = _prefer_last_clean(await run_graph(deps, as_of=as_of, models=models), deps.submission, run_id=run_id)
+        result = _prefer_last_clean(
+            await run_graph(deps, as_of=as_of, models=models),
+            deps.submission,
+            run_id=run_id,
+            referee_enabled=settings.graph_referee_enabled,
+        )
         if result.submission is not None and deps.forecaster is not None:
             # Fetched before the clients close: feeds the transparency MarketsBlock.
             try:
@@ -1430,12 +1514,19 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         FittedStateStore(ArtifactStore(settings)).publish(deps.forecaster.state, run_id=run_id)
     _commit_agent_state(deps)
     if args.live:
+        degraded = (
+            deps.submission.referee_status.startswith("bypassed")
+            or deps.submission.referee_status == "intervention_cap"
+        )
         runtime.emit(
             "live_attempt",
             "runtime",
-            "live attempt complete",
+            "live attempt degraded" if degraded else "live attempt complete",
             as_of=as_of,
-            status="complete",
+            status="degraded" if degraded else "complete",
+            severity="warning" if degraded else "info",
+            artifact_id=result.submission.artifact_id,
+            referee_status=deps.submission.referee_status,
             cost_usd=round(spent, 4),
         )
     runtime.shutdown()

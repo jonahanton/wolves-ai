@@ -32,7 +32,22 @@ async def _scenario_update(args: ScenarioUpdateArgs, deps: AgentDeps) -> ToolRes
             )
         state = registry.open(name=args.name, run_id=run_id, weight=args.weight, reason=args.reason)
     else:
-        if args.scenario_id is None:
+        scenario_id = args.scenario_id
+        if scenario_id is None and args.name:
+            matches = registry.open_named(args.name)
+            if len(matches) == 1:
+                scenario_id = matches[0].scenario_id
+            elif len(matches) > 1:
+                ids = ", ".join(state.scenario_id for state in matches)
+                return ToolResult(
+                    ok=False,
+                    payload=None,
+                    error=ToolError(
+                        type="ambiguous_scenario",
+                        message=f"scenario name {args.name!r} matches multiple open scenarios: {ids}",
+                    ),
+                )
+        if scenario_id is None:
             open_ids = ", ".join(s.scenario_id for s in registry.open_scenarios()) or "(none)"
             return ToolResult(
                 ok=False,
@@ -45,9 +60,7 @@ async def _scenario_update(args: ScenarioUpdateArgs, deps: AgentDeps) -> ToolRes
             )
         status = {"reweight": "reweighted", "collapse": "collapsed", "expire": "expired", "carry": "open"}[args.action]
         try:
-            state = registry.update(
-                args.scenario_id, run_id=run_id, status=status, weight=args.weight, reason=args.reason
-            )
+            state = registry.update(scenario_id, run_id=run_id, status=status, weight=args.weight, reason=args.reason)
         except UnknownScenarioError as exc:
             return ToolResult(ok=False, payload=None, error=ToolError(type="unknown_scenario", message=str(exc)))
     return ToolResult(payload=state.model_dump(mode="json", exclude={"history"}))

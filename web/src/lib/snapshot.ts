@@ -213,9 +213,13 @@ export interface MarketGapOut {
   team_id: string;
   model_prob: number;
   market_prob: number;
+  forecast_prob?: number | null;
+  model_market_gap_pp?: number | null;
+  forecast_market_gap_pp?: number | null;
   gap_pp: number;
   floor_multiple: number | null;
   direction: string;
+  model_direction: string;
 }
 
 export interface WorldOut {
@@ -243,6 +247,19 @@ export interface AttributionOut {
   bracket_pp: Record<string, number>;
   refit_pp: Record<string, number>;
   residual_pp: Record<string, number>;
+  movement?: Record<string, { previous_prob: number; current_prob: number; delta_pp: number }>;
+}
+
+export interface FinalisationOut {
+  artifact_id?: string;
+  submission_fingerprint?: string;
+  validation_issue_counts?: Record<string, number>;
+  referee_status?: string;
+  referee_reason?: string;
+  advertised_ceiling_usd?: number;
+  forecast_reserved_usd?: number;
+  referee_reserved_usd?: number;
+  settled_cost_usd?: number;
 }
 
 export interface CalibrationSummary {
@@ -289,6 +306,7 @@ export interface AgentBlock {
   news_impacts?: Record<string, string>;
   copy_guard_version?: number | null;
   attribution: AttributionOut | null;
+  finalisation?: FinalisationOut | null;
   governor: GovernorOut | null;
   calibration: CalibrationSummary | null;
   provenance?: ProvenanceOut | null;

@@ -180,10 +180,11 @@ Submission rules (the validator enforces these):
   whose mixture diverges from the de-vigged market beyond the escalation
   threshold, each with the computation that earns the gap, in either
   direction.
-- market_gaps carries the typed numbers behind any market stance you took:
-  one entry {team_id, model_prob, market_prob, gap_pp, floor_multiple} per
-  team you named in market_justification, copied from the gap table
-  (wq.market_gaps), never retyped from memory. It is a list that is empty on
+- market_gaps names the teams behind any market stance you took. Supply one
+  entry per team named in market_justification; finalisation replaces its
+  model, market and forecast probabilities and both derived gaps from the
+  canonical run surfaces. floor_multiple may be copied from wq.market_gaps
+  when the quant audit computed it. It is a list that is empty on
   a quiet day with no market stance; never invent a gap for a team you did
   not weigh against the market.
 - news_impacts explains, in one plain sentence keyed by ledger id, why a

@@ -64,6 +64,7 @@ class CandidateBranch(BaseModel):
     evidence_indices: list[int] = Field(default_factory=list)
     confidence: Literal["low", "medium", "high"] = "low"
     suggested_quant_question: str = Field(min_length=1)
+    parent_branch_ids: list[str] = Field(default_factory=list)
 
 
 class ResearchOutput(BaseModel):

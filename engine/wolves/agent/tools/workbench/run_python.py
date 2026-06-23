@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import ast
 import json
 from typing import Any
 
 from pydantic import BaseModel
 
-from wolves.agent.audit_policy import intrinsic_missing_rows
+from wolves.agent.audit_policy import branch_audit_contradictions, intrinsic_missing_rows
 from wolves.agent.deps import AgentDeps
 from wolves.quant.context import build_sandbox_context
 from wolves.quant.inputs import prepare_inputs
@@ -18,6 +19,19 @@ _STDOUT_CAP_CHARS = 2_000
 
 class RunPythonArgs(BaseModel):
     code: str
+
+
+def _called_helpers(code: str) -> set[str]:
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return set()
+    return {
+        name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (name := node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", None))
+    }
 
 
 def _python_budget_refusal(deps: AgentDeps) -> ToolResult[Any] | None:
@@ -40,9 +54,28 @@ def _python_budget_refusal(deps: AgentDeps) -> ToolResult[Any] | None:
 async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
     if refusal := _python_budget_refusal(deps):
         return refusal
-    deps.python_calls += 1
     workspace = deps.quant.workspace(deps.actor)
     context = build_sandbox_context(deps)
+    helpers = _called_helpers(args.code)
+    capability = next(
+        (
+            capability
+            for capability, helper in (("market_history", "market_movement"), ("market_gaps", "market_gaps"))
+            if capability in deps.unavailable_capabilities and helper in helpers
+        ),
+        None,
+    )
+    if capability is not None:
+        alternative = "Use current-only market_gaps instead." if capability == "market_history" else ""
+        return ToolResult(
+            ok=False,
+            payload={"capability": capability, "available": False},
+            error=ToolError(
+                type="capability_unavailable",
+                message=f"{capability.replace('_', ' ').title()} is unavailable. {alternative}".strip(),
+            ),
+        )
+    deps.python_calls += 1
     deps.quant.write_context(workspace, context)
     prepare_inputs(workspace, context)
     script = workspace.next_analysis_name()
@@ -105,6 +138,10 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
         # Mixture artifacts are recognised by shape, not filename, so any
         # scenario_mixture(name=...) output registers.
         if not (isinstance(payload, dict) and {"mixture", "conditionals", "weights", "worlds"} <= payload.keys()):
+            continue
+        contradictions = branch_audit_contradictions(payload)
+        if contradictions:
+            warnings.append(f"{marker} was not registered: " + "; ".join(contradictions))
             continue
         if marker in registered:
             artifact = store.get(registered[marker])
@@ -176,7 +213,8 @@ SPEC = ToolSpec(
         "For submit-ready mixtures, build a factor audit with wq.factor_audit(checks=[...], verdict=...) "
         "and pass factor_audit=audit to wq.scenario_mixture; checked negative findings are valid, "
         "missing marks work the forecast should not publish without. Optional branch audits use "
-        "wq.branch_audit(checks=[{key,status,hypothesis,summary,teams,ledger_ids,artifacts,world_names}], "
+        "wq.branch_audit(checks=[{key,status,hypothesis,summary,teams,ledger_ids,artifacts,world_names,"
+        "parent_branch_ids}], "
         "verdict=...) and pass branch_audit=... plus world_metadata={world:{label,summary,camp,branch_keys}} "
         "to wq.scenario_mixture when research branches were priced, collapsed or rejected. "
         "End every script by assigning the finding to `result` "

@@ -15,15 +15,30 @@ from wolves.agent.tools.submission._validation import (
     validation_report,
     world_metadata_section,
 )
-from wolves.agent.tools.submission.normalise import normalise_submission, note_copy_repair_state
+from wolves.agent.tools.submission.normalise import (
+    normalise_submission,
+    note_copy_repair_state,
+    note_validation_issues,
+)
+from wolves.agent.tools.submission.structural_repair import structural_repair_result
 from wolves.toolkit.core import ToolSpec
-from wolves.toolkit.result import ToolResult
+from wolves.toolkit.result import ToolError, ToolResult
 
 
 async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
+    if deps.submission.publishable_artifact_ids and args.artifact_id not in deps.submission.publishable_artifact_ids:
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="artifact_superseded",
+                message=f"Artifact {args.artifact_id} was superseded and cannot be published.",
+            ),
+        )
     normalised = normalise_submission(args, deps)
     checked = normalised.submission
     report = validation_report(checked, deps)
+    note_validation_issues(report, deps)
     copy_repeats = note_copy_repair_state(report, deps)
     deps.submission.checked_clean = checked if report.ok else None
     deps.submission.copy_repair_required = (not report.ok) and not bool(report.hard_issues)
@@ -35,6 +50,8 @@ async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResu
         issue_count=len(report.issues),
         escalation_count=len(report.escalations),
     )
+    structural = structural_repair_result(report, deps, artifact_id=checked.artifact_id) if not report.ok else None
+    structural_message = structural.error.message if structural is not None and structural.error is not None else None
     return ToolResult(
         payload={
             "ok": report.ok,
@@ -50,7 +67,9 @@ async def _check_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResu
             "branch_audit": branch_audit_section(deps, checked.artifact_id),
             "world_metadata": world_metadata_section(deps, checked.artifact_id),
             "advisories": branch_advisories(deps, checked.artifact_id),
-            "next_action": validation_next_action(report, copy_repair_blocked=deps.submission.copy_repair_blocked),
+            "structural_repair_required": structural is not None,
+            "next_action": structural_message
+            or validation_next_action(report, copy_repair_blocked=deps.submission.copy_repair_blocked),
         }
     )
 

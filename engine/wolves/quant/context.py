@@ -67,6 +67,8 @@ class SandboxContext(BaseModel):
     ledger_path: str | None = None
     calibration_path: str | None = None
     archive_dir: str | None = None
+    market_series_available: bool = False
+    market_series_latest_at: str | None = None
     current_outrights: dict[str, Any] | None = None
     artifacts: dict[str, ContextArtifact] = Field(default_factory=dict)
     default_n_sims: int = 50_000
@@ -100,6 +102,19 @@ def build_sandbox_context(deps: AgentDeps) -> SandboxContext:
             )
     calibration = settings.calibration_path
     archive = settings.runs_root / "odds-archive"
+    from wolves.markets.series import load_series
+
+    market_series = load_series(archive) if archive.exists() else []
+    current_outrights = deps.market_cache.get("outrights")
+    current_consensus = (current_outrights or {}).get("consensus")
+    if market_series:
+        deps.unavailable_capabilities.discard("market_history")
+    else:
+        deps.unavailable_capabilities.add("market_history")
+    if market_series or current_consensus:
+        deps.unavailable_capabilities.discard("market_gaps")
+    else:
+        deps.unavailable_capabilities.add("market_gaps")
     return SandboxContext(
         as_of=deps.as_of,
         run_id=deps.runtime.run_id,
@@ -110,8 +125,10 @@ def build_sandbox_context(deps: AgentDeps) -> SandboxContext:
         dataset_id=dataset_id,
         ledger_path=str(deps.ledger.path) if deps.ledger.path.exists() else None,
         calibration_path=str(calibration) if calibration.exists() else None,
-        archive_dir=str(archive) if archive.exists() else None,
-        current_outrights=deps.market_cache.get("outrights"),
+        archive_dir=str(archive) if market_series else None,
+        market_series_available=bool(market_series),
+        market_series_latest_at=market_series[-1].captured_at if market_series else None,
+        current_outrights=current_outrights,
         artifacts=artifacts,
         default_n_sims=settings.n_sims,
         packages=available_packages(),

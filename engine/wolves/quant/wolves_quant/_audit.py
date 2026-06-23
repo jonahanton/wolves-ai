@@ -40,6 +40,7 @@ class BranchCheck(BaseModel):
     ledger_ids: list[str] = Field(default_factory=list)
     artifacts: list[str] = Field(default_factory=list)
     world_names: list[str] = Field(default_factory=list)
+    parent_branch_ids: list[str] = Field(default_factory=list)
 
 
 class BranchAudit(BaseModel):

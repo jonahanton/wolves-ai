@@ -20,6 +20,7 @@ from wolves.agent.tools.submission._validation import (
     world_metadata_section,
 )
 from wolves.agent.validator import ValidationReport
+from wolves.observability.runtime import CapExceeded
 from wolves.prompts import prompt
 
 RefereeOwner = Literal["forecast", "master", "research", "quant", "infra"]
@@ -56,9 +57,22 @@ class RefereeReport(BaseModel):
 _REFEREE = Agent(
     output_type=ToolOutput(RefereeReport, strict=True),
     system_prompt=prompt("referee"),
-    output_retries=1,
+    output_retries=0,
 )
-_REFEREE_SETTINGS = AnthropicModelSettings(anthropic_cache="5m", max_tokens=1800)
+_REFEREE_SETTINGS = AnthropicModelSettings(anthropic_cache="5m", max_tokens=2400)
+
+
+def _is_cap_exceeded(exc: BaseException, seen: set[int] | None = None) -> bool:
+    seen = seen or set()
+    if id(exc) in seen:
+        return False
+    seen.add(id(exc))
+    if isinstance(exc, CapExceeded):
+        return True
+    if isinstance(exc, BaseExceptionGroup) and any(_is_cap_exceeded(item, seen) for item in exc.exceptions):
+        return True
+    cause = exc.__cause__ or exc.__context__
+    return cause is not None and _is_cap_exceeded(cause, seen)
 
 
 def submission_fingerprint(args: ForecastSubmission) -> str:
@@ -72,9 +86,18 @@ async def referee_review(
     validation: ValidationReport,
 ) -> RefereeReport:
     if not deps.settings.graph_referee_enabled:
+        deps.submission.referee_status = "disabled"
         return RefereeReport(approved=True, summary="referee disabled", issues=[], suggested_master_brief="")
     if deps.referee_model is None:
-        deps.runtime.emit("referee", "referee", "referee enabled but no referee model is configured")
+        deps.submission.referee_status = "bypassed_infrastructure"
+        deps.submission.referee_reason = "referee model is not configured"
+        deps.runtime.emit(
+            "referee",
+            "referee",
+            "referee enabled but no referee model is configured",
+            severity="error",
+            failure_category="referee_infrastructure",
+        )
         return RefereeReport(
             approved=False,
             summary="referee enabled but unavailable",
@@ -90,13 +113,24 @@ async def referee_review(
             suggested_master_brief="Referee infrastructure is unavailable; do not replan the forecast.",
         )
     if submission_fingerprint(args) in deps.submission.referee_approved:
+        deps.submission.referee_status = "approved"
         return RefereeReport(approved=True, summary="already approved", issues=[], suggested_master_brief="")
     user = json.dumps(_referee_context(args, deps, validation), ensure_ascii=False, indent=1)
     try:
         model = deps.referee_model.for_actor("referee", operation="referee")
         report = (await _REFEREE.run(user, model=model, model_settings=_REFEREE_SETTINGS)).output
     except Exception as exc:
-        deps.runtime.emit("referee", "referee", f"referee unavailable: {exc}")
+        deps.submission.referee_status = "bypassed_budget" if _is_cap_exceeded(exc) else "bypassed_infrastructure"
+        deps.submission.referee_reason = str(exc)
+        deps.runtime.emit(
+            "referee",
+            "referee",
+            f"referee unavailable: {exc}",
+            severity="error",
+            failure_category="referee_budget"
+            if deps.submission.referee_status == "bypassed_budget"
+            else "referee_infrastructure",
+        )
         return RefereeReport(
             approved=False,
             summary=f"referee unavailable: {exc}",
@@ -113,6 +147,8 @@ async def referee_review(
         )
     if not report.blocking_issues:
         report = report.model_copy(update={"approved": True})
+        deps.submission.referee_status = "approved"
+        deps.submission.referee_reason = report.summary
         deps.submission.referee_approved.add(submission_fingerprint(args))
     return report
 
@@ -170,10 +206,6 @@ def _referee_context(args: ForecastSubmission, deps: AgentDeps, validation: Vali
         "market_gap_contract": market_gap_contract(deps, args),
         "advisories": branch_advisories(deps, args.artifact_id),
         "artifact": _artifact_digest(payload),
-        "artifact_index": _artifact_index(deps),
-        "research_artifacts": _research_artifacts(deps),
-        "retrieval_artifacts": _retrieval_artifacts(deps),
-        "quant_artifacts": _quant_artifacts(deps),
         "ledger": _ledger_context(args, deps),
         "previous_agent_anchor": _previous_agent_anchor(deps),
     }
@@ -239,7 +271,6 @@ def _artifact_digest(payload: dict[str, object]) -> dict[str, object]:
         "branch_audit": payload.get("branch_audit"),
         "factor_audit": payload.get("factor_audit"),
         "worlds": payload.get("worlds"),
-        "conditionals": payload.get("conditionals"),
         "noise_floor_pp": payload.get("noise_floor_pp"),
         "priced_items": payload.get("priced_items"),
         "summary": payload.get("summary"),
@@ -278,7 +309,7 @@ def _ledger_context(args: ForecastSubmission, deps: AgentDeps) -> list[dict[str,
                 "retrieval_id": entry.retrieval_id,
             }
         )
-        if len(out) >= 30:
+        if len(out) >= 15:
             break
     return out
 
@@ -309,87 +340,3 @@ def _previous_agent_anchor(deps: AgentDeps) -> dict[str, object] | None:
         "world_metadata": previous.agent.world_metadata,
         "headline": previous.agent.narrative.headline,
     }
-
-
-def _artifact_index(deps: AgentDeps) -> list[dict[str, object]]:
-    if deps.artifacts is None:
-        return []
-    return [
-        {
-            "id": record.id,
-            "kind": record.kind,
-            "created_by": record.created_by,
-            "summary": record.summary,
-        }
-        for record in deps.artifacts.all()
-    ]
-
-
-def _research_artifacts(deps: AgentDeps) -> list[dict[str, object]]:
-    if deps.artifacts is None:
-        return []
-    out: list[dict[str, object]] = []
-    for record in deps.artifacts.all():
-        if record.kind != "evidence":
-            continue
-        artifact = deps.artifacts.get(record.id)
-        if artifact is None:
-            continue
-        signals = artifact.payload.get("signals")
-        out.append(
-            {
-                "id": record.id,
-                "summary": artifact.payload.get("summary"),
-                "signals": signals[:12] if isinstance(signals, list) else [],
-                "candidate_branches": artifact.payload.get("candidate_branches", []),
-            }
-        )
-    return out
-
-
-def _retrieval_artifacts(deps: AgentDeps) -> list[dict[str, object]]:
-    if deps.artifacts is None:
-        return []
-    out: list[dict[str, object]] = []
-    for record in deps.artifacts.all():
-        if record.kind != "retrieval":
-            continue
-        artifact = deps.artifacts.get(record.id)
-        if artifact is None:
-            continue
-        rankings = artifact.payload.get("rankings")
-        out.append(
-            {
-                "id": record.id,
-                "sub_question": artifact.payload.get("sub_question"),
-                "rankings": rankings[:8] if isinstance(rankings, list) else [],
-            }
-        )
-    return out
-
-
-def _quant_artifacts(deps: AgentDeps) -> list[dict[str, object]]:
-    if deps.artifacts is None:
-        return []
-    out: list[dict[str, object]] = []
-    for record in deps.artifacts.all():
-        if record.kind not in {"quant", "mixture", "forecast"}:
-            continue
-        artifact = deps.artifacts.get(record.id)
-        if artifact is None:
-            continue
-        findings = artifact.payload.get("findings")
-        priced_items = artifact.payload.get("priced_items")
-        out.append(
-            {
-                "id": record.id,
-                "kind": record.kind,
-                "summary": artifact.payload.get("summary") or record.summary,
-                "findings": findings[:8] if isinstance(findings, list) else [],
-                "priced_items": priced_items[:12] if isinstance(priced_items, list) else [],
-                "branch_audit": artifact.payload.get("branch_audit"),
-                "factor_audit": artifact.payload.get("factor_audit"),
-                "weights": artifact.payload.get("weights"),
-            }
-        )
-    return out

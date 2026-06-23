@@ -38,12 +38,15 @@ class ScenarioWeight(BaseModel):
 
 
 class MarketGap(BaseModel):
-    """One team's market stance; emitted only where a stance was taken."""
+    """Canonical model, market and published probabilities for one market stance."""
 
     team_id: str
-    model_prob: float = Field(ge=0.0, le=1.0)
-    market_prob: float = Field(ge=0.0, le=1.0)
-    gap_pp: float
+    model_prob: float = Field(default=0.0, ge=0.0, le=1.0)
+    market_prob: float = Field(default=0.0, ge=0.0, le=1.0)
+    forecast_prob: float | None = Field(default=None, ge=0.0, le=1.0)
+    model_market_gap_pp: float | None = None
+    forecast_market_gap_pp: float | None = None
+    gap_pp: float = 0.0
     floor_multiple: float | None = None
 
 

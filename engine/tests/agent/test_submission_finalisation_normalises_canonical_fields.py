@@ -71,12 +71,23 @@ def test_finalisation_replaces_single_stale_story_percentage(tmp_path: Path, mon
     assert result.warnings == ["stripped non-published percentages from team story summaries for: portugal"]
 
 
-def test_finalisation_trims_market_gaps_to_audited_teams(tmp_path: Path):
+def test_finalisation_trims_market_gaps_to_audited_teams(tmp_path: Path, monkeypatch):
     deps, artifact_id = _deps_with_artifact(tmp_path)
+    monkeypatch.setattr(
+        "wolves.agent.tools.submission.normalise.validator_anchors",
+        lambda _deps: SimpleNamespace(
+            baseline_titles={"england": 0.086},
+            market_titles={"england": 0.11},
+        ),
+    )
+    monkeypatch.setattr(
+        "wolves.agent.tools.submission.normalise.published_title_preview",
+        lambda _deps, _artifact_id: {"titles": {"england": 0.09}},
+    )
     submission = build_submission(
         artifact_id=artifact_id,
         market_gaps=[
-            {"team_id": "england", "model_prob": 0.086, "market_prob": 0.11, "gap_pp": 2.4},
+            {"team_id": "england"},
             {"team_id": "portugal", "model_prob": 0.084, "market_prob": 0.104, "gap_pp": 2.0},
         ],
     )
@@ -85,6 +96,9 @@ def test_finalisation_trims_market_gaps_to_audited_teams(tmp_path: Path):
     deps.runtime.shutdown()
 
     assert [gap.team_id for gap in result.submission.market_gaps] == ["england"]
+    assert result.submission.market_gaps[0].forecast_prob == 0.09
+    assert result.submission.market_gaps[0].model_prob == 0.086
+    assert result.submission.market_gaps[0].market_prob == 0.11
     assert result.warnings == ["removed market_gaps not covered by the factor_audit market_gap row: portugal"]
 
 

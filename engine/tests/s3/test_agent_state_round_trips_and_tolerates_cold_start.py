@@ -65,3 +65,17 @@ def test_push_skips_files_that_do_not_exist_yet(tmp_path):
     assert store is not None
 
     assert store.push(run_id=RUN_ID) == 0
+
+
+@mock_aws
+def test_pull_hydrates_compact_market_series_without_raw_odds(tmp_path):
+    _create_bucket()
+    client = boto3.client("s3", region_name=REGION)
+    client.put_object(Bucket=BUCKET, Key="odds-archive/2026-06-23/080000.series.json", Body=b"{}")
+    client.put_object(Bucket=BUCKET, Key="odds-archive/2026-06-23/080000.json", Body=b"raw")
+    store = build_agent_state_store(_settings(tmp_path))
+    assert store is not None
+
+    assert store.pull() == 1
+    assert (tmp_path / "odds-archive/2026-06-23/080000.series.json").exists()
+    assert not (tmp_path / "odds-archive/2026-06-23/080000.json").exists()

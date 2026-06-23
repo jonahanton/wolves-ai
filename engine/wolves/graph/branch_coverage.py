@@ -8,7 +8,7 @@ from wolves.graph.artifacts import RunArtifactStore
 _PRICED = {"priced", "carried_forward"}
 _COLLAPSED = {"collapsed", "below_floor", "rejected"}
 _MERGED = {"merged_into_base"}
-_AUDITED = _PRICED | _COLLAPSED | _MERGED
+_AUDITED = _PRICED | _COLLAPSED | _MERGED | {"covered_by_child"}
 
 
 class BranchCoverage(BaseModel):
@@ -38,17 +38,20 @@ def branch_coverage(
 ) -> BranchCoverage:
     candidates: dict[str, dict] = {}
     statuses: dict[str, str] = {}
+    artifacts = []
     for record in store.all():
         if active_node_ids is not None and record.created_by not in active_node_ids:
             continue
         artifact = store.get(record.id)
         if artifact is None:
             continue
+        artifacts.append(artifact)
         if artifact.kind == "evidence":
             _collect_candidates(candidates, artifact.payload, key="candidate_branches")
         elif artifact.kind == "critique":
             _collect_candidates(candidates, artifact.payload, key="tail_branches", analytical=True)
-        _collect_audit_statuses(statuses, artifact.payload)
+    for artifact in artifacts:
+        _collect_audit_statuses(statuses, artifact.payload, candidates)
 
     candidate_keys = sorted(candidates)
     serious = sorted(key for key, branch in candidates.items() if _serious_branch(branch, ledger))
@@ -91,7 +94,7 @@ def _collect_candidates(candidates: dict[str, dict], payload: dict, *, key: str,
         candidates.setdefault(branch_key, {**branch, "_analytical": True} if analytical else branch)
 
 
-def _collect_audit_statuses(statuses: dict[str, str], payload: dict) -> None:
+def _collect_audit_statuses(statuses: dict[str, str], payload: dict, candidates: dict[str, dict]) -> None:
     audit = payload.get("branch_audit")
     if not isinstance(audit, dict):
         return
@@ -101,7 +104,15 @@ def _collect_audit_statuses(statuses: dict[str, str], payload: dict) -> None:
     for check in checks:
         if not isinstance(check, dict) or not check.get("key"):
             continue
-        statuses[str(check["key"])] = str(check.get("status") or "")
+        status = str(check.get("status") or "")
+        key = str(check["key"])
+        statuses[key] = status
+        candidate = candidates.get(key) or {}
+        declared_parents = {str(parent) for parent in candidate.get("parent_branch_ids") or []}
+        checked_parents = {str(parent) for parent in check.get("parent_branch_ids") or []}
+        if status in _AUDITED:
+            for parent in declared_parents & checked_parents & candidates.keys():
+                statuses.setdefault(parent, "covered_by_child")
 
 
 def _serious_branch(branch: dict, ledger: EvidenceLedger) -> bool:

@@ -49,12 +49,12 @@ def test_dollar_ceiling_cap_halts_further_llm_calls(tmp_path: Path):
     runtime = build_runtime(
         run_id="cap-run",
         tracer=InMemoryTracer(),
-        caps=Caps(max_cost_micros=1_000),
+        caps=Caps(max_cost_micros=100_000),
         runs_root=tmp_path,
     )
     with runtime.observe(kind="run", actor="test"):
-        runtime.charge_llm()
-        runtime.add_cost(2_000)
+        reservation = runtime.charge_llm()
+        runtime.add_cost(100_000, reservation=reservation)
         with pytest.raises(CapExceeded, match="max_cost_micros"):
             runtime.charge_llm()
     runtime.shutdown()

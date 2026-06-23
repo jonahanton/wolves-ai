@@ -110,10 +110,12 @@ def _raw_paths(archive_dir: Path) -> list[Path]:
 
 
 def load_series(archive_dir: Path) -> list[SeriesPoint]:
-    points = [
-        SeriesPoint.model_validate_json(path.read_text(encoding="utf-8"))
-        for path in sorted(archive_dir.glob(f"*/*{SERIES_SUFFIX}"))
-    ]
+    points = []
+    for path in sorted(archive_dir.glob(f"*/*{SERIES_SUFFIX}")):
+        try:
+            points.append(SeriesPoint.model_validate_json(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as exc:
+            logger.warning("skipping invalid market series point %s: %s", path, exc)
     return sorted(points, key=lambda p: p.captured_at)
 
 
