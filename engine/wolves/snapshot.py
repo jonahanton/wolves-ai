@@ -221,14 +221,18 @@ class CampOut(BaseModel):
 
 
 class MarketGapOut(BaseModel):
-    """A published per-team market stance; direction is the sign of the gap."""
+    """A published market stance with separate model and forecast comparisons."""
 
     team_id: str
     model_prob: float
     market_prob: float
+    forecast_prob: float | None = None
+    model_market_gap_pp: float | None = None
+    forecast_market_gap_pp: float | None = None
     gap_pp: float
     floor_multiple: float | None = None
     direction: str
+    model_direction: str = ""
 
 
 class WorldOut(BaseModel):
@@ -258,10 +262,17 @@ class GovernorOut(BaseModel):
     effective_d: float = 1.0
 
 
+class MovementOut(BaseModel):
+    previous_prob: float
+    current_prob: float
+    delta_pp: float
+
+
 class AttributionOut(BaseModel):
     bracket_pp: dict[str, float] = Field(default_factory=dict)
     refit_pp: dict[str, float] = Field(default_factory=dict)
     residual_pp: dict[str, float] = Field(default_factory=dict)
+    movement: dict[str, MovementOut] = Field(default_factory=dict)
 
 
 class CalibrationSummary(BaseModel):
@@ -293,6 +304,18 @@ class RevisionOut(BaseModel):
     revision_rationale: str = ""
 
 
+class FinalisationOut(BaseModel):
+    artifact_id: str
+    submission_fingerprint: str
+    validation_issue_counts: dict[str, int] = Field(default_factory=dict)
+    referee_status: str
+    referee_reason: str = ""
+    advertised_ceiling_usd: float
+    forecast_reserved_usd: float
+    referee_reserved_usd: float
+    settled_cost_usd: float
+
+
 class AgentBlock(BaseModel):
     """Agent-run extras; absent on sim-only snapshots. Additive by design."""
 
@@ -318,6 +341,7 @@ class AgentBlock(BaseModel):
     branch_audit: dict[str, object] | None = None
     world_metadata: dict[str, dict[str, object]] = Field(default_factory=dict)
     revision: RevisionOut | None = None
+    finalisation: FinalisationOut | None = None
 
 
 class ChampionBlock(BaseModel):
