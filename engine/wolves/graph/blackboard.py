@@ -10,6 +10,7 @@ from wolves.agent.source_memory import SourceMemory
 from wolves.graph.artifacts import ArtifactRecord, RunArtifactStore
 from wolves.graph.branch_coverage import BranchCoverage, branch_coverage
 from wolves.graph.contracts import NodeOutcome, NodePatch, ResearchOutput
+from wolves.graph.reserves import finalisation_reserves_micros
 from wolves.observability.runtime import ObservedRuntime
 
 if TYPE_CHECKING:
@@ -53,12 +54,14 @@ class Blackboard:
         runtime: ObservedRuntime,
         source_memory: SourceMemory | None = None,
         run_context: dict[str, str] | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self.artifacts = artifacts
         self.ledger = ledger
         self._runtime = runtime
         self._source_memory = source_memory
         self._run_context = run_context or {}
+        self._settings = settings
         self.nodes: list[NodeRecord] = []
         self.challenges: list[str] = []
         self.dropped: list[str] = []
@@ -82,7 +85,7 @@ class Blackboard:
                 flags=outcome.flags,
             )
             op = by_id.get(outcome.node_id)
-            if op is not None and op.replaces is not None:
+            if outcome.ok and op is not None and op.replaces is not None:
                 for node in self.nodes:
                     if node.node_id == op.replaces:
                         node.replaced_by = outcome.node_id
@@ -177,13 +180,23 @@ class Blackboard:
         """Compact JSON for the master: metadata only, never payloads."""
         budget = self._runtime.budget
         caps = self._runtime.caps
+        settings = self._settings
+        forecast_micros, referee_micros = (
+            finalisation_reserves_micros(settings, caps) if settings is not None else (0, 0)
+        )
+        forecast_reserve = forecast_micros / 1e6
+        referee_reserve = referee_micros / 1e6
+        remaining = max(0.0, caps.max_cost_micros / 1e6 - budget.cost_micros / 1e6)
         state = {
             "wave": self.wave,
             "budget": {
                 "llm_calls": f"{budget.llm_calls}/{caps.max_llm_calls}",
                 "cost_usd": round(budget.cost_micros / 1e6, 4),
                 "ceiling_usd": round(caps.max_cost_micros / 1e6, 4),
-                "remaining_usd": round(max(0, caps.max_cost_micros - budget.cost_micros) / 1e6, 4),
+                "remaining_usd": round(remaining, 4),
+                "planning_available_usd": round(max(0.0, remaining - forecast_reserve - referee_reserve), 4),
+                "forecast_reserved_usd": round(forecast_reserve, 4),
+                "referee_reserved_usd": round(referee_reserve, 4),
                 "last_wave_cost_usd": round(self.last_wave_cost_micros / 1e6, 4),
             },
             "nodes": [
@@ -232,15 +245,26 @@ class Blackboard:
         return challenges
 
     def branch_coverage(self) -> BranchCoverage:
+        known = {node.node_id for node in self.nodes}
         active = {node.node_id for node in self.nodes if node.replaced_by is None}
+        active.update(record.created_by for record in self.artifacts.all() if record.created_by not in known)
         return branch_coverage(self.artifacts, self.ledger, active_node_ids=active or None)
 
     def planned_node_count(self) -> int:
         return sum(1 for node in self.nodes if node.node_id != "coverage-research")
 
+    def active_artifact_ids(self, *, kinds: set[str] | None = None) -> set[str]:
+        active_nodes = {node.node_id for node in self.nodes if node.ok and node.replaced_by is None}
+        return {
+            record.id
+            for record in self.artifacts.all()
+            if (kinds is None or record.kind in kinds)
+            and (record.created_by == "runtime" or record.created_by in active_nodes)
+        }
+
     def branch_follow_up_reason(self, settings: Settings) -> str | None:
         budget, caps = self._runtime.budget, self._runtime.caps
-        reserve = int(settings.graph_forecast_reserve_usd * 1_000_000)
+        reserve = sum(finalisation_reserves_micros(settings, caps))
         if caps.max_cost_micros and caps.max_cost_micros - budget.cost_micros <= reserve:
             return None
         coverage = self.branch_coverage()
@@ -251,7 +275,7 @@ class Blackboard:
         if not settings.graph_premortem_enabled or self.premortem_nudges:
             return None
         budget, caps = self._runtime.budget, self._runtime.caps
-        reserve = int(settings.graph_forecast_reserve_usd * 1_000_000)
+        reserve = sum(finalisation_reserves_micros(settings, caps))
         if caps.max_cost_micros and caps.max_cost_micros - budget.cost_micros <= reserve:
             return None
         if any(record.kind == "critique" for record in self.artifacts.all()):
@@ -285,9 +309,7 @@ class Blackboard:
         if not isinstance(branches, list) or not branches:
             return entry
         keys = [
-            str(branch.get("branch_id"))
-            for branch in branches
-            if isinstance(branch, dict) and branch.get("branch_id")
+            str(branch.get("branch_id")) for branch in branches if isinstance(branch, dict) and branch.get("branch_id")
         ]
         if keys:
             entry["candidate_branches"] = keys[:6]

@@ -82,6 +82,10 @@ class SubmissionState:
     last_accepted: ForecastSubmission | None = None
     counterfactual: ForecastSubmission | None = None
     premortem_seen: set[str] = field(default_factory=set)
+    publishable_artifact_ids: set[str] = field(default_factory=set)
+    validation_issue_counts: dict[str, int] = field(default_factory=dict)
+    referee_status: str = "disabled"
+    referee_reason: str = ""
 
 
 @dataclass

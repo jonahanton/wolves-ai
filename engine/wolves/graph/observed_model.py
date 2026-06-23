@@ -99,6 +99,7 @@ class ObservedModel(WrapperModel):
         actor: str = "graph",
         operation: str | None = None,
         hold_back_micros: int = 0,
+        reservation_floor_micros: int = 0,
         retry: RetryPolicy = DEFAULT_RETRY,
     ) -> None:
         super().__init__(wrapped)
@@ -106,11 +107,16 @@ class ObservedModel(WrapperModel):
         self._actor = actor
         self._operation = operation
         self._hold_back_micros = hold_back_micros
+        self._reservation_floor_micros = reservation_floor_micros
         self._retry = retry
 
     @property
     def retry(self) -> RetryPolicy:
         return self._retry
+
+    @property
+    def reservation_floor_micros(self) -> int:
+        return self._reservation_floor_micros
 
     def for_actor(self, actor: str, *, operation: str | None = None) -> ObservedModel:
         """Attribute a model view to one graph actor."""
@@ -120,6 +126,7 @@ class ObservedModel(WrapperModel):
             actor=actor,
             operation=operation,
             hold_back_micros=self._hold_back_micros,
+            reservation_floor_micros=self._reservation_floor_micros,
             retry=self._retry,
         )
 
@@ -161,7 +168,10 @@ class ObservedModel(WrapperModel):
         model_settings: ModelSettings | None,
         model_request_parameters: ModelRequestParameters,
     ) -> ModelResponse:
-        reservation = self._runtime.charge_llm(hold_back_micros=self._hold_back_micros)
+        reservation = self._runtime.charge_llm(
+            hold_back_micros=self._hold_back_micros,
+            reservation_floor_micros=self._reservation_floor_micros,
+        )
         settled = False
         operation_metadata = (
             {
@@ -225,7 +235,10 @@ class ObservedModel(WrapperModel):
     ) -> AsyncIterator[StreamedResponse]:
         # Nothing streams today, but a future run_stream call must not bypass
         # the ceiling: charge before the call, settle cost when the stream closes.
-        reservation = self._runtime.charge_llm(hold_back_micros=self._hold_back_micros)
+        reservation = self._runtime.charge_llm(
+            hold_back_micros=self._hold_back_micros,
+            reservation_floor_micros=self._reservation_floor_micros,
+        )
         settled = False
         try:
             async with super().request_stream(

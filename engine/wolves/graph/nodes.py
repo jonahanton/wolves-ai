@@ -17,6 +17,7 @@ from wolves.graph.agents import node_agent
 from wolves.graph.artifacts import ArtifactKind, RunArtifactStore
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
 from wolves.graph.observed_model import CACHE_SETTINGS, ObservedModel
+from wolves.graph.reserves import finalisation_reserves_micros
 from wolves.toolkit._budget_gate import BudgetGate
 
 logger = logging.getLogger(__name__)
@@ -75,18 +76,13 @@ def _retrievals_digest(deps: AgentDeps) -> str:
         lines = ["Already fetched by recent runs (web_fetch serves these from cache; search for what is NOT here):"]
         for article in cached:
             prior = (
-                deps.relevance_memory.latest(
-                    article.final_url, as_of=deps.as_of, current_run_id=deps.runtime.run_id
-                )
+                deps.relevance_memory.latest(article.final_url, as_of=deps.as_of, current_run_id=deps.runtime.run_id)
                 if deps.relevance_memory is not None
                 else None
             )
             judged = f"; judged {prior.score:.2f}: {prior.reason[:80]}" if prior is not None else ""
             age = max(0.0, article.age_hours(now=now))
-            lines.append(
-                f"- {article.title or article.final_url} "
-                f"({article.final_url}, {age:.0f}h ago{judged})"
-            )
+            lines.append(f"- {article.title or article.final_url} ({article.final_url}, {age:.0f}h ago{judged})")
         parts.append("\n".join(lines))
     ranked = (
         deps.relevance_memory.recent(limit=10, as_of=deps.as_of, current_run_id=deps.runtime.run_id)
@@ -200,12 +196,14 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         spends_reserve = brief.kind == "forecast" or (
             brief.kind == "quant" and deps.submission.structural_repair_required
         )
-        hold_back = 0 if spends_reserve else int(settings.graph_forecast_reserve_usd * 1_000_000)
+        forecast_reserve, referee_reserve = finalisation_reserves_micros(settings, deps.runtime.caps)
+        hold_back = referee_reserve if spends_reserve else forecast_reserve + referee_reserve
         model = ObservedModel(
             model.wrapped,
             runtime=deps.runtime,
             actor=brief.node_id,
             hold_back_micros=hold_back,
+            reservation_floor_micros=model.reservation_floor_micros,
             retry=model.retry,
         )
     try:
@@ -228,6 +226,8 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
             "node_error",
             brief.node_id,
             f"{brief.kind} node failed: {type(exc).__name__}",
+            severity="error",
+            failure_category="node_failure",
             error=str(exc)[:2000],
             **({"body": str(body)[:4000]} if body else {}),
         )

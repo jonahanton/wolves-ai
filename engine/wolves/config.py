@@ -180,6 +180,7 @@ class Settings(BaseSettings):
     agent_live_active_ttl_minutes: int = 180
     graph_forecast_reserve_usd: float = 1.30
     graph_forecast_reserve_llm_calls: int = 26
+    graph_referee_reserve_usd: float = 0.45
 
     # Zero recovers the exact single-pass behaviour.
     graph_max_revisions: int = 1

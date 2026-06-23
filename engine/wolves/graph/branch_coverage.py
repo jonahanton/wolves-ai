@@ -101,7 +101,12 @@ def _collect_audit_statuses(statuses: dict[str, str], payload: dict) -> None:
     for check in checks:
         if not isinstance(check, dict) or not check.get("key"):
             continue
-        statuses[str(check["key"])] = str(check.get("status") or "")
+        status = str(check.get("status") or "")
+        statuses[str(check["key"])] = status
+        parents = check.get("parent_branch_ids")
+        if isinstance(parents, list):
+            for parent in parents:
+                statuses[str(parent)] = status
 
 
 def _serious_branch(branch: dict, ledger: EvidenceLedger) -> bool:

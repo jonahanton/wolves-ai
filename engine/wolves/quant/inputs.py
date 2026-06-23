@@ -104,6 +104,11 @@ def render_data_card(context: SandboxContext) -> str:
             f"Research dataset `{context.dataset_id}` (read-only, preloaded behind `wq.query`).",
             "The overlay DB (`inputs/overlay.duckdb`) adds run-local tables: ledger, calibration,",
             "played_results, market_series; attach is automatic, query them by name.",
+            (
+                f"Market series available through {context.market_series_latest_at}."
+                if context.market_series_available
+                else "Market history is unavailable; current-only market gaps require current outrights."
+            ),
             "",
         ]
         tables = [r[0] for r in con.execute("SHOW TABLES").fetchall()]

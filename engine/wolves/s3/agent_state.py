@@ -43,6 +43,7 @@ class AgentStateStore:
         pulled += self._artifacts.sync_down(prefix="runs/", suffix="/ledger.jsonl")
         pulled += self._artifacts.sync_down(prefix="runs/", contains="/workspace/")
         pulled += self._artifacts.sync_down(prefix=ARTICLE.prefix)
+        pulled += self._artifacts.sync_down(prefix="odds-archive/", suffix=".series.json")
         # Yesterday's snapshots feed calibration scoring and live overrides.
         pulled += self._artifacts.sync_down(prefix=SNAPSHOT.prefix)
         logger.info("agent state: %d file(s) hydrated", pulled)

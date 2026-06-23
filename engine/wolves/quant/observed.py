@@ -48,6 +48,8 @@ class ObservedQuant:
             input={"code_preview": code_preview},
         ) as rec:
             result = await run_analysis(workspace, script=script, caps=self._runtime.caps)
+            if not result.ok:
+                rec.annotate(severity="error", failure_category="quant_execution")
             result.trace_id = rec.trace_id
             result.observation_id = rec.observation_id
             rec.set_output(

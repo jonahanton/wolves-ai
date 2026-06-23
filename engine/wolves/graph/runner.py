@@ -26,6 +26,7 @@ from wolves.graph.research_coverage import (
     research_coverage_hint,
     should_seed_research,
 )
+from wolves.graph.reserves import finalisation_reserves_micros
 from wolves.observability.runtime import CapExceeded, ObservedRuntime
 from wolves.s3.artifacts import ArtifactStore
 
@@ -93,6 +94,10 @@ def _budget_at_caps(runtime: ObservedRuntime, *, reserve_micros: int = 0, reserv
     return bool(caps.max_cost_micros) and budget.cost_micros >= caps.max_cost_micros - reserve_micros
 
 
+def _finalisation_reserve(deps: AgentDeps) -> int:
+    return sum(finalisation_reserves_micros(deps.settings, deps.runtime.caps))
+
+
 async def _execute_wave(
     ops: list[NodePatch],
     *,
@@ -147,6 +152,15 @@ def _reset_forecast_copy_state(deps: AgentDeps) -> None:
     deps.submission.publication_blocked = False
 
 
+def _sync_publishable_artifacts(deps: AgentDeps, board: Blackboard) -> None:
+    active = board.active_artifact_ids(kinds={"mixture", "forecast"})
+    deps.submission.publishable_artifact_ids = active
+    last_clean = deps.submission.last_clean
+    if last_clean is not None and last_clean.artifact_id not in active:
+        deps.submission.last_clean = None
+        deps.submission.last_clean_escalations.clear()
+
+
 def _published_titles_context(surface: PublishSurface, *, top_n: int = 8) -> str:
     """Compact top-N title JSON for the master; set_context stores str only."""
     ranked = sorted(surface.published_titles.items(), key=lambda kv: (-kv[1], kv[0]))
@@ -179,7 +193,11 @@ def _should_continue_after_acceptance(deps: AgentDeps, board: Blackboard) -> tup
         return False, "revision budget spent"
     if _budget_at_caps(
         deps.runtime,
-        reserve_micros=int(settings.graph_revision_reserve_usd * 1_000_000),
+        reserve_micros=min(
+            int(settings.graph_revision_reserve_usd * 1_000_000)
+            + finalisation_reserves_micros(settings, deps.runtime.caps)[1],
+            deps.runtime.caps.max_cost_micros // 2,
+        ),
         reserve_calls=settings.graph_forecast_reserve_llm_calls,
     ):
         return False, "budget within revision reserve"
@@ -225,10 +243,12 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             "research_coverage_hint": coverage_hint.digest(),
             **({"continuity_anchor": continuity_anchor} if continuity_anchor else {}),
         },
+        settings=deps.settings,
     )
     settings = deps.settings
     submission_state = deps.submission
     budget_exhausted = False
+    _sync_publishable_artifacts(deps, board)
 
     with deps.runtime.run_trace(title=f"forecast {as_of}"):
         if _can_seed_research(settings) and should_seed_research(coverage_hint):
@@ -293,6 +313,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             had_structural_repair = submission_state.structural_repair_required
             outcomes = await _execute_wave(ops, deps=deps, store=store, models=models)
             board.merge(ops, outcomes)
+            _sync_publishable_artifacts(deps, board)
             await _submit_clean_preview(deps)
             if submission_state.publication_blocked and not submission_state.referee_replan_required:
                 logger.info("publication blocked after wave %d", board.wave)
@@ -332,7 +353,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 break
             if _budget_at_caps(
                 deps.runtime,
-                reserve_micros=int(settings.graph_forecast_reserve_usd * 1_000_000),
+                reserve_micros=_finalisation_reserve(deps),
                 reserve_calls=settings.graph_forecast_reserve_llm_calls,
             ):
                 logger.warning("budget within forecast reserve after wave %d; stopping waves", board.wave)
@@ -361,7 +382,12 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 kind="forecast",
                 objective="Submit the final forecast",
                 brief=_DEMAND_SUBMIT,
-                input_artifact_ids=[a.id for a in store.all()],
+                input_artifact_ids=[
+                    record.id
+                    for record in store.all()
+                    if record.kind not in {"mixture", "forecast"}
+                    or record.id in submission_state.publishable_artifact_ids
+                ],
             )
             try:
                 _reset_forecast_copy_state(deps)
@@ -372,6 +398,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 logger.warning("demand-submit stopped by cap: %s", exc)
             else:
                 board.merge([op], [outcome])
+                _sync_publishable_artifacts(deps, board)
                 await _submit_clean_preview(deps)
 
         return GraphRunResult(

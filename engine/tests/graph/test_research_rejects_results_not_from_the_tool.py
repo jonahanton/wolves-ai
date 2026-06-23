@@ -4,8 +4,8 @@ import dataclasses
 from pathlib import Path
 
 from tests.graph.conftest import build_graph_deps
-from wolves.graph.agents import _research_source_issues
-from wolves.graph.contracts import LedgerEvidence, ResearchOutput
+from wolves.graph.agents import _research_source_issues, _sanitise_deterministic_research
+from wolves.graph.contracts import CandidateBranch, LedgerEvidence, ResearchOutput
 from wolves.sim.format import PlayedResult
 
 
@@ -56,3 +56,33 @@ def test_missing_forecaster_skips_the_check(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
     output = _evidence("Brazil 0-1 Haiti in Group C, confirmed result")
     assert _research_source_issues(output, deps) == []
+
+
+def test_unplayed_result_is_removed_without_losing_valid_evidence(tmp_path: Path):
+    deps = _deps(tmp_path, played={})
+    output = ResearchOutput(
+        summary="research",
+        evidence=[
+            LedgerEvidence(
+                claim="Brazil 0-1 Haiti, full time",
+                source_url="internal://get_results_and_fixtures",
+            ),
+            LedgerEvidence(claim="Neymar trained", source_url="internal://get_results_and_fixtures"),
+        ],
+        candidate_branches=[
+            CandidateBranch(
+                branch_id="false-result",
+                hypothesis="Brazil lost",
+                support="scoreline",
+                collapse_condition="not finished",
+                evidence_indices=[1],
+                confidence="medium",
+                suggested_quant_question="Price it",
+            )
+        ],
+    )
+
+    _sanitise_deterministic_research(output, deps)
+
+    assert [item.claim for item in output.evidence] == ["Neymar trained"]
+    assert output.candidate_branches == []

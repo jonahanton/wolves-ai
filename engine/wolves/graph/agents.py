@@ -115,6 +115,18 @@ _PROMPT_NAME: dict[NodeKind, str] = {"critic": "premortem"}
 
 
 def _forecast_post_check_refusal(tool_name: str, deps: AgentDeps) -> ToolResult | None:
+    if deps.submission.structural_repair_required:
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="structural_repair_required",
+                message=(
+                    "The cited artifact needs quant repair. Stop calling forecast tools and return a short "
+                    "ForecastOutput summary so the master can register a replacement artifact."
+                ),
+            ),
+        )
     if deps.submission.copy_repair_blocked:
         return ToolResult(
             ok=False,
@@ -311,6 +323,68 @@ def _unplayed_result_issues(output: ResearchOutput, deps: AgentDeps | None) -> l
     return issues
 
 
+def _unplayed_evidence_indices(output: ResearchOutput, deps: AgentDeps | None) -> set[int]:
+    if deps is None or deps.forecaster is None:
+        return set()
+    scheduled = _scheduled_group_pairs(deps)
+    if not scheduled:
+        return set()
+    played = set(deps.forecaster.played_results())
+    teams = _teams(deps)
+    return {
+        index
+        for index, item in enumerate(output.evidence, start=1)
+        if any(
+            (match_id := scheduled.get(pair)) is not None and match_id not in played
+            for pair in _scoreline_pairs(" ".join((item.claim, item.quote, item.mechanism)), teams)
+        )
+    }
+
+
+def _sanitise_deterministic_research(output: ResearchOutput, deps: AgentDeps) -> None:
+    groups = _team_groups(deps)
+    changes: list[str] = []
+    for index, item in enumerate(output.evidence, start=1):
+        expected = groups.get(item.team_id or "")
+        if expected is None:
+            continue
+        for field in ("claim", "quote", "mechanism"):
+            text = getattr(item, field)
+            corrected = _GROUP_MENTION.sub(
+                lambda match, group=expected: f"Group {group}" if match.group(1).upper() != group else match.group(0),
+                text,
+            )
+            if corrected != text:
+                setattr(item, field, corrected)
+                changes.append(f"evidence {index} group")
+    removed = _unplayed_evidence_indices(output, deps)
+    if removed:
+        remap: dict[int, int] = {}
+        kept = []
+        for old_index, item in enumerate(output.evidence, start=1):
+            if old_index in removed:
+                changes.append(f"evidence {old_index} unplayed result")
+                continue
+            remap[old_index] = len(kept) + 1
+            kept.append(item)
+        output.evidence = kept
+        retained_branches = []
+        for branch in output.candidate_branches:
+            if any(index in removed for index in branch.evidence_indices):
+                changes.append(f"branch {branch.branch_id} removed receipt")
+                continue
+            branch.evidence_indices = [remap[index] for index in branch.evidence_indices if index in remap]
+            retained_branches.append(branch)
+        output.candidate_branches = retained_branches
+    if changes:
+        deps.runtime.emit(
+            "research_output_sanitised",
+            deps.actor,
+            "canonical tournament state repaired research output",
+            changes=changes,
+        )
+
+
 def _group_context_window(text: str, end: int) -> str:
     start = max(
         text.rfind(".", 0, end),
@@ -449,6 +523,7 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
         @agent.output_validator
         def _research_source_discipline(ctx: RunContext[AgentDeps], output: ResearchOutput) -> ResearchOutput:
             _demote_unfetchable_snippets(output, ctx.deps)
+            _sanitise_deterministic_research(output, ctx.deps)
             issues = _research_source_issues(output, ctx.deps)
             if issues:
                 ctx.deps.runtime.emit(
