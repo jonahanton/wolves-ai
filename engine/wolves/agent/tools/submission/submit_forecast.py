@@ -15,8 +15,13 @@ from wolves.agent.tools.submission._validation import (
     validation_report,
     world_metadata_section,
 )
-from wolves.agent.tools.submission.normalise import normalise_submission, note_copy_repair_state
+from wolves.agent.tools.submission.normalise import (
+    normalise_submission,
+    note_copy_repair_state,
+    note_validation_issues,
+)
 from wolves.agent.tools.submission.referee import record_referee_block, referee_review
+from wolves.agent.tools.submission.structural_repair import structural_repair_result
 from wolves.agent.validator import ValidationReport
 from wolves.toolkit.core import ToolSpec
 from wolves.toolkit.result import ToolError, ToolResult
@@ -24,37 +29,6 @@ from wolves.toolkit.result import ToolError, ToolResult
 
 def _remaining_hard(deps: AgentDeps) -> int:
     return max(deps.settings.agent_submit_retries + 1 - deps.submission.validation_failures, 0)
-
-
-def _structural_repair_result(report: ValidationReport, deps: AgentDeps, *, artifact_id: str) -> ToolResult[Any] | None:
-    """Route a quant-owned structural rejection to the master once; a repeat of
-    the same signature falls through to the normal hard-retry path."""
-    quant_issues = report.quant_repair_issues
-    if not quant_issues:
-        return None
-    if deps.submission.structural_repair_attempts >= deps.settings.agent_structural_repair_attempts:
-        return None
-    signature = (artifact_id, *sorted(issue.code for issue in quant_issues))
-    if signature == deps.submission.structural_repair_signature:
-        return None
-    deps.submission.structural_repair_signature = signature
-    deps.submission.structural_repair_required = True
-    deps.submission.structural_repair_attempts += 1
-    deps.submission.copy_repair_required = False
-    summary = "; ".join(issue.message for issue in quant_issues)
-    deps.runtime.emit("validation", deps.actor, f"structural repair needed: {report.summary()[:200]}")
-    return ToolResult(
-        ok=False,
-        payload=None,
-        error=ToolError(
-            type="structural_repair_required",
-            message=(
-                f"The cited artifact {artifact_id} has a structural defect only a quant node can fix: {summary} "
-                "Stop this forecast attempt and return a short ForecastOutput summary so the master can brief quant "
-                "to regenerate the artifact."
-            ),
-        ),
-    )
 
 
 def _team_named(team: str, text: str) -> bool:
@@ -108,13 +82,23 @@ def _accept_forecast(
 
 
 async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolResult[Any]:
+    if deps.submission.publishable_artifact_ids and args.artifact_id not in deps.submission.publishable_artifact_ids:
+        return ToolResult(
+            ok=False,
+            payload=None,
+            error=ToolError(
+                type="artifact_superseded",
+                message=f"Artifact {args.artifact_id} was superseded and cannot be published.",
+            ),
+        )
     normalised = normalise_submission(args, deps)
     checked = normalised.submission
     report = validation_report(checked, deps)
+    note_validation_issues(report, deps)
     copy_repeats = note_copy_repair_state(report, deps)
     if not report.ok:
         deps.submission.checked_clean = None
-        if structural := _structural_repair_result(report, deps, artifact_id=checked.artifact_id):
+        if structural := structural_repair_result(report, deps, artifact_id=checked.artifact_id):
             return structural
         # Copy issues are repair prompts; only hard issues spend a retry.
         if report.hard_issues:
@@ -148,8 +132,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
             error=ToolError(
                 type="validation_failed",
                 message=(
-                    f"Submission rejected. {report.summary()} Next action: {next_action} "
-                    f"({cost_note}).{warnings}"
+                    f"Submission rejected. {report.summary()} Next action: {next_action} ({cost_note}).{warnings}"
                 ),
             ),
         )
@@ -183,8 +166,7 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
         deps.submission.validation_failures += 1
         deps.runtime.emit("validation", deps.actor, "escalated resubmission without substance rejected")
         team_note = (
-            "Address every escalated team in change_justification: "
-            f"{', '.join(missing_escalation_teams)}. "
+            f"Address every escalated team in change_justification: {', '.join(missing_escalation_teams)}. "
             if missing_escalation_teams
             else ""
         )
@@ -251,6 +233,8 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
             f"{referee.summary[:160]}",
             artifact_id=artifact_id,
         )
+        deps.submission.referee_status = "intervention_cap"
+        deps.submission.referee_reason = referee.summary
         return _accept_forecast(
             checked,
             deps,

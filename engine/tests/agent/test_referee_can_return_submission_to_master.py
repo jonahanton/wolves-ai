@@ -316,9 +316,9 @@ async def test_referee_context_includes_cited_ledger_rows(tmp_path):
     context = json.loads(captured_prompts[0])
     assert context["published_preview"]
     assert context["artifact"]["weights"] == {"baseline": 1.0}
-    assert context["research_artifacts"][0]["candidate_branches"] == [{"branch_id": "england-availability"}]
-    assert context["retrieval_artifacts"][0]["rankings"][0]["score"] == 0.9
-    assert any(artifact["summary"] == "France gap priced." for artifact in context["quant_artifacts"])
+    assert "research_artifacts" not in context
+    assert "retrieval_artifacts" not in context
+    assert "quant_artifacts" not in context
     assert "branch_audit" in context
     assert "factor_audit" in context
     assert "world_metadata" in context

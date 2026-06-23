@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from wolves.agent.audit_policy import intrinsic_missing_rows
+from wolves.agent.audit_policy import branch_audit_contradictions, intrinsic_missing_rows
 from wolves.agent.deps import AgentDeps
 from wolves.quant.context import build_sandbox_context
 from wolves.quant.inputs import prepare_inputs
@@ -106,6 +106,10 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
         # scenario_mixture(name=...) output registers.
         if not (isinstance(payload, dict) and {"mixture", "conditionals", "weights", "worlds"} <= payload.keys()):
             continue
+        contradictions = branch_audit_contradictions(payload)
+        if contradictions:
+            warnings.append(f"{marker} was not registered: " + "; ".join(contradictions))
+            continue
         if marker in registered:
             artifact = store.get(registered[marker])
             if artifact is not None and artifact.payload != payload:
@@ -176,7 +180,8 @@ SPEC = ToolSpec(
         "For submit-ready mixtures, build a factor audit with wq.factor_audit(checks=[...], verdict=...) "
         "and pass factor_audit=audit to wq.scenario_mixture; checked negative findings are valid, "
         "missing marks work the forecast should not publish without. Optional branch audits use "
-        "wq.branch_audit(checks=[{key,status,hypothesis,summary,teams,ledger_ids,artifacts,world_names}], "
+        "wq.branch_audit(checks=[{key,status,hypothesis,summary,teams,ledger_ids,artifacts,world_names,"
+        "parent_branch_ids}], "
         "verdict=...) and pass branch_audit=... plus world_metadata={world:{label,summary,camp,branch_keys}} "
         "to wq.scenario_mixture when research branches were priced, collapsed or rejected. "
         "End every script by assigning the finding to `result` "

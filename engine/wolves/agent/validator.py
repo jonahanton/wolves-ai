@@ -15,6 +15,7 @@ from wolves.agent.audit_policy import (
     VALID_AUDIT_STATUSES as _VALID_AUDIT_STATUSES,
 )
 from wolves.agent.audit_policy import (
+    branch_audit_contradictions,
     is_large_non_base,
     non_base_mass,
     repair_owner,
@@ -126,8 +127,14 @@ def validate_submission(
             visible_bucket_count=_visible_distribution_bucket_count(submission, payload),
         )
         issues += _check_scenario_metadata(submission, payload)
+        issues += _check_directional_copy(submission, payload)
         issues += _check_factor_audit(submission, payload, has_previous_context=previous_titles is not None)
-        issues += _check_market_gap_contract(submission, titles=titles, market_titles=market_titles)
+        issues += _check_market_gap_contract(
+            submission,
+            titles=titles,
+            model_titles=baseline_titles,
+            market_titles=market_titles,
+        )
         if baseline_titles is not None:
             details = _diff_escalation_details(titles, baseline_titles, limits, against="baseline")
             escalation_details += details
@@ -290,9 +297,7 @@ def _check_team_stories(
                 )
             )
         if len(story.summary) > _STORY_SUMMARY_MAX or len(story.why) > _STORY_WHY_MAX:
-            issues.append(
-                _copy_issue("team_story_too_long", f"team_stories[{team}] is over length; tighten the entry")
-            )
+            issues.append(_copy_issue("team_story_too_long", f"team_stories[{team}] is over length; tighten the entry"))
         if team in titles:
             published_pp = titles[team] * 100
             mismatched = [
@@ -382,8 +387,7 @@ def _rank_copy_issues(
     if not titles:
         return []
     ranks = {
-        team: rank
-        for rank, (team, _) in enumerate(sorted(titles.items(), key=lambda kv: (-kv[1], kv[0])), start=1)
+        team: rank for rank, (team, _) in enumerate(sorted(titles.items(), key=lambda kv: (-kv[1], kv[0])), start=1)
     }
     teams = [only_team] if only_team is not None and only_team in ranks else list(ranks)
     issues: list[ValidationIssue] = []
@@ -439,9 +443,7 @@ def _ordinal(rank: int) -> str:
     return f"{rank}{suffix}"
 
 
-def _check_news_impacts(
-    submission: ForecastSubmission, artifacts: RunArtifactStore | None
-) -> list[ValidationIssue]:
+def _check_news_impacts(submission: ForecastSubmission, artifacts: RunArtifactStore | None) -> list[ValidationIssue]:
     """Copy-severity: every material priced item should carry a why in news_impacts."""
     if artifacts is None:
         return []
@@ -495,35 +497,8 @@ def _check_weight_dilution(payload: dict, limits: ValidatorLimits) -> list[Valid
     ]
 
 
-_KILLED_BRANCH_STATUSES = {"below_floor", "collapsed", "rejected"}
-_BRANCH_SURVIVAL_MIN_WEIGHT = 1e-6
-
-
 def _check_audit_consistency(payload: dict) -> list[ValidationIssue]:
-    """A branch the artifact's own branch_audit killed cannot keep a weighted world."""
-    audit = payload.get("branch_audit")
-    if not isinstance(audit, dict):
-        return []
-    checks = audit.get("checks")
-    if not isinstance(checks, list):
-        return []
-    weights: dict[str, float] = payload.get("weights") or {}
-    contradictions: list[str] = []
-    for check in checks:
-        if not isinstance(check, dict) or str(check.get("status")) not in _KILLED_BRANCH_STATUSES:
-            continue
-        world_names = check.get("world_names")
-        if not isinstance(world_names, list):
-            continue
-        survivors = sorted(
-            str(name)
-            for name in world_names
-            if str(name) not in _BASE_WORLDS and weights.get(str(name), 0.0) > _BRANCH_SURVIVAL_MIN_WEIGHT
-        )
-        if survivors:
-            contradictions.append(
-                f"{check.get('key')} ({check.get('status')}) still weights {', '.join(survivors)}"
-            )
+    contradictions = branch_audit_contradictions(payload)
     if not contradictions:
         return []
     return [
@@ -566,11 +541,58 @@ def _check_scenario_metadata(submission: ForecastSubmission, payload: dict) -> l
         issues.append(
             _issue(
                 "scenario_weights_mismatch",
-                "scenario_weights must match the submitted artifact's world names and weights: "
-                + "; ".join(detail),
+                "scenario_weights must match the submitted artifact's world names and weights: " + "; ".join(detail),
             )
         )
     issues += _check_camps(submission)
+    return issues
+
+
+_POSITIVE_DIRECTION = re.compile(r"\b(upside|positive|boost|improve[sd]?|increase[sd]?|upgrade[sd]?)\b", re.I)
+_NEGATIVE_DIRECTION = re.compile(r"\b(downside|negative|drag|downgrade[sd]?|decrease[sd]?|discount(?:ed)?)\b", re.I)
+
+
+def _check_directional_copy(submission: ForecastSubmission, payload: dict) -> list[ValidationIssue]:
+    worlds = payload.get("worlds")
+    if not isinstance(worlds, dict):
+        return []
+    rationales = {weight.name: weight.rationale for weight in submission.scenario_weights}
+    issues: list[ValidationIssue] = []
+    for world_name, world in worlds.items():
+        if not isinstance(world, dict):
+            continue
+        by_team: dict[str, list[float]] = {}
+        for perturbation in world.get("perturbations") or []:
+            if not isinstance(perturbation, dict) or perturbation.get("type") != "strength":
+                continue
+            team = str(perturbation.get("team") or "")
+            raw_delta = perturbation.get("delta")
+            delta = raw_delta.get("mean") if isinstance(raw_delta, dict) else raw_delta
+            if team and isinstance(delta, int | float) and delta:
+                by_team.setdefault(team, []).append(float(delta))
+        for team, deltas in by_team.items():
+            if not (all(delta > 0 for delta in deltas) or all(delta < 0 for delta in deltas)):
+                continue
+            story = submission.narrative.team_stories.get(team)
+            text = " ".join(
+                part
+                for part in (rationales.get(world_name, ""), story.summary if story else "", story.why if story else "")
+                if part
+            )
+            says_positive = bool(_POSITIVE_DIRECTION.search(text))
+            says_negative = bool(_NEGATIVE_DIRECTION.search(text))
+            if says_positive == says_negative:
+                continue
+            actual_positive = all(delta > 0 for delta in deltas)
+            if says_positive != actual_positive:
+                actual = "positive" if actual_positive else "negative"
+                issues.append(
+                    _copy_issue(
+                        "world_direction_contradiction",
+                        f"copy for {team} describes {world_name} in the opposite direction; "
+                        f"its strength delta is {actual}",
+                    )
+                )
     return issues
 
 
@@ -623,9 +645,7 @@ def _check_factor_audit(
         }
     )
     if empty_summary:
-        issues.append(
-            _issue("factor_audit_malformed", f"factor_audit rows need summaries: {', '.join(empty_summary)}")
-        )
+        issues.append(_issue("factor_audit_malformed", f"factor_audit rows need summaries: {', '.join(empty_summary)}"))
     required = _required_factor_audit_keys(
         submission,
         payload,
@@ -713,25 +733,41 @@ def _check_market_gap_contract(
     submission: ForecastSubmission,
     *,
     titles: dict[str, float],
+    model_titles: dict[str, float] | None,
     market_titles: dict[str, float] | None,
 ) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     seen: dict[str, int] = {}
     for gap in submission.market_gaps:
         seen[gap.team_id] = seen.get(gap.team_id, 0) + 1
-        # Derived field: correct in place rather than burn a re-forecast on a mistype.
-        gap.gap_pp = round(abs((gap.market_prob - gap.model_prob) * 100), 2)
+        model_market = round((gap.model_prob - gap.market_prob) * 100, 2)
+        forecast_market = (
+            round((gap.forecast_prob - gap.market_prob) * 100, 2) if gap.forecast_prob is not None else None
+        )
+        gap.model_market_gap_pp = model_market
+        gap.forecast_market_gap_pp = forecast_market
+        gap.gap_pp = abs(model_market)
         if gap.floor_multiple is not None and gap.floor_multiple < 0:
-            issues.append(
-                _issue("market_gap_malformed", f"market_gaps[{gap.team_id}] floor_multiple must be positive")
-            )
-        published = titles.get(gap.team_id)
-        if published is not None and abs(gap.model_prob - published) * 100 > _MARKET_GAP_TOLERANCE_PP:
+            issues.append(_issue("market_gap_malformed", f"market_gaps[{gap.team_id}] floor_multiple must be positive"))
+        model = model_titles.get(gap.team_id) if model_titles is not None else None
+        if model is not None and abs(gap.model_prob - model) * 100 > _MARKET_GAP_TOLERANCE_PP:
             issues.append(
                 _issue(
                     "market_gap_malformed",
-                    f"market_gaps[{gap.team_id}] model_prob is {gap.model_prob:.4f}, but the published "
-                    f"title probability is {published:.4f}",
+                    f"market_gaps[{gap.team_id}] model_prob is {gap.model_prob:.4f}, but the model "
+                    f"anchor is {model:.4f}",
+                )
+            )
+        published = titles.get(gap.team_id)
+        if published is not None and (
+            gap.forecast_prob is None or abs(gap.forecast_prob - published) * 100 > _MARKET_GAP_TOLERANCE_PP
+        ):
+            value = "missing" if gap.forecast_prob is None else f"{gap.forecast_prob:.4f}"
+            issues.append(
+                _issue(
+                    "market_gap_malformed",
+                    f"market_gaps[{gap.team_id}] forecast_prob is {value}, but the published title probability "
+                    f"is {published:.4f}",
                 )
             )
         market = market_titles.get(gap.team_id) if market_titles is not None else None

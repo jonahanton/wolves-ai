@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from tests.graph.conftest import build_graph_deps
 from wolves.agent.scenarios import ScenarioRegistry, UnknownScenarioError
+from wolves.agent.tools.memory.scenario_update import ScenarioUpdateArgs, _scenario_update
 
 
 def test_lifecycle_survives_reload_and_tracks_unresolved(tmp_path: Path):
@@ -50,3 +52,19 @@ def test_deferred_scenario_writes_commit_or_roll_back(tmp_path: Path):
 
     reloaded = ScenarioRegistry(path)
     assert [s.scenario_id for s in reloaded.open_scenarios()] == ["scn-001"]
+
+
+async def test_update_resolves_one_exact_open_name(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    deps.scenarios = ScenarioRegistry(tmp_path / "agent-state" / "scenarios.jsonl")
+    deps.scenarios.open(name="france_partial", run_id="agent-d1", weight=0.2, reason="market gap")
+
+    with deps.runtime.run_trace():
+        result = await _scenario_update(
+            ScenarioUpdateArgs(action="collapse", name="france_partial", reason="below floor"),
+            deps,
+        )
+    deps.runtime.shutdown()
+
+    assert result.ok
+    assert result.payload["status"] == "collapsed"

@@ -100,9 +100,7 @@ def test_headline_rank_claim_must_match_published_preview(store: RunArtifactStor
     assert "6th" in report.summary()
 
 
-def test_correct_multi_team_rank_copy_does_not_cross_contaminate(
-    store: RunArtifactStore, ledger: EvidenceLedger
-):
+def test_correct_multi_team_rank_copy_does_not_cross_contaminate(store: RunArtifactStore, ledger: EvidenceLedger):
     headline = "Spain are first, France are second and England are sixth."
     submission = build_submission(narrative=build_narrative(headline=headline))
 
@@ -337,9 +335,7 @@ def _factor_submission(**overrides):
     return build_submission(**fields)
 
 
-def test_workbench_mixture_needs_factor_audit_for_large_non_base_world(
-    store: RunArtifactStore, ledger: EvidenceLedger
-):
+def test_workbench_mixture_needs_factor_audit_for_large_non_base_world(store: RunArtifactStore, ledger: EvidenceLedger):
     store.add(kind="mixture", created_by="quant-1", summary="audited", payload=_workbench_payload())
 
     report = _validate(_factor_submission(), store, ledger)
@@ -404,12 +400,16 @@ def test_market_gap_pp_is_corrected_in_place_not_rejected(store: RunArtifactStor
     assert submission.market_gaps[0].gap_pp == 8.0
 
 
-def test_market_gap_probs_must_match_published_and_market_anchors(
-    store: RunArtifactStore, ledger: EvidenceLedger
-):
+def test_market_gap_probs_must_match_model_forecast_and_market_anchors(store: RunArtifactStore, ledger: EvidenceLedger):
     submission = build_submission(
         market_gaps=[
-            {"team_id": "france", "model_prob": 0.07, "market_prob": 0.14, "gap_pp": 7.0},
+            {
+                "team_id": "france",
+                "model_prob": 0.07,
+                "market_prob": 0.14,
+                "forecast_prob": 0.09,
+                "gap_pp": 7.0,
+            },
         ],
     )
 
@@ -418,10 +418,41 @@ def test_market_gap_probs_must_match_published_and_market_anchors(
         store,
         ledger,
         published_titles={"france": 0.10, "england": 0.08, "rest": 0.82},
+        baseline_titles={"france": 0.08},
         market_titles={"france": 0.16},
     )
 
     assert "market_gap_malformed" in _codes(report)
+
+
+def test_story_cannot_claim_upside_for_a_negative_world(store: RunArtifactStore, ledger: EvidenceLedger):
+    store.add(
+        kind="mixture",
+        created_by="quant-2",
+        summary="brazil downside",
+        payload={
+            "weights": {"model_base": 0.8, "brazil_net": 0.2},
+            "worlds": {
+                "model_base": {"perturbations": []},
+                "brazil_net": {
+                    "perturbations": [{"type": "strength", "team": "brazil", "delta": -0.06, "reason": "availability"}]
+                },
+            },
+            "mixture": {"brazil": 0.06, "rest": 0.94},
+        },
+    )
+    submission = build_submission(
+        artifact_id="mixture-002",
+        narrative=build_narrative(
+            team_stories={"brazil": {"summary": "Brazil have clear upside.", "why": "Neymar may return."}}
+        ),
+        scenario_weights=[
+            {"name": "model_base", "weight": 0.8, "rationale": "Model base."},
+            {"name": "brazil_net", "weight": 0.2, "rationale": "Brazil availability."},
+        ],
+    )
+
+    assert "world_direction_contradiction" in _codes(_validate(submission, store, ledger))
 
 
 def test_blank_news_impact_does_not_satisfy_material_item(store: RunArtifactStore, ledger: EvidenceLedger):
@@ -543,8 +574,7 @@ def test_factor_audit_gate_uses_total_non_base_mass(store: RunArtifactStore, led
     submission = build_submission(
         artifact_id="mixture-002",
         scenario_weights=[
-            {"name": name, "weight": weight, "rationale": f"{name} remains live."}
-            for name, weight in weights.items()
+            {"name": name, "weight": weight, "rationale": f"{name} remains live."} for name, weight in weights.items()
         ],
     )
 

@@ -56,10 +56,8 @@ def _submission():
     )
 
 
-@pytest.mark.parametrize("status", ["below_floor", "collapsed", "rejected"])
-def test_killed_branch_keeping_a_weighted_world_is_a_hard_block(
-    tmp_path: Path, ledger: EvidenceLedger, status: str
-):
+@pytest.mark.parametrize("status", ["below_floor", "collapsed", "rejected", "merged_into_base"])
+def test_killed_branch_keeping_a_weighted_world_is_a_hard_block(tmp_path: Path, ledger: EvidenceLedger, status: str):
     store = _store_with_branch_audit(tmp_path, status=status)
     report = validate_submission(_submission(), artifacts=store, ledger=ledger, limits=ValidatorLimits())
     issue = next((i for i in report.issues if i.code == "branch_audit_self_inconsistent"), None)

@@ -106,6 +106,9 @@ class ScenarioRegistry:
         states = [self.get(sid) for sid in dict.fromkeys(e.scenario_id for e in self._events)]
         return [s for s in states if s is not None and s.status in ("open", "reweighted")]
 
+    def open_named(self, name: str) -> list[ScenarioState]:
+        return [scenario for scenario in self.open_scenarios() if scenario.name == name]
+
     def unresolved_in(self, run_id: str) -> list[ScenarioState]:
         """Open scenarios this run has not yet touched; the soft lifecycle check."""
         return [s for s in self.open_scenarios() if all(e.run_id != run_id for e in s.history)]

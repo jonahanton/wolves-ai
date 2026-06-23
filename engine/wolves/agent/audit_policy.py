@@ -13,6 +13,7 @@ VALID_AUDIT_STATUSES = frozenset({"checked", "not_material", "not_applicable", "
 # Issues describing the cited artifact itself: only a quant node can clear them.
 QUANT_OWNED_ISSUE_CODES = frozenset(
     {
+        "branch_audit_self_inconsistent",
         "factor_audit_missing",
         "factor_audit_missing_coverage",
         "factor_audit_malformed",
@@ -22,8 +23,13 @@ QUANT_OWNED_ISSUE_CODES = frozenset(
         "partition_incoherent",
         "probs_incoherent",
         "artifact_unpublishable",
+        "weight_dilution",
     }
 )
+
+KILLED_BRANCH_STATUSES = frozenset({"below_floor", "collapsed", "rejected"})
+BASE_BRANCH_STATUSES = frozenset({"merged_into_base"})
+BRANCH_SURVIVAL_MIN_WEIGHT = 1e-6
 
 
 def repair_owner(code: str) -> str:
@@ -32,9 +38,7 @@ def repair_owner(code: str) -> str:
 
 def non_base_mass(weights: dict[str, float]) -> float:
     return sum(
-        weight
-        for name, weight in weights.items()
-        if name not in BASE_WORLDS and isinstance(weight, int | float)
+        weight for name, weight in weights.items() if name not in BASE_WORLDS and isinstance(weight, int | float)
     )
 
 
@@ -98,3 +102,27 @@ def intrinsic_missing_rows(payload: dict) -> list[str]:
         return []
     status = audit_check_status(payload)
     return sorted(key for key in required if status.get(key, "missing") == "missing")
+
+
+def branch_audit_contradictions(payload: dict) -> list[str]:
+    audit = payload.get("branch_audit")
+    checks = audit.get("checks") if isinstance(audit, dict) else None
+    weights = payload.get("weights")
+    if not isinstance(checks, list) or not isinstance(weights, dict):
+        return []
+    contradictions: list[str] = []
+    for check in checks:
+        if not isinstance(check, dict):
+            continue
+        status = str(check.get("status") or "")
+        world_names = check.get("world_names")
+        if status not in KILLED_BRANCH_STATUSES | BASE_BRANCH_STATUSES or not isinstance(world_names, list):
+            continue
+        survivors = sorted(
+            str(name)
+            for name in world_names
+            if str(name) not in BASE_WORLDS and weights.get(str(name), 0.0) > BRANCH_SURVIVAL_MIN_WEIGHT
+        )
+        if survivors:
+            contradictions.append(f"{check.get('key')} ({status}) still weights {', '.join(survivors)}")
+    return contradictions
