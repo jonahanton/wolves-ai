@@ -98,4 +98,22 @@ def test_active_artifacts_exclude_successfully_replaced_node(tmp_path: Path):
     )
 
     assert board.active_artifact_ids(kinds={"mixture"}) == {second.id}
+
+
+def test_replacement_without_mixture_does_not_supersede_prior_mixture(tmp_path: Path):
+    deps = build_graph_deps(tmp_path)
+    store = build_run_store(tmp_path)
+    first = store.add(kind="mixture", created_by="quant-1", summary="first", payload={})
+    board = Blackboard(artifacts=store, ledger=deps.ledger, runtime=deps.runtime)
+    board.merge(
+        [NodePatch(node_id="quant-1", kind="quant", objective="first", brief="first")],
+        [NodeOutcome(node_id="quant-1", kind="quant", ok=True, artifact_ids=[first.id])],
+    )
+    summary = store.add(kind="quant", created_by="quant-2", summary="summary only", payload={})
+    board.merge(
+        [NodePatch(node_id="quant-2", kind="quant", objective="second", brief="second", replaces="quant-1")],
+        [NodeOutcome(node_id="quant-2", kind="quant", ok=True, artifact_ids=[summary.id])],
+    )
+
+    assert board.active_artifact_ids(kinds={"mixture"}) == {first.id}
     deps.runtime.shutdown()

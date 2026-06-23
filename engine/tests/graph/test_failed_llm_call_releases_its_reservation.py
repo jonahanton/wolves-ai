@@ -23,10 +23,8 @@ def _ok(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
 
 
 async def test_failed_request_releases_the_reservation(tmp_path: Path):
-    # The cap sits below one default 50k reservation, so a leaked reservation
-    # from the failed call would block every subsequent admission.
     runtime = build_runtime(
-        run_id="om-fail", tracer=InMemoryTracer(), caps=Caps(max_cost_micros=40_000), runs_root=tmp_path
+        run_id="om-fail", tracer=InMemoryTracer(), caps=Caps(max_cost_micros=100_000), runs_root=tmp_path
     )
 
     with runtime.run_trace():

@@ -105,6 +105,16 @@ def build_sandbox_context(deps: AgentDeps) -> SandboxContext:
     from wolves.markets.series import load_series
 
     market_series = load_series(archive) if archive.exists() else []
+    current_outrights = deps.market_cache.get("outrights")
+    current_consensus = (current_outrights or {}).get("consensus")
+    if market_series:
+        deps.unavailable_capabilities.discard("market_history")
+    else:
+        deps.unavailable_capabilities.add("market_history")
+    if market_series or current_consensus:
+        deps.unavailable_capabilities.discard("market_gaps")
+    else:
+        deps.unavailable_capabilities.add("market_gaps")
     return SandboxContext(
         as_of=deps.as_of,
         run_id=deps.runtime.run_id,
@@ -118,7 +128,7 @@ def build_sandbox_context(deps: AgentDeps) -> SandboxContext:
         archive_dir=str(archive) if market_series else None,
         market_series_available=bool(market_series),
         market_series_latest_at=market_series[-1].captured_at if market_series else None,
-        current_outrights=deps.market_cache.get("outrights"),
+        current_outrights=current_outrights,
         artifacts=artifacts,
         default_n_sims=settings.n_sims,
         packages=available_packages(),

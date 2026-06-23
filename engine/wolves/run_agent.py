@@ -64,7 +64,7 @@ from wolves.graph.contracts import (
 )
 from wolves.graph.fakes import scripted_model, scripted_output_model
 from wolves.graph.observed_model import ObservedModel, RetryPolicy
-from wolves.graph.reserves import finalisation_reserves_micros
+from wolves.graph.reserves import finalisation_reserve_calls, finalisation_reserves_micros
 from wolves.graph.runner import GraphModels, GraphRunResult, run_graph
 from wolves.live import build_fixtures_client
 from wolves.markets.blend import blend_probabilities
@@ -467,7 +467,13 @@ async def _publish_fallback(
         logger.error("deterministic fallback publish failed", exc_info=True)
 
 
-def _prefer_last_clean(result: GraphRunResult, state: SubmissionState, *, run_id: str) -> GraphRunResult:
+def _prefer_last_clean(
+    result: GraphRunResult,
+    state: SubmissionState,
+    *,
+    run_id: str,
+    referee_enabled: bool,
+) -> GraphRunResult:
     """A submission that validated clean and was withheld only by the
     escalation pause beats the deterministic fallback when the steelman
     round never completed."""
@@ -479,6 +485,13 @@ def _prefer_last_clean(result: GraphRunResult, state: SubmissionState, *, run_id
     logger.warning(
         "run %s: steelman round interrupted after a clean submission; publishing the last clean forecast", run_id
     )
+    if referee_enabled:
+        fingerprint = hashlib.sha256(state.last_clean.model_dump_json().encode("utf-8")).hexdigest()[:16]
+        if fingerprint in state.referee_approved:
+            state.referee_status = "approved"
+        else:
+            state.referee_status = "bypassed_interrupted"
+            state.referee_reason = "steelman finalisation ended before referee review"
     result.submission = state.last_clean
     result.escalations = state.last_clean_escalations or None
     return result
@@ -1221,6 +1234,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             max_delay_s=settings.llm_retry_max_delay_s,
         )
         forecast_reserve_micros, referee_reserve_micros = finalisation_reserves_micros(settings, caps)
+        forecast_reserve_calls, referee_reserve_calls = finalisation_reserve_calls(settings, caps)
 
         # Wave planning and numerical judgement need the stronger model;
         # extraction-shaped nodes run on the cheap one.
@@ -1229,23 +1243,33 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             *,
             actor: str = "graph",
             hold_back_micros: int = 0,
+            hold_back_calls: int = 0,
             reservation_floor_micros: int = 0,
+            use_headroom: bool = False,
         ) -> ObservedModel:
             return ObservedModel(
                 build_anthropic_model(model_name, provider),
                 runtime=runtime,
                 actor=actor,
                 hold_back_micros=hold_back_micros,
+                hold_back_calls=hold_back_calls,
                 reservation_floor_micros=reservation_floor_micros,
+                use_headroom=use_headroom,
                 retry=retry,
             )
 
-        relevance_model = observed(settings.relevance_model, actor="relevance")
+        relevance_model = observed(
+            settings.relevance_model,
+            actor="relevance",
+            hold_back_micros=forecast_reserve_micros + referee_reserve_micros,
+            hold_back_calls=forecast_reserve_calls + referee_reserve_calls,
+        )
         referee_model: ObservedModel | None = (
             observed(
                 settings.graph_referee_model or settings.graph_master_model or settings.smart_model,
                 actor="referee",
                 reservation_floor_micros=referee_reserve_micros,
+                use_headroom=True,
             )
             if settings.graph_referee_enabled
             else None
@@ -1255,6 +1279,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
             master=observed(
                 settings.graph_master_model or settings.fast_model,
                 hold_back_micros=forecast_reserve_micros + referee_reserve_micros,
+                hold_back_calls=forecast_reserve_calls + referee_reserve_calls,
             ),
             nodes={
                 "research": observed(settings.graph_research_model or settings.worker_model),
@@ -1343,7 +1368,12 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
     market: dict[str, float] = {}
     try:
-        result = _prefer_last_clean(await run_graph(deps, as_of=as_of, models=models), deps.submission, run_id=run_id)
+        result = _prefer_last_clean(
+            await run_graph(deps, as_of=as_of, models=models),
+            deps.submission,
+            run_id=run_id,
+            referee_enabled=settings.graph_referee_enabled,
+        )
         if result.submission is not None and deps.forecaster is not None:
             # Fetched before the clients close: feeds the transparency MarketsBlock.
             try:

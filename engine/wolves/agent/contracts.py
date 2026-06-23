@@ -41,8 +41,8 @@ class MarketGap(BaseModel):
     """Canonical model, market and published probabilities for one market stance."""
 
     team_id: str
-    model_prob: float = Field(ge=0.0, le=1.0)
-    market_prob: float = Field(ge=0.0, le=1.0)
+    model_prob: float = Field(default=0.0, ge=0.0, le=1.0)
+    market_prob: float = Field(default=0.0, ge=0.0, le=1.0)
     forecast_prob: float | None = Field(default=None, ge=0.0, le=1.0)
     model_market_gap_pp: float | None = None
     forecast_market_gap_pp: float | None = None

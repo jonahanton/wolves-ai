@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 from typing import Any
 
@@ -18,6 +19,19 @@ _STDOUT_CAP_CHARS = 2_000
 
 class RunPythonArgs(BaseModel):
     code: str
+
+
+def _called_helpers(code: str) -> set[str]:
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return set()
+    return {
+        name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (name := node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", None))
+    }
 
 
 def _python_budget_refusal(deps: AgentDeps) -> ToolResult[Any] | None:
@@ -40,9 +54,28 @@ def _python_budget_refusal(deps: AgentDeps) -> ToolResult[Any] | None:
 async def _run_python(args: RunPythonArgs, deps: AgentDeps) -> ToolResult[Any]:
     if refusal := _python_budget_refusal(deps):
         return refusal
-    deps.python_calls += 1
     workspace = deps.quant.workspace(deps.actor)
     context = build_sandbox_context(deps)
+    helpers = _called_helpers(args.code)
+    capability = next(
+        (
+            capability
+            for capability, helper in (("market_history", "market_movement"), ("market_gaps", "market_gaps"))
+            if capability in deps.unavailable_capabilities and helper in helpers
+        ),
+        None,
+    )
+    if capability is not None:
+        alternative = "Use current-only market_gaps instead." if capability == "market_history" else ""
+        return ToolResult(
+            ok=False,
+            payload={"capability": capability, "available": False},
+            error=ToolError(
+                type="capability_unavailable",
+                message=f"{capability.replace('_', ' ').title()} is unavailable. {alternative}".strip(),
+            ),
+        )
+    deps.python_calls += 1
     deps.quant.write_context(workspace, context)
     prepare_inputs(workspace, context)
     script = workspace.next_analysis_name()

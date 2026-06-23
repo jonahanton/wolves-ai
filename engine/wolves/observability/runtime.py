@@ -183,7 +183,15 @@ class ObservedRuntime:
         if self.tracer.current_trace_id() is None:
             raise RuntimeError("Refusing external action with no active observation.")
 
-    def charge_llm(self, *, hold_back_micros: int = 0, reservation_floor_micros: int = 0) -> int:
+    def charge_llm(
+        self,
+        *,
+        hold_back_micros: int = 0,
+        hold_back_calls: int = 0,
+        reservation_floor_micros: int = 0,
+        reservation_estimate_micros: int = 0,
+        use_headroom: bool = False,
+    ) -> int:
         """Admit one LLM call and reserve its estimated cost; returns the reservation.
 
         Parallel siblings all pass a plain pre-check before any of their costs
@@ -195,15 +203,18 @@ class ObservedRuntime:
         headroom_micros widens only this hard stop, never the advertised
         ceiling, so a run can finish a final pass instead of dying mid-call."""
         self.require_active_observation()
-        if self.budget.llm_calls >= self.caps.max_llm_calls:
+        if self.budget.llm_calls >= self.caps.max_llm_calls - hold_back_calls:
             raise CapExceeded(f"max_llm_calls ({self.caps.max_llm_calls}) reached")
-        hard_ceiling = self.caps.max_cost_micros + self.caps.headroom_micros
-        reservation = max(self._call_estimate_micros(), reservation_floor_micros)
+        hard_ceiling = self.caps.max_cost_micros + (self.caps.headroom_micros if use_headroom else 0)
+        reservation = max(
+            self._call_estimate_micros(),
+            reservation_floor_micros,
+            reservation_estimate_micros,
+        )
         if self.caps.max_cost_micros:
             available = hard_ceiling - hold_back_micros - self.budget.cost_micros - self._in_flight_micros
-            if available <= 0 or reservation_floor_micros > available:
+            if available <= 0 or reservation > available:
                 raise CapExceeded(f"max_cost_micros ({self.caps.max_cost_micros}) reached")
-            reservation = min(reservation, available)
         self.budget.llm_calls += 1
         self._in_flight_micros += reservation
         return reservation

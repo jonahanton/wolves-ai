@@ -17,7 +17,7 @@ from wolves.graph.agents import node_agent
 from wolves.graph.artifacts import ArtifactKind, RunArtifactStore
 from wolves.graph.contracts import Brief, NodeKind, NodeOutcome
 from wolves.graph.observed_model import CACHE_SETTINGS, ObservedModel
-from wolves.graph.reserves import finalisation_reserves_micros
+from wolves.graph.reserves import finalisation_reserve_calls, finalisation_reserves_micros
 from wolves.toolkit._budget_gate import BudgetGate
 
 logger = logging.getLogger(__name__)
@@ -197,13 +197,17 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
             brief.kind == "quant" and deps.submission.structural_repair_required
         )
         forecast_reserve, referee_reserve = finalisation_reserves_micros(settings, deps.runtime.caps)
+        forecast_calls, referee_calls = finalisation_reserve_calls(settings, deps.runtime.caps)
         hold_back = referee_reserve if spends_reserve else forecast_reserve + referee_reserve
+        hold_back_calls = referee_calls if spends_reserve else forecast_calls + referee_calls
         model = ObservedModel(
             model.wrapped,
             runtime=deps.runtime,
             actor=brief.node_id,
             hold_back_micros=hold_back,
+            hold_back_calls=hold_back_calls,
             reservation_floor_micros=model.reservation_floor_micros,
+            use_headroom=spends_reserve,
             retry=model.retry,
         )
     try:
@@ -250,11 +254,14 @@ async def execute_brief(brief: Brief, *, deps: AgentDeps, store: RunArtifactStor
         payload=output.model_dump(mode="json"),
         workspace_prefix=workspace_prefix,
     )
+    registered_mixtures = [
+        record.id for record in store.all() if record.kind == "mixture" and record.created_by == brief.node_id
+    ]
     return NodeOutcome(
         node_id=brief.node_id,
         kind=brief.kind,
         ok=True,
-        artifact_ids=[artifact.id],
+        artifact_ids=[artifact.id, *registered_mixtures],
         requests=result.usage.requests,
         flags=flags,
     )

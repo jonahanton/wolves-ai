@@ -57,9 +57,9 @@ class RefereeReport(BaseModel):
 _REFEREE = Agent(
     output_type=ToolOutput(RefereeReport, strict=True),
     system_prompt=prompt("referee"),
-    output_retries=1,
+    output_retries=0,
 )
-_REFEREE_SETTINGS = AnthropicModelSettings(anthropic_cache="5m", max_tokens=1800)
+_REFEREE_SETTINGS = AnthropicModelSettings(anthropic_cache="5m", max_tokens=2400)
 
 
 def _is_cap_exceeded(exc: BaseException, seen: set[int] | None = None) -> bool:

@@ -120,5 +120,6 @@ class AgentDeps:
     scenarios: ScenarioRegistry | None = None
     market_cache: dict[str, dict[str, Any]] = field(default_factory=dict)
     market_cache_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    unavailable_capabilities: set[str] = field(default_factory=set)
     todos: list[TodoItem] = field(default_factory=list)
     python_calls: int = 0

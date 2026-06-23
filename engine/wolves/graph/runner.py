@@ -26,7 +26,7 @@ from wolves.graph.research_coverage import (
     research_coverage_hint,
     should_seed_research,
 )
-from wolves.graph.reserves import finalisation_reserves_micros
+from wolves.graph.reserves import finalisation_reserve_calls, finalisation_reserves_micros
 from wolves.observability.runtime import CapExceeded, ObservedRuntime
 from wolves.s3.artifacts import ArtifactStore
 
@@ -159,6 +159,21 @@ def _sync_publishable_artifacts(deps: AgentDeps, board: Blackboard) -> None:
     if last_clean is not None and last_clean.artifact_id not in active:
         deps.submission.last_clean = None
         deps.submission.last_clean_escalations.clear()
+    last_accepted = deps.submission.last_accepted
+    if last_accepted is not None and last_accepted.artifact_id not in active:
+        deps.submission.last_accepted = None
+
+
+def _has_registered_repair_mixture(outcomes: list[NodeOutcome], store: RunArtifactStore) -> bool:
+    return any(
+        outcome.ok
+        and outcome.kind == "quant"
+        and any(
+            (record := store.record(artifact_id)) is not None and record.kind == "mixture"
+            for artifact_id in outcome.artifact_ids
+        )
+        for outcome in outcomes
+    )
 
 
 def _published_titles_context(surface: PublishSurface, *, top_n: int = 8) -> str:
@@ -198,7 +213,7 @@ def _should_continue_after_acceptance(deps: AgentDeps, board: Blackboard) -> tup
             + finalisation_reserves_micros(settings, deps.runtime.caps)[1],
             deps.runtime.caps.max_cost_micros // 2,
         ),
-        reserve_calls=settings.graph_forecast_reserve_llm_calls,
+        reserve_calls=sum(finalisation_reserve_calls(settings, deps.runtime.caps)),
     ):
         return False, "budget within revision reserve"
     if not _has_fresh_premortem(deps):
@@ -328,10 +343,8 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                     logger.info("referee requested master replanning after wave %d", board.wave)
                     continue
             if submission_state.structural_repair_required:
-                quant_ran = had_structural_repair and any(
-                    outcome.ok and outcome.kind == "quant" for outcome in outcomes
-                )
-                if quant_ran:
+                mixture_registered = had_structural_repair and _has_registered_repair_mixture(outcomes, store)
+                if mixture_registered:
                     submission_state.structural_repair_required = False
                     board.set_context("structural_repair", "")
                 else:
@@ -354,14 +367,18 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             if _budget_at_caps(
                 deps.runtime,
                 reserve_micros=_finalisation_reserve(deps),
-                reserve_calls=settings.graph_forecast_reserve_llm_calls,
+                reserve_calls=sum(finalisation_reserve_calls(settings, deps.runtime.caps)),
             ):
                 logger.warning("budget within forecast reserve after wave %d; stopping waves", board.wave)
                 budget_exhausted = True
                 break
 
         # Restore before the final-chance block reads accepted is None.
-        if submission_state.accepted is None and submission_state.last_accepted is not None:
+        if (
+            submission_state.accepted is None
+            and submission_state.last_accepted is not None
+            and submission_state.last_accepted.artifact_id in submission_state.publishable_artifact_ids
+        ):
             logger.info("revision did not re-accept; publishing the prior accepted submission")
             submission_state.accepted = submission_state.last_accepted
 

@@ -86,3 +86,106 @@ def test_unplayed_result_is_removed_without_losing_valid_evidence(tmp_path: Path
 
     assert [item.claim for item in output.evidence] == ["Neymar trained"]
     assert output.candidate_branches == []
+
+
+def test_multiple_group_mentions_are_not_rewritten_ambiguously(tmp_path: Path):
+    deps = _deps(tmp_path, played={})
+    output = ResearchOutput(
+        summary="research",
+        evidence=[
+            LedgerEvidence(
+                claim="Brazil are in Group C while France are in Group I.",
+                source_url="internal://get_results_and_fixtures",
+                team_id="brazil",
+            )
+        ],
+    )
+
+    _sanitise_deterministic_research(output, deps)
+
+    assert output.evidence[0].claim == "Brazil are in Group C while France are in Group I."
+
+
+def test_source_quote_is_never_rewritten(tmp_path: Path):
+    deps = _deps(tmp_path, played={})
+    output = ResearchOutput(
+        summary="research",
+        evidence=[
+            LedgerEvidence(
+                claim="France group assignment",
+                quote="France are in Group A.",
+                source_url="https://example.com/report",
+                team_id="france",
+            )
+        ],
+    )
+
+    _sanitise_deterministic_research(output, deps)
+
+    assert output.evidence[0].quote == "France are in Group A."
+
+
+def test_historical_web_result_is_not_removed(tmp_path: Path):
+    deps = _deps(tmp_path, played={})
+    output = _evidence("Brazil 1-0 Morocco at the 1986 World Cup", source="https://example.com/history")
+
+    _sanitise_deterministic_research(output, deps)
+
+    assert len(output.evidence) == 1
+
+
+def test_branch_keeps_surviving_receipt_after_unplayed_result_is_removed(tmp_path: Path):
+    deps = _deps(tmp_path, played={})
+    output = ResearchOutput(
+        summary="research",
+        evidence=[
+            LedgerEvidence(
+                claim="Brazil 0-1 Haiti, full time",
+                source_url="internal://get_results_and_fixtures",
+            ),
+            LedgerEvidence(claim="Neymar trained", source_url="internal://get_results_and_fixtures"),
+        ],
+        candidate_branches=[
+            CandidateBranch(
+                branch_id="availability",
+                hypothesis="Brazil availability changes",
+                support="training and result",
+                collapse_condition="training status settles",
+                evidence_indices=[1, 2],
+                confidence="medium",
+                suggested_quant_question="Price it",
+            )
+        ],
+    )
+
+    _sanitise_deterministic_research(output, deps)
+
+    assert output.candidate_branches[0].evidence_indices == [1]
+
+
+def test_source_id_only_branch_survives_unrelated_evidence_removal(tmp_path: Path):
+    deps = _deps(tmp_path, played={})
+    output = ResearchOutput(
+        summary="research",
+        evidence=[
+            LedgerEvidence(
+                claim="Brazil 0-1 Haiti, full time",
+                source_url="internal://get_results_and_fixtures",
+            )
+        ],
+        candidate_branches=[
+            CandidateBranch(
+                branch_id="existing-availability",
+                hypothesis="Availability remains uncertain",
+                support="Existing ledger evidence",
+                collapse_condition="Squad confirmation",
+                source_ids=["ledger-existing"],
+                confidence="medium",
+                suggested_quant_question="Price it",
+            )
+        ],
+    )
+
+    _sanitise_deterministic_research(output, deps)
+
+    assert [branch.branch_id for branch in output.candidate_branches] == ["existing-availability"]

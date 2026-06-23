@@ -71,3 +71,38 @@ def test_priced_premortem_tail_clears_the_follow_up(tmp_path: Path):
     coverage = branch_coverage(store, ledger)
 
     assert coverage.needs_follow_up is False
+
+
+def test_verified_child_audit_covers_parent_without_copying_its_disposition(tmp_path: Path):
+    store = build_run_store(tmp_path)
+    ledger = EvidenceLedger(tmp_path / "ledger.jsonl")
+    child = {**_tail("france-draw-tail"), "parent_branch_ids": ["france-overcredit"]}
+    store.add(
+        kind="critique",
+        created_by="critic-1",
+        summary="pre-mortem",
+        payload={"challenges": [], "tail_branches": [_tail("france-overcredit"), child]},
+    )
+    store.add(
+        kind="mixture",
+        created_by="quant-2",
+        summary="child priced",
+        payload={
+            "branch_audit": {
+                "verdict": "Refined tail priced.",
+                "checks": [
+                    {
+                        "key": "france-draw-tail",
+                        "status": "priced",
+                        "parent_branch_ids": ["france-overcredit"],
+                    }
+                ],
+            }
+        },
+    )
+
+    coverage = branch_coverage(store, ledger)
+
+    assert "france-overcredit" in coverage.audited_keys
+    assert "france-overcredit" not in coverage.priced_keys
+    assert coverage.needs_follow_up is False

@@ -246,20 +246,34 @@ class Blackboard:
 
     def branch_coverage(self) -> BranchCoverage:
         known = {node.node_id for node in self.nodes}
-        active = {node.node_id for node in self.nodes if node.replaced_by is None}
-        active.update(record.created_by for record in self.artifacts.all() if record.created_by not in known)
-        return branch_coverage(self.artifacts, self.ledger, active_node_ids=active or None)
+        active_creators = {node.node_id for node in self.nodes if node.replaced_by is None}
+        active_creators.update(record.created_by for record in self.artifacts.all() if record.created_by not in known)
+        active_publishable = self.active_artifact_ids(kinds={"mixture", "forecast"})
+        active_creators.update(record.created_by for record in self.artifacts.all() if record.id in active_publishable)
+        return branch_coverage(self.artifacts, self.ledger, active_node_ids=active_creators or None)
 
     def planned_node_count(self) -> int:
         return sum(1 for node in self.nodes if node.node_id != "coverage-research")
 
     def active_artifact_ids(self, *, kinds: set[str] | None = None) -> set[str]:
-        active_nodes = {node.node_id for node in self.nodes if node.ok and node.replaced_by is None}
+        nodes = {node.node_id: node for node in self.nodes if node.ok}
+        artifact_kinds_by_node = {(record.created_by, record.kind) for record in self.artifacts.all()}
+
+        def superseded(record: ArtifactRecord) -> bool:
+            node = nodes.get(record.created_by)
+            while node is not None and node.replaced_by is not None:
+                replacement = node.replaced_by
+                if (replacement, record.kind) in artifact_kinds_by_node:
+                    return True
+                node = nodes.get(replacement)
+            return False
+
         return {
             record.id
             for record in self.artifacts.all()
             if (kinds is None or record.kind in kinds)
-            and (record.created_by == "runtime" or record.created_by in active_nodes)
+            and (record.created_by == "runtime" or record.created_by in nodes)
+            and not superseded(record)
         }
 
     def branch_follow_up_reason(self, settings: Settings) -> str | None:

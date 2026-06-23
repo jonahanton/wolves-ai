@@ -438,6 +438,7 @@ def test_story_cannot_claim_upside_for_a_negative_world(store: RunArtifactStore,
                     "perturbations": [{"type": "strength", "team": "brazil", "delta": -0.06, "reason": "availability"}]
                 },
             },
+            "baseline": {"brazil": 0.07, "rest": 0.93},
             "mixture": {"brazil": 0.06, "rest": 0.94},
         },
     )
@@ -452,7 +453,64 @@ def test_story_cannot_claim_upside_for_a_negative_world(store: RunArtifactStore,
         ],
     )
 
-    assert "world_direction_contradiction" in _codes(_validate(submission, store, ledger))
+    assert "forecast_direction_contradiction" in _codes(_validate(submission, store, ledger))
+
+
+def test_story_uses_net_forecast_direction_across_worlds(store: RunArtifactStore, ledger: EvidenceLedger):
+    store.add(
+        kind="mixture",
+        created_by="quant-2",
+        summary="mixed brazil worlds",
+        payload={
+            "weights": {"brazil_up": 0.8, "brazil_down": 0.2},
+            "worlds": {
+                "brazil_up": {
+                    "perturbations": [{"type": "strength", "team": "brazil", "delta": 0.08, "reason": "form"}]
+                },
+                "brazil_down": {
+                    "perturbations": [{"type": "strength", "team": "brazil", "delta": -0.03, "reason": "draw"}]
+                },
+            },
+            "baseline": {"brazil": 0.07, "rest": 0.93},
+            "mixture": {"brazil": 0.08, "rest": 0.92},
+        },
+    )
+    submission = build_submission(
+        artifact_id="mixture-002",
+        narrative=build_narrative(
+            team_stories={"brazil": {"summary": "Brazil have modest upside.", "why": "The weighted forecast rises."}}
+        ),
+        scenario_weights=[
+            {"name": "brazil_up", "weight": 0.8, "rationale": "The positive form case."},
+            {"name": "brazil_down", "weight": 0.2, "rationale": "The negative draw case."},
+        ],
+    )
+
+    assert "forecast_direction_contradiction" not in _codes(_validate(submission, store, ledger))
+
+
+def test_story_direction_ignores_movement_below_the_noise_floor(store: RunArtifactStore, ledger: EvidenceLedger):
+    store.add(
+        kind="mixture",
+        created_by="quant-2",
+        summary="flat brazil forecast",
+        payload={
+            "weights": {"model_base": 1.0},
+            "worlds": {"model_base": {"perturbations": []}},
+            "baseline": {"brazil": 0.07, "rest": 0.93},
+            "mixture": {"brazil": 0.0699, "rest": 0.9301},
+            "noise_floor_pp": 0.02,
+        },
+    )
+    submission = build_submission(
+        artifact_id="mixture-002",
+        narrative=build_narrative(
+            team_stories={"brazil": {"summary": "Brazil retain modest upside.", "why": "The forecast is flat."}}
+        ),
+        scenario_weights=[{"name": "model_base", "weight": 1.0, "rationale": "Model base."}],
+    )
+
+    assert "forecast_direction_contradiction" not in _codes(_validate(submission, store, ledger))
 
 
 def test_blank_news_impact_does_not_satisfy_material_item(store: RunArtifactStore, ledger: EvidenceLedger):

@@ -87,7 +87,7 @@ def test_finalisation_trims_market_gaps_to_audited_teams(tmp_path: Path, monkeyp
     submission = build_submission(
         artifact_id=artifact_id,
         market_gaps=[
-            {"team_id": "england", "model_prob": 0.086, "market_prob": 0.11, "gap_pp": 2.4},
+            {"team_id": "england"},
             {"team_id": "portugal", "model_prob": 0.084, "market_prob": 0.104, "gap_pp": 2.0},
         ],
     )
@@ -97,6 +97,8 @@ def test_finalisation_trims_market_gaps_to_audited_teams(tmp_path: Path, monkeyp
 
     assert [gap.team_id for gap in result.submission.market_gaps] == ["england"]
     assert result.submission.market_gaps[0].forecast_prob == 0.09
+    assert result.submission.market_gaps[0].model_prob == 0.086
+    assert result.submission.market_gaps[0].market_prob == 0.11
     assert result.warnings == ["removed market_gaps not covered by the factor_audit market_gap row: portugal"]
 
 

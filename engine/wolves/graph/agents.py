@@ -308,6 +308,8 @@ def _unplayed_result_issues(output: ResearchOutput, deps: AgentDeps | None) -> l
     teams = _teams(deps)
     issues: list[str] = []
     for index, item in enumerate(output.evidence, start=1):
+        if item.source_url.strip() != "internal://get_results_and_fixtures":
+            continue
         text = " ".join(part for part in (item.claim, item.quote, item.mechanism) if part)
         for pair in _scoreline_pairs(text, teams):
             match_id = scheduled.get(pair)
@@ -334,7 +336,8 @@ def _unplayed_evidence_indices(output: ResearchOutput, deps: AgentDeps | None) -
     return {
         index
         for index, item in enumerate(output.evidence, start=1)
-        if any(
+        if item.source_url.strip() == "internal://get_results_and_fixtures"
+        and any(
             (match_id := scheduled.get(pair)) is not None and match_id not in played
             for pair in _scoreline_pairs(" ".join((item.claim, item.quote, item.mechanism)), teams)
         )
@@ -344,19 +347,22 @@ def _unplayed_evidence_indices(output: ResearchOutput, deps: AgentDeps | None) -
 def _sanitise_deterministic_research(output: ResearchOutput, deps: AgentDeps) -> None:
     groups = _team_groups(deps)
     changes: list[str] = []
+    teams = {team.id: team for team in _teams(deps)}
     for index, item in enumerate(output.evidence, start=1):
         expected = groups.get(item.team_id or "")
-        if expected is None:
+        team = teams.get(item.team_id or "")
+        if expected is None or team is None:
             continue
-        for field in ("claim", "quote", "mechanism"):
-            text = getattr(item, field)
-            corrected = _GROUP_MENTION.sub(
-                lambda match, group=expected: f"Group {group}" if match.group(1).upper() != group else match.group(0),
-                text,
-            )
-            if corrected != text:
-                setattr(item, field, corrected)
-                changes.append(f"evidence {index} group")
+        mentions = list(_GROUP_MENTION.finditer(item.claim))
+        if len(mentions) != 1:
+            continue
+        target_match = mentions[0]
+        if target_match.group(1).upper() == expected:
+            continue
+        if _last_mentioned_team(item.claim[: target_match.start()], list(teams.values())) != team:
+            continue
+        item.claim = item.claim[: target_match.start()] + f"Group {expected}" + item.claim[target_match.end() :]
+        changes.append(f"evidence {index} group")
     removed = _unplayed_evidence_indices(output, deps)
     if removed:
         remap: dict[int, int] = {}
@@ -370,10 +376,11 @@ def _sanitise_deterministic_research(output: ResearchOutput, deps: AgentDeps) ->
         output.evidence = kept
         retained_branches = []
         for branch in output.candidate_branches:
-            if any(index in removed for index in branch.evidence_indices):
-                changes.append(f"branch {branch.branch_id} removed receipt")
-                continue
+            had_evidence_receipts = bool(branch.evidence_indices)
             branch.evidence_indices = [remap[index] for index in branch.evidence_indices if index in remap]
+            if had_evidence_receipts and not branch.evidence_indices:
+                changes.append(f"branch {branch.branch_id} lost all receipts")
+                continue
             retained_branches.append(branch)
         output.candidate_branches = retained_branches
     if changes:

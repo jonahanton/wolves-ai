@@ -23,6 +23,47 @@ async def test_run_python_refuses_after_node_limit(tmp_path):
     deps.runtime.shutdown()
 
 
+async def test_run_python_refuses_unavailable_market_history_without_spending_a_call(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.actor = "quant-history"
+
+    result = await _run_python(RunPythonArgs(code="result = wq.market_movement()"), deps)
+
+    assert not result.ok
+    assert result.error is not None
+    assert result.error.type == "capability_unavailable"
+    assert deps.python_calls == 0
+    assert not list((deps.runtime.paths.workspace / "quant").rglob("analysis_*.py"))
+    deps.runtime.shutdown()
+
+
+async def test_run_python_refuses_market_gaps_when_no_current_or_historical_prices_exist(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.actor = "quant-gaps"
+
+    result = await _run_python(RunPythonArgs(code="result = wq.market_gaps()"), deps)
+
+    assert not result.ok
+    assert result.payload == {"capability": "market_gaps", "available": False}
+    assert deps.python_calls == 0
+    deps.runtime.shutdown()
+
+
+async def test_capability_names_in_comments_do_not_refuse_a_script(tmp_path):
+    deps = build_graph_deps(tmp_path)
+    deps.actor = "quant-fallback"
+
+    with deps.runtime.run_trace(title="capability fallback"):
+        result = await _run_python(
+            RunPythonArgs(code="# market_movement() is unavailable\nresult = {'fallback': 'current'}"),
+            deps,
+        )
+
+    assert result.ok
+    assert deps.python_calls == 1
+    deps.runtime.shutdown()
+
+
 async def test_run_python_returns_registered_mixture_artifact_ids(tmp_path):
     deps = build_graph_deps(tmp_path)
     deps.artifacts = build_run_store(tmp_path, run_id=deps.runtime.run_id)
@@ -294,9 +335,7 @@ async def test_run_python_failure_events_include_stderr_tail(tmp_path):
     deps.runtime.shutdown()
     assert not result.ok
     events = [
-        json.loads(line)
-        for line in deps.runtime.paths.events.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in deps.runtime.paths.events.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
     [quant_event] = [event for event in events if event["kind"] == "quant_exec"]
     assert "ZeroDivisionError" in quant_event["payload"]["stderr_tail"]
