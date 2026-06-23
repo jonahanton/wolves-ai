@@ -9,14 +9,18 @@ def finalisation_reserves_micros(settings: Settings, caps: Caps) -> tuple[int, i
     referee = int(settings.graph_referee_reserve_usd * 1_000_000)
     if caps.max_cost_micros <= 0:
         return forecast, referee
-    total = min(forecast + referee, caps.max_cost_micros // 2)
-    effective_forecast = min(forecast, total)
-    return effective_forecast, min(referee, total - effective_forecast)
+    return _split_reserve(forecast, referee, caps.max_cost_micros // 2)
 
 
 def finalisation_reserve_calls(settings: Settings, caps: Caps) -> tuple[int, int]:
     forecast = settings.graph_forecast_reserve_llm_calls
     referee = settings.graph_referee_reserve_llm_calls
-    total = min(forecast + referee, caps.max_llm_calls // 2)
-    effective_forecast = min(forecast, total)
-    return effective_forecast, min(referee, total - effective_forecast)
+    return _split_reserve(forecast, referee, caps.max_llm_calls // 2)
+
+
+def _split_reserve(forecast: int, referee: int, budget: int) -> tuple[int, int]:
+    """Honour the referee reserve first; it is the smaller, starvation-prone
+    finalisation slot, so the forecast reserve absorbs any clamp shortfall."""
+    total = min(forecast + referee, budget)
+    effective_referee = min(referee, total)
+    return total - effective_referee, effective_referee

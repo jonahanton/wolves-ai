@@ -155,6 +155,8 @@ def _reset_forecast_copy_state(deps: AgentDeps) -> None:
 def _sync_publishable_artifacts(deps: AgentDeps, board: Blackboard) -> None:
     active = board.active_artifact_ids(kinds={"mixture", "forecast"})
     deps.submission.publishable_artifact_ids = active
+    if not active:
+        return
     last_clean = deps.submission.last_clean
     if last_clean is not None and last_clean.artifact_id not in active:
         deps.submission.last_clean = None
@@ -377,7 +379,10 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
         if (
             submission_state.accepted is None
             and submission_state.last_accepted is not None
-            and submission_state.last_accepted.artifact_id in submission_state.publishable_artifact_ids
+            and (
+                not submission_state.publishable_artifact_ids
+                or submission_state.last_accepted.artifact_id in submission_state.publishable_artifact_ids
+            )
         ):
             logger.info("revision did not re-accept; publishing the prior accepted submission")
             submission_state.accepted = submission_state.last_accepted

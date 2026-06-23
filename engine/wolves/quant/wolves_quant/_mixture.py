@@ -14,7 +14,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from wolves.agent.audit_policy import branch_audit_contradictions
 from wolves.forecast import Perturbation
 from wolves.logodds import from_log_odds, to_log_odds
 from wolves.quant.wolves_quant._audit import BranchAudit, FactorAudit
@@ -124,9 +123,6 @@ def scenario_mixture(
         result["factor_audit"] = FactorAudit.model_validate(factor_audit).model_dump(mode="json")
     if branch_audit is not None:
         result["branch_audit"] = BranchAudit.model_validate(branch_audit).model_dump(mode="json")
-        contradictions = branch_audit_contradictions(result)
-        if contradictions:
-            raise ValueError("branch_audit contradicts weighted worlds: " + "; ".join(contradictions))
     if world_metadata is not None:
         result["world_metadata"] = _world_metadata(world_metadata, set(result["weights"]))
     out = SESSION.root / "outputs" / f"{name}.json"

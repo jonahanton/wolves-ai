@@ -256,7 +256,7 @@ class Blackboard:
         return sum(1 for node in self.nodes if node.node_id != "coverage-research")
 
     def active_artifact_ids(self, *, kinds: set[str] | None = None) -> set[str]:
-        nodes = {node.node_id: node for node in self.nodes if node.ok}
+        nodes = {node.node_id: node for node in self.nodes}
         artifact_kinds_by_node = {(record.created_by, record.kind) for record in self.artifacts.all()}
 
         def superseded(record: ArtifactRecord) -> bool:

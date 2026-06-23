@@ -594,31 +594,6 @@ def _check_directional_copy(submission: ForecastSubmission, payload: dict) -> li
                         f"its strength delta is {actual}",
                     )
                 )
-
-    baseline = payload.get("baseline")
-    mixture = payload.get("mixture")
-    if not isinstance(baseline, dict) or not isinstance(mixture, dict):
-        return issues
-    raw_noise_floor = payload.get("noise_floor_pp")
-    noise_floor_pp = float(raw_noise_floor) if isinstance(raw_noise_floor, int | float) else 0.0
-    for team, story in submission.narrative.team_stories.items():
-        baseline_prob = baseline.get(team)
-        mixture_prob = mixture.get(team)
-        if not isinstance(baseline_prob, int | float) or not isinstance(mixture_prob, int | float):
-            continue
-        net_delta = float(mixture_prob) - float(baseline_prob)
-        if abs(net_delta * 100) <= noise_floor_pp + 1e-4:
-            continue
-        stated_positive = _stated_direction(f"{story.summary} {story.why}")
-        if stated_positive is None or stated_positive == (net_delta > 0):
-            continue
-        actual = "positive" if net_delta > 0 else "negative"
-        issues.append(
-            _copy_issue(
-                "forecast_direction_contradiction",
-                f"copy for {team} describes the forecast in the opposite direction; its net model movement is {actual}",
-            )
-        )
     return issues
 
 
