@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     agent_ceiling_r32_r16_usd: float = 4.50
     agent_ceiling_qf_final_usd: float = 4.50
     # Hidden hard-stop cushion above the day's ceiling; the agent plans against the ceiling and never sees this.
-    agent_ceiling_headroom_usd: float = 0.50
+    agent_ceiling_headroom_usd: float = 2.00
     agent_big_team_count: int = 8
     tool_timeout_seconds: float = 30.0
     tool_result_max_chars: int = 8000
