@@ -79,8 +79,8 @@ variable "run_policy" {
     agent_ceiling_big_group_usd = 4.00
     agent_ceiling_group_usd     = 3.50
     agent_ceiling_rest_usd      = 3.50
-    agent_ceiling_r32_r16_usd   = 4.50
-    agent_ceiling_qf_final_usd  = 4.50
+    agent_ceiling_r32_r16_usd   = 5.50
+    agent_ceiling_qf_final_usd  = 5.50
     agent_big_team_count        = 8
     live_poll_interval_s        = 60
     live_stale_after_s          = 150
