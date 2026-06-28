@@ -366,12 +366,12 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             if submission_state.validation_failures > settings.agent_submit_retries:
                 logger.error("submission retries exhausted after %d failures", submission_state.validation_failures)
                 break
-            if _budget_at_caps(
-                deps.runtime,
-                reserve_micros=_finalisation_reserve(deps),
-                reserve_calls=sum(finalisation_reserve_calls(settings, deps.runtime.caps)),
+            if not deps.runtime.can_fund_followup_call(
+                hold_back_micros=_finalisation_reserve(deps),
+                hold_back_calls=sum(finalisation_reserve_calls(settings, deps.runtime.caps)),
+                floor_micros=int(settings.graph_followup_floor_usd * 1_000_000),
             ):
-                logger.warning("budget within forecast reserve after wave %d; stopping waves", board.wave)
+                logger.warning("no budget for a follow-up wave after wave %d; finalising on reserve", board.wave)
                 budget_exhausted = True
                 break
 
@@ -396,9 +396,11 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
         ):
             # The final chance runs regardless of spent retries: a run that
             # burned its hard resubmissions still beats the deterministic
-            # fallback. The reserve held back above funds this last forecast
-            # even when the wave loop stopped for budget; a cap mid-submit
-            # degrades, not raises.
+            # fallback. The branch-coverage gate here is budget-aware: it stays
+            # up only while a follow-up is still affordable, so an open tail the
+            # run can no longer price releases it rather than stranding the run.
+            # The reserve held back above funds this last forecast even when the
+            # wave loop stopped for budget; a cap mid-submit degrades, not raises.
             op = NodePatch(
                 node_id="runner-demand-submit",
                 kind="forecast",

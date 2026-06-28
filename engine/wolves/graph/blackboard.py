@@ -10,7 +10,7 @@ from wolves.agent.source_memory import SourceMemory
 from wolves.graph.artifacts import ArtifactRecord, RunArtifactStore
 from wolves.graph.branch_coverage import BranchCoverage, branch_coverage
 from wolves.graph.contracts import NodeOutcome, NodePatch, ResearchOutput
-from wolves.graph.reserves import finalisation_reserves_micros
+from wolves.graph.reserves import finalisation_reserve_calls, finalisation_reserves_micros
 from wolves.observability.runtime import ObservedRuntime
 
 if TYPE_CHECKING:
@@ -276,10 +276,16 @@ class Blackboard:
             and not superseded(record)
         }
 
+    def _can_fund_follow_up(self, settings: Settings) -> bool:
+        caps = self._runtime.caps
+        return self._runtime.can_fund_followup_call(
+            hold_back_micros=sum(finalisation_reserves_micros(settings, caps)),
+            hold_back_calls=sum(finalisation_reserve_calls(settings, caps)),
+            floor_micros=int(settings.graph_followup_floor_usd * 1_000_000),
+        )
+
     def branch_follow_up_reason(self, settings: Settings) -> str | None:
-        budget, caps = self._runtime.budget, self._runtime.caps
-        reserve = sum(finalisation_reserves_micros(settings, caps))
-        if caps.max_cost_micros and caps.max_cost_micros - budget.cost_micros <= reserve:
+        if not self._can_fund_follow_up(settings):
             return None
         coverage = self.branch_coverage()
         return coverage.reason if coverage.needs_follow_up else None
@@ -288,9 +294,7 @@ class Blackboard:
         """One-shot nudge to pre-mortem a material candidate mixture before forecast."""
         if not settings.graph_premortem_enabled or self.premortem_nudges:
             return None
-        budget, caps = self._runtime.budget, self._runtime.caps
-        reserve = sum(finalisation_reserves_micros(settings, caps))
-        if caps.max_cost_micros and caps.max_cost_micros - budget.cost_micros <= reserve:
+        if not self._can_fund_follow_up(settings):
             return None
         if any(record.kind == "critique" for record in self.artifacts.all()):
             return None
