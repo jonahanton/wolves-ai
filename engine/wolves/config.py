@@ -98,14 +98,13 @@ class Settings(BaseSettings):
     live_blend_multiplier_cap: float = 2.0
     live_blend_possession_tilt: float = 0.10
 
-    # Calendar-aware agent spend (wolves/run_policy.py): the day's phase
-    # sets the ceiling, front-loaded into the opening week.
+    # Calendar-aware agent spend (wolves/run_policy.py): the day's phase sets the ceiling, weighted to the knockouts.
     agent_ceiling_opening_usd: float = 4.00
-    agent_ceiling_big_group_usd: float = 4.00
-    agent_ceiling_group_usd: float = 3.50
+    agent_ceiling_big_group_usd: float = 5.00
+    agent_ceiling_group_usd: float = 4.00
     agent_ceiling_rest_usd: float = 3.50
-    agent_ceiling_r32_r16_usd: float = 4.50
-    agent_ceiling_qf_final_usd: float = 4.50
+    agent_ceiling_r32_r16_usd: float = 5.50
+    agent_ceiling_qf_final_usd: float = 5.50
     # Hidden hard-stop cushion above the day's ceiling; the agent plans against the ceiling and never sees this.
     agent_ceiling_headroom_usd: float = 2.00
     agent_big_team_count: int = 8
