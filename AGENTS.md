@@ -8,6 +8,8 @@ World Cup 2026 forecasting app.
 - `make lint`, `make format`, `make test`, `make frontend/lint`.
 - Agent-run logs are in Logfire (read token `LOGFIRE_READ_TOKEN`, in `.env`). `python scripts/logfire_runs.py runs [--days N]` lists recent runs with outcome (submitted/STRANDED/degraded) and spend; `python scripts/logfire_runs.py show <run-id>` prints one run's wave-by-wave decision trail (master plans, admission drops, node failures, submission result).
 - S3 dev bucket: `wolves-superforecaster-dev`. `runs/` holds raw agent working data (events, artifacts, ledger) — the app never reads these. `snapshots/` holds the published sim outputs (probability distributions, bracket samples, etc.) that the backend serves and the frontend displays — anything left here will appear in the run picker; `latest.json` always points to the current live snapshot. Retire unwanted snapshots to `snapshots-backup/` and run dirs to `runs-backup/`.
+- Retire a forecast: `python scripts/retire_forecast.py <run-id> --env prod` moves the snapshot and its sidecars to `snapshots-backup/` so the app serves the previous agent forecast (`--with-run-dir` also backs up the raw run, `--dry-run` previews).
+- Launch/stop runs remotely: `gh workflow run run-engine.yml -f mode=agent [-f ceiling_usd=5]` starts a run; `gh workflow run admin-control.yml -f action=active-runs` (or `-f action=stop-all`) lists or cancels in-flight tasks, read with `gh run view`.
 
 ## Git
 
