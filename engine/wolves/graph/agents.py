@@ -515,7 +515,7 @@ def node_agent(kind: NodeKind) -> Agent[AgentDeps, Any]:
         deps_type=AgentDeps,
         output_type=_NODE_OUTPUTS[kind],
         system_prompt=prompt(_PROMPT_NAME.get(kind, kind)),
-        output_retries=2 if kind == "research" else 1,
+        output_retries=3 if kind == "research" else 1,
         toolsets=[
             build_toolset(
                 _NODE_SPECS[kind],

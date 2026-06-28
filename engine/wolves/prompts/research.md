@@ -38,8 +38,9 @@ Method:
   football terms: what might be true, which teams it touches, what evidence
   supports it, what fact would collapse it, and the quant question it asks.
   Use evidence_indices to point at evidence items in this same output, counted
-  from 1; the runner resolves them to ledger ids after the merge. If a search
-  lane finds no credible branch, say that in signals. Do not force every item
+  from 1; the runner resolves them to ledger ids after the merge. A medium or
+  high confidence branch must cite at least one evidence_index or source_id,
+  else mark it low. If a search lane finds no credible branch, say that in signals. Do not force every item
   into a branch, and do not invent branches just to make the run look richer.
   candidate_branches is optional; leave it empty when the work produced facts
   or negative findings but no branch-forming uncertainty.
