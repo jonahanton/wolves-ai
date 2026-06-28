@@ -11,12 +11,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from functools import cache
 from pathlib import Path
+
+RUN_ID = re.compile(r"(run|agent|live)-\d{8}(-\d{6})?")
 
 OUTCOME = {
     "complete": "submitted",
@@ -27,6 +31,7 @@ OUTCOME = {
 }
 
 
+@cache
 def _token() -> str:
     token = os.environ.get("LOGFIRE_READ_TOKEN")
     if token:
@@ -46,8 +51,9 @@ def _endpoint(token: str) -> str:
 
 
 def query(sql: str) -> list[dict]:
-    url = _endpoint(TOKEN) + "?" + urllib.parse.urlencode({"sql": sql})
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}"})
+    token = _token()
+    url = _endpoint(token) + "?" + urllib.parse.urlencode({"sql": sql})
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
     for attempt in range(6):
         try:
             with urllib.request.urlopen(req, timeout=120) as response:
@@ -58,6 +64,8 @@ def query(sql: str) -> list[dict]:
                 time.sleep(5 * (attempt + 1))
                 continue
             sys.exit(f"Logfire query failed ({exc.code}): {exc.read().decode()[:200]}")
+        except urllib.error.URLError as exc:
+            sys.exit(f"Logfire unreachable: {exc.reason}")
     columns = [column["name"] for column in data["columns"]]
     values = [column["values"] for column in data["columns"]]
     return [dict(zip(columns, row, strict=True)) for row in zip(*values, strict=True)] if values else []
@@ -124,7 +132,9 @@ def cmd_runs(args: argparse.Namespace) -> None:
 
 
 def cmd_show(args: argparse.Namespace) -> None:
-    run_id = args.run if args.run.startswith("agent-") else f"agent-{args.run}"
+    run_id = args.run if args.run.startswith(("run-", "agent-", "live-")) else f"agent-{args.run}"
+    if not RUN_ID.fullmatch(run_id):
+        sys.exit(f"Invalid run id: {args.run} (expected e.g. agent-20260628-100057)")
     resolved = query(f"SELECT trace_id FROM records WHERE span_name = 'run:{run_id}' LIMIT 1")
     if not resolved:
         sys.exit(f"No run found for {run_id}")
@@ -171,8 +181,6 @@ def main() -> None:
     args = parser.parse_args()
     args.func(args)
 
-
-TOKEN = _token()
 
 if __name__ == "__main__":
     main()
