@@ -12,20 +12,20 @@ def rank_group(
     h2h_gd: np.ndarray,
     h2h_gf: np.ndarray,
 ) -> np.ndarray:
-    """Order group teams (best last): points, head-to-head among points-tied teams, GD, goals, lots.
+    """Order group teams (best last): points, overall GD, overall goals, head-to-head,
+    then lots (FIFA Article 13.2).
 
-    Drawn lots stand in for fair play points until booking data exists.
-    Head-to-head stats are restricted once to the points-tied set; FIFA's
-    re-application to shrinking subsets differs only in rare partial-split ties.
+    Lots stand in for fair play points; head-to-head is taken over the points-tied set,
+    which differs from FIFA's shrinking-subset re-application only in rare partial splits.
     """
     tied = pts[:, None, :] == pts[None, :, :]
     keys = (
         rng.random(pts.shape),
-        gf,
-        gd,
         (h2h_gf * tied).sum(axis=1),
         (h2h_gd * tied).sum(axis=1),
         (h2h_pts * tied).sum(axis=1),
+        gf,
+        gd,
         pts,
     )
     return np.lexsort(keys, axis=0)
