@@ -35,7 +35,8 @@ def _date_path(run_id: str) -> str:
 
 
 def _move(bucket: str, src: str, dst: str, include: str, profile: str | None, region: str, dry_run: bool) -> None:
-    args = ["s3", "mv", f"s3://{bucket}/{src}", f"s3://{bucket}/{dst}", "--recursive", "--exclude", "*", "--include", include]
+    args = ["s3", "mv", f"s3://{bucket}/{src}", f"s3://{bucket}/{dst}"]
+    args += ["--recursive", "--exclude", "*", "--include", include]
     if dry_run:
         args.append("--dryrun")
     print(_aws(args, profile, region).strip() or "(nothing moved)")
@@ -85,7 +86,15 @@ def main() -> None:
         sys.exit(f"No snapshot {run_id} under s3://{bucket}/snapshots/{date}/")
 
     print(f"Retiring {run_id} in {bucket}{' (dry run)' if args.dry_run else ''}:")
-    _move(bucket, f"snapshots/{date}/", f"snapshots-backup/{date}/", f"{run_id}.*", args.profile, args.region, args.dry_run)
+    _move(
+        bucket,
+        f"snapshots/{date}/",
+        f"snapshots-backup/{date}/",
+        f"{run_id}.*",
+        args.profile,
+        args.region,
+        args.dry_run,
+    )
     if args.with_run_dir:
         _move(bucket, f"runs/{run_id}/", f"runs-backup/{run_id}/", "*", args.profile, args.region, args.dry_run)
 

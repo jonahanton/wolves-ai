@@ -33,6 +33,11 @@ def _read(bucket: str, key: str, profile: str | None, region: str) -> dict | Non
     return json.loads(out) if out.strip() else None
 
 
+def _snapshot_key(run_id: str) -> str:
+    day = RUN_ID.fullmatch(run_id)["date"]
+    return f"snapshots/{day[:4]}/{day[4:6]}/{day[6:8]}/{run_id}.json"
+
+
 def _newest_agent(bucket: str, profile: str | None, region: str) -> str | None:
     listing = _aws(["s3", "ls", f"s3://{bucket}/snapshots/", "--recursive"], profile, region)
     runs = sorted(match.group(1) for line in listing.splitlines() if (match := AGENT_SNAPSHOT.search(line)))
@@ -45,7 +50,8 @@ def _summarise(label: str, snapshot: dict, top: int) -> None:
     champion = snapshot.get("champion") or {}
     teams = sorted(snapshot.get("teams", []), key=lambda t: -(t.get("champion_prob") or 0))[:top]
     print(f"\n{label}")
-    print(f"  run {run.get('run_id')}  kind={run.get('kind')}  as_of={run.get('as_of')}  created={run.get('created_at')}")
+    print(f"  run {run.get('run_id')}  kind={run.get('kind')}  as_of={run.get('as_of')}")
+    print(f"  created {run.get('created_at')}")
     if agent:
         narrative = (agent.get("narrative") or {}).get("headline", "")
         print(
@@ -73,10 +79,9 @@ def main() -> None:
     bucket = f"wolves-superforecaster-{args.env}"
 
     if args.run_id:
-        if not (match := RUN_ID.fullmatch(args.run_id)):
+        if not RUN_ID.fullmatch(args.run_id):
             sys.exit(f"Invalid run id: {args.run_id}")
-        day = match.group("date")
-        snapshot = _read(bucket, f"snapshots/{day[:4]}/{day[4:6]}/{day[6:8]}/{args.run_id}.json", args.profile, args.region)
+        snapshot = _read(bucket, _snapshot_key(args.run_id), args.profile, args.region)
         if snapshot is None:
             sys.exit(f"No snapshot {args.run_id}")
         _summarise(args.run_id, snapshot, args.top)
@@ -87,9 +92,7 @@ def main() -> None:
         _summarise("live pointer (snapshots/latest.json)", latest, args.top)
     newest = _newest_agent(bucket, args.profile, args.region)
     if newest and newest != (latest or {}).get("run", {}).get("run_id"):
-        match = RUN_ID.fullmatch(newest)
-        day = match.group("date")
-        agent = _read(bucket, f"snapshots/{day[:4]}/{day[4:6]}/{day[6:8]}/{newest}.json", args.profile, args.region)
+        agent = _read(bucket, _snapshot_key(newest), args.profile, args.region)
         if agent:
             _summarise("newest agent forecast (landing headline)", agent, args.top)
 
