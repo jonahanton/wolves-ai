@@ -462,9 +462,7 @@ class Forecaster:
         draws: int,
         seed: int = 0,
     ) -> dict[int, tuple[list[float], list[float], list[float]]]:
-        """Per-draw two-way advance probability for each locked knockout tie,
-        mixed over worlds by weight. The draw channel is empty: a knockout tie
-        resolves to a winner, so the curve is win-or-lose only."""
+        """Per-draw two-way advance probability for each locked knockout tie, mixed over worlds by weight."""
         if not pairings:
             return {}
         idx = self.fmt.team_index()

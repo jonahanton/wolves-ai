@@ -69,9 +69,7 @@ export interface StageSection {
 
 const GRID = gridX(1, 48);
 const MAX_CANDIDATES = 3;
-// A knockout pairing the sim reaches in (essentially) every world is mathematically
-// locked: the bracket maths leaves no other matchup, so we name the teams rather than
-// the bracket slots. The tiny slack absorbs Monte Carlo noise on tie-break edges.
+// A pairing the bracket has fixed to one matchup; the slack absorbs tie-break Monte Carlo noise.
 const PAIRING_LOCKED = 0.999;
 const EASTERN = "America/New_York";
 
@@ -182,9 +180,8 @@ function buildRow(
   const knockout = match.stage !== "group";
   const status: FixtureStatus = live ? "live" : result ? "completed" : "upcoming";
   const resolved = Boolean(result || live);
-  // A locked pairing is set even before kickoff, so it reads as a normal upcoming fixture.
+  // A locked pairing is set pre-kickoff, so it reads as a normal upcoming fixture; never imply an unlocked one.
   const locked = knockout && (match.p_pairing ?? 0) >= PAIRING_LOCKED;
-  // A knockout tie that is neither played, live nor locked is genuinely undetermined: never imply a pairing.
   const tbc = knockout && !resolved && !locked;
   const homeId = tbc ? null : (live?.homeId ?? match.home_id ?? null);
   const awayId = tbc ? null : (live?.awayId ?? match.away_id ?? null);

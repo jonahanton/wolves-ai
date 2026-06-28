@@ -164,8 +164,7 @@ def build_pairing_matrices(inputs: SidecarInputs) -> PairingMatrices:
 
 
 def locked_knockout_pairings(inputs: SidecarInputs) -> dict[int, tuple[str, str]]:
-    """Unplayed knockout ties whose pairing the bracket has fixed: every world
-    settles on the same two teams with near-certain probability."""
+    """Unplayed knockout ties whose pairing every world has fixed to the same two teams."""
     teams = inputs.fmt.teams
     pairings: dict[int, tuple[str, str]] = {}
     for m in inputs.fmt.knockout:
@@ -188,9 +187,7 @@ def locked_knockout_pairings(inputs: SidecarInputs) -> dict[int, tuple[str, str]
 
 
 def build_match_wdl_draws(inputs: SidecarInputs) -> MatchWdlDraws:
-    """Analytic per-draw spread for unplayed matches, mixed over worlds by weight:
-    W/D/L for group fixtures, two-way advance for locked knockout ties. Played
-    matches are skipped (fixed goals carry no spread)."""
+    """Per-draw spread for unplayed matches: W/D/L for groups, two-way advance for locked knockout ties."""
     group = inputs.forecaster.group_wdl_draws(
         worlds=inputs.world_specs,
         weights=inputs.weights,

@@ -9,9 +9,8 @@ from wolves.sim.model_engine import ET_INTENSITY, PoissonMatchEngine
 
 
 def test_closed_form_advance_matches_the_engine_shootout_resolution() -> None:
-    """The analytic two-way advance probability must reproduce the engine's own
-    regulation-then-extra-time-then-shootout resolution; a stronger home side
-    separates the centre from an even split so the parity check has teeth."""
+    """The analytic advance probability must reproduce the engine's own resolution; a
+    stronger home side separates the centre from an even split so the check has teeth."""
     strong = registry_team_key(FMT.teams[0].id)
     engine = PoissonMatchEngine(FMT, synthetic_state({strong: 0.3}))
     n = 200_000

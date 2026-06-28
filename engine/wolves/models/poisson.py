@@ -363,10 +363,7 @@ def poisson_wdl_draws(lam_home: np.ndarray, lam_away: np.ndarray) -> tuple[np.nd
 def knockout_advance_draws(
     reg_home: np.ndarray, reg_away: np.ndarray, et_home: np.ndarray, et_away: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Per-draw two-way advance probability for a knockout tie: regulation, then
-    extra time, then an even shootout, matching the engine's resolution. The
-    regulation and extra-time rates are passed separately as the engine draws
-    them on different bases."""
+    """Per-draw two-way advance probability: regulation result, else extra time, else an even shootout."""
     p_home_reg, p_draw_reg, _ = poisson_wdl_draws(reg_home, reg_away)
     p_home_et, p_draw_et, _ = poisson_wdl_draws(et_home, et_away)
     p_home = p_home_reg + p_draw_reg * (p_home_et + 0.5 * p_draw_et)
