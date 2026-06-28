@@ -69,6 +69,8 @@ export interface StageSection {
 
 const GRID = gridX(1, 48);
 const MAX_CANDIDATES = 3;
+// A pairing the bracket has fixed to one matchup; the slack absorbs tie-break Monte Carlo noise.
+const PAIRING_LOCKED = 0.999;
 const EASTERN = "America/New_York";
 
 const STAGE_ORDER = ["group", "r32", "r16", "qf", "sf", "third_place", "final"] as const;
@@ -178,8 +180,9 @@ function buildRow(
   const knockout = match.stage !== "group";
   const status: FixtureStatus = live ? "live" : result ? "completed" : "upcoming";
   const resolved = Boolean(result || live);
-  // A knockout tie with no played or live teams is genuinely undetermined: never imply a pairing.
-  const tbc = knockout && !resolved;
+  // A locked pairing is set pre-kickoff, so it reads as a normal upcoming fixture; never imply an unlocked one.
+  const locked = knockout && (match.p_pairing ?? 0) >= PAIRING_LOCKED;
+  const tbc = knockout && !resolved && !locked;
   const homeId = tbc ? null : (live?.homeId ?? match.home_id ?? null);
   const awayId = tbc ? null : (live?.awayId ?? match.away_id ?? null);
 
