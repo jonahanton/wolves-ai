@@ -85,6 +85,13 @@ def branch_coverage(
     )
 
 
+_CONFIDENCE_RANK = {"high": 2, "medium": 1, "low": 0}
+
+
+def _confidence_rank(branch: dict) -> int:
+    return _CONFIDENCE_RANK.get(str(branch.get("confidence") or "").lower(), 0)
+
+
 def _collect_candidates(
     candidates: dict[str, dict], payload: dict, *, key: str, analytical: bool = False, limit: int | None = None
 ) -> None:
@@ -92,7 +99,10 @@ def _collect_candidates(
     if not isinstance(branches, list):
         return
     valid = [branch for branch in branches if isinstance(branch, dict) and branch.get("branch_id")]
-    for branch in valid[:limit] if limit is not None else valid:
+    if limit is not None:
+        # Capping keeps the most confident tails, so a low-confidence one never displaces a material one.
+        valid = sorted(valid, key=_confidence_rank, reverse=True)[:limit]
+    for branch in valid:
         branch_key = str(branch["branch_id"])
         # Analytical tails carry no ledger source but still earn adjudication.
         candidates.setdefault(branch_key, {**branch, "_analytical": True} if analytical else branch)
