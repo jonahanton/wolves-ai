@@ -1,7 +1,5 @@
-"""When a critic tail can no longer be priced, the budget-aware gate releases so
-the reserve-funded demand-submit still fires. The earlier gate released only at
-the reserve itself, stranding the run in the dead zone between. Affordable-branch
-counterpart: test_demand_submit_does_not_bypass_unadjudicated_branch."""
+"""The reserve-funded terminal demand-submit fires under budget pressure even with a tail it can no longer price.
+Counterpart: test_demand_submit_fires_despite_unadjudicated_branch (an affordable, unpriced branch)."""
 
 from __future__ import annotations
 
@@ -62,8 +60,7 @@ async def test_demand_submit_fires_despite_an_unaffordable_open_tail(tmp_path: P
     )
     deps = build_graph_deps(tmp_path, settings=settings, caps=Caps(max_cost_micros=2_000_000))
     deps = dataclasses.replace(deps, artifacts=store)
-    # 200k of headroom above the 1.0 reserve: the open tail can never be priced,
-    # yet the reserve still funds one last forecast.
+    # 200k of headroom above the 1.0 reserve: the open tail can never be priced, yet the reserve funds one forecast.
     deps.runtime.budget.cost_micros = 800_000
 
     demanded: list[str] = []

@@ -70,8 +70,7 @@ def test_open_tail_releases_the_forecast_once_no_follow_up_fits(tmp_path: Path):
     )
     board = _board(tmp_path, settings, runtime)
 
-    # 200k of headroom sits above the 1.0 reserve, less than a 0.30 follow-up
-    # call: the reserve is still intact but no adjudication wave can run.
+    # 200k of headroom above the 1.0 reserve is less than a 0.30 follow-up call, so no adjudication wave can run.
     runtime.budget.cost_micros = 800_000
 
     assert board.branch_follow_up_reason(settings) is None

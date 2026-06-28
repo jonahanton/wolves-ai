@@ -20,9 +20,7 @@ def test_funding_stops_one_reservation_before_the_held_back_reserve(tmp_path: Pa
     runtime.budget.cost_micros = 700_000
     assert runtime.can_fund_followup_call(hold_back_micros=1_000_000, floor_micros=300_000)
 
-    # Headroom above the reserve is now 200k, smaller than a 300k call: the next
-    # call would be rejected, so funding must report false before the reserve is
-    # touched.
+    # Headroom above the reserve is now 200k, smaller than a 300k call, so funding must report false.
     runtime.budget.cost_micros = 800_000
     assert not runtime.can_fund_followup_call(hold_back_micros=1_000_000, floor_micros=300_000)
 
