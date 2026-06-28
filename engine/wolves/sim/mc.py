@@ -85,29 +85,6 @@ class SimResult:
     ko_stats: dict[int, KnockoutTieStats]
 
 
-def allocate_thirds(qualified: frozenset[int], slot_elig: list[tuple[int, list[int]]]) -> dict[int, int] | None:
-    """Assign the 8 qualified third-placed groups to slots, respecting per-slot eligibility."""
-    slots = sorted(slot_elig, key=lambda s: len([g for g in s[1] if g in qualified]))
-    assignment: dict[int, int] = {}
-    used: set[int] = set()
-
-    def backtrack(i: int) -> bool:
-        if i == len(slots):
-            return True
-        match, elig = slots[i]
-        for g in elig:
-            if g in qualified and g not in used:
-                assignment[match] = g
-                used.add(g)
-                if backtrack(i + 1):
-                    return True
-                used.remove(g)
-                del assignment[match]
-        return False
-
-    return assignment if backtrack(0) else None
-
-
 def run_tournament(
     fmt: FormatData,
     engine: MatchEngine,
@@ -230,16 +207,15 @@ def run_tournament(
     third_qualified = np.zeros((12, n_sims), dtype=bool)
     third_qualified[order[4:], sims] = True
 
-    slot_elig = [
-        (m.match, [GROUPS.index(g) for g in m.away.removeprefix("3:")]) for m in fmt.knockout if m.away.startswith("3:")
-    ]
     key = (third_qualified * (1 << np.arange(12))[:, None]).sum(axis=0)
-    third_team: dict[int, np.ndarray] = {match: np.zeros(n_sims, dtype=np.int32) for match, _ in slot_elig}
+    third_slots = [m.match for m in fmt.knockout if m.away.startswith("3:")]
+    third_team: dict[int, np.ndarray] = {match: np.zeros(n_sims, dtype=np.int32) for match in third_slots}
     for k in np.unique(key):
         qualified = frozenset(g for g in range(12) if k & (1 << g))
-        assignment = allocate_thirds(qualified, slot_elig)
-        if assignment is None:
-            raise ThirdsAllocationError(tuple(GROUPS[g] for g in sorted(qualified)))
+        try:
+            assignment = fmt.third_allocation(qualified)
+        except KeyError as exc:
+            raise ThirdsAllocationError(tuple(GROUPS[g] for g in sorted(qualified))) from exc
         mask = key == k
         for match, g in assignment.items():
             third_team[match][mask] = third[g, mask]

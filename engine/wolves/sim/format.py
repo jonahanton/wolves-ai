@@ -63,9 +63,16 @@ class FormatData(BaseModel):
     group_matches: list[GroupMatch]
     knockout: list[KnockoutMatch]
     venues: list[Venue]
+    # FIFA Annex C: sorted qualified-thirds key ("BDEFIJKL") -> {R32 match: group}.
+    third_place_table: dict[str, dict[str, str]] = {}
 
     def team_index(self) -> dict[str, int]:
         return {t.id: i for i, t in enumerate(self.teams)}
+
+    def third_allocation(self, qualified: frozenset[int]) -> dict[int, int]:
+        """Official R32 slot -> third-placed group index for the qualified eight."""
+        key = "".join(GROUPS[i] for i in sorted(qualified))
+        return {int(match): GROUPS.index(group) for match, group in self.third_place_table[key].items()}
 
     def group_members(self) -> dict[str, list[int]]:
         idx = self.team_index()
@@ -83,6 +90,7 @@ def load_format(data_dir: Path) -> FormatData:
     teams_raw = json.loads((data_dir / "format" / "teams.json").read_text())
     schedule = json.loads((data_dir / "format" / "schedule.json").read_text())
     venues_raw = json.loads((data_dir / "format" / "venues.json").read_text())
+    third_place_table = json.loads((data_dir / "format" / "thirds_allocation.json").read_text())
     teams = [Team(id=t["id"], name=t["name"], group=t["group"], elo_code=t["eloCode"]) for t in teams_raw]
     venues = [
         Venue(
@@ -101,6 +109,7 @@ def load_format(data_dir: Path) -> FormatData:
         group_matches=[GroupMatch(**m) for m in schedule["groupMatches"]],
         knockout=[KnockoutMatch(**m) for m in schedule["knockout"]],
         venues=venues,
+        third_place_table=third_place_table,
     )
 
 
