@@ -391,12 +391,8 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             submission_state.accepted is None
             and not submission_state.publication_blocked
             and not submission_state.referee_replan_required
-            and board.branch_follow_up_reason(settings) is None
-            and not _budget_at_caps(deps.runtime)
         ):
-            # The last chance beats the deterministic fallback even after spent
-            # retries. The coverage gate it consults is budget-aware, so a tail
-            # the run can no longer price releases it; the reserve funds this pass.
+            # No wave remains to price an open branch, so coverage must not gate the reserve-funded last forecast.
             op = NodePatch(
                 node_id="runner-demand-submit",
                 kind="forecast",
