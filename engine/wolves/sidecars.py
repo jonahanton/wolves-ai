@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 KO_ROUNDS = ("r32", "r16", "qf", "sf", "final")
 DEFAULT_BRACKET_SAMPLES = 100
 TOP_OPPONENTS = 8
+PAIRING_LOCKED = 0.999
 
 
 class UnknownSidecarError(Exception):
@@ -162,20 +163,52 @@ def build_pairing_matrices(inputs: SidecarInputs) -> PairingMatrices:
     return PairingMatrices(rounds=rounds)
 
 
+def locked_knockout_pairings(inputs: SidecarInputs) -> dict[int, tuple[str, str]]:
+    """Unplayed knockout ties whose pairing the bracket has fixed: every world
+    settles on the same two teams with near-certain probability."""
+    teams = inputs.fmt.teams
+    pairings: dict[int, tuple[str, str]] = {}
+    for m in inputs.fmt.knockout:
+        if m.match in inputs.played:
+            continue
+        pair: tuple[int, int] | None = None
+        for result in inputs.per_world_results.values():
+            stats = result.ko_stats.get(m.match)
+            if stats is None or stats.p_pairing < PAIRING_LOCKED:
+                pair = None
+                break
+            here = (stats.home, stats.away)
+            if pair is not None and pair != here:
+                pair = None
+                break
+            pair = here
+        if pair is not None:
+            pairings[m.match] = (teams[pair[0]].id, teams[pair[1]].id)
+    return pairings
+
+
 def build_match_wdl_draws(inputs: SidecarInputs) -> MatchWdlDraws:
-    """Analytic per-draw W/D/L for unplayed group matches, mixed over worlds by
-    weight; played matches are skipped (fixed goals carry no spread)."""
-    curves = inputs.forecaster.group_wdl_draws(
+    """Analytic per-draw spread for unplayed matches, mixed over worlds by weight:
+    W/D/L for group fixtures, two-way advance for locked knockout ties. Played
+    matches are skipped (fixed goals carry no spread)."""
+    group = inputs.forecaster.group_wdl_draws(
         worlds=inputs.world_specs,
         weights=inputs.weights,
         played=inputs.played,
         draws=inputs.wdl_curve_draws,
         seed=inputs.rng_seed,
     )
+    knockout = inputs.forecaster.knockout_wdl_draws(
+        worlds=inputs.world_specs,
+        weights=inputs.weights,
+        pairings=locked_knockout_pairings(inputs),
+        draws=inputs.wdl_curve_draws,
+        seed=inputs.rng_seed,
+    )
     return MatchWdlDraws(
         matches={
             match: MatchWdl(p_home=p_home, p_draw=p_draw, p_away=p_away)
-            for match, (p_home, p_draw, p_away) in curves.items()
+            for match, (p_home, p_draw, p_away) in (group | knockout).items()
         }
     )
 

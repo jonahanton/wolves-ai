@@ -33,12 +33,12 @@ from wolves.models.inmatch import (
     live_wdl_draws as _live_wdl_draws,
 )
 from wolves.models.live_signals import BlendParams, LiveSignals, Rates, blend_rates
-from wolves.models.poisson import PoissonDecayModel, poisson_grid, poisson_wdl_draws
+from wolves.models.poisson import PoissonDecayModel, knockout_advance_draws, poisson_grid, poisson_wdl_draws
 from wolves.sim.api import SimOutputs
 from wolves.sim.format import FormatData, PlayedResult, load_format, load_results
 from wolves.sim.latent import LatentEffect
 from wolves.sim.mc import MIN_GOAL_MEAN_AFTER_OFFSET, SimResult, fixture_lambdas, run_tournament
-from wolves.sim.model_engine import PARAMETER_DRAWS, PoissonMatchEngine
+from wolves.sim.model_engine import ET_INTENSITY, PARAMETER_DRAWS, PoissonMatchEngine
 from wolves.sim.outputs import build_focus_team, build_groups, build_matches, build_slots, build_team_reach
 from wolves.sim.perturbations import (
     DeltaDistribution,
@@ -451,6 +451,61 @@ class Forecaster:
                 [round(float(p), 4) for p in pa],
             )
             for match, (ph, pd, pa) in accum.items()
+        }
+
+    def knockout_wdl_draws(
+        self,
+        *,
+        worlds: Mapping[str, tuple[tuple[Perturbation, ...], tuple[LatentEffect, ...]]],
+        weights: Mapping[str, float],
+        pairings: Mapping[int, tuple[str, str]],
+        draws: int,
+        seed: int = 0,
+    ) -> dict[int, tuple[list[float], list[float], list[float]]]:
+        """Per-draw two-way advance probability for each locked knockout tie,
+        mixed over worlds by weight. The draw channel is empty: a knockout tie
+        resolves to a winner, so the curve is win-or-lose only."""
+        if not pairings:
+            return {}
+        idx = self.fmt.team_index()
+        pert_index = {registry_team_key(team): col for team, col in idx.items()}
+        by_match = {m.match: m for m in self.fmt.knockout}
+        accum: dict[int, tuple[np.ndarray, np.ndarray]] = {
+            match: (np.zeros(draws), np.zeros(draws)) for match in pairings
+        }
+        for name, weight in weights.items():
+            perturbations, latent_effects = worlds[name]
+            engine, offsets, _, in_match = self._world_engine(perturbations, latent_effects, draws=draws, seed=seed)
+            for match, (home_id, away_id) in pairings.items():
+                m = by_match[match]
+                home = np.full(draws, idx[home_id])
+                away = np.full(draws, idx[away_id])
+                reg_home, reg_away = fixture_lambdas(
+                    engine,
+                    home,
+                    away,
+                    city=m.city,
+                    stage="knockout",
+                    engine_stage="knockout",
+                    match=match,
+                    offsets=offsets,
+                    in_match_perturbations=in_match,
+                    pert_index=pert_index,
+                )
+                base_home, base_away = engine.lambdas(home, away, city=m.city, stage="knockout")
+                p_home, p_away = knockout_advance_draws(
+                    reg_home, reg_away, base_home * ET_INTENSITY, base_away * ET_INTENSITY
+                )
+                ph, pa = accum[match]
+                ph += weight * p_home
+                pa += weight * p_away
+        return {
+            match: (
+                [round(float(p), 4) for p in ph],
+                [0.0] * draws,
+                [round(float(p), 4) for p in pa],
+            )
+            for match, (ph, pa) in accum.items()
         }
 
     def title_probs(
