@@ -1,9 +1,6 @@
-"""A critic's analytical tail keeps branch coverage open until a quant node
-prices it. On news-heavy days the run can spend down to where no follow-up wave
-fits above the finalisation reserve yet the gate still sits above it: the
-forecast is dropped, the demand-submit is skipped, and the run ends without
-submitting while the reserve goes unspent. The gate must release the moment the
-follow-up it demands can no longer be funded."""
+"""An unpriced critic tail keeps branch coverage open. Once no follow-up wave
+fits above the finalisation reserve it can never be priced, so the gate must
+release rather than block the forecast and strand the run with the reserve unspent."""
 
 from __future__ import annotations
 

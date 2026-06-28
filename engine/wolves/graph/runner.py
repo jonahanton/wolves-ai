@@ -394,13 +394,9 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             and board.branch_follow_up_reason(settings) is None
             and not _budget_at_caps(deps.runtime)
         ):
-            # The final chance runs regardless of spent retries: a run that
-            # burned its hard resubmissions still beats the deterministic
-            # fallback. The branch-coverage gate here is budget-aware: it stays
-            # up only while a follow-up is still affordable, so an open tail the
-            # run can no longer price releases it rather than stranding the run.
-            # The reserve held back above funds this last forecast even when the
-            # wave loop stopped for budget; a cap mid-submit degrades, not raises.
+            # The last chance beats the deterministic fallback even after spent
+            # retries. The coverage gate it consults is budget-aware, so a tail
+            # the run can no longer price releases it; the reserve funds this pass.
             op = NodePatch(
                 node_id="runner-demand-submit",
                 kind="forecast",

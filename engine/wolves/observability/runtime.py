@@ -222,13 +222,9 @@ class ObservedRuntime:
     def can_fund_followup_call(
         self, *, hold_back_micros: int = 0, hold_back_calls: int = 0, floor_micros: int = 0
     ) -> bool:
-        """True while an ordinary node, holding the finalisation reserve back,
-        could still admit one more LLM call. It mirrors charge_llm's admission
-        test, so it flips false at the exact point a follow-up node starts
-        failing on CapExceeded. Callers use it to release coverage gates and
-        finalise on the held-back reserve rather than spin against a ceiling
-        they can no longer clear. floor_micros guards the cold start where no
-        call has settled yet."""
+        """True while a node holding the finalisation reserve back could still
+        admit one more call; mirrors charge_llm so the gate and a CapExceeded
+        coincide. floor_micros guards the cold start before any call settles."""
         if self.budget.llm_calls >= self.caps.max_llm_calls - hold_back_calls:
             return False
         if not self.caps.max_cost_micros:

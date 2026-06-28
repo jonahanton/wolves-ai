@@ -1,9 +1,7 @@
-"""When a critic tail can no longer be priced, the budget-aware coverage gate
-must release so the reserve-funded demand-submit still fires. The earlier gate
-released only once spend reached the reserve itself, leaving a dead zone where
-the tail kept the forecast blocked, no adjudication wave fit above the reserve,
-and the run ended with no submission while the reserve went unspent. The
-affordable-branch counterpart is test_demand_submit_does_not_bypass_unadjudicated_branch."""
+"""When a critic tail can no longer be priced, the budget-aware gate releases so
+the reserve-funded demand-submit still fires. The earlier gate released only at
+the reserve itself, stranding the run in the dead zone between. Affordable-branch
+counterpart: test_demand_submit_does_not_bypass_unadjudicated_branch."""
 
 from __future__ import annotations
 
