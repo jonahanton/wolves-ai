@@ -65,6 +65,7 @@ class GraphRunResult:
     waves: int = 0
     validation_failures: int = 0
     revisions_used: int = 0
+    finalised_with_open_branches: bool = False
 
 
 def _kickoff(deps: AgentDeps, as_of: str) -> str:
@@ -424,4 +425,5 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             waves=board.wave,
             validation_failures=submission_state.validation_failures,
             revisions_used=submission_state.revisions_used,
+            finalised_with_open_branches=board.branch_coverage().needs_follow_up,
         )

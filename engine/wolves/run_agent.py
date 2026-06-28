@@ -1527,6 +1527,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         degraded = (
             deps.submission.referee_status.startswith("bypassed")
             or deps.submission.referee_status == "intervention_cap"
+            or result.finalised_with_open_branches
         )
         runtime.emit(
             "live_attempt",
