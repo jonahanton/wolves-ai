@@ -65,6 +65,7 @@ class GraphRunResult:
     waves: int = 0
     validation_failures: int = 0
     revisions_used: int = 0
+    finalised_with_open_branches: bool = False
 
 
 def _kickoff(deps: AgentDeps, as_of: str) -> str:
@@ -366,12 +367,12 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             if submission_state.validation_failures > settings.agent_submit_retries:
                 logger.error("submission retries exhausted after %d failures", submission_state.validation_failures)
                 break
-            if _budget_at_caps(
-                deps.runtime,
-                reserve_micros=_finalisation_reserve(deps),
-                reserve_calls=sum(finalisation_reserve_calls(settings, deps.runtime.caps)),
+            if not deps.runtime.can_fund_followup_call(
+                hold_back_micros=_finalisation_reserve(deps),
+                hold_back_calls=sum(finalisation_reserve_calls(settings, deps.runtime.caps)),
+                floor_micros=int(settings.graph_followup_floor_usd * 1_000_000),
             ):
-                logger.warning("budget within forecast reserve after wave %d; stopping waves", board.wave)
+                logger.warning("no budget for a follow-up wave after wave %d; finalising on reserve", board.wave)
                 budget_exhausted = True
                 break
 
@@ -391,14 +392,8 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             submission_state.accepted is None
             and not submission_state.publication_blocked
             and not submission_state.referee_replan_required
-            and board.branch_follow_up_reason(settings) is None
-            and not _budget_at_caps(deps.runtime)
         ):
-            # The final chance runs regardless of spent retries: a run that
-            # burned its hard resubmissions still beats the deterministic
-            # fallback. The reserve held back above funds this last forecast
-            # even when the wave loop stopped for budget; a cap mid-submit
-            # degrades, not raises.
+            # No wave remains to price an open branch, so coverage must not gate the reserve-funded last forecast.
             op = NodePatch(
                 node_id="runner-demand-submit",
                 kind="forecast",
@@ -430,4 +425,5 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             waves=board.wave,
             validation_failures=submission_state.validation_failures,
             revisions_used=submission_state.revisions_used,
+            finalised_with_open_branches=board.branch_coverage().needs_follow_up,
         )

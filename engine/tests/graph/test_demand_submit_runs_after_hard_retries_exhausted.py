@@ -42,7 +42,8 @@ async def test_demand_submit_runs_after_hard_retries_exhausted(tmp_path: Path):
     assert result.validation_failures == settings.agent_submit_retries + 1
 
 
-async def test_demand_submit_does_not_bypass_unadjudicated_branch(tmp_path: Path):
+async def test_demand_submit_fires_despite_unadjudicated_branch(tmp_path: Path):
+    # No wave remains to price the open branch, so the terminal demand-submit must fire rather than strand.
     deps = build_graph_deps(tmp_path)
     deps.artifacts = build_run_store(tmp_path)
     entry = deps.ledger.append(
@@ -72,22 +73,28 @@ async def test_demand_submit_does_not_bypass_unadjudicated_branch(tmp_path: Path
             ]
         },
     )
+    demanded: list[str] = []
+
+    def forced_submit(prompt: str) -> ForecastOutput:
+        demanded.append(prompt)
+        return ForecastOutput(summary="forced submit")
+
     models = GraphModels(
         master=scripted_model([GraphPatch(stop=True, reason="done")], model_name="master"),
         nodes={
             "research": scripted_model([], model_name="unused"),
             "quant": scripted_model([], model_name="unused"),
-            "forecast": scripted_model([ForecastOutput(summary="would demand submit")], model_name="forecast"),
+            "forecast": scripted_model([forced_submit], model_name="forecast"),
             "critic": scripted_model([], model_name="unused"),
         },
     )
 
-    result = await run_graph(deps, as_of="2026-06-10", models=models)
+    await run_graph(deps, as_of="2026-06-10", models=models)
     events = EventLog.read(deps.runtime.paths.events)
     deps.runtime.shutdown()
 
-    assert result.submission is None
-    assert not any(event.kind == "node" and event.actor == "runner-demand-submit" for event in events)
+    assert demanded, "an unadjudicated branch must not veto the terminal demand-submit"
+    assert any(event.kind == "node" and event.actor == "runner-demand-submit" for event in events)
 
 
 async def test_referee_replan_returns_to_master_before_terminal_path(tmp_path: Path):

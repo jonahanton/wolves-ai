@@ -1435,6 +1435,16 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         )
     if result.submission is None:
         _discard_agent_state(deps)
+        runtime.emit(
+            "run_incomplete",
+            "runtime",
+            "run produced no submission",
+            severity="error",
+            as_of=as_of,
+            budget_exhausted=result.budget_exhausted,
+            validation_failures=result.validation_failures,
+            cost_usd=round(runtime.budget.cost_micros / 1e6, 4),
+        )
         if args.live:
             runtime.emit(
                 "live_attempt",
@@ -1517,6 +1527,7 @@ async def _run(args: argparse.Namespace, settings: Settings) -> int:
         degraded = (
             deps.submission.referee_status.startswith("bypassed")
             or deps.submission.referee_status == "intervention_cap"
+            or result.finalised_with_open_branches
         )
         runtime.emit(
             "live_attempt",

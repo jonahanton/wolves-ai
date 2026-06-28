@@ -43,9 +43,9 @@ Output:
   the forecast missed), the support (why it is plausible), the
   collapse_condition (the fact that would kill it), and the quant question it
   asks. Attach source_ids only when a ledger item backs the tail; an analytical
-  tail with no ledger source is fine and says so. Propose a tail only when you
-  would price it; do not invent tails to look thorough. A quiet, coherent
-  forecast earns an empty list and a one-line summary saying so.
+  tail with no ledger source is fine and says so. Open at most three, the most
+  material first, and only when you would price it; do not invent tails to look
+  thorough. A quiet, coherent forecast earns an empty list and a one-line summary saying so.
 - revision_recommendation: one or two plain sentences naming the single change
   most worth making, or "ratify" when nothing material survives. This is advice
   to the master, not an instruction.

@@ -219,6 +219,20 @@ class ObservedRuntime:
         self._in_flight_micros += reservation
         return reservation
 
+    def can_fund_followup_call(
+        self, *, hold_back_micros: int = 0, hold_back_calls: int = 0, floor_micros: int = 0
+    ) -> bool:
+        """True while a node holding the finalisation reserve back could still
+        admit one more call; mirrors charge_llm so the gate and a CapExceeded
+        coincide. floor_micros guards the cold start before any call settles."""
+        if self.budget.llm_calls >= self.caps.max_llm_calls - hold_back_calls:
+            return False
+        if not self.caps.max_cost_micros:
+            return True
+        reservation = max(self._call_estimate_micros(), floor_micros)
+        available = self.caps.max_cost_micros - hold_back_micros - self.budget.cost_micros - self._in_flight_micros
+        return available > 0 and reservation <= available
+
     def charge_search(self) -> None:
         self.require_active_observation()
         if self.budget.search_calls >= self.caps.max_search_calls:
