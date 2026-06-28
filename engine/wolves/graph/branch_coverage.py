@@ -35,6 +35,7 @@ def branch_coverage(
     ledger: EvidenceLedger,
     *,
     active_node_ids: set[str] | None = None,
+    max_critic_tails: int | None = None,
 ) -> BranchCoverage:
     candidates: dict[str, dict] = {}
     statuses: dict[str, str] = {}
@@ -49,7 +50,9 @@ def branch_coverage(
         if artifact.kind == "evidence":
             _collect_candidates(candidates, artifact.payload, key="candidate_branches")
         elif artifact.kind == "critique":
-            _collect_candidates(candidates, artifact.payload, key="tail_branches", analytical=True)
+            _collect_candidates(
+                candidates, artifact.payload, key="tail_branches", analytical=True, limit=max_critic_tails
+            )
     for artifact in artifacts:
         _collect_audit_statuses(statuses, artifact.payload, candidates)
 
@@ -82,13 +85,14 @@ def branch_coverage(
     )
 
 
-def _collect_candidates(candidates: dict[str, dict], payload: dict, *, key: str, analytical: bool = False) -> None:
+def _collect_candidates(
+    candidates: dict[str, dict], payload: dict, *, key: str, analytical: bool = False, limit: int | None = None
+) -> None:
     branches = payload.get(key)
     if not isinstance(branches, list):
         return
-    for branch in branches:
-        if not isinstance(branch, dict) or not branch.get("branch_id"):
-            continue
+    valid = [branch for branch in branches if isinstance(branch, dict) and branch.get("branch_id")]
+    for branch in valid[:limit] if limit is not None else valid:
         branch_key = str(branch["branch_id"])
         # Analytical tails carry no ledger source but still earn adjudication.
         candidates.setdefault(branch_key, {**branch, "_analytical": True} if analytical else branch)

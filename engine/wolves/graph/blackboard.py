@@ -250,7 +250,12 @@ class Blackboard:
         active_creators.update(record.created_by for record in self.artifacts.all() if record.created_by not in known)
         active_publishable = self.active_artifact_ids(kinds={"mixture", "forecast"})
         active_creators.update(record.created_by for record in self.artifacts.all() if record.id in active_publishable)
-        return branch_coverage(self.artifacts, self.ledger, active_node_ids=active_creators or None)
+        return branch_coverage(
+            self.artifacts,
+            self.ledger,
+            active_node_ids=active_creators or None,
+            max_critic_tails=self._settings.graph_max_critic_tails if self._settings else None,
+        )
 
     def planned_node_count(self) -> int:
         return sum(1 for node in self.nodes if node.node_id != "coverage-research")

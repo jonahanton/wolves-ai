@@ -106,3 +106,19 @@ def test_verified_child_audit_covers_parent_without_copying_its_disposition(tmp_
     assert "france-overcredit" in coverage.audited_keys
     assert "france-overcredit" not in coverage.priced_keys
     assert coverage.needs_follow_up is False
+
+
+def test_max_critic_tails_caps_how_many_one_premortem_can_open(tmp_path: Path):
+    store = build_run_store(tmp_path)
+    ledger = EvidenceLedger(tmp_path / "ledger.jsonl")
+    store.add(
+        kind="critique",
+        created_by="critic-1",
+        summary="pre-mortem",
+        payload={"challenges": [], "tail_branches": [_tail(f"tail-{i}") for i in range(5)]},
+    )
+
+    coverage = branch_coverage(store, ledger, max_critic_tails=2)
+
+    assert coverage.candidate_keys == ["tail-0", "tail-1"]
+    assert len(coverage.serious_keys) == 2

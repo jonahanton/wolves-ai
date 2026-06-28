@@ -190,6 +190,8 @@ class Settings(BaseSettings):
     graph_revision_reserve_usd: float = 1.10
     graph_premortem_enabled: bool = True
     graph_premortem_on_escalation_only: bool = True
+    # Each analytical tail gates the forecast until priced, so cap how many one premortem can open.
+    graph_max_critic_tails: int = 3
     graph_debrief_enabled: bool = True
 
     @property
