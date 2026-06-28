@@ -182,6 +182,10 @@ class Settings(BaseSettings):
     graph_forecast_reserve_llm_calls: int = 26
     graph_referee_reserve_usd: float = 0.45
     graph_referee_reserve_llm_calls: int = 4
+    # Headroom above the finalisation reserve below which holding the forecast
+    # for another adjudication wave is pointless: the wave could not fund a call,
+    # so the run releases the coverage gate and finalises on the reserve instead.
+    graph_followup_floor_usd: float = 0.30
 
     # Zero recovers the exact single-pass behaviour.
     graph_max_revisions: int = 1
