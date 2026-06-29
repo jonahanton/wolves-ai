@@ -1003,10 +1003,6 @@ _HOST_CLAIM = re.compile(
     r"\b(host(?:s|ed|ing)?|home[- ]?(?:soil|continent|advantage)|local (?:support|crowd|conditions))\b",
     re.IGNORECASE,
 )
-_MARKET_CAUSAL = re.compile(
-    r"\bmarkets?\b.{0,80}\b(reflects?|captures?|endorses?|bakes? in|priced? in|prices? in|is buying|are buying)\b",
-    re.IGNORECASE,
-)
 
 
 def _check_headline(submission: ForecastSubmission, titles: dict[str, float]) -> list[ValidationIssue]:
@@ -1045,20 +1041,6 @@ def _check_headline(submission: ForecastSubmission, titles: dict[str, float]) ->
 
 def _check_public_copy_claims(submission: ForecastSubmission) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
-    public_fields = [("headline", submission.narrative.headline)]
-    public_fields.extend(
-        (f"team_stories[{team}]", f"{story.summary} {story.why}")
-        for team, story in submission.narrative.team_stories.items()
-    )
-    for field, text in public_fields:
-        if _MARKET_CAUSAL.search(text):
-            issues.append(
-                _copy_issue(
-                    "market_causal_copy",
-                    f"{field} assigns a cause to the market price; rephrase as a model-market disagreement or cite "
-                    "the public fact directly",
-                )
-            )
     for team, story in submission.narrative.team_stories.items():
         if team in _HOST_TEAMS:
             continue

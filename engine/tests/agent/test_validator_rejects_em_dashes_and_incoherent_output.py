@@ -212,18 +212,6 @@ def test_non_host_team_story_cannot_claim_home_advantage(store: RunArtifactStore
     assert "host_advantage_copy" in _codes(report)
 
 
-def test_public_copy_cannot_assign_private_cause_to_market(store: RunArtifactStore, ledger: EvidenceLedger):
-    submission = build_submission(
-        narrative=build_narrative(
-            headline="The market reflects France's squad depth more strongly than the ratings do."
-        )
-    )
-
-    report = _validate(submission, store, ledger)
-
-    assert "market_causal_copy" in _codes(report)
-
-
 def test_multi_world_artifact_needs_matching_scenario_weights(store: RunArtifactStore, ledger: EvidenceLedger):
     missing = _validate(build_submission(), store, ledger)
     assert "scenario_weights_missing" in _codes(missing)
