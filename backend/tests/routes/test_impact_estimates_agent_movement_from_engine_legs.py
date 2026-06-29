@@ -368,7 +368,7 @@ async def test_impact_rejects_a_malformed_agent_snapshot(tmp_path):
     assert response.json() == {"error": "published agent forecast is malformed"}
 
 
-async def test_then_leg_simulates_under_the_agent_runs_own_fitted_state(tmp_path):
+async def test_fit_drift_without_new_results_shows_no_shift(tmp_path):
     from dataclasses import replace
 
     import numpy as np
@@ -396,8 +396,11 @@ async def test_then_leg_simulates_under_the_agent_runs_own_fitted_state(tmp_path
     assert response.status_code == 200
     body = response.json()
     assert body["thenBasis"] == "run:agent-20260611-133152"
-    moved = [team for team, impact in body["teams"].items() if impact["title"]["fromResultsPp"] != 0.0]
-    assert moved, "a refit between the agent run and now must show in the results component"
+    assert body["resultsSinceAgent"] == []
+    for impact in body["teams"].values():
+        assert impact["title"]["fromResultsPp"] == 0.0
+        assert impact["title"]["fromIngamePp"] == 0.0
+        assert impact["title"]["estimated"] == impact["title"]["agent"]
 
 
 async def test_then_leg_falls_back_to_the_current_fit_without_an_artifact(tmp_path):
