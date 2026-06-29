@@ -119,6 +119,11 @@ async def build_impact(deps: Deps) -> Impact:
     result = await deps.engine.reach_legs(legs, n_sims=n_sims, seed=seed)
     then, now, live_reach = result["legs"]["then"], result["legs"]["now"], result["legs"]["live"]
 
+    results_since = _results_since_agent(agent_result_set, current_result_set)
+    if not results_since and not live_dists:
+        # No new results and no live games: only fit drift separates the legs, so report no shift.
+        now = live_reach = then
+
     payload = {
         "agent_run_id": run["run_id"],
         "agent_as_of": as_of,
@@ -135,7 +140,7 @@ async def build_impact(deps: Deps) -> Impact:
         "seed": seed,
         "parameter_uncertainty": False,
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "results_since_agent": _results_since_agent(agent_result_set, current_result_set),
+        "results_since_agent": results_since,
         "fixtures": [
             _fixture_block(
                 f,
