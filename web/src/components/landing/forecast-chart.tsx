@@ -100,7 +100,6 @@ export function ForecastChart({
   const svgRef = useRef<SVGSVGElement>(null);
   const scaffoldedRef = useRef(false);
   const introRef = useRef(false);
-  const estimateShownRef = useRef(false);
   const [intro, setIntro] = useState(false);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<HoverState | null>(null);
@@ -240,7 +239,6 @@ export function ForecastChart({
     svg.append("g").attr("class", "envelope");
     svg.append("g").attr("class", "series");
     svg.append("g").attr("class", "history-fade");
-    svg.append("g").attr("class", "live-estimate");
     svg.append("g").attr("class", "ends");
     svg.append("g").attr("class", "hover-layer");
     scaffoldedRef.current = true;
@@ -515,46 +513,6 @@ export function ForecastChart({
               .attr("opacity", 1)
           : sel.attr("opacity", 1),
       );
-
-    const estimateLayer = svg.select<SVGGElement>(".live-estimate");
-    estimateLayer.selectAll("*").remove();
-    const selectedLine = lines.find((team) => team.teamId === selectedTeamId);
-    const selectedLast = selectedLine?.points.at(-1);
-    if (selectedLegs && selectedLine && selectedLast && lastRunTime !== null) {
-      const colour = selectedLine.colour;
-      const head = 4.2;
-      const ax = x(lastRunTime) + 7 + head;
-      const y0 = y(selectedLast.value);
-      const y1 = y(selectedLast.value + selectedLegs.net / 100);
-      const up = selectedLegs.net > 0;
-      const fadeEstimate = playIntro || !estimateShownRef.current;
-      estimateShownRef.current = true;
-      const g = estimateLayer.append("g").attr("opacity", fadeEstimate ? 0 : 1);
-      const triY = (y0 + y1) / 2;
-      g.append("path")
-        .attr(
-          "d",
-          up
-            ? `M${ax},${triY - head} L${ax + head},${triY + head} L${ax - head},${triY + head} Z`
-            : `M${ax},${triY + head} L${ax + head},${triY - head} L${ax - head},${triY - head} Z`,
-        )
-        .attr("fill", colour);
-      g.append("text")
-        .attr("x", ax + head + 4)
-        .attr("y", triY)
-        .attr("dominant-baseline", "middle")
-        .attr("font-family", "var(--font-mono)")
-        .attr("font-size", 11.5)
-        .attr("font-weight", 700)
-        .attr("fill", colour)
-        .text(`${up ? "+" : ""}${selectedLegs.net.toFixed(1)}pp`);
-      if (fadeEstimate)
-        g.transition()
-          .delay(playIntro ? DRAW_MS * 0.6 : 0)
-          .duration(220)
-          .ease(easeCubicOut)
-          .attr("opacity", 1);
-    }
   }, [
     lines,
     envelope,
@@ -683,6 +641,19 @@ export function ForecastChart({
     return rows;
   }, [topLines, selectedTeamId, x, y, width, empty, envelope, height, margin]);
 
+  const estimateMarker = useMemo(() => {
+    const last = selectedTeam?.points.at(-1);
+    if (!selectedLegs || !selectedTeam || !last || lastRunTime === null) return null;
+    const up = selectedLegs.net > 0;
+    return {
+      ax: x(lastRunTime) + 7,
+      ay: y(last.value),
+      up,
+      colour: selectedTeam.colour,
+      label: `${up ? "+" : ""}${selectedLegs.net.toFixed(1)}pp`,
+    };
+  }, [selectedTeam, selectedLegs, lastRunTime, x, y]);
+
   function onPointerMove(event: React.PointerEvent<SVGRectElement>) {
     if (!runTimes.length || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -804,6 +775,29 @@ export function ForecastChart({
           </span>
           <span className="block font-display text-[10px] font-medium leading-tight tracking-[0.01em] text-cream-faint">
             from latest results
+          </span>
+        </div>
+      )}
+      {estimateMarker && (
+        <div
+          className="pointer-events-none absolute z-20 flex -translate-y-1/2 items-center gap-1 transition-opacity duration-300"
+          style={{
+            left: estimateMarker.ax,
+            top: estimateMarker.ay,
+            opacity: intro ? 1 : 0,
+          }}
+        >
+          <svg width="9" height="9" viewBox="0 0 9 9" className="shrink-0">
+            <path
+              d={estimateMarker.up ? "M4.5,0 L9,9 L0,9 Z" : "M4.5,9 L9,0 L0,0 Z"}
+              fill={estimateMarker.colour}
+            />
+          </svg>
+          <span
+            className="font-mono text-[11.5px] font-bold tabular-nums"
+            style={{ color: estimateMarker.colour }}
+          >
+            {estimateMarker.label}
           </span>
         </div>
       )}
