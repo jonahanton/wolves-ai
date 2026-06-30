@@ -227,7 +227,7 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
           const isMean = showMarkers && i === meanRoundIndex;
           const isSettled = settled !== null && settled.key === b.key;
           const caption = isMode && isMean ? "Mean · Mode" : isMode ? "Mode" : isMean ? "Mean" : "";
-          const captionAnchor = cx < 70 ? "start" : cx > width - 70 ? "end" : "middle";
+          const captionAnchor = i === 0 ? "start" : i === bars.length - 1 ? "end" : "middle";
           const captionY = y(b.p) - (stackMarkers && isMean ? 32 : 20);
           const showPct = b.p > 0 && (isMode || isSettled || b.key === "champion");
           return (
