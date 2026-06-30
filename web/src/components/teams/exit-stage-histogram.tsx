@@ -227,7 +227,10 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
           const isMean = showMarkers && i === meanRoundIndex;
           const isSettled = settled !== null && settled.key === b.key;
           const caption = isMode && isMean ? "Mean · Mode" : isMode ? "Mode" : isMean ? "Mean" : "";
-          const captionAnchor = i === 0 ? "start" : i === bars.length - 1 ? "end" : "middle";
+          // Keep the caption centred on its bar; only nudge it inward when centring
+          // would run it past the canvas edge (long captions on the outer bars).
+          const captionHalfW = (caption.length * 7.2) / 2;
+          const captionX = Math.min(Math.max(cx, captionHalfW), width - PAD_R - captionHalfW);
           const captionY = y(b.p) - (stackMarkers && isMean ? 32 : 20);
           const showPct = b.p > 0 && (isMode || isSettled || b.key === "champion");
           return (
@@ -247,9 +250,9 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
               </rect>
               {caption && (
                 <text
-                  x={cx}
+                  x={captionX}
                   y={captionY}
-                  textAnchor={captionAnchor}
+                  textAnchor="middle"
                   fontFamily="var(--font-mono)"
                   fontSize={12}
                   fontWeight={700}
