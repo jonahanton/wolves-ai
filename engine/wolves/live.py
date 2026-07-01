@@ -90,7 +90,10 @@ def scan_snapshots(snapshot_dir: Path) -> tuple[Snapshot | None, list[PublishedW
     if newest_agent is not None and newest_agent.agent is not None and newest_agent.agent.worlds:
         payload = {
             "weights": {w.name: w.weight for w in newest_agent.agent.worlds},
-            "worlds": {w.name: {"perturbations": w.perturbations} for w in newest_agent.agent.worlds},
+            "worlds": {
+                w.name: {"perturbations": w.perturbations, "latent_effects": w.latent_effects}
+                for w in newest_agent.agent.worlds
+            },
         }
         worlds = worlds_from_payload(payload)
     return newest, worlds
