@@ -32,12 +32,8 @@ def _existing_pairs(connection: duckdb.DuckDBPyConnection, teams: set[str]) -> d
 
 
 def _novel_records(connection: duckdb.DuckDBPyConnection, records: list[MatchRecord]) -> list[MatchRecord]:
-    """Drop records whose team pair already sits in the backbone within a day.
-
-    The backbone keys teams and dates from the source feed while the overlay
-    keys from the 2026 registry and UTC kickoff, so a match ingested upstream
-    reappears here under a swapped orientation or a one-day-off date; matching
-    the unordered pair inside a tolerance stops a refit double-counting it."""
+    """Drop records already in the backbone, matched on unordered pair within a
+    day so an upstream ingest under swapped orientation or drifted date still dedupes."""
     teams = {team for record in records for team in (record.home_team, record.away_team)}
     existing = _existing_pairs(connection, teams)
 

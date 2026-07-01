@@ -76,8 +76,7 @@ class PoissonMatchEngine:
     def lambdas(self, home: np.ndarray, away: np.ndarray, *, city: str, stage: str) -> tuple[np.ndarray, np.ndarray]:
         s_home = self._strengths[home, self._sims]
         s_away = self._strengths[away, self._sims]
-        # Altitude is a differential acclimatisation effect on the strength axis; host advantage,
-        # as fitted, lifts only the home rate. Folding it into diff would apply it twice.
+        # Host advantage, as fitted, lifts only the home rate; folding it into diff would double it.
         altitude = ALTITUDE_STRENGTH_PER_ELO * (self._altitude[city][home] - self._altitude[city][away])
         host = self._home_adv * self._at_home[city][home]
         diff = s_home - s_away + altitude
