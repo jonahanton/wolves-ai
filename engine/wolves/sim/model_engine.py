@@ -76,11 +76,11 @@ class PoissonMatchEngine:
     def lambdas(self, home: np.ndarray, away: np.ndarray, *, city: str, stage: str) -> tuple[np.ndarray, np.ndarray]:
         s_home = self._strengths[home, self._sims]
         s_away = self._strengths[away, self._sims]
-        adv = self._home_adv * self._at_home[city][home] + ALTITUDE_STRENGTH_PER_ELO * (
-            self._altitude[city][home] - self._altitude[city][away]
-        )
-        diff = s_home - s_away + adv
-        return np.exp(self._intercept + diff), np.exp(self._intercept - diff)
+        # Host advantage, as fitted, lifts only the home rate; folding it into diff would double it.
+        altitude = ALTITUDE_STRENGTH_PER_ELO * (self._altitude[city][home] - self._altitude[city][away])
+        host = self._home_adv * self._at_home[city][home]
+        diff = s_home - s_away + altitude
+        return np.exp(self._intercept + diff + host), np.exp(self._intercept - diff)
 
     def simulate_goals(
         self, rng: np.random.Generator, lam_home: np.ndarray, lam_away: np.ndarray

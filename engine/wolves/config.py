@@ -187,6 +187,9 @@ class Settings(BaseSettings):
     # Zero recovers the exact single-pass behaviour.
     graph_max_revisions: int = 1
     graph_revision_reserve_usd: float = 1.10
+    # The coverage gate forces this many focused adjudication waves before a forecast, then releases:
+    # branch keys are LLM-authored on both sides, so an unbounded gate can loop when they never align.
+    graph_max_coverage_nudges: int = 1
     graph_premortem_enabled: bool = True
     graph_premortem_on_escalation_only: bool = True
     # Each analytical tail gates the forecast until priced, so cap how many one premortem can open.

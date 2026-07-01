@@ -5,6 +5,7 @@ dataset is never mutated; the overlay is a per-run copy."""
 from __future__ import annotations
 
 import shutil
+from datetime import date
 from pathlib import Path
 
 import duckdb
@@ -12,13 +13,50 @@ import duckdb
 from wolves.data.contracts import MatchRecord
 from wolves.models.contracts import DatasetHandle
 
+_DATE_TOLERANCE_DAYS = 1
+
+
+def _existing_pairs(connection: duckdb.DuckDBPyConnection, teams: set[str]) -> dict[frozenset[str], list[date]]:
+    if not teams:
+        return {}
+    placeholders = ", ".join("?" for _ in teams)
+    rows = connection.execute(
+        f"select date, home_team, away_team from matches "
+        f"where home_team in ({placeholders}) or away_team in ({placeholders})",
+        [*teams, *teams],
+    ).fetchall()
+    index: dict[frozenset[str], list[date]] = {}
+    for day, home, away in rows:
+        index.setdefault(frozenset({home, away}), []).append(day)
+    return index
+
+
+def _novel_records(connection: duckdb.DuckDBPyConnection, records: list[MatchRecord]) -> list[MatchRecord]:
+    """Drop records already in the backbone, matched on unordered pair within a
+    day so an upstream ingest under swapped orientation or drifted date still dedupes."""
+    teams = {team for record in records for team in (record.home_team, record.away_team)}
+    existing = _existing_pairs(connection, teams)
+
+    def present(record: MatchRecord) -> bool:
+        pair = frozenset({record.home_team, record.away_team})
+        return any(abs((day - record.date).days) <= _DATE_TOLERANCE_DAYS for day in existing.get(pair, ()))
+
+    return [record for record in records if not present(record)]
+
 
 def overlay_results(dataset: DatasetHandle, records: list[MatchRecord], *, dest_dir: Path) -> DatasetHandle:
-    """Copy the dataset and insert the records; returns the overlaid handle."""
+    """Copy the dataset and insert the records not already in the backbone."""
     if not records:
         return dataset
+    source = duckdb.connect(str(dataset.path), read_only=True)
+    try:
+        novel = _novel_records(source, records)
+    finally:
+        source.close()
+    if not novel:
+        return dataset
     dest_dir.mkdir(parents=True, exist_ok=True)
-    version = f"{dataset.dataset_id}+{len(records)}r"
+    version = f"{dataset.dataset_id}+{len(novel)}r"
     dest = dest_dir / f"wolves-data-{version}.duckdb"
     shutil.copyfile(dataset.path, dest)
     connection = duckdb.connect(str(dest))
@@ -36,7 +74,7 @@ def overlay_results(dataset: DatasetHandle, records: list[MatchRecord], *, dest_
                     r.importance,
                     r.neutral,
                 ]
-                for r in records
+                for r in novel
             ],
         )
     finally:

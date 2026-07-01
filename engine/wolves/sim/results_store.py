@@ -100,12 +100,15 @@ def played_match_records(settings: Settings) -> list[MatchRecord]:
         if resolved.home_goals is None or resolved.away_goals is None:
             continue
         home = registry_team_key(resolved.home_id)
+        # The strength model is a 90-minute goal model; extra-time goals must not enter the refit.
+        home_goals = resolved.reg_home_goals if resolved.reg_home_goals is not None else resolved.home_goals
+        away_goals = resolved.reg_away_goals if resolved.reg_away_goals is not None else resolved.away_goals
         by_match[resolved.match] = MatchRecord(
             date=fixture.kickoff.date(),
             home_team=home,
             away_team=registry_team_key(resolved.away_id),
-            home_goals=resolved.home_goals,
-            away_goals=resolved.away_goals,
+            home_goals=home_goals,
+            away_goals=away_goals,
             tournament="FIFA World Cup",
             importance=_WC_IMPORTANCE,
             neutral=resolved.home_id not in _HOSTS,

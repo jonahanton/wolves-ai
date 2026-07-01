@@ -290,6 +290,8 @@ class Blackboard:
         )
 
     def branch_follow_up_reason(self, settings: Settings) -> str | None:
+        if self.coverage_nudges >= settings.graph_max_coverage_nudges:
+            return None
         if not self._can_fund_follow_up(settings):
             return None
         coverage = self.branch_coverage()

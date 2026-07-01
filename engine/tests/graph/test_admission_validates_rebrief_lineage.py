@@ -73,7 +73,10 @@ def test_seeded_coverage_does_not_spend_global_node_cap(tmp_path: Path):
 
 def test_unadjudicated_branch_drops_forecast_until_audited(tmp_path: Path):
     deps = build_graph_deps(tmp_path)
-    settings = Settings(_env_file=None, storage_mode="local", graph_max_wave_workers=2)
+    # A high nudge bound isolates the audit-clears-coverage path from the one-shot release.
+    settings = Settings(
+        _env_file=None, storage_mode="local", graph_max_wave_workers=2, graph_max_coverage_nudges=5
+    )
     store = build_run_store(tmp_path)
     entry = deps.ledger.append(
         claim="France market is materially higher than the model",

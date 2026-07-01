@@ -24,6 +24,9 @@ class MatchFixture(BaseModel):
     away: str
     home_goals: int | None = None
     away_goals: int | None = None
+    # Regulation (90-minute) score, distinct from home/away_goals once a knockout goes to extra time.
+    fulltime_home: int | None = None
+    fulltime_away: int | None = None
     elapsed: int | None = None
     period: MatchPeriod = "regulation"
     home_reds: int = 0
