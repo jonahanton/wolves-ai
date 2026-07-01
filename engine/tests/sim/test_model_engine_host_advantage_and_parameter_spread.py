@@ -26,6 +26,27 @@ def test_host_nation_gets_home_advantage_only_at_home() -> None:
     assert at_home[0] > in_usa[0]
 
 
+def test_host_advantage_lifts_home_rate_only_and_is_not_doubled() -> None:
+    # USA is not altitude-acclimatised, so a USA venue isolates the host term from altitude.
+    engine = PoissonMatchEngine(FMT, synthetic_state())
+    n = 4
+    engine.begin(np.random.default_rng(0), n)
+    usa = next(i for i, t in enumerate(FMT.teams) if t.id == "usa")
+    england = next(i for i, t in enumerate(FMT.teams) if t.id == "england")
+    home = np.full(n, usa, dtype=np.intp)
+    away = np.full(n, england, dtype=np.intp)
+
+    lam_home, lam_away = engine.lambdas(home, away, city=_city_in("USA"), stage="group")
+
+    baseline = 1.3  # exp(intercept), equal strengths
+    home_adv = 0.25
+    # The host term lifts the home rate by exactly home_adv and leaves the away rate at baseline;
+    # the log tilt is home_adv, not the 2*home_adv the symmetric form produced.
+    assert lam_home[0] == pytest.approx(baseline * np.exp(home_adv))
+    assert lam_away[0] == pytest.approx(baseline)
+    assert np.log(lam_home[0]) - np.log(lam_away[0]) == pytest.approx(home_adv)
+
+
 def test_covariance_spreads_rates_across_worlds_and_its_absence_does_not() -> None:
     state = synthetic_state()
     with_cov = synthetic_state()
