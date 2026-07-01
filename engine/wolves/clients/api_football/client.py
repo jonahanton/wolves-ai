@@ -126,6 +126,7 @@ def _to_fixture(item: dict[str, Any]) -> MatchFixture:
     fixture = item.get("fixture") or {}
     teams = item.get("teams") or {}
     goals = item.get("goals") or {}
+    fulltime = (item.get("score") or {}).get("fulltime") or {}
     venue = fixture.get("venue") or {}
     status = fixture.get("status") or {}
     short = (status.get("short")) or ""
@@ -139,6 +140,8 @@ def _to_fixture(item: dict[str, Any]) -> MatchFixture:
         away=(teams.get("away") or {}).get("name") or "",
         home_goals=goals.get("home"),
         away_goals=goals.get("away"),
+        fulltime_home=fulltime.get("home"),
+        fulltime_away=fulltime.get("away"),
         elapsed=status.get("elapsed"),
         period=_period(short),
         home_reds=home_reds,

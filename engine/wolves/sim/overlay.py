@@ -26,6 +26,8 @@ class FixtureResolution:
     home_reds: int
     away_reds: int
     knockout: bool
+    reg_home_goals: int | None = None
+    reg_away_goals: int | None = None
     goals: tuple[GoalEvent, ...] = ()
     home_shots_on: int | None = None
     away_shots_on: int | None = None
@@ -79,6 +81,8 @@ def resolve_fixture(fmt: FormatData, fixture: MatchFixture) -> FixtureResolution
             away_id=group.away,
             home_goals=fixture.home_goals if oriented else fixture.away_goals,
             away_goals=fixture.away_goals if oriented else fixture.home_goals,
+            reg_home_goals=fixture.fulltime_home if oriented else fixture.fulltime_away,
+            reg_away_goals=fixture.fulltime_away if oriented else fixture.fulltime_home,
             home_reds=fixture.home_reds if oriented else fixture.away_reds,
             away_reds=fixture.away_reds if oriented else fixture.home_reds,
             knockout=False,
@@ -95,6 +99,8 @@ def resolve_fixture(fmt: FormatData, fixture: MatchFixture) -> FixtureResolution
         away_id=away_id,
         home_goals=fixture.home_goals,
         away_goals=fixture.away_goals,
+        reg_home_goals=fixture.fulltime_home,
+        reg_away_goals=fixture.fulltime_away,
         home_reds=fixture.home_reds,
         away_reds=fixture.away_reds,
         knockout=True,
