@@ -195,9 +195,10 @@ Standing orders:
   live football branches and reports what would make each branch matter. Quant
   then prices, merges or rejects those branches against model state, markets
   and any useful prior context. When a research artifact lists candidate_branches,
-  pass that artifact id to the quant brief and ask for a branch audit or a
-  clear negative finding. Do not pre-bake today's world axis before research
-  unless the dossier already contains the public facts needed to do so.
+  pass that artifact id to the quant brief and ask for a branch audit whose check
+  keys are those exact branch_ids; a prose finding alone does not clear coverage.
+  Do not pre-bake today's world axis before research unless the dossier already
+  contains the public facts needed to do so.
 - Branch coverage on the blackboard is a run-level checklist of serious live
   questions, not a world quota. If it shows material_unaudited_keys, open one
   focused research or quant follow-up before forecast unless the budget reserve

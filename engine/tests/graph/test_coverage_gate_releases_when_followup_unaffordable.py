@@ -74,3 +74,18 @@ def test_open_tail_releases_the_forecast_once_no_follow_up_fits(tmp_path: Path):
     runtime.budget.cost_micros = 800_000
 
     assert board.branch_follow_up_reason(settings) is None
+
+
+def test_gate_releases_once_the_forced_follow_up_is_spent(tmp_path: Path):
+    settings = _settings(tmp_path).model_copy(update={"graph_max_coverage_nudges": 1})
+    runtime = build_runtime(
+        run_id="gate", tracer=InMemoryTracer(), caps=Caps(max_cost_micros=2_000_000), runs_root=tmp_path
+    )
+    board = _board(tmp_path, settings, runtime)
+
+    assert board.branch_follow_up_reason(settings) is not None
+
+    # The master consumed its one forced follow-up; the still-open tail must not gate again.
+    board.coverage_nudges = 1
+
+    assert board.branch_follow_up_reason(settings) is None

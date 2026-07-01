@@ -174,8 +174,10 @@ discovering them:
   branch_audit=branch_audit and, where useful, world_metadata={world:
   {label, summary, camp, branch_keys}} into wq.scenario_mixture. Branch check
   statuses are priced, collapsed, below_floor, rejected, carried_forward or
-  merged_into_base. This is advisory evidence for forecast and review, not a
-  mandate to publish every branch. If a world starts from a market or model
+  merged_into_base. Each check key must be the exact branch_id of the candidate
+  or tail it adjudicates: coverage matches on that string, so a renamed key
+  reads as unaudited and stalls the forecast. This is advisory evidence for
+  forecast and review, not a mandate to publish every branch. If a world starts from a market or model
   base but adds a live result, availability or matchup branch, give that world
   metadata that keeps the live branch visible; do not hide it under a generic
   camp unless the branch is truly just the same lens. A quiet day can leave
