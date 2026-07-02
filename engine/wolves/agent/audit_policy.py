@@ -104,6 +104,19 @@ def intrinsic_missing_rows(payload: dict) -> list[str]:
     return sorted(key for key in required if status.get(key, "missing") == "missing")
 
 
+def advisory_missing_rows(payload: dict) -> list[str]:
+    """Rows a large-non-base mixture all but always owes at submit but the payload
+    cannot prove, so the submit validator would only catch them once the run has
+    no quant budget left to re-register. Surfaced at registration to warn, never
+    to block."""
+    weights = payload.get("weights")
+    if not isinstance(weights, dict) or not payload.get("worlds") or not is_large_non_base(weights):
+        return []
+    if audit_check_status(payload).get("market_gap", "missing") in {"checked", "not_material"}:
+        return []
+    return ["market_gap"]
+
+
 def branch_audit_contradictions(payload: dict) -> list[str]:
     audit = payload.get("branch_audit")
     checks = audit.get("checks") if isinstance(audit, dict) else None
