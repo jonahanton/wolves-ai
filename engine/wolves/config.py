@@ -103,8 +103,9 @@ class Settings(BaseSettings):
     agent_ceiling_big_group_usd: float = 5.00
     agent_ceiling_group_usd: float = 4.00
     agent_ceiling_rest_usd: float = 3.50
-    agent_ceiling_r32_r16_usd: float = 5.50
-    agent_ceiling_qf_final_usd: float = 5.50
+    # Each knockout branch costs a quant node to adjudicate and reconcile; 5.50 stranded an R16 day mid-reconciliation.
+    agent_ceiling_r32_r16_usd: float = 6.50
+    agent_ceiling_qf_final_usd: float = 6.50
     # Hidden hard-stop cushion above the day's ceiling; the agent plans against the ceiling and never sees this.
     agent_ceiling_headroom_usd: float = 2.00
     agent_big_team_count: int = 8
@@ -140,7 +141,8 @@ class Settings(BaseSettings):
     graph_forecast_grace_s: int = 180
     graph_critic_timeout_s: int = 180
     graph_research_request_limit: int = 32
-    graph_quant_request_limit: int = 28
+    # A multi-branch knockout adjudication runs more run_python than a group-stage audit; 28 exhausted mid-adjudication.
+    graph_quant_request_limit: int = 34
     graph_forecast_request_limit: int = 24
     # A pre-mortem critic reads evidence, mixtures and the branch audit; 8 starved it.
     graph_critic_request_limit: int = 16

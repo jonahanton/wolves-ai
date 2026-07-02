@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from wolves.agent.audit_policy import branch_audit_contradictions, intrinsic_missing_rows
+from wolves.agent.audit_policy import advisory_missing_rows, branch_audit_contradictions, intrinsic_missing_rows
 from wolves.agent.deps import AgentDeps
 from wolves.quant.context import build_sandbox_context
 from wolves.quant.inputs import prepare_inputs
@@ -163,13 +163,14 @@ def _register_mixtures(deps: AgentDeps, *, workspace_dir: str, files: list[str])
 
 
 def _audit_gap_warning(payload: dict, marker: str) -> list[str]:
-    missing = intrinsic_missing_rows(payload)
+    missing = intrinsic_missing_rows(payload) + advisory_missing_rows(payload)
     if not missing:
         return []
     return [
         f"{marker} is a large non-base mixture missing factor_audit rows: {', '.join(missing)}. "
-        "Add them with wq.factor_audit (e.g. a mixture_spread row from wq.mixture_spread) and re-register; "
-        "the submit validator rejects this artifact otherwise."
+        "Add them with wq.factor_audit now (a mixture_spread row from wq.mixture_spread; a market_gap row "
+        "naming the teams it checks, or status not_material if the published probs sit on-market) and "
+        "re-register; the submit validator rejects this artifact otherwise and only a quant node can repair it."
     ]
 
 
