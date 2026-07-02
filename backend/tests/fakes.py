@@ -202,13 +202,16 @@ def published_engine(runs_root: Path) -> EngineService:
 
     settings = engine_settings(runs_root)
     teams = tuple(registry_team_key(t.id) for t in load_format(settings.data_dir).teams)
+    strengths = np.linspace(0.5, -0.5, len(teams))
+    # England is the queried team; a top strength keeps its champion probability off a sampled zero.
+    strengths[teams.index("england")] = float(strengths.max())
     state = FittedState(
         model_id="poisson-decay",
         version="test",
         dataset_id="test-dataset",
         as_of=date(2026, 6, 12),
         teams=teams,
-        strengths=np.linspace(0.5, -0.5, len(teams)),
+        strengths=strengths,
         globals_={"intercept": 0.1, "home_adv": 0.2, "rho": 0.05, "half_life_days": 1000.0},
     )
     FittedStateStore(ArtifactStore(settings)).publish(state, run_id="run-test")
