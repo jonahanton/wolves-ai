@@ -621,8 +621,11 @@ export function ForecastChart({
     const halfHeight = (i: number) => {
       const r = rows[i];
       if (r.kind === "others") return mob ? 9 : 10;
-      const emph = r.teams.some((t) => t.emphasised);
-      return emph ? (mob ? 22 : 26) : mob ? 15 : 17;
+      const teamsHalf = r.teams.reduce(
+        (sum, t) => sum + (t.emphasised ? (mob ? 22 : 26) : mob ? 15 : 17),
+        0,
+      );
+      return teamsHalf + Math.max(0, r.teams.length - 1) * 4;
     };
     const gapBefore = (i: number) => halfHeight(i - 1) + halfHeight(i) + 6;
 
@@ -725,7 +728,7 @@ export function ForecastChart({
         return (
           <div
             key={group.value + group.teams[0].teamId}
-            className="absolute flex -translate-y-1/2 items-stretch gap-x-2.5 text-left leading-none transition-opacity duration-300"
+            className="absolute flex -translate-y-1/2 flex-col items-start gap-y-2 text-left leading-none transition-opacity duration-300"
             style={{
               left: group.anchorX + 13 + deltaGutter,
               top: group.anchorY,
