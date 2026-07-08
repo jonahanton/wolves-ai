@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     llm_retry_max_delay_s: float = 20.0
     llm_request_timeout_s: float = 120.0
     smart_model: str = "claude-opus-4-8"
-    fast_model: str = "claude-sonnet-4-6"
-    worker_model: str = "claude-sonnet-4-6"
+    fast_model: str = "claude-sonnet-5"
+    worker_model: str = "claude-sonnet-5"
     # Empty string means inherit worker_model. Research and critic are
     # extraction-shaped and run fine on the cheap tier; quant and forecast
     # carry the numerical judgement and stay on the worker default.
