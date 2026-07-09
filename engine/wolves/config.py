@@ -144,15 +144,17 @@ class Settings(BaseSettings):
     # A multi-branch knockout adjudication runs more run_python than a group-stage audit; 28 exhausted mid-adjudication.
     graph_quant_request_limit: int = 34
     graph_forecast_request_limit: int = 24
-    # A pre-mortem critic reads evidence, mixtures and the branch audit; 8 starved it.
-    graph_critic_request_limit: int = 16
+    # A pre-mortem critic reads evidence, mixtures and the branch audit; 16 exhausted mid-pre-mortem on a knockout day.
+    graph_critic_request_limit: int = 20
     graph_research_tool_budget: int = 12
     # Slots held back from searching so a research node can always fetch what it cites.
     graph_research_fetch_floor: int = 3
     graph_quant_tool_budget: int = 24
     graph_forecast_tool_budget: int = 16
     graph_critic_tool_budget: int = 6
-    graph_quant_python_call_limit: int = 8
+    # A multi-branch knockout reprice runs a script per branch then re-registers the mixture; 8 exhausted before
+    # registration, stranding the repriced numbers.
+    graph_quant_python_call_limit: int = 12
 
     market_movement_noise_floor_pp: float = 0.7
 
