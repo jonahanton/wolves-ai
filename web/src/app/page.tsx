@@ -13,7 +13,7 @@ import { loadPublishedAgentHistories, loadSnapshotIndex } from "@/lib/runs";
 import { loadDistributions } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
 
-const CHART_TEAM_COUNT = 6;
+const CHART_TEAM_COUNT = 4;
 
 export default async function LandingPage() {
   const [result, indexResult] = await Promise.all([
