@@ -56,7 +56,11 @@ export default async function ForecastRunPage({ params }: PageProps) {
   const championProbs = Object.fromEntries(
     snapshot.teams.filter((t) => t.champion_prob !== undefined).map((t) => [t.team_id, t.champion_prob ?? 0]),
   );
-  const stageByMatch = new Map((snapshot.matches ?? []).map((m) => [m.match, m.stage]));
+  // Played fixtures drop out of `matches`, so knockout stages resolve through `slots`, which spans the whole bracket.
+  const stageByMatch = new Map<number, string>([
+    ...(snapshot.matches ?? []).map((m) => [m.match, m.stage] as const),
+    ...snapshot.slots.map((s) => [s.match, s.stage] as const),
+  ]);
   const playedStages = (snapshot.result_set?.results ?? []).map((r) => stageByMatch.get(r.match) ?? "group");
 
   const sources = readingList(agent);
