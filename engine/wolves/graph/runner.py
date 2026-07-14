@@ -153,6 +153,19 @@ def _reset_forecast_copy_state(deps: AgentDeps) -> None:
     deps.submission.publication_blocked = False
 
 
+def _can_restore_prior_acceptance(deps: AgentDeps) -> bool:
+    state = deps.submission
+    return (
+        state.accepted is None
+        and state.last_accepted is not None
+        and not state.public_surface_contradiction
+        and (
+            not state.publishable_artifact_ids
+            or state.last_accepted.artifact_id in state.publishable_artifact_ids
+        )
+    )
+
+
 def _sync_publishable_artifacts(deps: AgentDeps, board: Blackboard) -> None:
     active = board.active_artifact_ids(kinds={"mixture", "forecast"})
     deps.submission.publishable_artifact_ids = active
@@ -377,14 +390,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
                 break
 
         # Restore before the final-chance block reads accepted is None.
-        if (
-            submission_state.accepted is None
-            and submission_state.last_accepted is not None
-            and (
-                not submission_state.publishable_artifact_ids
-                or submission_state.last_accepted.artifact_id in submission_state.publishable_artifact_ids
-            )
-        ):
+        if _can_restore_prior_acceptance(deps):
             logger.info("revision did not re-accept; publishing the prior accepted submission")
             submission_state.accepted = submission_state.last_accepted
 
@@ -392,6 +398,7 @@ async def run_graph(deps: AgentDeps, *, as_of: str, models: GraphModels) -> Grap
             submission_state.accepted is None
             and not submission_state.publication_blocked
             and not submission_state.referee_replan_required
+            and not submission_state.public_surface_contradiction
         ):
             # No wave remains to price an open branch, so coverage must not gate the reserve-funded last forecast.
             op = NodePatch(

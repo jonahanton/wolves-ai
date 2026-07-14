@@ -120,6 +120,7 @@ def validate_submission(
         issues += _check_coherence(payload)
         issues += _check_evidence_priced(submission, payload, ledger)
         issues += _check_weight_dilution(payload, limits)
+        issues += _check_elimination_claims(submission, titles)
         issues += _check_team_stories(
             submission,
             titles,
@@ -992,6 +993,8 @@ _HEADLINE_JARGON = re.compile(
     r"mixture-\d+|led-\d+|scn-\d+|evidence-\d+|retrieval-\d+)\b",
     re.IGNORECASE,
 )
+_ELIMINATION_CLAIM = r"(?:has|have|is|are|was|were)\s+(?:been\s+)?(?:eliminated|knocked\s+out)"
+_MEANINGFUL_TITLE_CHANCE = 0.0001
 _STORY_INTERNAL_COPY = re.compile(
     r"\b(artifact[s]?|n_sims|validator|governor|raw mixture|factor_audit|branch_audit|"
     r"quant|submit_forecast|check_forecast|ledger[- ]?id[s]?|scenario[-_ ]?id[s]?|run[-_ ]?id[s]?|"
@@ -1036,6 +1039,29 @@ def _check_headline(submission: ForecastSubmission, titles: dict[str, float]) ->
                 )
             )
         issues += _rank_copy_issues("headline", headline, titles)
+    return issues
+
+
+def _check_elimination_claims(submission: ForecastSubmission, titles: dict[str, float]) -> list[ValidationIssue]:
+    public_copy = " ".join(
+        [
+            submission.narrative.headline,
+            *(f"{story.summary} {story.why}" for story in submission.narrative.team_stories.values()),
+        ]
+    )
+    issues: list[ValidationIssue] = []
+    for team, chance in titles.items():
+        if chance <= _MEANINGFUL_TITLE_CHANCE:
+            continue
+        name = re.escape(team.replace("-", " "))
+        if re.search(rf"\b{name}\b[^.!?]{{0,80}}\b{_ELIMINATION_CLAIM}\b", public_copy, re.IGNORECASE):
+            issues.append(
+                _issue(
+                    "elimination_claim_conflicts_with_title_probability",
+                    f"public copy says {team} have been eliminated but the published title chance is "
+                    f"{chance * 100:.2f}%",
+                )
+            )
     return issues
 
 

@@ -18,6 +18,7 @@ from wolves.graph import runner as runner_module
 from wolves.graph.blackboard import Blackboard
 from wolves.graph.contracts import NodeOutcome, NodePatch
 from wolves.graph.runner import (
+    _can_restore_prior_acceptance,
     _has_registered_repair_mixture,
     _should_continue_after_acceptance,
     _sync_publishable_artifacts,
@@ -109,6 +110,14 @@ def test_superseded_last_accepted_submission_is_cleared(deps_with_premortem):
     _sync_publishable_artifacts(deps, board)
 
     assert deps.submission.last_accepted is None
+
+
+def test_public_surface_contradiction_prevents_revision_fallback(deps_with_premortem):
+    deps = deps_with_premortem
+    deps.submission.last_accepted = build_submission()
+    deps.submission.public_surface_contradiction = True
+
+    assert not _can_restore_prior_acceptance(deps)
 
 
 def test_quant_summary_without_mixture_does_not_complete_structural_repair(deps_with_premortem):

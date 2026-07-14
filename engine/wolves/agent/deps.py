@@ -61,6 +61,7 @@ class SubmissionState:
     structural_repair_signature: tuple[str, ...] | None = None
     structural_repair_attempts: int = 0
     publication_blocked: bool = False
+    public_surface_contradiction: bool = False
     escalation_fired: bool = False
     escalations: list[str] = field(default_factory=list)
     # The submission that validated clean but was withheld by the escalation
