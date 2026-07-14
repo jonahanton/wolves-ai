@@ -57,6 +57,7 @@ def _accept_forecast(
     deps.submission.structural_repair_required = False
     deps.submission.structural_repair_signature = None
     deps.submission.publication_blocked = False
+    deps.submission.public_surface_contradiction = False
     deps.submission.accepted = checked
     deps.submission.escalations = report.escalations
     deps.runtime.emit(
@@ -98,6 +99,10 @@ async def _submit_forecast(args: ForecastSubmission, deps: AgentDeps) -> ToolRes
     copy_repeats = note_copy_repair_state(report, deps)
     if not report.ok:
         deps.submission.checked_clean = None
+        if any(
+            issue.code == "elimination_claim_conflicts_with_title_probability" for issue in report.hard_issues
+        ):
+            deps.submission.public_surface_contradiction = True
         if structural := structural_repair_result(report, deps, artifact_id=checked.artifact_id):
             return structural
         # Copy issues are repair prompts; only hard issues spend a retry.

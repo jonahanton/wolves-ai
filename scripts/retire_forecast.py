@@ -48,6 +48,12 @@ def _agent_runs(bucket: str, profile: str | None, region: str, *, day_path: str 
     return sorted(match.group(1) for line in listing.splitlines() if (match := AGENT_SNAPSHOT.search(line)))
 
 
+def _repoint_latest(bucket: str, run_id: str, profile: str | None, region: str) -> None:
+    source = f"s3://{bucket}/snapshots/{_date_path(run_id)}/{run_id}.json"
+    target = f"s3://{bucket}/snapshots/latest.json"
+    _aws(["s3", "cp", source, target], profile, region)
+
+
 def _resolve_run_id(args: argparse.Namespace, bucket: str) -> str:
     if args.run_id:
         if not RUN_ID.fullmatch(args.run_id):
@@ -101,6 +107,8 @@ def main() -> None:
     if not args.dry_run:
         remaining = _agent_runs(bucket, args.profile, args.region)
         newest = remaining[-1] if remaining else None
+        if newest:
+            _repoint_latest(bucket, newest, args.profile, args.region)
         print(f"App will now serve agent forecast: {newest or '(none left; falls back to the daily sim snapshot)'}")
 
 

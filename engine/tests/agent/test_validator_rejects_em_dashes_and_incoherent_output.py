@@ -77,6 +77,22 @@ def test_headline_percentage_must_match_published_preview(store: RunArtifactStor
     assert "headline_probability_mismatch" in _codes(report)
 
 
+def test_elimination_copy_cannot_contradict_a_positive_title_chance(store: RunArtifactStore, ledger: EvidenceLedger):
+    submission = build_submission(narrative=build_narrative(headline="England have been eliminated by Argentina."))
+
+    report = _validate(submission, store, ledger, published_titles={"england": 0.216, "spain": 0.784})
+
+    assert "elimination_claim_conflicts_with_title_probability" in _codes(report)
+
+
+def test_elimination_risk_copy_remains_allowed(store: RunArtifactStore, ledger: EvidenceLedger):
+    submission = build_submission(narrative=build_narrative(headline="England face elimination if Argentina win."))
+
+    report = _validate(submission, store, ledger, published_titles={"england": 0.216, "spain": 0.784})
+
+    assert "elimination_claim_conflicts_with_title_probability" not in _codes(report)
+
+
 def test_headline_rank_claim_must_match_published_preview(store: RunArtifactStore, ledger: EvidenceLedger):
     headline = "Spain lead the field, France are second and England are fourth."
     submission = build_submission(narrative=build_narrative(headline=headline))
