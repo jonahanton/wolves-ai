@@ -13,7 +13,7 @@ import { loadPublishedAgentHistories, loadSnapshotIndex } from "@/lib/runs";
 import { loadDistributions } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
 
-const CHART_TEAM_COUNT = 4;
+const CHART_TEAM_IDS = ["france", "spain", "england", "argentina"];
 
 export default async function LandingPage() {
   const [result, indexResult] = await Promise.all([
@@ -37,9 +37,9 @@ export default async function LandingPage() {
   );
 
   const fullBoard = titleBoard(agentSnapshot, agentSnapshot.teams.length);
-  const board = fullBoard.slice(0, CHART_TEAM_COUNT);
+  const board = fullBoard.filter((row) => CHART_TEAM_IDS.includes(row.teamId));
   const leaderId = board[0]?.teamId ?? focusId;
-  const topIds = new Set([...board.map((row) => row.teamId), focusId]);
+  const topIds = new Set(board.map((row) => row.teamId));
   const allIds = agentSnapshot.teams
     .filter((t) => t.champion_prob !== undefined)
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))
