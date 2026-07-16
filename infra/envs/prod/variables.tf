@@ -55,7 +55,8 @@ variable "agent_schedule_windows" {
   default = [
     { name = "uk-opening", schedule_expression = "cron(30 6 * * ? *)", end = "2026-06-23T23:59:59Z" },
     { name = "us-trip", schedule_expression = "cron(0 10 * * ? *)", start = "2026-06-24T00:00:00Z", end = "2026-07-13T23:59:59Z" },
-    { name = "uk-finals", schedule_expression = "at(2026-07-20T06:30:00)" },
+    { name = "uk-finals", schedule_expression = "cron(30 6 * * ? *)" },
+    { name = "uk-final", schedule_expression = "at(2026-07-20T06:30:00)" },
   ]
 }
 
