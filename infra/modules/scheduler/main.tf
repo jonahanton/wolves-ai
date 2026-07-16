@@ -86,12 +86,12 @@ resource "aws_scheduler_schedule" "agent_daily" {
   name  = "${var.project}-agent-${each.key}"
   state = var.agent_initial_state
 
-  schedule_expression = each.value.cron
+  schedule_expression = each.value.schedule_expression
   start_date          = each.value.start
   end_date            = each.value.end
 
   lifecycle {
-    ignore_changes = [schedule_expression, state]
+    ignore_changes = [state]
   }
 
   flexible_time_window {

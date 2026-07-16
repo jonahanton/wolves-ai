@@ -63,11 +63,11 @@ variable "agent_initial_state" {
 }
 
 variable "agent_schedule_windows" {
-  description = "Date-windowed agent run crons so the morning run lands in the operator's local timezone."
+  description = "Agent schedules aligned to the operator's local timezone."
   type = list(object({
-    name  = string
-    cron  = string
-    start = optional(string)
-    end   = optional(string)
+    name                = string
+    schedule_expression = string
+    start               = optional(string)
+    end                 = optional(string)
   }))
 }
