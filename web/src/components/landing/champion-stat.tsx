@@ -12,6 +12,8 @@ interface ChampionStatProps {
 }
 
 const LONGSHOT = 0.005;
+// Rounds to 100.0%: the title is settled, so a "1 in N" ratio would be nonsense.
+const DECIDED = 0.9995;
 
 export function ChampionStat({ row, impact }: ChampionStatProps) {
   const freq = oneInN(row.prob);
@@ -20,6 +22,15 @@ export function ChampionStat({ row, impact }: ChampionStatProps) {
   const longshot = row.prob < LONGSHOT;
   const movement = impact ? impact.fromResultsPp + impact.fromIngamePp : 0;
   const showMovement = impact && Math.abs(movement) >= impact.displayFloorPp;
+
+  if (row.prob >= DECIDED) {
+    return (
+      <div className="text-center font-display text-[clamp(24px,3vw,38px)] font-extrabold tracking-[-0.02em]">
+        <span style={{ color: colour }}>{row.name}</span>{" "}
+        <span className="text-cream">are world champions</span>
+      </div>
+    );
+  }
 
   if (longshot) {
     return (
