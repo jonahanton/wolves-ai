@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import clsx from "clsx";
 import { useResolved } from "@/hooks/use-resolved";
 import { ChampionStat } from "@/components/landing/champion-stat";
 import { EpistemicDistribution } from "@/components/landing/epistemic-distribution";
@@ -111,7 +112,14 @@ export function LandingForecast(props: LandingForecastProps) {
             />
           </div>
 
-          <div className="mt-[clamp(8px,1.4vh,16px)] grid grid-cols-1 gap-x-[clamp(20px,3vw,44px)] lg:grid-cols-[1.25fr_1fr]">
+          <div
+            className={clsx(
+              "mt-[clamp(8px,1.4vh,16px)] grid grid-cols-1 gap-x-[clamp(20px,3vw,44px)]",
+              hasDistribution
+                ? "lg:grid-cols-[1.25fr_1fr]"
+                : "lg:grid-cols-[minmax(0,56%)] lg:justify-center",
+            )}
+          >
             <div className="min-w-0">
               <ForecastChart
                 data={data}
