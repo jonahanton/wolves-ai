@@ -32,15 +32,13 @@ Retired:
 
 The production S3 lifecycle now aborts incomplete multipart uploads after seven days and expires nothing. The production archive bucket, development bucket and Terraform state bucket were not deleted or emptied.
 
-The unused Lightsail static IP `jonah-agent-ip` (`3.11.48.247`) was released successfully in operation `c9ea9022-a25d-4a35-95a2-a4756b773805`.
-
 The retired GitHub release and run-control workflows were removed. Their scripts remain under `scripts/archived/`. Their four repository secrets and two repository variables were deleted after the AWS roles and security group ceased to exist.
 
 ## Verification
 
 - A post-apply Terraform plan reported no changes.
 - Terraform state contains only the production archive bucket data source and lifecycle resource.
-- No Wolves ECS cluster, active task definition, ECR repository, schedule, DynamoDB table, log group, IAM role, local IAM policy, OIDC provider or Lightsail static IP remains.
+- No Wolves ECS cluster, active task definition, ECR repository, schedule, DynamoDB table, log group, IAM role, local IAM policy or OIDC provider remains.
 - All nine Secrets Manager deletions requested a 30-day recovery window.
 - The retirement evidence object and verified archive release remain readable from the private production bucket.
 - `api.wolvesworldcup.com` no longer resolves and the Cloudflare tunnel is deleted.
@@ -48,6 +46,6 @@ The retired GitHub release and run-control workflows were removed. Their scripts
 
 ## Cost
 
-The account had accrued approximately USD 80 including tax during July, primarily from Fargate before the freeze. The confirmed USD 3.60 monthly Lightsail charge, approximately USD 3.60 monthly Secrets Manager charge and approximately USD 0.35 monthly ECR charge are retired.
+The account had accrued approximately USD 80 including tax during July, primarily from Fargate before the freeze. The approximately USD 3.60 monthly Secrets Manager charge and approximately USD 0.35 monthly ECR charge are retired.
 
 The remaining Wolves AWS run rate is approximately USD 0.10 per month before tax for about 3.62 GB across the production archive, development and Terraform state buckets. Cloudflare Pages and the domain zone are on free plans.
