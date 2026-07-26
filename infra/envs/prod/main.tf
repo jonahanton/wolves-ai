@@ -137,7 +137,6 @@ module "scheduler" {
   security_group_id            = module.engine.security_group_id
   state                        = var.schedule_state
   schedule_expression          = var.schedule_cron
-  agent_state                  = var.agent_schedule_state
   agent_schedule_windows       = var.agent_schedule_windows
 }
 

@@ -56,18 +56,22 @@ variable "schedule_expression" {
   type        = string
 }
 
-variable "agent_state" {
-  description = "Desired agent schedule state."
-  type        = string
-  default     = "DISABLED"
-}
-
 variable "agent_schedule_windows" {
   description = "Agent schedules aligned to the operator's local timezone."
   type = list(object({
     name                = string
     schedule_expression = string
+    state               = optional(string, "DISABLED")
     start               = optional(string)
     end                 = optional(string)
   }))
+
+  validation {
+    condition = alltrue([
+      for window in var.agent_schedule_windows :
+      contains(["ENABLED", "DISABLED"], window.state) &&
+      (window.state == "DISABLED" || (window.start != null && window.end != null))
+    ])
+    error_message = "Agent schedule state must be ENABLED or DISABLED, and enabled schedules require start and end bounds."
+  }
 }

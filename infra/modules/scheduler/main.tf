@@ -78,7 +78,7 @@ resource "aws_scheduler_schedule" "agent_daily" {
   for_each = { for window in var.agent_schedule_windows : window.name => window }
 
   name  = "${var.project}-agent-${each.key}"
-  state = var.agent_state
+  state = each.value.state
 
   schedule_expression = each.value.schedule_expression
   start_date          = each.value.start

@@ -33,22 +33,12 @@ variable "schedule_cron" {
   default     = "cron(0 11 * * ? *)"
 }
 
-variable "agent_schedule_state" {
-  description = "Desired agent schedule state."
-  type        = string
-  default     = "DISABLED"
-
-  validation {
-    condition     = contains(["ENABLED", "DISABLED"], var.agent_schedule_state)
-    error_message = "agent_schedule_state must be ENABLED or DISABLED."
-  }
-}
-
 variable "agent_schedule_windows" {
-  description = "Retained agent schedule definitions. Add future bounds before re-enabling an expired window."
+  description = "Retained agent schedule definitions. Set one bounded window to ENABLED for rollback."
   type = list(object({
     name                = string
     schedule_expression = string
+    state               = optional(string, "DISABLED")
     start               = optional(string)
     end                 = optional(string)
   }))
