@@ -2,11 +2,11 @@ import { LandingForecast } from "@/components/landing/landing-forecast";
 import { ArchiveDateControl } from "@/components/shell/archive-date-control";
 import { FestivalBand } from "@/components/walls/festival-band";
 import type { ArchiveDay, ArchiveDayPayload, ArchiveManifest } from "@/lib/archive/contracts";
+import { archiveHistories } from "@/lib/archive/view";
 import { titleBoard } from "@/lib/derive";
 import { cleanStories } from "@/lib/forecast";
 import type { ChartTeamInput } from "@/lib/forecast-series";
 import { formatRunStampEastern } from "@/lib/format";
-import type { TeamHistory } from "@/lib/runs";
 import { chartColour } from "@/lib/team-colours";
 
 interface ArchiveLandingPageProps {
@@ -69,21 +69,4 @@ export function ArchiveLandingPage({ manifest, day, payload }: ArchiveLandingPag
       </div>
     </>
   );
-}
-
-function archiveHistories(payload: ArchiveDayPayload, teamIds: string[]): Map<string, TeamHistory> {
-  const histories = new Map<string, TeamHistory>(teamIds.map((teamId) => [teamId, { teamId, points: [] }]));
-  for (const snapshot of payload.forecast_history) {
-    for (const team of snapshot.teams) {
-      const history = histories.get(team.team_id);
-      if (!history) continue;
-      history.points.push({
-        runId: snapshot.run.run_id,
-        asOf: snapshot.run.as_of ?? snapshot.run.created_at.slice(0, 10),
-        championProb: team.champion_prob ?? 0,
-        reachProbs: team.reach_probs ?? {},
-      });
-    }
-  }
-  return histories;
 }

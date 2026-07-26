@@ -13,14 +13,20 @@ const TABS = [
   { section: "fixtures", label: "Fixtures", Icon: Ticket },
 ];
 
-function archiveBase(pathname: string): string | null {
+function archiveBase(pathname: string, runDays: Record<string, string>): string | null {
   const match = /^\/archive\/(\d{4}-\d{2}-\d{2})/.exec(pathname);
-  return match ? `/archive/${match[1]}` : null;
+  if (match) return `/archive/${match[1]}`;
+  const runId = /^\/forecast\/([^/]+)/.exec(pathname)?.[1];
+  return runId && runDays[runId] ? `/archive/${runDays[runId]}` : null;
 }
 
-export function SiteNav() {
+interface SiteNavProps {
+  runDays: Record<string, string>;
+}
+
+export function SiteNav({ runDays }: SiteNavProps) {
   const pathname = usePathname();
-  const base = archiveBase(pathname);
+  const base = archiveBase(pathname, runDays);
   return (
     <header className="flex min-h-11 items-center py-1 sm:py-0">
       <div className="wrap flex w-full items-center justify-between">
@@ -35,7 +41,10 @@ export function SiteNav() {
         <nav className="flex items-center gap-3.5 sm:gap-5">
           {TABS.map(({ section, label, Icon }) => {
             const href = base ? `${base}/${section}` : `/${section}`;
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+            const active =
+              pathname === href ||
+              pathname.startsWith(`${href}/`) ||
+              (section === "forecast" && /^\/forecast\/[^/]+/.test(pathname));
             return (
               <Link
                 key={href}

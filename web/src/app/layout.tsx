@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { RouteProgress } from "@/components/shell/route-progress";
 import { SiteNav } from "@/components/shell/site-nav";
+import { loadArchiveManifest } from "@/lib/archive/load";
 import "./globals.css";
 
 const albert = localFont({
@@ -78,9 +79,13 @@ export const viewport: Viewport = {
   themeColor: "#1c1a17",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const manifest = await loadArchiveManifest();
+  const runDays = Object.fromEntries(
+    manifest.runs.map((run) => [run.run_id, run.archive_day]),
+  );
   return (
     <html
       lang="en-GB"
@@ -89,7 +94,7 @@ export default function RootLayout({
       <body>
         <RouteProgress />
         <div className="sticky top-0 z-30 bg-night/90">
-          <SiteNav />
+          <SiteNav runDays={runDays} />
         </div>
         {children}
       </body>

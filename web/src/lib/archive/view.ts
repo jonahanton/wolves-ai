@@ -1,6 +1,6 @@
 import type { ArchiveDayPayload } from "@/lib/archive/contracts";
 import type { PlayedResultRow } from "@/lib/results";
-import type { RunRecord } from "@/lib/runs";
+import type { RunRecord, TeamHistory } from "@/lib/runs";
 
 export function archiveResults(payload: ArchiveDayPayload): PlayedResultRow[] {
   return payload.results.map((result) => ({
@@ -29,4 +29,26 @@ export function archiveRunRecords(payload: ArchiveDayPayload): RunRecord[] {
         }]
       : [],
   );
+}
+
+export function archiveHistories(
+  payload: ArchiveDayPayload,
+  teamIds: string[],
+): Map<string, TeamHistory> {
+  const histories = new Map<string, TeamHistory>(
+    teamIds.map((teamId) => [teamId, { teamId, points: [] }]),
+  );
+  for (const snapshot of payload.forecast_history) {
+    for (const team of snapshot.teams) {
+      const history = histories.get(team.team_id);
+      if (!history) continue;
+      history.points.push({
+        runId: snapshot.run.run_id,
+        asOf: snapshot.run.as_of ?? snapshot.run.created_at.slice(0, 10),
+        championProb: team.champion_prob ?? 0,
+        reachProbs: team.reach_probs ?? {},
+      });
+    }
+  }
+  return histories;
 }
