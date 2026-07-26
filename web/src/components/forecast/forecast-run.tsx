@@ -14,6 +14,7 @@ import type { CampOut, ScenarioWeightOut, TeamDriver, TeamStoryOut } from "@/lib
 import type { CellShape } from "@/lib/sidecars";
 
 interface ForecastRunProps {
+  archiveDay: string;
   runStamp: string;
   phase: string | null;
   headline: string;
@@ -48,7 +49,7 @@ export function ForecastRun(props: ForecastRunProps) {
   return (
     <article className="mx-auto max-w-[680px]">
       <Link
-        href="/forecast"
+        href={`/archive/${props.archiveDay}/forecast`}
         className="flex items-center gap-1 font-display text-[13px] font-medium text-cream-faint transition-colors hover:text-cream-dim"
       >
         <ChevronLeft size={14} className="shrink-0" />

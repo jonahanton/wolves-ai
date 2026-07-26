@@ -5,11 +5,9 @@ import { useState } from "react";
 import { FixtureDay } from "@/components/fixtures/fixture-day";
 import { FixtureRow } from "@/components/fixtures/fixture-row";
 import type { FixtureRow as Row, StageSection as Section } from "@/lib/fixtures";
-import type { Impact } from "@/lib/impact";
 
 interface StageSectionProps {
   section: Section;
-  impact: Impact | null;
   open: boolean;
   onToggle: () => void;
   openDay: string | null;
@@ -17,7 +15,7 @@ interface StageSectionProps {
   muted?: boolean;
 }
 
-export function StageSection({ section, impact, open, onToggle, openDay, onToggleDay, muted = false }: StageSectionProps) {
+export function StageSection({ section, open, onToggle, openDay, onToggleDay, muted = false }: StageSectionProps) {
   const [everOpened, setEverOpened] = useState(false);
   if (open && !everOpened) setEverOpened(true);
   return (
@@ -45,11 +43,11 @@ export function StageSection({ section, impact, open, onToggle, openDay, onToggl
             (section.layout === "days" ? (
               <div className="pt-1">
                 {section.days.map((day) => (
-                  <FixtureDay key={day.dayKey} day={day} open={openDay === day.dayKey} onToggle={() => onToggleDay(day.dayKey)} impact={impact} />
+                  <FixtureDay key={day.dayKey} day={day} open={openDay === day.dayKey} onToggle={() => onToggleDay(day.dayKey)} />
                 ))}
               </div>
             ) : (
-              <FlatRows rows={section.rows} impact={impact} />
+              <FlatRows rows={section.rows} />
             ))}
         </div>
       </div>
@@ -57,7 +55,7 @@ export function StageSection({ section, impact, open, onToggle, openDay, onToggl
   );
 }
 
-function FlatRows({ rows, impact }: { rows: Row[]; impact: Impact | null }) {
+function FlatRows({ rows }: { rows: Row[] }) {
   return (
     <ul>
       {rows.map((row, i) => {
@@ -70,7 +68,7 @@ function FlatRows({ rows, impact }: { rows: Row[]; impact: Impact | null }) {
               </p>
             )}
             <ul>
-              <FixtureRow row={row} impact={impact} />
+              <FixtureRow row={row} />
             </ul>
           </li>
         );

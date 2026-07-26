@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { Suspense } from "react";
-import { LiveDigestSection } from "@/components/shell/live-digest-section";
-import { LiveDigestSkeleton } from "@/components/shell/live-digest-skeleton";
 import { RouteProgress } from "@/components/shell/route-progress";
 import { SiteNav } from "@/components/shell/site-nav";
 import "./globals.css";
@@ -55,7 +52,7 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://wolvesworldcup.com";
 const TITLE = "WWC26 Superforecaster";
 const DESCRIPTION =
-  "Trying to forecast the 2026 World Cup using lots of bayesian stats, data and AI";
+  "An archive of the Wolves' World Cup 2026 forecast history.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -93,11 +90,8 @@ export default function RootLayout({
         <RouteProgress />
         <div className="sticky top-0 z-30 bg-night/90">
           <SiteNav />
-          <Suspense fallback={<LiveDigestSkeleton />}>
-            <LiveDigestSection />
-          </Suspense>
         </div>
-        <main>{children}</main>
+        {children}
       </body>
     </html>
   );

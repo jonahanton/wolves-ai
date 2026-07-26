@@ -1,0 +1,17 @@
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; font-src 'self'; connect-src 'self'; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/archive/days/*.json
+  Cache-Control: public, max-age=31536000, immutable
+
+/archive/runs/*.json
+  Cache-Control: public, max-age=31536000, immutable
+
+/archive/manifest.json
+  Cache-Control: public, max-age=300, must-revalidate

@@ -5,9 +5,7 @@ import { MeanModeNote } from "@/components/teams/mean-mode-note";
 import { MetricTabs } from "@/components/teams/metric-tabs";
 import { TeamRow } from "@/components/teams/team-row";
 import { useFlipReorder } from "@/hooks/use-flip-reorder";
-import { useResolved } from "@/hooks/use-resolved";
 import type { BoardRow } from "@/lib/derive";
-import type { Impact } from "@/lib/impact";
 import { METRICS, type MetricKey, metricValue } from "@/lib/metrics";
 import type { PlayedResultRow } from "@/lib/results";
 import type { PairingMatrices } from "@/lib/sidecars";
@@ -19,7 +17,6 @@ interface TeamBoardProps {
   reachProbs: Record<string, Record<string, number>>;
   rounds: PairingMatrices["rounds"];
   results: PlayedResultRow[];
-  impactPromise: Promise<Impact | null>;
 }
 
 const DEFAULT_COUNT = 12;
@@ -31,9 +28,7 @@ export function TeamBoard({
   reachProbs,
   rounds,
   results,
-  impactPromise,
 }: TeamBoardProps) {
-  const impact = useResolved(impactPromise, null);
   const [openTeamId, setOpenTeamId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [metric, setMetric] = useState<MetricKey>("champion");
@@ -95,7 +90,6 @@ export function TeamBoard({
             rounds={rounds}
             results={results}
             names={names}
-            impact={impact?.teams[row.teamId] ?? null}
           />
         ))}
       </ol>

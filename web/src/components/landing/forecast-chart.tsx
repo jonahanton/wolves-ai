@@ -8,7 +8,6 @@ import "d3-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import {
-  type ChartImpactPoint,
   type ChartPoint,
   type ForecastChartData,
   type TeamLine,
@@ -21,7 +20,6 @@ interface ForecastChartProps {
   othersCount: number;
   onSelectTeam: (teamId: string) => void;
   ariaLabel: string;
-  impacts?: Record<string, ChartImpactPoint> | null;
 }
 
 interface HoverState {
@@ -37,7 +35,6 @@ const MOBILE_MARGIN = { top: 18, right: 64, bottom: 34, left: 10 };
 const MOBILE_BREAK = 560;
 const RESULT_LANE_START_PX = 5;
 const RESULT_LANE_PX = 16;
-const ESTIMATE_LANE_PX = 18;
 
 const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.42)";
 const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
@@ -47,27 +44,6 @@ const RESULT_TICK = "oklch(0.965 0.008 95 / 0.5)";
 
 function formatValue(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
-}
-
-interface ImpactLegs {
-  net: number;
-  resultsPp: number;
-  ingamePp: number;
-}
-
-function impactLegs(
-  impacts: Record<string, ChartImpactPoint> | null,
-  teamId: string,
-): ImpactLegs | null {
-  const impact = impacts?.[teamId];
-  if (!impact) return null;
-  const net = impact.fromResultsPp + impact.fromIngamePp;
-  if (Math.abs(net) < impact.displayFloorPp) return null;
-  return {
-    net,
-    resultsPp: impact.fromResultsPp,
-    ingamePp: impact.fromIngamePp,
-  };
 }
 
 function formatTick(t: number): string {
@@ -94,7 +70,6 @@ export function ForecastChart({
   othersCount,
   onSelectTeam,
   ariaLabel,
-  impacts = null,
 }: ForecastChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -152,16 +127,7 @@ export function ForecastChart({
     () => (hasResults ? Math.max(...data.results.map((r) => r.t)) : 0),
     [data.results, hasResults],
   );
-  const selectedTeam = lines.find((team) => team.teamId === selectedTeamId) ?? null;
-  const selectedLegs = useMemo(
-    () => (selectedTeam ? impactLegs(impacts, selectedTeamId) : null),
-    [selectedTeam, impacts, selectedTeamId],
-  );
-  const deltaGutter = selectedLegs ? (mobile ? 52 : 62) : 0;
-  const margin = useMemo(() => {
-    const m = mobile ? MOBILE_MARGIN : MARGIN;
-    return { ...m, right: m.right + deltaGutter };
-  }, [mobile, deltaGutter]);
+  const margin = mobile ? MOBILE_MARGIN : MARGIN;
 
   const { x, posScale, y, runTimes, lastRunTime } = useMemo(() => {
     const linePoints = lines.flatMap((team) => team.points);
@@ -517,7 +483,6 @@ export function ForecastChart({
     lines,
     envelope,
     selectedTeamId,
-    selectedLegs,
     lastRunTime,
     onSelectTeam,
     x,
@@ -644,19 +609,6 @@ export function ForecastChart({
     return rows;
   }, [topLines, selectedTeamId, x, y, width, empty, envelope, height, margin]);
 
-  const estimateMarker = useMemo(() => {
-    const last = selectedTeam?.points.at(-1);
-    if (!selectedLegs || !selectedTeam || !last || lastRunTime === null) return null;
-    const up = selectedLegs.net > 0;
-    return {
-      ax: x(lastRunTime) + 7,
-      ay: y(last.value),
-      up,
-      colour: selectedTeam.colour,
-      label: `${up ? "+" : ""}${selectedLegs.net.toFixed(1)}pp`,
-    };
-  }, [selectedTeam, selectedLegs, lastRunTime, x, y]);
-
   function onPointerMove(event: React.PointerEvent<SVGRectElement>) {
     if (!runTimes.length || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -715,7 +667,7 @@ export function ForecastChart({
               key="others"
               className="pointer-events-none absolute -translate-y-1/2 font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint transition-opacity duration-300"
               style={{
-                left: group.anchorX + 13 + deltaGutter,
+                left: group.anchorX + 13,
                 top: group.anchorY,
                 opacity: intro ? 1 : 0,
               }}
@@ -730,7 +682,7 @@ export function ForecastChart({
             key={group.value + group.teams[0].teamId}
             className="absolute flex -translate-y-1/2 flex-col items-start gap-y-2 text-left leading-none transition-opacity duration-300"
             style={{
-              left: group.anchorX + 13 + deltaGutter,
+              left: group.anchorX + 13,
               top: group.anchorY,
               opacity: intro ? (emphasised ? 1 : 0.7) : 0,
               zIndex: emphasised ? 3 : 1,
@@ -761,49 +713,6 @@ export function ForecastChart({
           </div>
         );
       })}
-      {selectedLegs && selectedTeam && lastRunTime !== null && (
-        <div
-          className="pointer-events-none absolute z-10 whitespace-nowrap text-right transition-opacity duration-300"
-          style={{
-            right: Math.max(8, width - (x(lastRunTime) + ESTIMATE_LANE_PX + 28)),
-            top: 2,
-            opacity: intro ? 1 : 0,
-          }}
-        >
-          <span
-            className="block font-display text-[11px] font-bold leading-tight tracking-[0.01em]"
-            style={{ color: selectedTeam.colour }}
-          >
-            {teamCode(selectedTeam.name)} est. shift
-          </span>
-          <span className="block font-display text-[10px] font-medium leading-tight tracking-[0.01em] text-cream-faint">
-            from latest results
-          </span>
-        </div>
-      )}
-      {estimateMarker && (
-        <div
-          className="pointer-events-none absolute z-20 flex -translate-y-1/2 items-center gap-1 transition-opacity duration-300"
-          style={{
-            left: estimateMarker.ax,
-            top: estimateMarker.ay,
-            opacity: intro ? 1 : 0,
-          }}
-        >
-          <svg width="9" height="9" viewBox="0 0 9 9" className="shrink-0">
-            <path
-              d={estimateMarker.up ? "M4.5,0 L9,9 L0,9 Z" : "M4.5,9 L9,0 L0,0 Z"}
-              fill={estimateMarker.colour}
-            />
-          </svg>
-          <span
-            className="font-mono text-[11.5px] font-bold tabular-nums"
-            style={{ color: estimateMarker.colour }}
-          >
-            {estimateMarker.label}
-          </span>
-        </div>
-      )}
       {empty && width > 0 && (
         <p className="absolute inset-0 flex items-center font-display text-[14px] text-cream-faint">
           no published forecasts yet

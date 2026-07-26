@@ -1,21 +1,16 @@
 "use client";
 
-import { easeCubicInOut } from "d3-ease";
 import { scaleLinear } from "d3-scale";
 import { curveMonotoneX, line as d3Line } from "d3-shape";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Accent, ChartHeading } from "@/components/teams/chart-heading";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
-import { EstimateToggle } from "@/components/shell/estimate-toggle";
-import type { TeamImpact } from "@/lib/impact";
 import { type ExitStageBar, exitStageBars, meanStageIndex, modeBar, settledBar } from "@/lib/reach";
-import { teamCode } from "@/lib/team-colours";
 
 interface ExitStageHistogramProps {
   reachProbs: Record<string, number>;
   colour: string;
   teamName: string;
-  impact: TeamImpact | null;
 }
 
 const HEIGHT = 132;
@@ -38,88 +33,15 @@ function pct(p: number): string {
   return `${(p * 100).toFixed(1)}%`;
 }
 
-interface StageShiftProps {
-  colour: string;
-  active: boolean;
-  agent: ExitStageBar;
-  estimate: ExitStageBar;
-  shownNoun: string;
-}
-
-function Arrowed({ colour, from, to }: { colour: string; from: string; to: string }) {
-  return (
-    <span className="whitespace-nowrap font-semibold" style={{ color: colour }}>
-      <span className="text-cream-faint">{from}</span>
-      <span className="mx-0.5">&rarr;</span>
-      {to}
-    </span>
-  );
-}
-
-// One leg of the heading: morphs the noun if the typical round changed, else the %.
-function StageShift({ colour, active, agent, estimate, shownNoun }: StageShiftProps) {
-  if (!active) {
-    return (
-      <>
-        <Accent colour={colour}>{shownNoun}</Accent> (<Accent colour={colour}>{pct(agent.p)}</Accent>)
-      </>
-    );
-  }
-  if (agent.key !== estimate.key) {
-    return (
-      <>
-        <Arrowed colour={colour} from={agent.noun} to={estimate.noun} /> (<Accent colour={colour}>{pct(estimate.p)}</Accent>)
-      </>
-    );
-  }
-  return (
-    <>
-      <Accent colour={colour}>{shownNoun}</Accent> (<Arrowed colour={colour} from={pct(agent.p)} to={pct(estimate.p)} />)
-    </>
-  );
-}
-
-export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: ExitStageHistogramProps) {
+export function ExitStageHistogram({ reachProbs, colour, teamName }: ExitStageHistogramProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hover, setHover] = useState<Hover | null>(null);
-  const [showEstimate, setShowEstimate] = useState(false);
-  const [blend, setBlend] = useState(0);
 
-  const agentBars = useMemo(() => exitStageBars(reachProbs), [reachProbs]);
-  const estimateBars = useMemo<ExitStageBar[]>(
-    () => agentBars.map((b) => ({ ...b, p: Math.max(0, impact?.exit[b.key]?.estimated ?? b.p) })),
-    [agentBars, impact],
-  );
-  const hasEstimate = useMemo(
-    () =>
-      agentBars.some((b) => {
-        const stage = impact?.exit[b.key];
-        return stage && Math.abs(stage.fromResultsPp + stage.fromIngamePp) >= stage.displayFloorPp;
-      }),
-    [agentBars, impact],
-  );
-
-  const bars = useMemo<ExitStageBar[]>(
-    () => agentBars.map((b, i) => ({ ...b, p: b.p + (estimateBars[i].p - b.p) * blend })),
-    [agentBars, estimateBars, blend],
-  );
+  const bars = useMemo(() => exitStageBars(reachProbs), [reachProbs]);
   const settled = useMemo(() => settledBar(bars), [bars]);
   const meanIndex = useMemo(() => meanStageIndex(bars), [bars]);
   const mode = useMemo(() => modeBar(bars), [bars]);
-  const active = blend > 0.001;
-
-  const agentMeanBar = useMemo(() => agentBars[Math.round(meanStageIndex(agentBars))], [agentBars]);
-  const agentMode = useMemo(() => modeBar(agentBars), [agentBars]);
-  const estMeanBar = useMemo(() => estimateBars[Math.round(meanStageIndex(estimateBars))], [estimateBars]);
-  const estMode = useMemo(() => modeBar(estimateBars), [estimateBars]);
-
-  // Track the live blend so a mid-flight toggle eases from where it is.
-  const blendRef = useRef(blend);
-  useEffect(() => {
-    blendRef.current = blend;
-  }, [blend]);
-
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -128,33 +50,12 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
     return () => ro.disconnect();
   }, []);
 
-  useEffect(() => {
-    const target = showEstimate ? 1 : 0;
-    const reduce =
-      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const duration = reduce ? 0 : 520;
-    let raf = 0;
-    let start = 0;
-    const from = blendRef.current;
-    const tick = (ts: number) => {
-      if (!start) start = ts;
-      const k = duration === 0 ? 1 : Math.min(1, (ts - start) / duration);
-      setBlend(from + (target - from) * easeCubicInOut(k));
-      if (k < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [showEstimate]);
-
   const plotLeft = AXIS_W;
   const inner = Math.max(0, width - plotLeft - PAD_R);
   const step = bars.length > 0 ? inner / bars.length : 0;
   const barW = Math.max(2, step);
-  // The full "Champion"/"Groups" labels collide once a column is this narrow.
   const compactAxis = step < 54;
   const colX = (i: number): number => plotLeft + step * (i + 0.5);
-  // Scale to the tallest bar so a low-ceiling distribution still fills the panel,
-  // never beyond 100%; headroom leaves room for the caption above the mode.
   const yMax = Math.min(1, Math.max(...bars.map((b) => b.p), 0.01) * Y_HEADROOM);
   const y = scaleLinear().domain([0, yMax]).range([TOP + HEIGHT, TOP]);
 
@@ -170,8 +71,6 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
   const meanBar = bars[meanRoundIndex];
   const modeIndex = bars.indexOf(mode);
   const showMarkers = !settled && width > 0;
-  // Adjacent mean and mode captions collide on one line; stack the mean caption
-  // a row higher so the pair stays legible without running off the chart edge.
   const stackMarkers = showMarkers && modeIndex !== meanRoundIndex && Math.abs(modeIndex - meanRoundIndex) === 1;
 
   return (
@@ -185,20 +84,13 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
           ) : (
             <>
               On average <Accent colour={colour}>{teamName}</Accent> exit in{" "}
-              <StageShift colour={colour} active={active} agent={agentMeanBar} estimate={estMeanBar} shownNoun={meanBar?.noun ?? ""} />.
-              Their most common exit is{" "}
-              <StageShift colour={colour} active={active} agent={agentMode} estimate={estMode} shownNoun={mode.noun} />.
+              <Accent colour={colour}>{meanBar?.noun ?? ""}</Accent> (
+              <Accent colour={colour}>{pct(meanBar?.p ?? 0)}</Accent>). Their most common exit is{" "}
+              <Accent colour={colour}>{mode.noun}</Accent> (
+              <Accent colour={colour}>{pct(mode.p)}</Accent>).
             </>
           )}
         </ChartHeading>
-        {hasEstimate && (
-          <EstimateToggle
-            on={showEstimate}
-            onToggle={() => setShowEstimate((v) => !v)}
-            colour={colour}
-            code={teamCode(teamName)}
-          />
-        )}
       </div>
 
       <svg
@@ -227,8 +119,6 @@ export function ExitStageHistogram({ reachProbs, colour, teamName, impact }: Exi
           const isMean = showMarkers && i === meanRoundIndex;
           const isSettled = settled !== null && settled.key === b.key;
           const caption = isMode && isMean ? "Mean · Mode" : isMode ? "Mode" : isMean ? "Mean" : "";
-          // Keep the caption centred on its bar; only nudge it inward when centring
-          // would run it past the canvas edge (long captions on the outer bars).
           const captionHalfW = (caption.length * 7.2) / 2;
           const captionX = Math.min(Math.max(cx, captionHalfW), width - PAD_R - captionHalfW);
           const captionY = y(b.p) - (stackMarkers && isMean ? 32 : 20);

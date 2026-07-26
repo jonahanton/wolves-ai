@@ -3,25 +3,21 @@
 import { oneInN } from "@/lib/distribution";
 import type { BoardRow } from "@/lib/derive";
 import { useCountUp } from "@/hooks/use-count-up";
-import type { ImpactStage } from "@/lib/impact";
 import { chartColour } from "@/lib/team-colours";
 
 interface ChampionStatProps {
   row: BoardRow;
-  impact?: ImpactStage;
 }
 
 const LONGSHOT = 0.005;
 // Rounds to 100.0%: the title is settled, so a "1 in N" ratio would be nonsense.
 const DECIDED = 0.9995;
 
-export function ChampionStat({ row, impact }: ChampionStatProps) {
+export function ChampionStat({ row }: ChampionStatProps) {
   const freq = oneInN(row.prob);
   const colour = chartColour(row.teamId);
   const denominator = useCountUp(freq?.denominator ?? 1, 1);
   const longshot = row.prob < LONGSHOT;
-  const movement = impact ? impact.fromResultsPp + impact.fromIngamePp : 0;
-  const showMovement = impact && Math.abs(movement) >= impact.displayFloorPp;
 
   if (row.prob >= DECIDED) {
     return (
@@ -53,19 +49,6 @@ export function ChampionStat({ row, impact }: ChampionStatProps) {
           {row.name} are world champions
         </span>
       </div>
-      {showMovement && (
-        <div className="mt-1 animate-[fade-in_320ms_ease-out] font-display text-[12.5px] font-medium text-cream-faint motion-reduce:animate-none">
-          Now{" "}
-          <span className="font-mono tabular-nums" style={{ color: colour }}>
-            {(impact.estimated * 100).toFixed(1)}%
-          </span>{" "}
-          <span className="tabular-nums" style={{ color: colour }}>
-            (<span className="text-[9px]">{movement > 0 ? "▲" : "▼"}</span>
-            <span className="font-mono">{Math.abs(movement).toFixed(1)}pp</span>)
-          </span>{" "}
-          on latest results
-        </div>
-      )}
     </div>
   );
 }

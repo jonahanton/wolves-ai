@@ -7,5 +7,5 @@ interface ErrorProps {
 }
 
 export default function Error({ reset }: ErrorProps) {
-  return <ErrorState error={{ category: "offline" }} onRetry={reset} />;
+  return <ErrorState error="unexpected" onRetry={reset} />;
 }
