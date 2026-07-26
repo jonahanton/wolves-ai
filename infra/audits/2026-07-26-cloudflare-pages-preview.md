@@ -29,7 +29,7 @@ The release contained 74 verified objects, 38 archive days and 33 current agent 
 
 No Pages custom domain is attached. The current public site remains on Vercel:
 
-- `wolvesworldcup.com`: `A 216.150.1.129`, `A 216.150.16.129`
+- `wolvesworldcup.com`: flattened `CNAME 291b7b3f19208db1.vercel-dns-016.com`
 - `www.wolvesworldcup.com`: `CNAME 291b7b3f19208db1.vercel-dns-016.com`
 
 Before cutover, deploy the verified build to the Pages production branch and confirm it matches this preview. Attach the apex and `www` domains only with explicit operator approval. Preserve the DNS values above for immediate rollback and retain the Vercel deployment until the observation period ends.
