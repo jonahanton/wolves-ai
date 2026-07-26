@@ -46,18 +46,18 @@ variable "security_group_id" {
   type = string
 }
 
-variable "initial_state" {
-  description = "Creation-time schedule state; runtime flips go through UpdateSchedule and are never reconciled."
+variable "state" {
+  description = "Desired schedule state."
   type        = string
 }
 
-variable "initial_cron" {
-  description = "Creation-time cron; runtime edits go through UpdateSchedule and are never reconciled."
+variable "schedule_expression" {
+  description = "Desired daily schedule expression."
   type        = string
 }
 
-variable "agent_initial_state" {
-  description = "Creation-time agent schedule state."
+variable "agent_state" {
+  description = "Desired agent schedule state."
   type        = string
   default     = "DISABLED"
 }

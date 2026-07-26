@@ -106,16 +106,13 @@ Set the GitHub secret `BACKEND_URL` to `http://<ip>:8080`. Known limitation: thi
 
 ### 10. Enable the schedules
 
-Schedule state is runtime-owned (`ignore_changes`), so terraform will not flip it after creation.
-
-- Daily run: `schedule-control.yml` with `enabled=true`, or the backend admin API directly.
-- Agent windows: `aws scheduler get-schedule --name <name>`, then `update-schedule --state ENABLED` re-submitting the existing expression, window, and target.
+Set `schedule_state` and `agent_schedule_state` to `ENABLED`, add future bounds to expired agent windows, then apply Terraform.
 
 The live loop and odds archive run inside the backend process and need no schedule; they start with the service.
 
 ## Run schedules and policy
 
-EventBridge schedules launch engine tasks, all created DISABLED and runtime-owned (`ignore_changes`):
+EventBridge schedules launch engine tasks and Terraform owns their state:
 
 | Schedule | Task | Configuration |
 | --- | --- | --- |
@@ -132,7 +129,7 @@ The `run_policy` variable in `infra/envs/prod/variables.tf` is the spend-policy 
 uv run --project engine python -m wolves.run_policy
 ```
 
-The agent and live schedules ship DISABLED (same first-apply safety as the others). Enable them the same way as the odds archive in step 10: `aws scheduler get-schedule --name <name>`, then `update-schedule --state ENABLED` re-submitting the existing expression, window, and target.
+The agent schedules ship disabled. Enable them through the Terraform variables in step 10.
 
 ## Kill-switch reset
 

@@ -1,6 +1,8 @@
 alert_email        = "jonahlouisanton@gmail.com"
 monthly_budget_usd = 100
 
-# Live prod posture: the backend runs fronted by the cloudflared tunnel.
-backend_desired_count = 1
+# Static archive freeze retains the runtime for rollback without running it.
+schedule_state        = "DISABLED"
+agent_schedule_state  = "DISABLED"
+backend_desired_count = 0
 enable_tunnel         = true
