@@ -79,8 +79,8 @@ export function ArchiveDateControl({ days, selectedDay, section }: ArchiveDateCo
       </aside>
       {pendingDay && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-night/85 px-6 backdrop-blur-md">
-          <div className="w-full max-w-sm rounded-2xl border border-hairline bg-night-2/95 px-8 shadow-2xl">
-            <ForecastLoader label={`Teleporting to as of ${formatTeleportDay(pendingDay)}…`} />
+          <div className="w-full max-w-sm rounded-2xl bg-night-2/95 px-8 shadow-2xl">
+            <ForecastLoader label={`Teleporting to ${formatTeleportDay(pendingDay)}…`} />
           </div>
         </div>
       )}
