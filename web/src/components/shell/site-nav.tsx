@@ -3,36 +3,48 @@
 import { ShieldHalf, Ticket } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { EtClock } from "@/components/shell/et-clock";
 import { GithubLink } from "@/components/shell/github-link";
 import { NavLink } from "@/components/shell/nav-link";
 import { WolfIcon } from "@/components/shell/wolf-icon";
 
 const TABS = [
-  { href: "/forecast", label: "Forecasts", Icon: WolfIcon },
-  { href: "/teams", label: "Teams", Icon: ShieldHalf },
-  { href: "/fixtures", label: "Fixtures", Icon: Ticket },
+  { section: "forecast", label: "Forecasts", Icon: WolfIcon },
+  { section: "teams", label: "Teams", Icon: ShieldHalf },
+  { section: "fixtures", label: "Fixtures", Icon: Ticket },
 ];
 
-export function SiteNav() {
+function archiveBase(pathname: string, runDays: Record<string, string>): string | null {
+  const match = /^\/archive\/(\d{4}-\d{2}-\d{2})/.exec(pathname);
+  if (match) return `/archive/${match[1]}`;
+  const runId = /^\/forecast\/([^/]+)/.exec(pathname)?.[1];
+  return runId && runDays[runId] ? `/archive/${runDays[runId]}` : null;
+}
+
+interface SiteNavProps {
+  runDays: Record<string, string>;
+}
+
+export function SiteNav({ runDays }: SiteNavProps) {
   const pathname = usePathname();
+  const base = archiveBase(pathname, runDays);
   return (
     <header className="flex min-h-11 items-center py-1 sm:py-0">
       <div className="wrap flex w-full items-center justify-between">
-        <div className="flex items-baseline gap-2.5">
+        <div className="flex items-baseline">
           <Link
-            href="/"
+            href={base ?? "/"}
             className="whitespace-nowrap font-display text-[17px] font-semibold tracking-[-0.01em] text-cream transition-colors hover:text-cream-dim sm:text-[16px]"
           >
             WWC26<span className="hidden sm:inline"> Superforecaster</span>
           </Link>
-          <span className="hidden sm:flex">
-            <EtClock />
-          </span>
         </div>
         <nav className="flex items-center gap-3.5 sm:gap-5">
-          {TABS.map(({ href, label, Icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+          {TABS.map(({ section, label, Icon }) => {
+            const href = base ? `${base}/${section}` : `/${section}`;
+            const active =
+              pathname === href ||
+              pathname.startsWith(`${href}/`) ||
+              (section === "forecast" && /^\/forecast\/[^/]+/.test(pathname));
             return (
               <Link
                 key={href}

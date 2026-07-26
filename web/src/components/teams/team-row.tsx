@@ -6,7 +6,6 @@ import { ExitStageHistogram } from "@/components/teams/exit-stage-histogram";
 import { OpponentDraw } from "@/components/teams/opponent-draw";
 import type { BoardRow } from "@/lib/derive";
 import { formatPct1 } from "@/lib/format";
-import type { TeamImpact } from "@/lib/impact";
 import type { PlayedResultRow } from "@/lib/results";
 import type { PairingMatrices } from "@/lib/sidecars";
 import { chartColour } from "@/lib/team-colours";
@@ -21,11 +20,10 @@ interface TeamRowProps {
   rounds: PairingMatrices["rounds"];
   results: PlayedResultRow[];
   names: Record<string, string>;
-  impact: TeamImpact | null;
 }
 
 export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
-  { rank, row, value, open, onToggle, reachProbs, rounds, results, names, impact },
+  { rank, row, value, open, onToggle, reachProbs, rounds, results, names },
   ref,
 ) {
   const colour = chartColour(row.teamId);
@@ -118,7 +116,6 @@ export const TeamRow = forwardRef<HTMLLIElement, TeamRowProps>(function TeamRow(
                     reachProbs={reachProbs}
                     colour={colour}
                     teamName={row.name}
-                    impact={impact}
                   />
                 ) : (
                   <OpponentDraw

@@ -1,12 +1,10 @@
 import { gridX, samplesToBars, samplesToCurve, type WdlShape } from "@/lib/distribution";
-import type { LiveWdlDraws, WdlKeyframe } from "@/lib/impact";
-import { type LiveFixture, type LiveState, liveIsFresh } from "@/lib/live";
 import type { PlayedResultRow } from "@/lib/results";
 import type { MatchWdlDraws } from "@/lib/sidecars";
 import type { MatchProbs, Slot } from "@/lib/snapshot";
 import { type RowColours, chartColour, resolveWdlColours, teamCode } from "@/lib/team-colours";
 
-export type FixtureStatus = "upcoming" | "live" | "completed";
+export type FixtureStatus = "upcoming" | "completed";
 
 export interface WdlMeans {
   home: number;
@@ -45,7 +43,6 @@ export interface FixtureRow {
   awayCode: string;
   homeGoals: number | null;
   awayGoals: number | null;
-  minute: number | null;
   bar: WdlMeans | null;
   shape: WdlShape | null;
   colours: RowColours;
@@ -108,47 +105,6 @@ function shapeFor(draws: MatchWdlDraws | null, match: number): WdlShape | null {
   return wdlShape(cell.p_home, cell.p_draw, cell.p_away);
 }
 
-export function liveWdlShape(draws: LiveWdlDraws | null): WdlShape | null {
-  if (!draws || draws.pHome.length === 0) return null;
-  return wdlShape(draws.pHome, draws.pDraw, draws.pAway);
-}
-
-export interface WdlFrame {
-  minute: number;
-  homeGoals: number;
-  awayGoals: number;
-  shape: WdlShape;
-}
-
-// Goal-stepped keyframes when the backend supplies them; otherwise a single live
-// frame from the current spread, so the curve survives a backend/frontend skew.
-export function liveWdlFrames(
-  fixture: { wdlKeyframes: WdlKeyframe[]; wdlDraws: LiveWdlDraws | null } | null,
-  minute: number | null,
-  homeGoals: number | null,
-  awayGoals: number | null,
-): WdlFrame[] {
-  const keyframes = (fixture?.wdlKeyframes ?? []).filter((k) => k.wdl.pHome.length > 0);
-  if (keyframes.length > 0) {
-    return keyframes.map((k) => ({
-      minute: k.minute,
-      homeGoals: k.homeGoals,
-      awayGoals: k.awayGoals,
-      shape: wdlShape(k.wdl.pHome, k.wdl.pDraw, k.wdl.pAway),
-    }));
-  }
-  const live = liveWdlShape(fixture?.wdlDraws ?? null);
-  if (!live) return [];
-  return [
-    {
-      minute: minute ?? 0,
-      homeGoals: homeGoals ?? 0,
-      awayGoals: awayGoals ?? 0,
-      shape: live,
-    },
-  ];
-}
-
 function wdlShape(home: number[], draw: number[], away: number[]): WdlShape {
   return {
     home: { curve: samplesToCurve(home, GRID), bars: samplesToBars(home), samples: home.length },
@@ -171,26 +127,21 @@ function candidateSide(side: { label: string; candidates: { team_id: string; pro
 
 function buildRow(
   match: MatchProbs,
-  live: LiveFixture | null,
   result: PlayedResultRow | null,
   slot: Slot | null,
   draws: MatchWdlDraws | null,
   names: Record<string, string>,
 ): FixtureRow {
   const knockout = match.stage !== "group";
-  const status: FixtureStatus = live ? "live" : result ? "completed" : "upcoming";
-  const resolved = Boolean(result || live);
+  const status: FixtureStatus = result ? "completed" : "upcoming";
+  const resolved = Boolean(result);
   // A locked pairing is set pre-kickoff, so it reads as a normal upcoming fixture; never imply an unlocked one.
   const locked = knockout && (match.p_pairing ?? 0) >= PAIRING_LOCKED;
   const tbc = knockout && !resolved && !locked;
-  const homeId = tbc ? null : (live?.homeId ?? match.home_id ?? null);
-  const awayId = tbc ? null : (live?.awayId ?? match.away_id ?? null);
+  const homeId = tbc ? null : (match.home_id ?? null);
+  const awayId = tbc ? null : (match.away_id ?? null);
 
-  const probs =
-    status === "live" && live?.forecast
-      ? { home: live.forecast.pHome, draw: live.forecast.pDraw ?? 0, away: live.forecast.pAway }
-      : { home: match.p_home, draw: match.p_draw ?? 0, away: match.p_away };
-  // Live rows keep the pre-match spread as the kickoff frame the live curve animates from.
+  const probs = { home: match.p_home, draw: match.p_draw ?? 0, away: match.p_away };
   const hasSpread = !tbc && Boolean(draws?.matches[String(match.match)]);
 
   return {
@@ -205,9 +156,8 @@ function buildRow(
     awayId,
     homeCode: codeOf(homeId, names),
     awayCode: codeOf(awayId, names),
-    homeGoals: live?.homeGoals ?? result?.homeGoals ?? null,
-    awayGoals: live?.awayGoals ?? result?.awayGoals ?? null,
-    minute: status === "live" ? (live?.minute ?? null) : null,
+    homeGoals: result?.homeGoals ?? null,
+    awayGoals: result?.awayGoals ?? null,
     bar: tbc ? null : probs,
     shape: hasSpread ? shapeFor(draws, match.match) : null,
     colours: resolveWdlColours(homeId, awayId),
@@ -238,7 +188,6 @@ function resultRow(result: PlayedResultRow, names: Record<string, string>): Fixt
     awayCode: codeOf(result.awayId, names),
     homeGoals: result.homeGoals,
     awayGoals: result.awayGoals,
-    minute: null,
     bar: null,
     shape: null,
     colours: resolveWdlColours(result.homeId, result.awayId),
@@ -298,23 +247,15 @@ export function buildFixtures(input: {
   slots: Slot[];
   draws: MatchWdlDraws | null;
   results: PlayedResultRow[];
-  live: LiveState | null;
   teamNames: Record<string, string>;
-  nowIso: string;
+  cutoffIso: string;
 }): FixturesView {
-  const liveByMatch = new Map<number, LiveFixture>();
-  // A stale poll cannot be trusted to a live minute, so live rows fall back to the pre-game shape.
-  const fresh = liveIsFresh(input.live, Date.parse(input.nowIso));
-  for (const fixture of fresh ? (input.live?.fixtures ?? []) : []) {
-    if (fixture.match !== null && fixture.status === "live") liveByMatch.set(fixture.match, fixture);
-  }
   const resultByMatch = new Map(input.results.map((r) => [r.match, r]));
   const slotByMatch = new Map(input.slots.map((s) => [s.match, s]));
-  const todayKey = dayKey(input.nowIso);
+  const todayKey = dayKey(input.cutoffIso);
 
   const presentByStage = new Map<string, FixtureRow[]>();
   const pastByStage = new Map<string, FixtureRow[]>();
-  // A finished match on an earlier day is history; everything today or later stays in focus.
   const place = (row: FixtureRow) => {
     const target = row.status === "completed" && row.dayKey < todayKey ? pastByStage : presentByStage;
     (target.get(row.stage) ?? target.set(row.stage, []).get(row.stage)!).push(row);
@@ -324,7 +265,6 @@ export function buildFixtures(input: {
     place(
       buildRow(
         match,
-        liveByMatch.get(match.match) ?? null,
         resultByMatch.get(match.match) ?? null,
         slotByMatch.get(match.match) ?? null,
         input.draws,
@@ -349,12 +289,8 @@ export function buildFixtures(input: {
   };
 }
 
-// The live stage if any game is in play, else the earliest stage with an unplayed
-// fixture, else the last stage; so the default-open section is the one in focus now.
 function openStageKey(sections: StageSection[]): string | null {
   const allRows = (s: StageSection) => (s.layout === "days" ? s.days.flatMap((d) => d.rows) : s.rows);
-  const live = sections.find((s) => allRows(s).some((r) => r.status === "live"));
-  if (live) return live.key;
   const pending = sections.find((s) => allRows(s).some((r) => r.status !== "completed"));
   if (pending) return pending.key;
   return sections.length > 0 ? sections[sections.length - 1].key : null;

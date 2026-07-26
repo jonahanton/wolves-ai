@@ -2,9 +2,10 @@ import { WolfIcon } from "@/components/shell/wolf-icon";
 
 interface ForecastLoaderProps {
   label?: string;
+  prominent?: boolean;
 }
 
-export function ForecastLoader({ label = "Howling..." }: ForecastLoaderProps) {
+export function ForecastLoader({ label = "Howling...", prominent = false }: ForecastLoaderProps) {
   return (
     <div
       className="flex flex-col items-center justify-center gap-4 py-24 text-cream-faint"
@@ -12,7 +13,15 @@ export function ForecastLoader({ label = "Howling..." }: ForecastLoaderProps) {
       aria-live="polite"
     >
       <WolfIcon size={40} className="text-white" headClassName="howl motion-reduce:animate-none" />
-      <span className="font-display text-[20px]">{label}</span>
+      <span
+        className={
+          prominent
+            ? "text-center font-display text-[clamp(26px,4vw,34px)] font-semibold"
+            : "text-center font-display text-[20px]"
+        }
+      >
+        {label}
+      </span>
     </div>
   );
 }

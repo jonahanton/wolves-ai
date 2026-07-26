@@ -1,6 +1,13 @@
 import { type BoardRow, titleBoard } from "@/lib/derive";
 import type { RunRecord } from "@/lib/runs";
-import type { AgentBlock, MarketsBlock, MatchProbs, Snapshot, TeamStoryOut } from "@/lib/snapshot";
+import type {
+  AgentBlock,
+  MarketsBlock,
+  MatchProbs,
+  RunMeta,
+  TeamInfo,
+  TeamStoryOut,
+} from "@/lib/snapshot";
 
 const STAGE_ORDER = ["group", "r32", "r16", "qf", "sf", "third_place", "final"] as const;
 const STAGE_LABEL: Record<string, string> = {
@@ -36,12 +43,14 @@ export interface ForecastIndexRow {
 }
 
 export function forecastIndexRows(
-  snapshots: Snapshot[],
+  snapshots: { run: RunMeta; teams: TeamInfo[] }[],
   records: RunRecord[] | null,
   topN = 4,
 ): ForecastIndexRow[] {
   const costByRun = new Map<string, number>();
-  for (const r of records ?? []) if (r.cost > 0) costByRun.set(r.runId, r.cost);
+  for (const record of records ?? []) {
+    if (record.cost !== null && record.cost > 0) costByRun.set(record.runId, record.cost);
+  }
   return snapshots
     .map((s) => ({
       runId: s.run.run_id,

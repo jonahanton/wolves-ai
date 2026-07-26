@@ -72,13 +72,20 @@ class RunIndex:
         return [_to_record(item) for item in self._run_items(newest_first=True)[:limit]]
 
     def _run_items(self, *, newest_first: bool = False) -> list[dict[str, Any]]:
-        response = self._guard(
-            lambda: self._table.query(
-                KeyConditionExpression=Key("PK").eq(RUN_PK),
-                ScanIndexForward=not newest_first,
+        items: list[dict[str, Any]] = []
+        exclusive_start_key: dict[str, Any] | None = None
+        while True:
+            response = self._guard(
+                lambda start_key=exclusive_start_key: self._table.query(
+                    KeyConditionExpression=Key("PK").eq(RUN_PK),
+                    ScanIndexForward=not newest_first,
+                    **({"ExclusiveStartKey": start_key} if start_key else {}),
+                )
             )
-        )
-        return list(response["Items"])
+            items.extend(response["Items"])
+            exclusive_start_key = response.get("LastEvaluatedKey")
+            if not exclusive_start_key:
+                return items
 
     def _guard[T](self, call: Callable[[], T]) -> T:
         try:

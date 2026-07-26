@@ -20,27 +20,22 @@ COPY --from=development /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY next.config.ts tsconfig.json postcss.config.mjs ./
 COPY src ./src
+COPY scripts ./scripts
 COPY public ./public
+RUN rm -rf ./public/archive
+COPY --from=archive-source / ./public/archive
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-RUN npm run build
+RUN npm run build \
+    && test ! -e out/archive/provenance.json \
+    && test ! -d out/archive/sources
 
 
-FROM gcr.io/distroless/nodejs22-debian12 AS production
+FROM nginx:1.29-alpine AS production
 
-WORKDIR /app
+COPY --from=builder /app/out /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-EXPOSE 3000
-
-CMD ["server.js"]
+EXPOSE 80

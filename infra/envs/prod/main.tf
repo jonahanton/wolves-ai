@@ -135,9 +135,8 @@ module "scheduler" {
   task_execution_role_arn      = module.engine.task_execution_role_arn
   subnets                      = data.aws_subnets.default.ids
   security_group_id            = module.engine.security_group_id
-  initial_state                = var.schedule_state
-  initial_cron                 = var.schedule_cron
-  agent_initial_state          = var.agent_schedule_state
+  state                        = var.schedule_state
+  schedule_expression          = var.schedule_cron
   agent_schedule_windows       = var.agent_schedule_windows
 }
 

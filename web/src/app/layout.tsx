@@ -1,10 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { Suspense } from "react";
-import { LiveDigestSection } from "@/components/shell/live-digest-section";
-import { LiveDigestSkeleton } from "@/components/shell/live-digest-skeleton";
 import { RouteProgress } from "@/components/shell/route-progress";
 import { SiteNav } from "@/components/shell/site-nav";
+import { loadArchiveManifest } from "@/lib/archive/load";
 import "./globals.css";
 
 const albert = localFont({
@@ -55,7 +53,7 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://wolvesworldcup.com";
 const TITLE = "WWC26 Superforecaster";
 const DESCRIPTION =
-  "Trying to forecast the 2026 World Cup using lots of bayesian stats, data and AI";
+  "An archive of the Wolves' World Cup 2026 forecast history.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -81,9 +79,13 @@ export const viewport: Viewport = {
   themeColor: "#1c1a17",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const manifest = await loadArchiveManifest();
+  const runDays = Object.fromEntries(
+    manifest.runs.map((run) => [run.run_id, run.archive_day]),
+  );
   return (
     <html
       lang="en-GB"
@@ -92,12 +94,9 @@ export default function RootLayout({
       <body>
         <RouteProgress />
         <div className="sticky top-0 z-30 bg-night/90">
-          <SiteNav />
-          <Suspense fallback={<LiveDigestSkeleton />}>
-            <LiveDigestSection />
-          </Suspense>
+          <SiteNav runDays={runDays} />
         </div>
-        <main>{children}</main>
+        {children}
       </body>
     </html>
   );

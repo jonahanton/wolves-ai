@@ -155,6 +155,9 @@ export interface TeamStoryOut {
 export interface NarrativeBlock {
   headline?: string;
   team_stories?: Record<string, TeamStoryOut>;
+  focus_story?: string | null;
+  slot_rationales?: Record<string, string>;
+  travel_memo?: string | null;
 }
 
 export interface LedgerEntryOut {

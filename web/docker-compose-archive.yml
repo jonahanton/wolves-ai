@@ -1,0 +1,17 @@
+services:
+  web:
+    container_name: "archive-${WORKSPACE_NAME:-wolves-ai}"
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: development
+    volumes:
+      - .:/app
+      - ${STATIC_ARCHIVE_DIR:-./public/archive}:/app/public/archive:ro
+      - /app/node_modules
+      - /app/.next

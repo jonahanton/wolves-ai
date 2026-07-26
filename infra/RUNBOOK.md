@@ -106,21 +106,18 @@ Set the GitHub secret `BACKEND_URL` to `http://<ip>:8080`. Known limitation: thi
 
 ### 10. Enable the schedules
 
-Schedule state is runtime-owned (`ignore_changes`), so terraform will not flip it after creation.
-
-- Daily run: `schedule-control.yml` with `enabled=true`, or the backend admin API directly.
-- Agent windows: `aws scheduler get-schedule --name <name>`, then `update-schedule --state ENABLED` re-submitting the existing expression, window, and target.
+Set `schedule_state` to `ENABLED` for the daily run. For an agent run, add future bounds and set `state = "ENABLED"` on only the required `agent_schedule_windows` entry. Then apply Terraform.
 
 The live loop and odds archive run inside the backend process and need no schedule; they start with the service.
 
 ## Run schedules and policy
 
-EventBridge schedules launch engine tasks, all created DISABLED and runtime-owned (`ignore_changes`):
+EventBridge schedules launch engine tasks and Terraform owns their state:
 
 | Schedule | Task | Configuration |
 | --- | --- | --- |
 | `wolves-daily-run` | deterministic daily run | `schedule_cron` |
-| `wolves-agent-<window>` | agent run (ceiling derived from the calendar policy) | `agent_schedule_windows`: one date-windowed schedule per travel leg (uk-opening 06:30 UTC, us-trip 10:00 UTC for 24 Jun to 13 Jul, uk-finals 06:30 UTC) |
+| `wolves-agent-<window>` | agent run (ceiling derived from the calendar policy) | One retained `agent_schedule_windows` entry, disabled unless explicitly bounded and enabled |
 
 The live loop and the odds archive are not scheduled tasks: they run as asyncio loops inside the backend service (`wolves_backend/jobs.py`), polling on the engine's cadence settings and capturing at the archive's UTC hours (`ARCHIVE_HOURS_UTC`). A failing pass publishes to `wolves-alerts` directly, rate-limited to one alert per job per hour. Because of those loops the backend must stay a single writer: `desired_count` above 1 is refused by the module. 0 still parks the service, which also parks live polling and archiving.
 
@@ -132,7 +129,7 @@ The `run_policy` variable in `infra/envs/prod/variables.tf` is the spend-policy 
 uv run --project engine python -m wolves.run_policy
 ```
 
-The agent and live schedules ship DISABLED (same first-apply safety as the others). Enable them the same way as the odds archive in step 10: `aws scheduler get-schedule --name <name>`, then `update-schedule --state ENABLED` re-submitting the existing expression, window, and target.
+The agent schedules ship disabled. Enable only one bounded window through Terraform as described in step 10.
 
 ## Kill-switch reset
 

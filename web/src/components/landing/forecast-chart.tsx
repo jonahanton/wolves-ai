@@ -8,7 +8,6 @@ import "d3-transition";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import {
-  type ChartImpactPoint,
   type ChartPoint,
   type ForecastChartData,
   type TeamLine,
@@ -21,7 +20,6 @@ interface ForecastChartProps {
   othersCount: number;
   onSelectTeam: (teamId: string) => void;
   ariaLabel: string;
-  impacts?: Record<string, ChartImpactPoint> | null;
 }
 
 interface HoverState {
@@ -35,39 +33,14 @@ const DRAW_MS = 560;
 const MARGIN = { top: 22, right: 78, bottom: 36, left: 14 };
 const MOBILE_MARGIN = { top: 18, right: 64, bottom: 34, left: 10 };
 const MOBILE_BREAK = 560;
-const RESULT_LANE_START_PX = 5;
-const RESULT_LANE_PX = 16;
-const ESTIMATE_LANE_PX = 18;
-
 const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.42)";
 const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
 const GRID_LINE = "oklch(0.965 0.008 95 / 0.1)";
 const GUIDE = "oklch(0.965 0.008 95 / 0.24)";
-const RESULT_TICK = "oklch(0.965 0.008 95 / 0.5)";
+const MIN_LABEL_GAP = 64;
 
 function formatValue(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
-}
-
-interface ImpactLegs {
-  net: number;
-  resultsPp: number;
-  ingamePp: number;
-}
-
-function impactLegs(
-  impacts: Record<string, ChartImpactPoint> | null,
-  teamId: string,
-): ImpactLegs | null {
-  const impact = impacts?.[teamId];
-  if (!impact) return null;
-  const net = impact.fromResultsPp + impact.fromIngamePp;
-  if (Math.abs(net) < impact.displayFloorPp) return null;
-  return {
-    net,
-    resultsPp: impact.fromResultsPp,
-    ingamePp: impact.fromIngamePp,
-  };
 }
 
 function formatTick(t: number): string {
@@ -88,13 +61,29 @@ function formatStamp(t: number): string {
   });
 }
 
+function labelledRunTimes(runTimes: number[], position: (time: number) => number): Set<number> {
+  const first = runTimes[0];
+  const last = runTimes.at(-1);
+  if (first === undefined || last === undefined) return new Set();
+  const labels = new Set([first, last]);
+  let previousX = position(first);
+  const finalX = position(last);
+  for (const time of runTimes.slice(1, -1)) {
+    const currentX = position(time);
+    if (currentX - previousX >= MIN_LABEL_GAP && finalX - currentX >= MIN_LABEL_GAP) {
+      labels.add(time);
+      previousX = currentX;
+    }
+  }
+  return labels;
+}
+
 export function ForecastChart({
   data,
   selectedTeamId,
   othersCount,
   onSelectTeam,
   ariaLabel,
-  impacts = null,
 }: ForecastChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -147,67 +136,32 @@ export function ForecastChart({
   const height = empty ? 180 : width < MOBILE_BREAK ? 300 : 392;
   const mobile = width < MOBILE_BREAK;
 
-  const hasResults = (data.results?.length ?? 0) > 0;
-  const resultSpanEnd = useMemo(
-    () => (hasResults ? Math.max(...data.results.map((r) => r.t)) : 0),
-    [data.results, hasResults],
-  );
-  const selectedTeam = lines.find((team) => team.teamId === selectedTeamId) ?? null;
-  const selectedLegs = useMemo(
-    () => (selectedTeam ? impactLegs(impacts, selectedTeamId) : null),
-    [selectedTeam, impacts, selectedTeamId],
-  );
-  const deltaGutter = selectedLegs ? (mobile ? 52 : 62) : 0;
-  const margin = useMemo(() => {
-    const m = mobile ? MOBILE_MARGIN : MARGIN;
-    return { ...m, right: m.right + deltaGutter };
-  }, [mobile, deltaGutter]);
+  const margin = mobile ? MOBILE_MARGIN : MARGIN;
 
-  const { x, posScale, y, runTimes, lastRunTime } = useMemo(() => {
+  const { x, timeScale, y, runTimes, lastRunTime } = useMemo(() => {
     const linePoints = lines.flatMap((team) => team.points);
     const times = linePoints.map((p) => p.t);
     const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
     const n = uniqueTimes.length;
-    // Runs are spaced by order, not by elapsed time, so an irregular agent
-    // cadence still reads as an even cadence on the axis.
-    const indexOf = new Map(uniqueTimes.map((t, i) => [t, i]));
-    const pad = 0.35;
+    const firstTime = uniqueTimes[0] ?? 0;
+    const lastTime = uniqueTimes.at(-1) ?? firstTime;
+    const span = Math.max(1, lastTime - firstTime);
+    const pad = n > 1 ? (span / (n - 1)) * 0.35 : 12 * 60 * 60 * 1000;
     const scale = scaleLinear()
-      .domain([-pad, Math.max(1, n - 1) + pad])
+      .domain([firstTime - pad, lastTime + pad])
       .range([margin.left, Math.max(margin.left + 1, width - margin.right)]);
-    const frac = (t: number) => {
-      if (n === 0) return 0;
-      const exact = indexOf.get(t);
-      if (exact !== undefined) return exact;
-      if (t <= uniqueTimes[0]) return 0;
-      if (t >= uniqueTimes[n - 1]) return n - 1;
-      const hiI = uniqueTimes.findIndex((u) => u >= t);
-      const span = uniqueTimes[hiI] - uniqueTimes[hiI - 1];
-      return hiI - 1 + (span ? (t - uniqueTimes[hiI - 1]) / span : 0);
-    };
-    const xScale = (t: number) => scale(frac(t));
     const maxValue = Math.max(0.04, ...linePoints.map((p) => p.value));
     const yScale = scaleLinear()
       .domain([0, maxValue * 1.06])
       .range([height - margin.bottom, margin.top]);
     return {
-      x: xScale,
-      posScale: scale,
+      x: scale,
+      timeScale: scale,
       y: yScale,
       runTimes: uniqueTimes,
       lastRunTime: n ? uniqueTimes[n - 1] : null,
     };
   }, [lines, width, margin, height]);
-
-  const liveX = useMemo(() => {
-    return (t: number) => {
-      if (lastRunTime === null || t <= lastRunTime || !hasResults) return x(t);
-      const lastX = x(lastRunTime);
-      const span = Math.max(1, resultSpanEnd - lastRunTime);
-      const progress = Math.min(1, Math.max(0, (t - lastRunTime) / span));
-      return lastX + RESULT_LANE_START_PX + progress * RESULT_LANE_PX;
-    };
-  }, [x, lastRunTime, hasResults, resultSpanEnd]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -235,7 +189,6 @@ export function ForecastChart({
     fade.append("stop").attr("offset", "55%").attr("stop-color", "var(--color-night)").attr("stop-opacity", 0);
     svg.append("g").attr("class", "x-axis");
     svg.append("g").attr("class", "baseline");
-    svg.append("g").attr("class", "result-ticks");
     svg.append("g").attr("class", "envelope");
     svg.append("g").attr("class", "series");
     svg.append("g").attr("class", "history-fade");
@@ -262,10 +215,11 @@ export function ForecastChart({
       }
     }
 
+    const axisTimes = [...labelledRunTimes(runTimes, x)].sort((a, b) => a - b);
     const xAxis = svg
       .select<SVGGElement>(".x-axis")
       .selectAll<SVGGElement, number>("g.tick")
-      .data(runTimes, (d) => String(d))
+      .data(axisTimes, (d) => String(d))
       .join((enter) => {
         const g = enter.append("g").attr("class", "tick");
         g.append("line").attr("class", "grid-line");
@@ -287,26 +241,20 @@ export function ForecastChart({
       .attr("y2", baseY + 7)
       .attr("stroke", TICK_MARK)
       .attr("stroke-width", 2);
-    // Thin labels so adjacent dates never overlap.
-    const MIN_LABEL_GAP = 44;
-    let lastLabelX = Number.NEGATIVE_INFINITY;
-    const showLabel = new Set<number>();
-    for (const t of runTimes) {
-      if (x(t) - lastLabelX >= MIN_LABEL_GAP) {
-        showLabel.add(t);
-        lastLabelX = x(t);
-      }
-    }
     xAxis
       .select<SVGTextElement>(".tick-label")
-      .attr("text-anchor", "middle")
+      .attr("text-anchor", (time) => {
+        if (time === axisTimes[0]) return "start";
+        if (time === axisTimes.at(-1)) return "end";
+        return "middle";
+      })
       .attr("y", baseY + 24)
       .attr("font-family", "var(--font-display)")
       .attr("font-size", 14)
       .attr("font-weight", 600)
       .attr("letter-spacing", "0.01em")
       .attr("fill", AXIS_TEXT)
-      .text((d) => (showLabel.has(d) ? formatTick(d) : ""));
+      .text(formatTick);
 
     const baseline = svg.select<SVGGElement>(".baseline");
     baseline
@@ -319,26 +267,6 @@ export function ForecastChart({
       .attr("y2", y(0))
       .attr("stroke", "oklch(0.965 0.008 95 / 0.16)")
       .attr("stroke-width", 1);
-
-    const resultTicks = svg
-      .select<SVGGElement>(".result-ticks")
-      .selectAll<SVGGElement, { t: number; label: string }>("g.tick")
-      .data(data.results, (d) => `${d.t}-${d.label}`)
-      .join((enter) => {
-        const g = enter.append("g").attr("class", "tick").attr("opacity", 0);
-        g.append("line");
-        g.append("title");
-        g.transition().duration(DURATION).attr("opacity", 1);
-        return g;
-      });
-    resultTicks.attr("transform", (d) => `translate(${liveX(d.t)},0)`);
-    resultTicks
-      .select("line")
-      .attr("y1", baseY - 5)
-      .attr("y2", baseY + 5)
-      .attr("stroke", RESULT_TICK)
-      .attr("stroke-width", 1.4);
-    resultTicks.select("title").text((d) => d.label);
 
     const areaGen = d3Area<{ t: number; lo: number; hi: number }>()
       .x((d) => x(d.t))
@@ -517,18 +445,15 @@ export function ForecastChart({
     lines,
     envelope,
     selectedTeamId,
-    selectedLegs,
     lastRunTime,
     onSelectTeam,
     x,
     y,
-    liveX,
     width,
     height,
     margin,
     empty,
     runTimes,
-    data.results,
   ]);
 
   useEffect(() => {
@@ -644,24 +569,17 @@ export function ForecastChart({
     return rows;
   }, [topLines, selectedTeamId, x, y, width, empty, envelope, height, margin]);
 
-  const estimateMarker = useMemo(() => {
-    const last = selectedTeam?.points.at(-1);
-    if (!selectedLegs || !selectedTeam || !last || lastRunTime === null) return null;
-    const up = selectedLegs.net > 0;
-    return {
-      ax: x(lastRunTime) + 7,
-      ay: y(last.value),
-      up,
-      colour: selectedTeam.colour,
-      label: `${up ? "+" : ""}${selectedLegs.net.toFixed(1)}pp`,
-    };
-  }, [selectedTeam, selectedLegs, lastRunTime, x, y]);
-
   function onPointerMove(event: React.PointerEvent<SVGRectElement>) {
     if (!runTimes.length || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const pos = posScale.invert(event.clientX - rect.left);
-    const index = Math.max(0, Math.min(runTimes.length - 1, Math.round(pos)));
+    const pointerTime = timeScale.invert(event.clientX - rect.left);
+    const index = runTimes.reduce(
+      (closest, time, candidate) =>
+        Math.abs(time - pointerTime) < Math.abs(runTimes[closest] - pointerTime)
+          ? candidate
+          : closest,
+      0,
+    );
     setHover({
       clientX: event.clientX,
       clientY: event.clientY,
@@ -715,7 +633,7 @@ export function ForecastChart({
               key="others"
               className="pointer-events-none absolute -translate-y-1/2 font-display text-[12px] font-semibold tracking-[0.01em] text-cream-faint transition-opacity duration-300"
               style={{
-                left: group.anchorX + 13 + deltaGutter,
+                left: group.anchorX + 13,
                 top: group.anchorY,
                 opacity: intro ? 1 : 0,
               }}
@@ -730,7 +648,7 @@ export function ForecastChart({
             key={group.value + group.teams[0].teamId}
             className="absolute flex -translate-y-1/2 flex-col items-start gap-y-2 text-left leading-none transition-opacity duration-300"
             style={{
-              left: group.anchorX + 13 + deltaGutter,
+              left: group.anchorX + 13,
               top: group.anchorY,
               opacity: intro ? (emphasised ? 1 : 0.7) : 0,
               zIndex: emphasised ? 3 : 1,
@@ -761,49 +679,6 @@ export function ForecastChart({
           </div>
         );
       })}
-      {selectedLegs && selectedTeam && lastRunTime !== null && (
-        <div
-          className="pointer-events-none absolute z-10 whitespace-nowrap text-right transition-opacity duration-300"
-          style={{
-            right: Math.max(8, width - (x(lastRunTime) + ESTIMATE_LANE_PX + 28)),
-            top: 2,
-            opacity: intro ? 1 : 0,
-          }}
-        >
-          <span
-            className="block font-display text-[11px] font-bold leading-tight tracking-[0.01em]"
-            style={{ color: selectedTeam.colour }}
-          >
-            {teamCode(selectedTeam.name)} est. shift
-          </span>
-          <span className="block font-display text-[10px] font-medium leading-tight tracking-[0.01em] text-cream-faint">
-            from latest results
-          </span>
-        </div>
-      )}
-      {estimateMarker && (
-        <div
-          className="pointer-events-none absolute z-20 flex -translate-y-1/2 items-center gap-1 transition-opacity duration-300"
-          style={{
-            left: estimateMarker.ax,
-            top: estimateMarker.ay,
-            opacity: intro ? 1 : 0,
-          }}
-        >
-          <svg width="9" height="9" viewBox="0 0 9 9" className="shrink-0">
-            <path
-              d={estimateMarker.up ? "M4.5,0 L9,9 L0,9 Z" : "M4.5,9 L9,0 L0,0 Z"}
-              fill={estimateMarker.colour}
-            />
-          </svg>
-          <span
-            className="font-mono text-[11.5px] font-bold tabular-nums"
-            style={{ color: estimateMarker.colour }}
-          >
-            {estimateMarker.label}
-          </span>
-        </div>
-      )}
       {empty && width > 0 && (
         <p className="absolute inset-0 flex items-center font-display text-[14px] text-cream-faint">
           no published forecasts yet

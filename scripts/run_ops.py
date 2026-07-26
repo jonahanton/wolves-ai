@@ -49,7 +49,9 @@ def _dispatch(workflow: str, inputs: dict[str, str], watch: bool) -> None:
     url = _gh(["run", "view", str(run_id), "--json", "url"])
     print(f"Dispatched: {json.loads(url)['url']}")
     if watch:
-        subprocess.run(["gh", "run", "watch", str(run_id), "--exit-status"])
+        result = subprocess.run(["gh", "run", "watch", str(run_id), "--exit-status"])
+        if result.returncode != 0:
+            sys.exit(f"workflow run {run_id} failed")
 
 
 def cmd_launch(args: argparse.Namespace) -> None:

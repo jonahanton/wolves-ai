@@ -43,15 +43,9 @@ resource "aws_iam_role_policy" "scheduler_run_task" {
 
 resource "aws_scheduler_schedule" "daily_run" {
   name  = "${var.project}-daily-run"
-  state = var.initial_state
+  state = var.state
 
-  schedule_expression = var.initial_cron
-
-  # The backend admin API owns cron and state at runtime via UpdateSchedule;
-  # applies must not stomp those edits.
-  lifecycle {
-    ignore_changes = [schedule_expression, state]
-  }
+  schedule_expression = var.schedule_expression
 
   flexible_time_window {
     mode = "OFF"
@@ -84,15 +78,11 @@ resource "aws_scheduler_schedule" "agent_daily" {
   for_each = { for window in var.agent_schedule_windows : window.name => window }
 
   name  = "${var.project}-agent-${each.key}"
-  state = var.agent_initial_state
+  state = each.value.state
 
   schedule_expression = each.value.schedule_expression
   start_date          = each.value.start
   end_date            = each.value.end
-
-  lifecycle {
-    ignore_changes = [state]
-  }
 
   flexible_time_window {
     mode = "OFF"

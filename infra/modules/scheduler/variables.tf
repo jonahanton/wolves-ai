@@ -46,20 +46,14 @@ variable "security_group_id" {
   type = string
 }
 
-variable "initial_state" {
-  description = "Creation-time schedule state; runtime flips go through UpdateSchedule and are never reconciled."
+variable "state" {
+  description = "Desired schedule state."
   type        = string
 }
 
-variable "initial_cron" {
-  description = "Creation-time cron; runtime edits go through UpdateSchedule and are never reconciled."
+variable "schedule_expression" {
+  description = "Desired daily schedule expression."
   type        = string
-}
-
-variable "agent_initial_state" {
-  description = "Creation-time agent schedule state."
-  type        = string
-  default     = "DISABLED"
 }
 
 variable "agent_schedule_windows" {
@@ -67,7 +61,17 @@ variable "agent_schedule_windows" {
   type = list(object({
     name                = string
     schedule_expression = string
+    state               = optional(string, "DISABLED")
     start               = optional(string)
     end                 = optional(string)
   }))
+
+  validation {
+    condition = alltrue([
+      for window in var.agent_schedule_windows :
+      contains(["ENABLED", "DISABLED"], window.state) &&
+      (window.state == "DISABLED" || (window.start != null && window.end != null))
+    ])
+    error_message = "Agent schedule state must be ENABLED or DISABLED, and enabled schedules require start and end bounds."
+  }
 }

@@ -27,6 +27,11 @@ jobs:
           ACTION: ${{ inputs.action }}
           TASK_ARN: ${{ inputs.task_arn }}
         run: |
+          set -o pipefail
+          if [ -z "$BACKEND_URL" ]; then
+            echo "BACKEND_URL is not configured" >&2
+            exit 2
+          fi
           auth=(-H "Authorization: Bearer $ADMIN_TOKEN")
           case "$ACTION" in
             active-runs)

@@ -10,9 +10,9 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - BACKEND_URL=http://backend:8080
     volumes:
       - .:/app
+      - ${STATIC_ARCHIVE_DIR:-./web/public/archive}:/app/public/archive:ro
       - /app/node_modules
       - /app/.next
     networks:

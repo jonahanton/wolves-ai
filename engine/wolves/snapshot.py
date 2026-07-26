@@ -162,6 +162,9 @@ class TeamStoryOut(BaseModel):
 class NarrativeBlock(BaseModel):
     headline: str = ""
     team_stories: dict[str, TeamStoryOut] = Field(default_factory=dict)
+    focus_story: str | None = None
+    slot_rationales: dict[str, str] = Field(default_factory=dict)
+    travel_memo: str | None = None
 
 
 class LedgerEntryOut(BaseModel):

@@ -4,14 +4,12 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { StageSection } from "@/components/fixtures/stage-section";
 import type { StageSection as Section } from "@/lib/fixtures";
-import type { Impact } from "@/lib/impact";
 
 interface PastResultsProps {
   sections: Section[];
-  impact: Impact | null;
 }
 
-export function PastResults({ sections, impact }: PastResultsProps) {
+export function PastResults({ sections }: PastResultsProps) {
   const [open, setOpen] = useState(false);
   const [everOpened, setEverOpened] = useState(false);
   const [openStageKey, setOpenStageKey] = useState<string | null>(null);
@@ -39,7 +37,6 @@ export function PastResults({ sections, impact }: PastResultsProps) {
                 <StageSection
                   key={section.key}
                   section={section}
-                  impact={impact}
                   open={openStageKey === section.key}
                   onToggle={() => setOpenStageKey((current) => (current === section.key ? null : section.key))}
                   openDay={openDay}

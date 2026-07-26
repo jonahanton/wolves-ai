@@ -1,4 +1,4 @@
-import type { Snapshot } from "@/lib/snapshot";
+import type { TeamInfo } from "@/lib/snapshot";
 
 export interface BoardRow {
   teamId: string;
@@ -6,7 +6,7 @@ export interface BoardRow {
   prob: number;
 }
 
-export function titleBoard(snapshot: Snapshot, limit: number): BoardRow[] {
+export function titleBoard(snapshot: { teams: TeamInfo[] }, limit: number): BoardRow[] {
   return snapshot.teams
     .filter((t) => t.champion_prob !== undefined)
     .sort((a, b) => (b.champion_prob ?? 0) - (a.champion_prob ?? 0))

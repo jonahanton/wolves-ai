@@ -17,7 +17,7 @@ variable "github_repo" {
 }
 
 variable "schedule_state" {
-  description = "Creation-time schedule state only; runtime flips go through the backend admin API. Disabled by default so a first apply against an empty ECR cannot crash-loop; enabling is an explicit operational act (see infra/RUNBOOK.md)."
+  description = "Desired daily schedule state."
   type        = string
   default     = "DISABLED"
 
@@ -28,33 +28,23 @@ variable "schedule_state" {
 }
 
 variable "schedule_cron" {
-  description = "Creation-time daily run cron (UTC) only; runtime edits go through the backend admin API."
+  description = "Desired daily run cron in UTC."
   type        = string
   default     = "cron(0 11 * * ? *)"
 }
 
-variable "agent_schedule_state" {
-  description = "Creation-time agent schedule state. Disabled by default for the same first-apply reason as schedule_state; enabling is an explicit operational act (see infra/RUNBOOK.md)."
-  type        = string
-  default     = "DISABLED"
-
-  validation {
-    condition     = contains(["ENABLED", "DISABLED"], var.agent_schedule_state)
-    error_message = "agent_schedule_state must be ENABLED or DISABLED."
-  }
-}
-
 variable "agent_schedule_windows" {
-  description = "Agent schedules matching the operator's travel and final-run timing."
+  description = "Retained agent schedule definitions. Set one bounded window to ENABLED for rollback."
   type = list(object({
     name                = string
     schedule_expression = string
+    state               = optional(string, "DISABLED")
     start               = optional(string)
     end                 = optional(string)
   }))
   default = [
-    { name = "uk-opening", schedule_expression = "cron(30 6 * * ? *)", end = "2026-06-23T23:59:59Z" },
-    { name = "us-trip", schedule_expression = "cron(0 10 * * ? *)", start = "2026-06-24T00:00:00Z", end = "2026-07-13T23:59:59Z" },
+    { name = "uk-opening", schedule_expression = "cron(30 6 * * ? *)" },
+    { name = "us-trip", schedule_expression = "cron(0 10 * * ? *)" },
     { name = "uk-finals", schedule_expression = "cron(30 6 * * ? *)" },
     { name = "uk-final", schedule_expression = "at(2026-07-20T06:30:00)" },
   ]
