@@ -38,7 +38,7 @@ make demo/off  # restore real data and re-enable the poller
 
 ## Serving
 
-The daily run publishes its output as a snapshot (probability distributions, bracket samples) to S3; the backend serves the latest snapshot and the frontend displays it. Live match-day results are polled and overlaid on the published forecast.
+The completed tournament is served as a static Cloudflare Pages archive. The private S3 source archive can reproduce every published tournament day without a live backend.
 
 ## Develop
 
