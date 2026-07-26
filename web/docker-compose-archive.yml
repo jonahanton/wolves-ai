@@ -1,6 +1,6 @@
 services:
   web:
-    container_name: "web-${WORKSPACE_NAME:-wolves-ai}"
+    container_name: "archive-${WORKSPACE_NAME:-wolves-ai}"
     restart: unless-stopped
     build:
       context: .
@@ -9,11 +9,9 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - NODE_ENV=${NODE_ENV:-development}
+      NODE_ENV: development
     volumes:
       - .:/app
-      - ${STATIC_ARCHIVE_DIR:-./web/public/archive}:/app/public/archive:ro
+      - ${STATIC_ARCHIVE_DIR:-./public/archive}:/app/public/archive:ro
       - /app/node_modules
       - /app/.next
-    networks:
-      - app-network
