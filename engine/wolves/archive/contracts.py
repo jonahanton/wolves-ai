@@ -38,7 +38,7 @@ class ArchiveRun(BaseModel):
 
 class ArchiveManifest(BaseModel):
     schema_hash: str
-    generated_at: str
+    archived_through: str
     archive_timezone: str = ARCHIVE_TIMEZONE
     days: list[ArchiveDay]
     runs: list[ArchiveRun]
@@ -72,6 +72,11 @@ class ArchiveRunRecord(BaseModel):
     cost: float | None = None
     duration_s: float | None = None
     kind: str
+
+
+class FixtureMetadata(BaseModel):
+    date: str
+    stage: str
 
 
 class ArchiveForecastPoint(BaseModel):

@@ -25,7 +25,7 @@ export interface ArchiveRun {
 
 export interface ArchiveManifest {
   schema_hash: string;
-  generated_at: string;
+  archived_through: string;
   archive_timezone: string;
   days: ArchiveDay[];
   runs: ArchiveRun[];

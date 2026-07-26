@@ -38,6 +38,7 @@ from wolves.archive.source import (
     CompleteSnapshot,
     FixtureMetadataSet,
     RunRecordSet,
+    SourceObject,
     complete_snapshots,
     historical_live_days,
     load_fixture_metadata,
@@ -70,6 +71,8 @@ def export_archive(
     root.mkdir(parents=True)
 
     records = run_records or load_run_records(source)
+    if records.source_object is not None and records.source_object.key.startswith("dynamodb://"):
+        _write_source(root, records.source_object)
     fixture_metadata = load_fixture_metadata(source, snapshots=complete)
     live_days = historical_live_days(source)
     entries: list[ArchiveDay] = []
@@ -96,7 +99,7 @@ def export_archive(
         )
         manifest = ArchiveManifest(
             schema_hash=ARCHIVE_SCHEMA_HASH,
-            generated_at=entries[-1].cutoff_at,
+            archived_through=entries[-1].cutoff_at,
             archive_timezone=ARCHIVE_TIMEZONE,
             days=entries,
             runs=run_entries,
@@ -112,9 +115,16 @@ def export_archive(
     return manifest
 
 
-def audit_archive(source: ArchiveSource, *, days: list[str]) -> ArchiveAuditReport:
+def audit_archive(
+    source: ArchiveSource,
+    *,
+    days: list[str],
+    run_records: RunRecordSet | None = None,
+) -> ArchiveAuditReport:
     """Return a deterministic per-day audit of archive source coverage."""
     complete, rejected = complete_snapshots(source)
+    records = run_records or load_run_records(source)
+    record_run_ids = {record.run_id for record in records.records}
     candidates = [item.snapshot for item in complete]
     by_run = {item.snapshot.run.run_id: item for item in complete}
     fixture_metadata = load_fixture_metadata(source, snapshots=complete)
@@ -126,9 +136,23 @@ def audit_archive(source: ArchiveSource, *, days: list[str]) -> ArchiveAuditRepo
         try:
             selected = select_snapshot(candidates, cutoff=cutoff)
             results = normalise_results(selected, cutoff=cutoff, fixture_metadata=fixture_metadata.fixtures)
-            source_keys = [obj.key for obj in by_run[selected.run.run_id].source_objects]
+            history = [
+                item
+                for item in complete
+                if item.snapshot.run.kind == "agent"
+                and parse_timestamp(item.snapshot.run.created_at) <= cutoff
+            ]
+            source_keys = [
+                *(obj.key for obj in by_run[selected.run.run_id].source_objects),
+                *(item.snapshot_object.key for item in history),
+            ]
             if fixture_metadata.source_object is not None:
                 source_keys.append(fixture_metadata.source_object.key)
+            if (
+                records.source_object is not None
+                and any(item.snapshot.run.run_id in record_run_ids for item in history)
+            ):
+                source_keys.append(records.source_object.key)
             report.append(
                 ArchiveAuditDay(
                     day=day,
@@ -181,7 +205,7 @@ def _export_day(
     records: RunRecordSet,
     fixture_metadata: FixtureMetadataSet,
     live_detail: Literal["complete", "unavailable", "omitted"],
-) -> tuple[ArchiveDay, tuple[object, ...]]:
+) -> tuple[ArchiveDay, tuple[SourceObject, ...]]:
     cutoff = archive_cutoff(day)
     by_run = {item.snapshot.run.run_id: item for item in complete}
     selected_snapshot = select_snapshot([item.snapshot for item in complete], cutoff=cutoff)
@@ -299,21 +323,27 @@ def _write_model(path: Path, model: BaseModel | dict[str, object]) -> None:
     path.write_bytes(body)
 
 
-def _source_record(obj: object) -> dict[str, str | int | None]:
-    from wolves.archive.source import SourceObject
-
-    if not isinstance(obj, SourceObject):
-        raise ArchiveExportError("unexpected archive provenance object")
-    return {"key": obj.key, "version_id": obj.version_id, "sha256": obj.sha256, "bytes": len(obj.body)}
+def _write_source(root: Path, source: SourceObject) -> None:
+    path = root / "sources" / f"{source.sha256}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(source.body)
 
 
-def _unique_sources(objects: tuple[object, ...]) -> tuple[object, ...]:
-    from wolves.archive.source import SourceObject
+def _source_record(obj: SourceObject) -> dict[str, str | int | None]:
+    record: dict[str, str | int | None] = {
+        "key": obj.key,
+        "version_id": obj.version_id,
+        "sha256": obj.sha256,
+        "bytes": len(obj.body),
+    }
+    if obj.key.startswith("dynamodb://"):
+        record["archive_path"] = f"sources/{obj.sha256}.json"
+    return record
 
+
+def _unique_sources(objects: tuple[SourceObject, ...]) -> tuple[SourceObject, ...]:
     unique: dict[tuple[str, str | None, str], SourceObject] = {}
     for obj in objects:
-        if not isinstance(obj, SourceObject):
-            raise ArchiveExportError("unexpected archive provenance object")
         unique[(obj.key, obj.version_id, obj.sha256)] = obj
     return tuple(unique.values())
 
@@ -324,6 +354,8 @@ def _ordered_days(days: list[str]) -> list[str]:
         raise ArchiveExportError("at least one archive day is required")
     for day in ordered:
         archive_cutoff(day)
+        if date.fromisoformat(day) > ARCHIVE_FINAL_DAY:
+            raise ArchiveExportError(f"archive day exceeds {ARCHIVE_FINAL_DAY.isoformat()}: {day}")
     return ordered
 
 

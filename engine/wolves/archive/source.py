@@ -6,14 +6,14 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
 import boto3
+from botocore.client import BaseClient
 from pydantic import BaseModel, ValidationError
 
-from wolves.archive.contracts import ArchiveRunRecord, ArchiveSidecars
+from wolves.archive.contracts import ArchiveRunRecord, ArchiveSidecars, FixtureMetadata
 from wolves.s3.index import RunIndex
 from wolves.sidecars import sidecar_dataset
 from wolves.snapshot import Snapshot
@@ -51,12 +51,6 @@ class CompleteSnapshot:
 
 
 @dataclass(frozen=True)
-class FixtureMetadata:
-    date: str
-    stage: str
-
-
-@dataclass(frozen=True)
 class FixtureMetadataSet:
     fixtures: dict[int, FixtureMetadata]
     source_object: SourceObject | None
@@ -91,28 +85,41 @@ class LocalArchiveSource:
 
 
 class S3ArchiveSource:
-    def __init__(self, bucket: str, *, prefix: str = "", region: str | None = None) -> None:
+    def __init__(
+        self,
+        bucket: str,
+        *,
+        prefix: str = "",
+        region: str | None = None,
+        client: BaseClient | None = None,
+    ) -> None:
         self._bucket = bucket
         self._prefix = prefix.strip("/")
-        self._client = boto3.client("s3", region_name=region)
+        self._client = client or boto3.client("s3", region_name=region)
         self._version_ids: dict[str, str] = {}
 
     def list_keys(self, *, prefix: str) -> list[str]:
         full_prefix = self._physical_key(prefix.strip("/"))
         if full_prefix:
             full_prefix = f"{full_prefix}/"
-        newest: dict[str, tuple[datetime, str]] = {}
+        current: dict[str, str] = {}
+        deleted: set[str] = set()
         paginator = self._client.get_paginator("list_object_versions")
         for page in paginator.paginate(Bucket=self._bucket, Prefix=full_prefix):
             for version in page.get("Versions", []):
-                key = version["Key"]
-                if key not in newest or version["LastModified"] > newest[key][0]:
-                    newest[key] = (version["LastModified"], version["VersionId"])
-        logical_keys = [self._logical_key(key) for key in newest]
+                if version["IsLatest"]:
+                    current[version["Key"]] = version["VersionId"]
+            deleted.update(
+                marker["Key"]
+                for marker in page.get("DeleteMarkers", [])
+                if marker["IsLatest"]
+            )
+        current = {key: version_id for key, version_id in current.items() if key not in deleted}
+        logical_keys = [self._logical_key(key) for key in current]
         self._version_ids.update(
             {
                 self._logical_key(key): version_id
-                for key, (_, version_id) in newest.items()
+                for key, version_id in current.items()
             }
         )
         return sorted(logical_keys)
@@ -130,16 +137,20 @@ class S3ArchiveSource:
 
     def _find_latest_version(self, key: str) -> str | None:
         physical_key = self._physical_key(key)
-        response = self._client.list_object_versions(Bucket=self._bucket, Prefix=physical_key)
-        versions = [
-            version
-            for version in response.get("Versions", [])
-            if version["Key"] == physical_key
-        ]
-        if not versions:
+        version_id = None
+        deleted = False
+        paginator = self._client.get_paginator("list_object_versions")
+        for page in paginator.paginate(Bucket=self._bucket, Prefix=physical_key):
+            if any(
+                marker["Key"] == physical_key and marker["IsLatest"]
+                for marker in page.get("DeleteMarkers", [])
+            ):
+                deleted = True
+            for version in page.get("Versions", []):
+                if version["Key"] == physical_key and version["IsLatest"]:
+                    version_id = version["VersionId"]
+        if deleted or version_id is None:
             return None
-        latest = max(versions, key=lambda version: version["LastModified"])
-        version_id = latest["VersionId"]
         self._version_ids[key] = version_id
         return version_id
 

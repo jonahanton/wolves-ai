@@ -28,7 +28,9 @@ COPY --from=archive-source / ./public/archive
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-RUN npm run build
+RUN npm run build \
+    && test ! -e out/archive/provenance.json \
+    && test ! -d out/archive/sources
 
 
 FROM nginx:1.29-alpine AS production

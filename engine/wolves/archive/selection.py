@@ -5,8 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, time
 from zoneinfo import ZoneInfo
 
-from wolves.archive.contracts import ARCHIVE_TIMEZONE, ArchivedResult
-from wolves.archive.source import FixtureMetadata
+from wolves.archive.contracts import ARCHIVE_TIMEZONE, ArchivedResult, FixtureMetadata
 from wolves.snapshot import ResultSetEntry, Snapshot
 
 

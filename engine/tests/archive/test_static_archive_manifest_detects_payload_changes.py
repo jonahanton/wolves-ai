@@ -6,8 +6,16 @@ from pathlib import Path
 import pytest
 
 from wolves.archive.contracts import ArchiveManifest
-from wolves.archive.export import ArchiveExportError, audit_archive, default_days, export_archive, verify_archive
-from wolves.archive.source import LocalArchiveSource, complete_snapshots
+from wolves.archive.errors import ArchiveExportError
+from wolves.archive.export import audit_archive, default_days, export_archive
+from wolves.archive.publish import release_digest
+from wolves.archive.source import (
+    LocalArchiveSource,
+    RunRecordSet,
+    SourceObject,
+    complete_snapshots,
+)
+from wolves.archive.verify import verify_archive
 
 
 def test_manifest_hashes_detect_modified_payloads(tmp_path: Path):
@@ -21,6 +29,16 @@ def test_manifest_hashes_detect_modified_payloads(tmp_path: Path):
 
     with pytest.raises(ArchiveExportError, match="payload digest differs"):
         verify_archive(output, ArchiveManifest.model_validate_json((output / "manifest.json").read_bytes()))
+
+
+def test_manifest_rejects_an_inconsistent_archive_boundary(tmp_path: Path):
+    source_root = tmp_path / "source"
+    _write_source_snapshot(source_root, day="2026-06-10")
+    output = tmp_path / "archive"
+    manifest = export_archive(LocalArchiveSource(source_root), output=output, days=["2026-06-10"])
+
+    with pytest.raises(ArchiveExportError, match="archive boundary differs"):
+        verify_archive(output, manifest.model_copy(update={"archived_through": "2026-06-11T00:00:00Z"}))
 
 
 def test_complete_snapshot_rejects_a_missing_sidecar(tmp_path: Path):
@@ -57,6 +75,12 @@ def test_default_days_stop_the_day_after_the_final(tmp_path: Path):
     complete, _ = complete_snapshots(LocalArchiveSource(source_root))
 
     assert default_days(complete)[-1] == "2026-07-20"
+    with pytest.raises(ArchiveExportError, match="archive day exceeds"):
+        export_archive(
+            LocalArchiveSource(source_root),
+            output=tmp_path / "archive",
+            days=["2026-07-21"],
+        )
 
 
 def test_export_provenance_includes_fixture_metadata_source(tmp_path: Path):
@@ -71,6 +95,14 @@ def test_export_provenance_includes_fixture_metadata_source(tmp_path: Path):
         LocalArchiveSource(source_root),
         output=tmp_path / "archive",
         days=["2026-06-11"],
+        run_records=RunRecordSet(
+            records=[],
+            source_object=SourceObject(
+                key="dynamodb://runs/RUN",
+                body=b'{"runs":[]}',
+                version_id=None,
+            ),
+        ),
     )
     provenance = json.loads((tmp_path / "archive/provenance.json").read_bytes())
     sources = provenance[manifest.days[0].payload.path]
@@ -85,6 +117,20 @@ def test_export_provenance_includes_fixture_metadata_source(tmp_path: Path):
         "snapshots/2026/06/11/agent-20260611-090000.json",
     }
     assert len(sources) == len({(source["key"], source["sha256"]) for source in sources})
+    dynamo = next(source for source in sources if source["key"].startswith("dynamodb://"))
+    assert (tmp_path / "archive" / dynamo["archive_path"]).read_bytes() == b'{"runs":[]}'
+
+
+def test_release_digest_covers_provenance(tmp_path: Path):
+    root = tmp_path / "archive"
+    root.mkdir()
+    (root / "manifest.json").write_text("manifest", encoding="utf-8")
+    (root / "provenance.json").write_text("first", encoding="utf-8")
+    first = release_digest(root)
+
+    (root / "provenance.json").write_text("second", encoding="utf-8")
+
+    assert release_digest(root) != first
 
 
 def test_audit_classifies_retained_live_history_as_deliberately_omitted(tmp_path: Path):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import logging
 from pathlib import Path
 
@@ -18,6 +19,22 @@ from wolves.observability.logging import configure_cli_logging
 logger = logging.getLogger(__name__)
 
 
+def release_digest(root: Path) -> str:
+    """Return a content-derived identifier covering every release file."""
+    entries = [
+        (
+            path.relative_to(root).as_posix(),
+            hashlib.sha256(path.read_bytes()).hexdigest(),
+        )
+        for path in sorted(
+            (item for item in root.rglob("*") if item.is_file()),
+            key=lambda item: item.relative_to(root).as_posix(),
+        )
+    ]
+    body = json.dumps(entries, separators=(",", ":")).encode()
+    return hashlib.sha256(body).hexdigest()
+
+
 def publish_archive(
     root: Path,
     *,
@@ -29,7 +46,7 @@ def publish_archive(
     manifest_body = (root / "manifest.json").read_bytes()
     manifest = ArchiveManifest.model_validate_json(manifest_body)
     verify_archive(root, manifest)
-    release = hashlib.sha256(manifest_body).hexdigest()
+    release = release_digest(root)
     prefix = f"{destination_prefix.strip('/')}/{release}"
     client = boto3.client("s3", region_name=region, config=Config(max_pool_connections=16))
     paths = sorted(

@@ -4,7 +4,7 @@ export
 
 .PHONY: setup venv lint format test precommit db/init release \
         app/up app/down app/restart app/logs \
-        archive/up archive/down \
+        archive/up archive/down archive/image \
         demo/on demo/off \
         frontend/install frontend/dev frontend/build frontend/lint
 
@@ -64,6 +64,12 @@ archive/down:
 	@set -a; [ -f .env.worktree ] && . ./.env.worktree; set +a; \
 	docker compose --project-name "$${WORKSPACE_NAME:-wolves-ai-archive}" \
 		-f web/docker-compose-archive.yml down
+
+archive/image:
+	@test -n "$${STATIC_ARCHIVE_DIR}" || { echo "STATIC_ARCHIVE_DIR is required"; exit 2; }
+	docker build --target production \
+		--build-context archive-source="$${STATIC_ARCHIVE_DIR}" \
+		-t "$${ARCHIVE_IMAGE:-wolves-static-archive}" web
 
 # Back up the real live state, write the demo scenario, and park the poller.
 demo/on:

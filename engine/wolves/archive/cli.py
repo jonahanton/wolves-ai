@@ -59,16 +59,16 @@ def main() -> None:
         days = default_days(complete)
     else:
         days = args.days
-    if args.audit:
-        logger.info("%s", audit_archive(source, days=days).model_dump_json())
-        return
-    if args.output is None:
-        parser.error("--output is required unless --audit is set")
     run_records = (
         load_dynamo_run_records(table_name=args.run_index_table, region=args.region or "eu-west-2")
         if args.run_index_table
         else None
     )
+    if args.audit:
+        logger.info("%s", audit_archive(source, days=days, run_records=run_records).model_dump_json())
+        return
+    if args.output is None:
+        parser.error("--output is required unless --audit is set")
     manifest = export_archive(source, output=args.output, days=days, run_records=run_records)
     logger.info(
         "wrote archive %s with %s days; final day %s",

@@ -11,6 +11,7 @@ await Promise.all([
   rm(path.join(destination, "runs"), { recursive: true, force: true }),
   rm(path.join(destination, "manifest.json"), { force: true }),
   rm(path.join(destination, "provenance.json"), { force: true }),
+  rm(path.join(destination, "sources"), { recursive: true, force: true }),
 ]);
 await Promise.all([
   cp(path.join(source, "days"), path.join(destination, "days"), { recursive: true }),
