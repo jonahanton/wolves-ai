@@ -10,6 +10,7 @@ import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import {
   type ChartPoint,
   type ForecastChartData,
+  groupResultTicks,
   type TeamLine,
 } from "@/lib/forecast-series";
 import { teamCode } from "@/lib/team-colours";
@@ -41,6 +42,7 @@ const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
 const GRID_LINE = "oklch(0.965 0.008 95 / 0.1)";
 const GUIDE = "oklch(0.965 0.008 95 / 0.24)";
 const RESULT_TICK = "oklch(0.965 0.008 95 / 0.5)";
+const MIN_LABEL_GAP = 44;
 
 function formatValue(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -62,6 +64,23 @@ function formatStamp(t: number): string {
     minute: "2-digit",
     timeZone: "America/New_York",
   });
+}
+
+function labelledRunTimes(runTimes: number[], position: (time: number) => number): Set<number> {
+  const first = runTimes[0];
+  const last = runTimes.at(-1);
+  if (first === undefined || last === undefined) return new Set();
+  const labels = new Set([first, last]);
+  let previousX = position(first);
+  const finalX = position(last);
+  for (const time of runTimes.slice(1, -1)) {
+    const currentX = position(time);
+    if (currentX - previousX >= MIN_LABEL_GAP && finalX - currentX >= MIN_LABEL_GAP) {
+      labels.add(time);
+      previousX = currentX;
+    }
+  }
+  return labels;
 }
 
 export function ForecastChart({
@@ -122,10 +141,11 @@ export function ForecastChart({
   const height = empty ? 180 : width < MOBILE_BREAK ? 300 : 392;
   const mobile = width < MOBILE_BREAK;
 
-  const hasResults = (data.results?.length ?? 0) > 0;
+  const resultTickGroups = useMemo(() => groupResultTicks(data.results ?? []), [data.results]);
+  const hasResults = resultTickGroups.length > 0;
   const resultSpanEnd = useMemo(
-    () => (hasResults ? Math.max(...data.results.map((r) => r.t)) : 0),
-    [data.results, hasResults],
+    () => (hasResults ? Math.max(...resultTickGroups.map((result) => result.t)) : 0),
+    [resultTickGroups, hasResults],
   );
   const margin = mobile ? MOBILE_MARGIN : MARGIN;
 
@@ -253,16 +273,7 @@ export function ForecastChart({
       .attr("y2", baseY + 7)
       .attr("stroke", TICK_MARK)
       .attr("stroke-width", 2);
-    // Thin labels so adjacent dates never overlap.
-    const MIN_LABEL_GAP = 44;
-    let lastLabelX = Number.NEGATIVE_INFINITY;
-    const showLabel = new Set<number>();
-    for (const t of runTimes) {
-      if (x(t) - lastLabelX >= MIN_LABEL_GAP) {
-        showLabel.add(t);
-        lastLabelX = x(t);
-      }
-    }
+    const showLabel = labelledRunTimes(runTimes, x);
     xAxis
       .select<SVGTextElement>(".tick-label")
       .attr("text-anchor", "middle")
@@ -289,7 +300,7 @@ export function ForecastChart({
     const resultTicks = svg
       .select<SVGGElement>(".result-ticks")
       .selectAll<SVGGElement, { t: number; label: string }>("g.tick")
-      .data(data.results, (d) => `${d.t}-${d.label}`)
+      .data(resultTickGroups, (d) => String(d.t))
       .join((enter) => {
         const g = enter.append("g").attr("class", "tick").attr("opacity", 0);
         g.append("line");
@@ -493,7 +504,7 @@ export function ForecastChart({
     margin,
     empty,
     runTimes,
-    data.results,
+    resultTickGroups,
   ]);
 
   useEffect(() => {

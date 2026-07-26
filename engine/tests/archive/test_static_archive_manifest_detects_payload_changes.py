@@ -34,10 +34,11 @@ def test_complete_snapshot_rejects_a_missing_sidecar(tmp_path: Path):
     assert "lacks required pairing-matrices sidecar" in next(iter(rejected.values()))
 
 
-def test_default_days_fill_calendar_gaps_between_published_snapshots(tmp_path: Path):
+def test_default_days_fill_agent_calendar_gaps_without_extending_for_later_live_snapshots(tmp_path: Path):
     source_root = tmp_path / "source"
     _write_source_snapshot(source_root, day="2026-06-13")
     _write_source_snapshot(source_root, day="2026-06-15")
+    _write_source_snapshot(source_root, day="2026-06-16", kind="live")
     complete, _ = complete_snapshots(LocalArchiveSource(source_root))
 
     assert default_days(complete) == ["2026-06-13", "2026-06-14", "2026-06-15"]
@@ -76,12 +77,12 @@ def test_audit_classifies_retained_live_history_as_deliberately_omitted(tmp_path
     assert len(report.days[0].source_keys) == 5
 
 
-def _write_source_snapshot(root: Path, *, day: str) -> str:
+def _write_source_snapshot(root: Path, *, day: str, kind: str = "agent") -> str:
     path_day = day.replace("-", "/")
     directory = root / f"snapshots/{path_day}"
     directory.mkdir(parents=True)
     compact_day = day.replace("-", "")
-    run_id = f"agent-{compact_day}-090000"
+    run_id = f"{kind}-{compact_day}-090000"
     (directory / f"{run_id}.json").write_text(
         json.dumps(
             {
@@ -92,7 +93,7 @@ def _write_source_snapshot(root: Path, *, day: str) -> str:
                     "as_of": day,
                     "n_sims": 1,
                     "engine_version": "test",
-                    "kind": "agent",
+                    "kind": kind,
                 },
                 "focus": {
                     "team_id": "england",

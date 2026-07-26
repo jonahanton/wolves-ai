@@ -23,6 +23,11 @@ export interface FixtureResultView {
   label: string;
 }
 
+export interface ResultTickGroup {
+  t: number;
+  label: string;
+}
+
 export interface ForecastChartData {
   teams: TeamLine[];
   results: FixtureResultView[];
@@ -66,6 +71,27 @@ export function assembleChartData(
     points: championLine(team.history),
   }));
   return { teams: lines, results: resultViews(results, names) };
+}
+
+export function groupResultTicks(results: FixtureResultView[]): ResultTickGroup[] {
+  const groups = new Map<string, FixtureResultView[]>();
+  for (const result of results) {
+    const day = new Date(result.t).toLocaleDateString("en-CA", {
+      timeZone: "America/New_York",
+    });
+    const existing = groups.get(day);
+    if (existing) existing.push(result);
+    else groups.set(day, [result]);
+  }
+  return [...groups.values()]
+    .map((dayResults) => ({
+      t: Math.max(...dayResults.map((result) => result.t)),
+      label: [
+        `${dayResults.length} result${dayResults.length === 1 ? "" : "s"}`,
+        ...dayResults.map((result) => result.label),
+      ].join("\n"),
+    }))
+    .sort((a, b) => a.t - b.t);
 }
 
 const RESULT_KNOWN_AFTER_MS = 2 * 3_600_000;

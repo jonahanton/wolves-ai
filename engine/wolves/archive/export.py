@@ -154,8 +154,13 @@ def audit_archive(source: ArchiveSource, *, days: list[str]) -> ArchiveAuditRepo
 def default_days(complete: list[CompleteSnapshot]) -> list[str]:
     """Return every calendar day covered by the complete snapshot range."""
     timezone = ZoneInfo(ARCHIVE_TIMEZONE)
+    agent_snapshots = [item for item in complete if item.snapshot.run.kind == "agent"]
+    covered_snapshots = agent_snapshots or complete
     represented = sorted(
-        {parse_timestamp(item.snapshot.run.created_at).astimezone(timezone).date() for item in complete}
+        {
+            parse_timestamp(item.snapshot.run.created_at).astimezone(timezone).date()
+            for item in covered_snapshots
+        }
     )
     if not represented:
         return []
