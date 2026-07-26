@@ -2,7 +2,7 @@
 
 import { ChevronDown, Clock3 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ForecastLoader } from "@/components/shell/forecast-loader";
 import { formatRunStampEastern } from "@/lib/format";
 import type { ArchiveDay } from "@/lib/archive/contracts";
@@ -38,11 +38,21 @@ function formatTeleportDay(day: string): string {
 export function ArchiveDateControl({ days, selectedDay, section }: ArchiveDateControlProps) {
   const router = useRouter();
   const [pendingDay, setPendingDay] = useState<string | null>(null);
+  const navigationTimer = useRef<number | null>(null);
   const visibleDays = days.slice(1);
+  useEffect(
+    () => () => {
+      if (navigationTimer.current) window.clearTimeout(navigationTimer.current);
+    },
+    [],
+  );
   const selectDay = (day: string) => {
     if (day === selectedDay.day) return;
     setPendingDay(day);
-    window.setTimeout(() => router.push(archivePath(day, section)), 650);
+    navigationTimer.current = window.setTimeout(
+      () => router.push(archivePath(day, section)),
+      650,
+    );
   };
   return (
     <>

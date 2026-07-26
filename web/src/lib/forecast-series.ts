@@ -1,4 +1,3 @@
-import type { PlayedResultRow } from "@/lib/results";
 import type { TeamHistoryPoint } from "@/lib/runs";
 
 export interface ChartPoint {
@@ -18,19 +17,8 @@ export interface TeamLine {
   points: ChartPoint[];
 }
 
-export interface FixtureResultView {
-  t: number;
-  label: string;
-}
-
-export interface ResultTickGroup {
-  t: number;
-  label: string;
-}
-
 export interface ForecastChartData {
   teams: TeamLine[];
-  results: FixtureResultView[];
 }
 
 export interface ChartTeamInput {
@@ -57,11 +45,7 @@ function championLine(history: TeamHistoryPoint[]): ChartPoint[] {
     .sort((a, b) => a.t - b.t);
 }
 
-export function assembleChartData(
-  teams: ChartTeamInput[],
-  results: PlayedResultRow[],
-  names: Record<string, string>,
-): ForecastChartData {
+export function assembleChartData(teams: ChartTeamInput[]): ForecastChartData {
   const lines = teams.map((team) => ({
     teamId: team.teamId,
     name: team.name,
@@ -70,40 +54,5 @@ export function assembleChartData(
     tier: team.tier,
     points: championLine(team.history),
   }));
-  return { teams: lines, results: resultViews(results, names) };
-}
-
-export function groupResultTicks(results: FixtureResultView[]): ResultTickGroup[] {
-  const groups = new Map<string, FixtureResultView[]>();
-  for (const result of results) {
-    const day = new Date(result.t).toLocaleDateString("en-CA", {
-      timeZone: "America/New_York",
-    });
-    const existing = groups.get(day);
-    if (existing) existing.push(result);
-    else groups.set(day, [result]);
-  }
-  return [...groups.values()]
-    .map((dayResults) => ({
-      t: Math.max(...dayResults.map((result) => result.t)),
-      label: [
-        `${dayResults.length} result${dayResults.length === 1 ? "" : "s"}`,
-        ...dayResults.map((result) => result.label),
-      ].join("\n"),
-    }))
-    .sort((a, b) => a.t - b.t);
-}
-
-const RESULT_KNOWN_AFTER_MS = 2 * 3_600_000;
-
-function resultViews(results: PlayedResultRow[], names: Record<string, string>): FixtureResultView[] {
-  return results.map((row) => ({
-    t: Date.parse(row.date) + RESULT_KNOWN_AFTER_MS,
-    label: `${teamName(row.homeId, names)} ${row.homeGoals}-${row.awayGoals} ${teamName(row.awayId, names)}`,
-  }));
-}
-
-function teamName(teamId: string | null, names: Record<string, string>): string {
-  if (teamId === null) return "TBC";
-  return names[teamId] ?? teamId;
+  return { teams: lines };
 }

@@ -10,7 +10,6 @@ import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import {
   type ChartPoint,
   type ForecastChartData,
-  groupResultTicks,
   type TeamLine,
 } from "@/lib/forecast-series";
 import { teamCode } from "@/lib/team-colours";
@@ -34,15 +33,11 @@ const DRAW_MS = 560;
 const MARGIN = { top: 22, right: 78, bottom: 36, left: 14 };
 const MOBILE_MARGIN = { top: 18, right: 64, bottom: 34, left: 10 };
 const MOBILE_BREAK = 560;
-const RESULT_LANE_START_PX = 5;
-const RESULT_LANE_PX = 16;
-
 const AXIS_TEXT = "oklch(0.965 0.008 95 / 0.42)";
 const TICK_MARK = "oklch(0.965 0.008 95 / 0.3)";
 const GRID_LINE = "oklch(0.965 0.008 95 / 0.1)";
 const GUIDE = "oklch(0.965 0.008 95 / 0.24)";
-const RESULT_TICK = "oklch(0.965 0.008 95 / 0.5)";
-const MIN_LABEL_GAP = 44;
+const MIN_LABEL_GAP = 64;
 
 function formatValue(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
@@ -141,59 +136,32 @@ export function ForecastChart({
   const height = empty ? 180 : width < MOBILE_BREAK ? 300 : 392;
   const mobile = width < MOBILE_BREAK;
 
-  const resultTickGroups = useMemo(() => groupResultTicks(data.results ?? []), [data.results]);
-  const hasResults = resultTickGroups.length > 0;
-  const resultSpanEnd = useMemo(
-    () => (hasResults ? Math.max(...resultTickGroups.map((result) => result.t)) : 0),
-    [resultTickGroups, hasResults],
-  );
   const margin = mobile ? MOBILE_MARGIN : MARGIN;
 
-  const { x, posScale, y, runTimes, lastRunTime } = useMemo(() => {
+  const { x, timeScale, y, runTimes, lastRunTime } = useMemo(() => {
     const linePoints = lines.flatMap((team) => team.points);
     const times = linePoints.map((p) => p.t);
     const uniqueTimes = [...new Set(times)].sort((a, b) => a - b);
     const n = uniqueTimes.length;
-    // Runs are spaced by order, not by elapsed time, so an irregular agent
-    // cadence still reads as an even cadence on the axis.
-    const indexOf = new Map(uniqueTimes.map((t, i) => [t, i]));
-    const pad = 0.35;
+    const firstTime = uniqueTimes[0] ?? 0;
+    const lastTime = uniqueTimes.at(-1) ?? firstTime;
+    const span = Math.max(1, lastTime - firstTime);
+    const pad = n > 1 ? (span / (n - 1)) * 0.35 : 12 * 60 * 60 * 1000;
     const scale = scaleLinear()
-      .domain([-pad, Math.max(1, n - 1) + pad])
+      .domain([firstTime - pad, lastTime + pad])
       .range([margin.left, Math.max(margin.left + 1, width - margin.right)]);
-    const frac = (t: number) => {
-      if (n === 0) return 0;
-      const exact = indexOf.get(t);
-      if (exact !== undefined) return exact;
-      if (t <= uniqueTimes[0]) return 0;
-      if (t >= uniqueTimes[n - 1]) return n - 1;
-      const hiI = uniqueTimes.findIndex((u) => u >= t);
-      const span = uniqueTimes[hiI] - uniqueTimes[hiI - 1];
-      return hiI - 1 + (span ? (t - uniqueTimes[hiI - 1]) / span : 0);
-    };
-    const xScale = (t: number) => scale(frac(t));
     const maxValue = Math.max(0.04, ...linePoints.map((p) => p.value));
     const yScale = scaleLinear()
       .domain([0, maxValue * 1.06])
       .range([height - margin.bottom, margin.top]);
     return {
-      x: xScale,
-      posScale: scale,
+      x: scale,
+      timeScale: scale,
       y: yScale,
       runTimes: uniqueTimes,
       lastRunTime: n ? uniqueTimes[n - 1] : null,
     };
   }, [lines, width, margin, height]);
-
-  const liveX = useMemo(() => {
-    return (t: number) => {
-      if (lastRunTime === null || t <= lastRunTime || !hasResults) return x(t);
-      const lastX = x(lastRunTime);
-      const span = Math.max(1, resultSpanEnd - lastRunTime);
-      const progress = Math.min(1, Math.max(0, (t - lastRunTime) / span));
-      return lastX + RESULT_LANE_START_PX + progress * RESULT_LANE_PX;
-    };
-  }, [x, lastRunTime, hasResults, resultSpanEnd]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -221,7 +189,6 @@ export function ForecastChart({
     fade.append("stop").attr("offset", "55%").attr("stop-color", "var(--color-night)").attr("stop-opacity", 0);
     svg.append("g").attr("class", "x-axis");
     svg.append("g").attr("class", "baseline");
-    svg.append("g").attr("class", "result-ticks");
     svg.append("g").attr("class", "envelope");
     svg.append("g").attr("class", "series");
     svg.append("g").attr("class", "history-fade");
@@ -248,10 +215,11 @@ export function ForecastChart({
       }
     }
 
+    const axisTimes = [...labelledRunTimes(runTimes, x)].sort((a, b) => a - b);
     const xAxis = svg
       .select<SVGGElement>(".x-axis")
       .selectAll<SVGGElement, number>("g.tick")
-      .data(runTimes, (d) => String(d))
+      .data(axisTimes, (d) => String(d))
       .join((enter) => {
         const g = enter.append("g").attr("class", "tick");
         g.append("line").attr("class", "grid-line");
@@ -273,17 +241,20 @@ export function ForecastChart({
       .attr("y2", baseY + 7)
       .attr("stroke", TICK_MARK)
       .attr("stroke-width", 2);
-    const showLabel = labelledRunTimes(runTimes, x);
     xAxis
       .select<SVGTextElement>(".tick-label")
-      .attr("text-anchor", "middle")
+      .attr("text-anchor", (time) => {
+        if (time === axisTimes[0]) return "start";
+        if (time === axisTimes.at(-1)) return "end";
+        return "middle";
+      })
       .attr("y", baseY + 24)
       .attr("font-family", "var(--font-display)")
       .attr("font-size", 14)
       .attr("font-weight", 600)
       .attr("letter-spacing", "0.01em")
       .attr("fill", AXIS_TEXT)
-      .text((d) => (showLabel.has(d) ? formatTick(d) : ""));
+      .text(formatTick);
 
     const baseline = svg.select<SVGGElement>(".baseline");
     baseline
@@ -296,26 +267,6 @@ export function ForecastChart({
       .attr("y2", y(0))
       .attr("stroke", "oklch(0.965 0.008 95 / 0.16)")
       .attr("stroke-width", 1);
-
-    const resultTicks = svg
-      .select<SVGGElement>(".result-ticks")
-      .selectAll<SVGGElement, { t: number; label: string }>("g.tick")
-      .data(resultTickGroups, (d) => String(d.t))
-      .join((enter) => {
-        const g = enter.append("g").attr("class", "tick").attr("opacity", 0);
-        g.append("line");
-        g.append("title");
-        g.transition().duration(DURATION).attr("opacity", 1);
-        return g;
-      });
-    resultTicks.attr("transform", (d) => `translate(${liveX(d.t)},0)`);
-    resultTicks
-      .select("line")
-      .attr("y1", baseY - 5)
-      .attr("y2", baseY + 5)
-      .attr("stroke", RESULT_TICK)
-      .attr("stroke-width", 1.4);
-    resultTicks.select("title").text((d) => d.label);
 
     const areaGen = d3Area<{ t: number; lo: number; hi: number }>()
       .x((d) => x(d.t))
@@ -498,13 +449,11 @@ export function ForecastChart({
     onSelectTeam,
     x,
     y,
-    liveX,
     width,
     height,
     margin,
     empty,
     runTimes,
-    resultTickGroups,
   ]);
 
   useEffect(() => {
@@ -623,8 +572,14 @@ export function ForecastChart({
   function onPointerMove(event: React.PointerEvent<SVGRectElement>) {
     if (!runTimes.length || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const pos = posScale.invert(event.clientX - rect.left);
-    const index = Math.max(0, Math.min(runTimes.length - 1, Math.round(pos)));
+    const pointerTime = timeScale.invert(event.clientX - rect.left);
+    const index = runTimes.reduce(
+      (closest, time, candidate) =>
+        Math.abs(time - pointerTime) < Math.abs(runTimes[closest] - pointerTime)
+          ? candidate
+          : closest,
+      0,
+    );
     setHover({
       clientX: event.clientX,
       clientY: event.clientY,

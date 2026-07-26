@@ -9,7 +9,6 @@ import { HeroVideo } from "@/components/landing/hero-video";
 import { TeamSelector } from "@/components/landing/team-selector";
 import type { BoardRow } from "@/lib/derive";
 import { assembleChartData, type ChartTeamInput } from "@/lib/forecast-series";
-import type { PlayedResultRow } from "@/lib/results";
 import type {
   CampOut,
   ScenarioWeightOut,
@@ -22,7 +21,6 @@ import { chartColour } from "@/lib/team-colours";
 interface LandingForecastProps {
   runLabel: string;
   teams: ChartTeamInput[];
-  names: Record<string, string>;
   leaderId: string;
   board: BoardRow[];
   fullBoard: BoardRow[];
@@ -32,25 +30,23 @@ interface LandingForecastProps {
   camps: CampOut[];
   drivers: Record<string, TeamDriver>;
   stories: Record<string, TeamStoryOut>;
-  results: PlayedResultRow[];
 }
 
 export function LandingForecast(props: LandingForecastProps) {
   const {
     runLabel,
     teams,
-    names,
     leaderId,
     board,
     fullBoard,
     championCells,
   } = props;
-  const { xMax, weights, camps, drivers, stories, results } = props;
+  const { xMax, weights, camps, drivers, stories } = props;
   const [selectedTeamId, setSelectedTeamId] = useState(leaderId);
 
   const data = useMemo(
-    () => assembleChartData(teams, results, names),
-    [teams, results, names],
+    () => assembleChartData(teams),
+    [teams],
   );
   const selectedRow =
     fullBoard.find((row) => row.teamId === selectedTeamId) ?? fullBoard[0];

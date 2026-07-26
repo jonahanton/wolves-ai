@@ -2,7 +2,6 @@ import { LandingForecast } from "@/components/landing/landing-forecast";
 import { ArchiveDateControl } from "@/components/shell/archive-date-control";
 import { FestivalBand } from "@/components/walls/festival-band";
 import type { ArchiveDay, ArchiveDayPayload, ArchiveManifest } from "@/lib/archive/contracts";
-import { archiveResults } from "@/lib/archive/view";
 import { titleBoard } from "@/lib/derive";
 import { cleanStories } from "@/lib/forecast";
 import type { ChartTeamInput } from "@/lib/forecast-series";
@@ -54,7 +53,6 @@ export function ArchiveLandingPage({ manifest, day, payload }: ArchiveLandingPag
         <LandingForecast
           runLabel={formatRunStampEastern(snapshot.run.created_at)}
           teams={chartTeams}
-          names={names}
           leaderId={leaderId}
           board={board}
           fullBoard={fullBoard}
@@ -64,7 +62,6 @@ export function ArchiveLandingPage({ manifest, day, payload }: ArchiveLandingPag
           camps={(snapshot.agent?.camps ?? []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0))}
           drivers={snapshot.distributions?.drivers ?? {}}
           stories={cleanStories(snapshot.agent?.narrative.team_stories ?? {})}
-          results={archiveResults(payload)}
         />
       </main>
       <div className="max-h-[clamp(120px,18vh,200px)] overflow-hidden">
