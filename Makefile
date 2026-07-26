@@ -2,7 +2,7 @@
 -include .env.worktree
 export
 
-.PHONY: setup venv lint format test precommit db/init release \
+.PHONY: setup venv lint format test precommit db/init \
         app/up app/down app/restart app/logs \
         archive/up archive/down archive/image \
         demo/on demo/off \
@@ -29,9 +29,6 @@ test:
 
 precommit:
 	pre-commit run --all-files
-
-release:
-	@scripts/release.sh $(env)
 
 db/init:
 	AWS_ACCESS_KEY_ID=$${AWS_ACCESS_KEY_ID:-local} AWS_SECRET_ACCESS_KEY=$${AWS_SECRET_ACCESS_KEY:-local} \

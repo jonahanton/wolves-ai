@@ -14,9 +14,9 @@ active, and make sure `git config user.name`/`user.email` give
 - `make lint`, `make format`, `make test`, `make frontend/lint`.
 - Agent-run logs are in Logfire (read token `LOGFIRE_READ_TOKEN`, in `.env`). `python scripts/logfire_runs.py runs [--days N]` lists recent runs with outcome (submitted/STRANDED/degraded) and spend; `python scripts/logfire_runs.py show <run-id>` prints one run's wave-by-wave decision trail (master plans, admission drops, node failures, submission result).
 - Worktree runs: `runs/` is gitignored, so a fresh worktree has no `runs/datasets` or `runs/models` and the forecaster falls back to Elo. Copy both from the main checkout (optionally `runs/agent-state/lessons.jsonl`) before any non-trivial run.
-- S3 dev bucket: `wolves-superforecaster-dev`. `runs/` holds raw agent working data (events, artifacts, ledger) — the app never reads these. `snapshots/` holds the published sim outputs (probability distributions, bracket samples, etc.) that the backend serves and the frontend displays — anything left here will appear in the run picker; `latest.json` always points to the current live snapshot. Retire unwanted snapshots to `snapshots-backup/` and run dirs to `runs-backup/`.
+- S3 dev bucket: `wolves-superforecaster-dev`. `runs/` holds raw agent working data (events, artifacts, ledger), which the app never reads. `snapshots/` holds the published sim outputs (probability distributions, bracket samples, etc.) that the backend serves and the frontend displays. Anything left here will appear in the run picker; `latest.json` always points to the current live snapshot. Retire unwanted snapshots to `snapshots-backup/` and run dirs to `runs-backup/`.
 - Retire a forecast: `python scripts/retire_forecast.py <run-id> --env prod` moves the snapshot and its sidecars to `snapshots-backup/` so the app serves the previous agent forecast (`--with-run-dir` also backs up the raw run, `--dry-run` previews).
-- Launch/stop runs: `python scripts/run_ops.py launch --mode agent [--ceiling 5.5]` starts a run; `run_ops.py active` lists in-flight tasks and `run_ops.py stop` cancels them (wraps run-engine.yml/admin-control.yml; needs gh write access).
+- Retired AWS release and run-control scripts are retained under `scripts/archived/` as an operational record. They must not be run against the archive site.
 - Inspect what is live: `python scripts/inspect_snapshot.py` prints the live pointer and the newest agent forecast (top teams, richness); pass a run id for a specific snapshot.
 
 ## Git
@@ -24,7 +24,7 @@ active, and make sure `git config user.name`/`user.email` give
 - Single author: Jonah Anton, always. No Co-Authored-By trailers, no Codex attribution, no generated-with footers, in commits or PRs.
 - Commit messages: one concise imperative line. PR descriptions: a few short lines.
 - Commit logically grouped changes as you go; never one giant commit.
-- Releases are opt-in: label a PR `release` before merge and `tag-release.yml` tags the next `prod-x.y.z` patch, firing `release.yml`; unlabelled merges deploy nothing.
+- Production is a static Cloudflare Pages deployment. Repository merges do not deploy automatically.
 
 ## Style
 
