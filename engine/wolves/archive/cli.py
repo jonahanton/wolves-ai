@@ -76,3 +76,7 @@ def main() -> None:
         len(manifest.days),
         manifest.final_day,
     )
+
+
+if __name__ == "__main__":
+    main()

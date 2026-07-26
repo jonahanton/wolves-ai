@@ -32,6 +32,12 @@ def test_complete_snapshot_rejects_a_missing_sidecar(tmp_path: Path):
 
     assert complete == []
     assert "lacks required pairing-matrices sidecar" in next(iter(rejected.values()))
+    with pytest.raises(ArchiveExportError, match="incomplete archive sources"):
+        export_archive(
+            LocalArchiveSource(source_root),
+            output=tmp_path / "archive",
+            days=["2026-06-10"],
+        )
 
 
 def test_default_days_fill_agent_calendar_gaps_without_extending_for_later_live_snapshots(tmp_path: Path):
@@ -44,9 +50,19 @@ def test_default_days_fill_agent_calendar_gaps_without_extending_for_later_live_
     assert default_days(complete) == ["2026-06-13", "2026-06-14", "2026-06-15"]
 
 
+def test_default_days_stop_the_day_after_the_final(tmp_path: Path):
+    source_root = tmp_path / "source"
+    _write_source_snapshot(source_root, day="2026-06-13")
+    _write_source_snapshot(source_root, day="2026-07-21")
+    complete, _ = complete_snapshots(LocalArchiveSource(source_root))
+
+    assert default_days(complete)[-1] == "2026-07-20"
+
+
 def test_export_provenance_includes_fixture_metadata_source(tmp_path: Path):
     source_root = tmp_path / "source"
     _write_source_snapshot(source_root, day="2026-06-10")
+    _write_source_snapshot(source_root, day="2026-06-11")
     live = source_root / "live"
     live.mkdir()
     (live / "results.json").write_text('{"fixtures":[],"results":{}}', encoding="utf-8")
@@ -54,12 +70,20 @@ def test_export_provenance_includes_fixture_metadata_source(tmp_path: Path):
     manifest = export_archive(
         LocalArchiveSource(source_root),
         output=tmp_path / "archive",
-        days=["2026-06-10"],
+        days=["2026-06-11"],
     )
     provenance = json.loads((tmp_path / "archive/provenance.json").read_bytes())
     sources = provenance[manifest.days[0].payload.path]
 
     assert "live/results.json" in {source["key"] for source in sources}
+    assert {
+        source["key"]
+        for source in sources
+        if source["key"].endswith(".json") and ".distributions." not in source["key"]
+    } >= {
+        "snapshots/2026/06/10/agent-20260610-090000.json",
+        "snapshots/2026/06/11/agent-20260611-090000.json",
+    }
     assert len(sources) == len({(source["key"], source["sha256"]) for source in sources})
 
 

@@ -32,7 +32,12 @@ def publish_archive(
     release = hashlib.sha256(manifest_body).hexdigest()
     prefix = f"{destination_prefix.strip('/')}/{release}"
     client = boto3.client("s3", region_name=region, config=Config(max_pool_connections=16))
-    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+    paths = sorted(
+        (item for item in root.rglob("*") if item.is_file() and item.name != "manifest.json"),
+        key=lambda item: item.relative_to(root).as_posix(),
+    )
+    paths.append(root / "manifest.json")
+    for path in paths:
         body = path.read_bytes()
         digest = hashlib.sha256(body).hexdigest()
         key = f"{prefix}/{path.relative_to(root).as_posix()}"

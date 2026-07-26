@@ -161,21 +161,20 @@ def write_inventory(
 
 def put_if_absent(client: BaseClient, *, bucket: str, key: str, body: bytes, digest: str) -> None:
     try:
-        existing = client.head_object(Bucket=bucket, Key=key)
+        client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=body,
+            ContentType="application/json" if key.endswith(".json") else "application/octet-stream",
+            Metadata={"sha256": digest},
+            IfNoneMatch="*",
+        )
     except ClientError as exc:
-        if exc.response["Error"]["Code"] not in {"404", "NoSuchKey", "NotFound"}:
+        if exc.response["Error"]["Code"] not in {"PreconditionFailed", "412"}:
             raise
-    else:
+        existing = client.head_object(Bucket=bucket, Key=key)
         if existing["ContentLength"] != len(body) or existing.get("Metadata", {}).get("sha256") != digest:
-            raise ArchivePreservationError(f"archive object collision at {key}")
-        return
-    client.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=body,
-        ContentType="application/json" if key.endswith(".json") else "application/octet-stream",
-        Metadata={"sha256": digest},
-    )
+            raise ArchivePreservationError(f"archive object collision at {key}") from exc
 
 
 def _matches_prefix(key: str, prefix: str) -> bool:

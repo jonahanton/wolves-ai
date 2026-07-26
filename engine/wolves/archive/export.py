@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo
@@ -46,6 +46,7 @@ from wolves.archive.source import (
 from wolves.archive.verify import verify_archive
 
 logger = logging.getLogger(__name__)
+ARCHIVE_FINAL_DAY = date(2026, 7, 20)
 
 
 def export_archive(
@@ -57,10 +58,11 @@ def export_archive(
 ) -> ArchiveManifest:
     """Write a versioned archive bundle and return its checked manifest."""
     complete, rejected = complete_snapshots(source)
+    if rejected:
+        details = "; ".join(f"{key}: {reason}" for key, reason in sorted(rejected.items()))
+        raise ArchiveExportError(f"incomplete archive sources: {details}")
     if not complete:
         raise ArchiveExportError("no complete snapshots found")
-    for key, reason in rejected.items():
-        logger.warning("excluding incomplete archive source %s: %s", key, reason)
 
     root = output
     if root.exists():
@@ -94,7 +96,7 @@ def export_archive(
         )
         manifest = ArchiveManifest(
             schema_hash=ARCHIVE_SCHEMA_HASH,
-            generated_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            generated_at=entries[-1].cutoff_at,
             archive_timezone=ARCHIVE_TIMEZONE,
             days=entries,
             runs=run_entries,
@@ -164,9 +166,10 @@ def default_days(complete: list[CompleteSnapshot]) -> list[str]:
     )
     if not represented:
         return []
+    final_day = min(represented[-1], ARCHIVE_FINAL_DAY)
     return [
         (represented[0] + timedelta(days=offset)).isoformat()
-        for offset in range((represented[-1] - represented[0]).days + 1)
+        for offset in range((final_day - represented[0]).days + 1)
     ]
 
 
@@ -228,7 +231,8 @@ def _export_day(
         for obj in (fixture_metadata.source_object, records.source_object)
         if obj is not None
     )
-    return entry, _unique_sources((*selected.source_objects, *auxiliary_sources))
+    history_sources = tuple(by_run[snapshot.run.run_id].snapshot_object for snapshot in history)
+    return entry, _unique_sources((*selected.source_objects, *history_sources, *auxiliary_sources))
 
 
 def _export_runs(

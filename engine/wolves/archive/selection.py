@@ -20,7 +20,7 @@ def archive_cutoff(day: str) -> datetime:
         selected_day = datetime.strptime(day, "%Y-%m-%d").date()
     except ValueError as exc:
         raise ArchiveSelectionError(f"invalid archive day {day!r}") from exc
-    return datetime.combine(selected_day, time(23, 59, 59), tzinfo=ZoneInfo(ARCHIVE_TIMEZONE)).astimezone(UTC)
+    return datetime.combine(selected_day, time.max, tzinfo=ZoneInfo(ARCHIVE_TIMEZONE)).astimezone(UTC)
 
 
 def parse_timestamp(value: str) -> datetime:

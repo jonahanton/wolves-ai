@@ -85,7 +85,7 @@ def test_new_york_cutoff_includes_before_midnight_and_excludes_after_midnight():
         cutoff=cutoff,
     )
 
-    assert cutoff == datetime(2026, 6, 11, 3, 59, 59, tzinfo=UTC)
+    assert cutoff == datetime(2026, 6, 11, 3, 59, 59, 999999, tzinfo=UTC)
     assert selected.run.run_id == "agent-before"
 
 
