@@ -40,6 +40,12 @@ make demo/off  # restore real data and re-enable the poller
 
 The completed tournament is served as a static Cloudflare Pages archive. The private S3 source archive can reproduce every published tournament day without a live backend.
 
+Deploy a committed update from a clean `main` branch after authenticating AWS and Wrangler:
+
+```bash
+make archive/deploy
+```
+
 ## Develop
 
 ```bash
