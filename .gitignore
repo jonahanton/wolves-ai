@@ -13,6 +13,7 @@ __pycache__/
 node_modules/
 .next/
 out/
+.wrangler/
 
 # OS / editor
 .DS_Store
