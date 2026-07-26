@@ -20,7 +20,10 @@ COPY --from=development /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY next.config.ts tsconfig.json postcss.config.mjs ./
 COPY src ./src
+COPY scripts ./scripts
 COPY public ./public
+RUN rm -rf ./public/archive
+COPY --from=archive-source / ./public/archive
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
@@ -31,5 +34,6 @@ RUN npm run build
 FROM nginx:1.29-alpine AS production
 
 COPY --from=builder /app/out /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

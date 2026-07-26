@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && node scripts/sync-static-archive.mjs",
-    "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
